@@ -16,7 +16,9 @@ RoxygenNote: 7.1.1
 URL: https://github.com/ArthurLeroy/MagmaClustR
 BugReports: https://github.com/ArthurLeroy/MagmaClustR/issues
 Imports: 
-    magrittr
+    dplyr,
+    magrittr,
+    tibble
 Suggests: 
     rmarkdown,
     knitr
