@@ -24,6 +24,8 @@
 #'   in the kernel. The name of the elements (or columns) should correspond
 #'   exactly to those used in the kernel definition.
 #'
+#' @export
+#'
 #' @return A covariance matrix, where elements are evaluations of the associated
 #' kernel for each pair of reference inputs.
 #'
