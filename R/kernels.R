@@ -7,22 +7,20 @@
 #' @return The value of dot production <f(t1),f(t2)> computed from the kernel
 #'
 #' @examples
-#' se_kernel(c(1,0),c(0,1), tibble::tibble(sigma = 1, lengthscale = 0.5))
-se_kernel <- function(x,y, hp)
-{
-  distance =  as.double(stats::dist(rbind(x, y)))
-  kern <- exp(hp$sigma - exp(-hp$lengthscale )/2 * distance)
+#' se_kernel(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5))
+se_kernel <- function(x, y, hp) {
+  distance <- sum((x - y)^2)
+  kern <- exp(hp$variance - exp(-hp$lengthscale) * 0.5 * distance)
 
-  attr(kern,"derivative_sigma") <- function(x_1=x, y_1=y, hp_1=hp){
-    exp(hp_1$sigma - exp(-hp_1$lengthscale/2 * as.double(stats::dist(rbind(x_1, y_1)))))
+  attr(kern, "derivative_variance") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
+    exp(hp_1$variance - exp(-hp_1$lengthscale / 2 * as.double(stats::dist(rbind(x_1, y_1)))))
   }
 
+  attr(kern, "derivative_lengthscale") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
+    distance <- as.double(stats::dist(rbind(x_1, y_1)))
 
-  attr(kern, "derivative_lengthscale") <- function(x_1=x, y_1=y, hp_1=hp){
-    distance =  as.double(stats::dist(rbind(x_1, y_1)))
-
-    grad = 0.5 * exp(- hp_1$lengthscale) * distance
-    derivative_2 = (exp(hp_1$sigma) * grad * exp(- grad) )
+    grad <- 0.5 * exp(-hp_1$lengthscale) * distance
+    derivative_2 <- (exp(hp_1$variance) * grad * exp(-grad))
 
     derivative_2 %>% return()
   }
@@ -40,34 +38,33 @@ se_kernel <- function(x,y, hp)
 #' @return The value of dot production <f(t1),f(t2)> computed from the kernel
 #'
 #' @examples
-#' kernel_period(c(1,0),c(0,1),tibble::tibble(sigma = 1, lengthscale = 0.5, period = 2))
-perio_kernel <-function(x,y,hp)
-{
-  distance =  as.double(stats::dist(rbind(x, y)))
-  kern = exp(hp$sigma - exp(- hp$lengthscale) * 2 * sin(pi * distance / hp$period)^2)
+#' kernel_period(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5, period = 2))
+perio_kernel <- function(x, y, hp) {
+  distance <- abs(x - y) %>% sum()
+  kern <- exp(hp$variance - exp(-hp$lengthscale) * 2 * sin(pi * distance / hp$period)^2)
+
+  attr(kern, "variance") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
+    distance <- as.double(stats::dist(rbind(x_1, y_1)))
+    grad <- pi * distance / hp_1$period
+
+    (2 * hp_1$variance * exp(-2 * sin(grad)^2 * exp(-hp_1$lengthscale))) %>% return()
+  }
 
 
-  attr(kern, "derivative_sigma") <- function(x_1=x, y_1=y, hp_1=hp){
-    distance =  as.double(stats::dist(rbind(x_1, y_1)))
-    grad = pi * distance / hp_1$period
+  attr(kern, "period") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
+    distance <- as.double(stats::dist(rbind(x_1, y_1)))
+    grad <- pi * distance / hp_1$period
 
-    (2*hp_1$sigma * exp(-2 * sin(grad)^2 * exp(- hp_1$lengthscale))) %>% return()}
+    (4 * pi * distance * sin(grad) * cos(grad) * exp(hp_1$variance - 2 *
+      exp(-hp_1$lengthscale) * sin(grad)^2 - hp_1$period * hp_1$lengthscale)) %>% return()
+  }
 
+  attr(kern, "lengthscale") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
+    distance <- as.double(stats::dist(rbind(x_1, y_1)))
+    grad <- pi * distance / hp_1$period
 
-  attr(kern, "derivative_period") <- function(x_1=x, y_1=y, hp_1=hp){
-    distance =  as.double(stats::dist(rbind(x_1, y_1)))
-    grad = pi * distance / hp_1$period
-
-    (4*pi*distance* sin(grad) * cos(grad)* exp(hp_1$sigma - 2*
-                                                 exp(- hp_1$lengthscale)*sin(grad)^2 - hp_1$period* hp_1$lengthscale) ) %>% return()}
-
-
-  attr(kern, "derivative_lengthscale") <- function(x_1=x, y_1=y, hp_1=hp){
-    distance =  as.double(stats::dist(rbind(x_1, y_1)))
-    grad = pi * distance / hp_1$period
-
-    ((4*sin(grad)^2 * exp(hp_1$sigma - 2* sin(grad)^2 * exp(- hp_1$lengthscale)) ) / hp_1$lengthscale^3) %>% return()}
-
+    ((4 * sin(grad)^2 * exp(hp_1$variance - 2 * sin(grad)^2 * exp(-hp_1$lengthscale))) / hp_1$lengthscale^3) %>% return()
+  }
 
   kern %>% return()
 }
@@ -83,29 +80,28 @@ perio_kernel <-function(x,y,hp)
 #' @export
 #'
 #' @examples
-#' kernel_quad(c(1,0),c(0,1),tibble::tibble(sigma = 1, lengthscale = 0.5, alpha = 3))
+#' kernel_quad(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3))
+rq_kernel <- function(x, y, hp) {
+  distance <-  sum((x - y)^2)
+  kern <- (exp(hp$variance) * (1 + exp(-hp$lengthscale) / (2 * hp$scale) * distance)^(-hp$scale))
 
-rq_kernel <- function(x,y,hp)
-{
-  distance =  as.double(stats::dist(rbind(x, y)))
-  kern = (exp(hp$sigma)*(1+ exp(-hp$lengthscale)/(2*hp$alpha) * distance)^(-hp$alpha))
-
-  attr(kern, "derivative_sigma") <- function(x_1=x, y_1=y, hp_1=hp){
-    distance =  as.double(stats::dist(rbind(x_1, y_1)))
-    grad = (1 + distance * exp(-hp_1$lengthscale)/(2* hp_1$alpha) )
-    (2 * hp_1$sigma * grad^(-hp_1$alpha)) %>% return()
+  attr(kern, "variance") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
+    distance <- as.double(stats::dist(rbind(x_1, y_1)))
+    grad <- (1 + distance * exp(-hp_1$lengthscale) / (2 * hp_1$scale))
+    (2 * hp_1$variance * grad^(-hp_1$scale)) %>% return()
   }
 
-  attr(kern, "derivative_alpha") <- function(x_1=x, y_1=y, hp_1=hp){
-    distance =  as.double(stats::dist(rbind(x_1, y_1)))
-    grad = (1 + distance * exp(-hp_1$lengthscale)/(2* hp_1$alpha) )
-    (exp(hp_1$sigma) * grad^(-hp_1$alpha) * (distance * exp(-hp_1$lengthscale) /(2*hp_1$alpha * grad) - log(grad))) %>% return() }
+  attr(kern, "scale") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
+    distance <- as.double(stats::dist(rbind(x_1, y_1)))
+    grad <- (1 + distance * exp(-hp_1$lengthscale) / (2 * hp_1$scale))
+    (exp(hp_1$variance) * grad^(-hp_1$scale) * (distance * exp(-hp_1$lengthscale) / (2 * hp_1$scale * grad) - log(grad))) %>% return()
+  }
 
-  attr(kern, "derivative_lengthscale") <- function(x_1=x, y_1=y, hp_1=hp){
-    distance =  as.double(stats::dist(rbind(x_1, y_1)))
-    grad = (1 + distance * exp(-hp_1$lengthscale)/(2* hp_1$alpha) )
-    (exp(hp_1$sigma) * distance * grad ^(-hp_1$alpha - 1) / (hp_1$lengthscale ^3)) %>% return()}
-
+  attr(kern, "lengthscale") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
+    distance <- as.double(stats::dist(rbind(x_1, y_1)))
+    grad <- (1 + distance * exp(-hp_1$lengthscale) / (2 * hp_1$scale))
+    (exp(hp_1$variance) * distance * grad^(-hp_1$scale - 1) / (hp_1$lengthscale^3)) %>% return()
+  }
 
   kern %>% return()
 }

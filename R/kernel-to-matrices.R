@@ -30,31 +30,52 @@
 #' kernel for each pair of reference inputs.
 #'
 #' @examples
-#' \dontrun{kern_to_cov(
-#'    rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
-#'    "SE",
-#'    tibble::tibble(sigma = 1, lengthscale = 0.5)
-#'    )}
+#' kern_to_cov(
+#'   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
+#'   "SE",
+#'   tibble::tibble(variance = 1, lengthscale = 0.5)
+#' )
 kern_to_cov <- function(input, kern = "SE", hp) {
-
-  kern = dplyr::case_when(
-    kern == "SE" ~ se_kernel,
-    kern == "PERIO" ~ perio_kernel,
-    kern == "RQ" ~ rq_kernel,
-    TRUE ~ kern
-  )
+  if (kern == "SE") {
+    kernel <- se_kernel
+  }
+  else if (kern == "PERIO") {
+    kernel <- perio_kernel
+  }
+  else if (kern == "RQ") {
+    kernel <- rq_kernel
+  }
+  else {
+    kernel <- kern
+  }
 
   # Transform the batches of input into lists
-  list_input <- split(t(input), rep(1:ncol(input), each = nrow(input)))
+  if (input %>% is.vector()) {
+    list_input <- input
+    reference <- as.character(input)
+  }
+  else {
+    list_input <- split(t(input), rep(1:nrow(input), each = ncol(input)))
+    if ("Input" %in% colnames(input)) {
+      reference <- input %>%
+        tibble::as_tibble() %>%
+        dplyr::pull("Input") %>%
+        as.character()
+    } else {
+      reference <- as.character(input[, 1])
+    }
+  }
 
-  outer(list_input, list_input, Vectorize(function(x, y) kern(x, y, hp))) %>%
+  outer(list_input, list_input, Vectorize(function(x, y) kernel(x, y, hp))) %>%
+    `rownames<-`(reference) %>%
+    `colnames<-`(reference) %>%
     return()
 }
 
 
 #' Create inverse of a covariance matrix from a kernel
 #'
-#'\code{kern_to_inv()} creates the inverse of a covariance matrix between
+#' \code{kern_to_inv()} creates the inverse of a covariance matrix between
 #'    input values (that could be either scalars or vectors) evaluated within
 #'    a kernel function, which is characterised by specified hyper-parameters.
 #'    This matrix is a finite-dimensional evaluation of the
@@ -87,13 +108,12 @@ kern_to_cov <- function(input, kern = "SE", hp) {
 #' @export
 #'
 #' @examples
-#' \dontrun{kern_to_inv(
-#'    rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
-#'    kernel_sqrd_exp,
-#'    tibble::tibble(sigma = 1, lengthscale = 0.5)
-#'    )}
+#' kern_to_inv(
+#'   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
+#'   "SE",
+#'   tibble::tibble(variance = 1, lengthscale = 0.5)
+#' )
 kern_to_inv <- function(input, kern, hp, pen_diag = 0) {
-
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp)
   diag <- diag(x = pen_diag, ncol = ncol(mat_cov), nrow = nrow(mat_cov))
 

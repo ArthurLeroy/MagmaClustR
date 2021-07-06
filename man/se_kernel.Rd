@@ -20,5 +20,5 @@ The value of dot production <f(t1),f(t2)> computed from the kernel
 Squared Exponential Kernel
 }
 \examples{
-se_kernel(c(1,0),c(0,1), tibble::tibble(sigma = 1, lengthscale = 0.5))
+se_kernel(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5))
 }

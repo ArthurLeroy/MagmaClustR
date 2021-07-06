@@ -20,5 +20,5 @@ The value of dot production <f(t1),f(t2)> computed from the kernel
 Rational Quadratic Kernel
 }
 \examples{
-kernel_quad(c(1,0),c(0,1),tibble::tibble(sigma = 1, lengthscale = 0.5, alpha = 3))
+kernel_quad(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3))
 }

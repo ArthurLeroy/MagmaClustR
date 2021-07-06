@@ -20,5 +20,5 @@ The value of dot production <f(t1),f(t2)> computed from the kernel
 Periodic Kernel
 }
 \examples{
-kernel_period(c(1,0),c(0,1),tibble::tibble(sigma = 1, lengthscale = 0.5, period = 2))
+kernel_period(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5, period = 2))
 }

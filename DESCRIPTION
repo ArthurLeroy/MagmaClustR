@@ -17,9 +17,17 @@ URL: https://github.com/ArthurLeroy/MagmaClustR
 BugReports: https://github.com/ArthurLeroy/MagmaClustR/issues
 Imports: 
     dplyr,
+    ggplot2,
     magrittr,
-    tibble
+    MASS,
+    mvtnorm,
+    optimr,
+    tibble,
+    tidyr
 Suggests: 
     rmarkdown,
-    knitr
+    knitr,
+    testthat (>= 3.0.0),
+    plotly
 VignetteBuilder: knitr
+Config/testthat/edition: 3
