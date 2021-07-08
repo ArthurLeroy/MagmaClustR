@@ -22,12 +22,14 @@ Imports:
     MASS,
     mvtnorm,
     optimr,
+    rlang,
     tibble,
     tidyr
 Suggests: 
     rmarkdown,
     knitr,
     testthat (>= 3.0.0),
-    plotly
+    plotly,
+    gganimate
 VignetteBuilder: knitr
 Config/testthat/edition: 3

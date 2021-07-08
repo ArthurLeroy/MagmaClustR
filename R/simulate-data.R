@@ -18,12 +18,14 @@
 #' @return A tibble containing a batch of output data along with input and
 #'  additional information for a simulated individual.
 #'
+#' @importFrom rlang .data
+#'
 #' @examples
 #' simu_indiv_se("A", 1:10, 0, rep(0, 10), "SE", 2, 1, 0.5)
 #' simu_indiv_se("B", 1:10, 2:11, 3:12, "SE", 1, 1, 1)
 #' simu_indiv_se("C", 1:10, 5, rep(0, 10), "SE", 2, 1, 0.5)
 simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
-  db <- tibble:tibble(
+  db <- tibble::tibble(
     "ID" = ID,
     "Output" = mvtnorm::rmvnorm(
       1,
@@ -37,7 +39,6 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
     "Lengthscale" = l,
     "Noise" = sigma
   )
-
   return(db)
 }
 
@@ -52,7 +53,7 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
 #' @examples
 #' draw(c(1, 2))
 draw <- function(int) {
-  return(runif(1, int[1], int[2]) %>% round(2))
+  return(stats::runif(1, int[1], int[2]) %>% round(2))
 }
 
 #' Simulate a complete training dataset
@@ -112,8 +113,8 @@ simu_db <- function(M = 10,
                     int_i_v = c(0, 5),
                     int_i_l = c(0, 2),
                     int_i_sigma = c(0, 1),
-                    m0_intercept = c(-2, 2),
-                    m0_slope = c(0, 10),
+                    m0_slope =  c(-2, 2),
+                    m0_intercept = c(0, 10),
                     covariate = c(-5, 5)) {
   m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
   mu_v <- draw(int_mu_v)
@@ -142,8 +143,8 @@ simu_db <- function(M = 10,
       i_sigma <- draw(int_i_sigma)
     }
     mean_i <- db_0 %>%
-      dplyr::filter('Input' %in% t_i) %>%
-      dplyr::pull('Output')
+      dplyr::filter(.data$Input %in% t_i) %>%
+      dplyr::pull(.data$Output)
 
     covariate_i <- stats::runif(N, covariate[1], covariate[2]) %>% round(2)
 

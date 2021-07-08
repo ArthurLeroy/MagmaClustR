@@ -31,7 +31,7 @@ test_that("kern_to_inv() works for vector inputs", {
     solve() %>%
     `rownames<-`(input$Input) %>%
     `colnames<-`(input$Input)
-  expect_equal(kern_to_inv(input, "SE", hp), res)
+  kern_to_inv(input, "SE", hp) %>% expect_equal(res)
 })
 
 test_that("dimension names are correct", {
@@ -41,12 +41,12 @@ test_that("dimension names are correct", {
   df3 <- data.frame(c(5, 6, 7), c(2, 3, 4))
   df4 <- data.frame(fu = c(5, 6, 7), blob = c(2, 3, 4))
 
-  expect_equal(dimnames(kern_to_inv(df, "SE", hp)),
-               list(c('5', '6', '7'), c('5', '6', '7')))
-  expect_equal(dimnames(kern_to_inv(df, "SE", hp)),
-               dimnames(kern_to_inv(df2, "SE", hp)))
-  expect_equal(dimnames(kern_to_inv(df, "SE", hp)),
-               dimnames(kern_to_inv(df3, "SE", hp)))
-  expect_equal(dimnames(kern_to_inv(df, "SE", hp)),
-               dimnames(kern_to_inv(df4, "SE", hp)))
+  dimnames(kern_to_inv(df, "SE", hp)) %>%
+    expect_equal(list(c('5', '6', '7'), c('5', '6', '7')))
+  dimnames(kern_to_inv(df, "SE", hp)) %>%
+    expect_equal(dimnames(kern_to_inv(df2, "SE", hp)))
+  dimnames(kern_to_inv(df, "SE", hp)) %>%
+    expect_equal(dimnames(kern_to_inv(df3, "SE", hp)))
+  dimnames(kern_to_inv(df, "SE", hp)) %>%
+    expect_equal(dimnames(kern_to_inv(df4, "SE", hp)))
 })

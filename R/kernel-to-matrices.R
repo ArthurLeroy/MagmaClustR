@@ -36,17 +36,23 @@
 #'   tibble::tibble(variance = 1, lengthscale = 0.5)
 #' )
 kern_to_cov <- function(input, kern = "SE", hp) {
-  if (kern == "SE") {
-    kernel <- se_kernel
+  if (is.character(kern)) {
+    if (kern == "SE") {
+      kernel <- se_kernel
+    }
+    else if (kern == "PERIO") {
+      kernel <- perio_kernel
+    }
+    else if (kern == "RQ") {
+      kernel <- rq_kernel
+    }
   }
-  else if (kern == "PERIO") {
-    kernel <- perio_kernel
-  }
-  else if (kern == "RQ") {
-    kernel <- rq_kernel
+  else if (is.function(kern)) {
+    kernel <- kern
   }
   else {
-    kernel <- kern
+    stop("Error in the 'kern' argument: please choose 'SE', 'PERIO', 'RQ', or
+      provide a valid custom kernel function")
   }
 
   # Transform the batches of input into lists
@@ -121,3 +127,4 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0) {
     solve() %>%
     return()
 }
+

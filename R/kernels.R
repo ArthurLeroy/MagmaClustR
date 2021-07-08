@@ -1,29 +1,22 @@
 #' Squared Exponential Kernel
 #'
-#' @param x a vector/matrix
-#' @param y a vector/matrix
-#' @param hp a tibble of the hyperameters
+#' @param x A vector of inputs.
+#' @param y A vector of inputs.
+#' @param hp A tibble containing the kernel's hyperparameters.
+#' Required columns: 'variance', 'lengthscale', and 'scale'.
 #'
-#' @return The value of dot production <f(t1),f(t2)> computed from the kernel
+#' @return The evaluation of the kernel.
 #'
 #' @examples
-#' se_kernel(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5))
+#' se_kernel(c(1, 0), c(0, 1),
+#'           tibble::tibble(variance = 1, lengthscale = 0.5))
 se_kernel <- function(x, y, hp) {
-  distance <- sum((x - y)^2)
-  kern <- exp(hp$variance - exp(-hp$lengthscale) * 0.5 * distance)
+  top_term = exp(-hp$lengthscale) * 0.5 * sum((x - y)^2)
+  kern <- exp(hp$variance - top_term)
 
-  attr(kern, "derivative_variance") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
-    exp(hp_1$variance - exp(-hp_1$lengthscale / 2 * as.double(stats::dist(rbind(x_1, y_1)))))
-  }
+  attr(kern, "variance") <- exp(hp$variance - top_term)
 
-  attr(kern, "derivative_lengthscale") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
-    distance <- as.double(stats::dist(rbind(x_1, y_1)))
-
-    grad <- 0.5 * exp(-hp_1$lengthscale) * distance
-    derivative_2 <- (exp(hp_1$variance) * grad * exp(-grad))
-
-    derivative_2 %>% return()
-  }
+  attr(kern, "lengthscale") <- exp(hp$variance) * top_term * exp(- top_term)
 
   return(kern)
 }
@@ -31,77 +24,60 @@ se_kernel <- function(x, y, hp) {
 
 #' Periodic Kernel
 #'
-#' @param x a vector/matrix
-#' @param hp a tibble of the hyperparameters
-#' @param y a vector/matrix
+#' @param x A vector of inputs.
+#' @param y A vector of inputs.
+#' @param hp A tibble containing the kernel's hyperparameters.
+#' Required columns: 'variance', 'lengthscale', and 'scale'.
 #'
-#' @return The value of dot production <f(t1),f(t2)> computed from the kernel
+#' @return The evaluation of the kernel.
 #'
 #' @examples
-#' kernel_period(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5, period = 2))
-perio_kernel <- function(x, y, hp) {
+#' kernel_period(c(1, 0), c(0, 1),
+#'               tibble::tibble(variance = 1, lengthscale = 0.5, period = 2))
+perio_kernel <- function(x, y, hp){
   distance <- abs(x - y) %>% sum()
-  kern <- exp(hp$variance - exp(-hp$lengthscale) * 2 * sin(pi * distance / hp$period)^2)
+  angle <- pi * distance / hp$period
 
-  attr(kern, "variance") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
-    distance <- as.double(stats::dist(rbind(x_1, y_1)))
-    grad <- pi * distance / hp_1$period
+  kern <- exp(hp$variance) * exp(- 2 * sin(angle)^2 * exp(-hp$lengthscale) )
 
-    (2 * hp_1$variance * exp(-2 * sin(grad)^2 * exp(-hp_1$lengthscale))) %>% return()
-  }
+  attr(kern, "variance") <- exp(hp$variance) *
+    exp(- 2 * sin(angle)^2 * exp(-hp$lengthscale) )
 
+  attr(kern, "period") <- exp(hp$variance) * (pi * distance / hp$period^2) *
+    cos(angle) * (2 * exp(-hp$lengthscale) * 2 * sin(angle)) *
+    exp( - 2 * sin(angle)^2 * exp(-hp$lengthscale) )
 
-  attr(kern, "period") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
-    distance <- as.double(stats::dist(rbind(x_1, y_1)))
-    grad <- pi * distance / hp_1$period
+  attr(kern, "lengthscale") <- exp(hp$variance) * 2 * sin(angle)^2 *
+    exp(-hp$lengthscale) * exp(- 2 * sin(angle)^2 * exp(-hp$lengthscale) )
 
-    (4 * pi * distance * sin(grad) * cos(grad) * exp(hp_1$variance - 2 *
-      exp(-hp_1$lengthscale) * sin(grad)^2 - hp_1$period * hp_1$lengthscale)) %>% return()
-  }
-
-  attr(kern, "lengthscale") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
-    distance <- as.double(stats::dist(rbind(x_1, y_1)))
-    grad <- pi * distance / hp_1$period
-
-    ((4 * sin(grad)^2 * exp(hp_1$variance - 2 * sin(grad)^2 * exp(-hp_1$lengthscale))) / hp_1$lengthscale^3) %>% return()
-  }
-
-  kern %>% return()
+  return(kern)
 }
 
 #' Rational Quadratic Kernel
 
-
-#' @param x a vector/matrix
-#' @param y a vector/matrix
-#' @param hp a tibble of the hyperparameters
+#' @param x A vector of inputs.
+#' @param y A vector of inputs.
+#' @param hp A tibble containing the kernel's hyperparameters.
+#' Required columns: 'variance', 'lengthscale', and 'scale'.
 #'
-#' @return The value of dot production <f(t1),f(t2)> computed from the kernel
-#' @export
+#' @return The evaluation of the kernel.
 #'
 #' @examples
-#' kernel_quad(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3))
-rq_kernel <- function(x, y, hp) {
-  distance <-  sum((x - y)^2)
-  kern <- (exp(hp$variance) * (1 + exp(-hp$lengthscale) / (2 * hp$scale) * distance)^(-hp$scale))
+#' kernel_quad(c(1, 0), c(0, 1),
+#'             tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3))
+rq_kernel <- function(x, y, hp){
+  distance <- sum((x - y)^2)
+  term <- (1 + distance * exp(-hp$lengthscale) / (2 * hp$scale))
 
-  attr(kern, "variance") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
-    distance <- as.double(stats::dist(rbind(x_1, y_1)))
-    grad <- (1 + distance * exp(-hp_1$lengthscale) / (2 * hp_1$scale))
-    (2 * hp_1$variance * grad^(-hp_1$scale)) %>% return()
-  }
+  kern <- exp(hp$variance) * term^(-hp$scale)
 
-  attr(kern, "scale") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
-    distance <- as.double(stats::dist(rbind(x_1, y_1)))
-    grad <- (1 + distance * exp(-hp_1$lengthscale) / (2 * hp_1$scale))
-    (exp(hp_1$variance) * grad^(-hp_1$scale) * (distance * exp(-hp_1$lengthscale) / (2 * hp_1$scale * grad) - log(grad))) %>% return()
-  }
+  attr(kern, "variance") <- exp(hp$variance) * term^(-hp$scale)
 
-  attr(kern, "lengthscale") <- function(x_1 = x, y_1 = y, hp_1 = hp) {
-    distance <- as.double(stats::dist(rbind(x_1, y_1)))
-    grad <- (1 + distance * exp(-hp_1$lengthscale) / (2 * hp_1$scale))
-    (exp(hp_1$variance) * distance * grad^(-hp_1$scale - 1) / (hp_1$lengthscale^3)) %>% return()
-  }
+  attr(kern, "scale") <- exp(hp$variance) * term^(-hp$scale) *
+    ( distance * exp(-hp$lengthscale) / (2 * hp$scale * term) - log(term) )
 
-  kern %>% return()
+  attr(kern, "lengthscale") <- exp(hp$variance) * distance * 0.5 *
+    exp(-hp$lengthscale) * term^(-hp$scale - 1)
+
+  return(kern)
 }

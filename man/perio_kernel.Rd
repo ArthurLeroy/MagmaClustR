@@ -7,18 +7,20 @@
 perio_kernel(x, y, hp)
 }
 \arguments{
-\item{x}{a vector/matrix}
+\item{x}{A vector of inputs.}
 
-\item{y}{a vector/matrix}
+\item{y}{A vector of inputs.}
 
-\item{hp}{a tibble of the hyperparameters}
+\item{hp}{A tibble containing the kernel's hyperparameters.
+Required columns: 'variance', 'lengthscale', and 'scale'.}
 }
 \value{
-The value of dot production <f(t1),f(t2)> computed from the kernel
+The evaluation of the kernel.
 }
 \description{
 Periodic Kernel
 }
 \examples{
-kernel_period(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5, period = 2))
+kernel_period(c(1, 0), c(0, 1),
+              tibble::tibble(variance = 1, lengthscale = 0.5, period = 2))
 }

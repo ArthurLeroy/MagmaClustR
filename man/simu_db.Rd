@@ -18,8 +18,8 @@ simu_db(
   int_i_v = c(0, 5),
   int_i_l = c(0, 2),
   int_i_sigma = c(0, 1),
-  m0_intercept = c(-2, 2),
-  m0_slope = c(0, 10),
+  m0_slope = c(-2, 2),
+  m0_intercept = c(0, 10),
   covariate = c(-5, 5)
 )
 }
@@ -59,11 +59,11 @@ values for the lengthscale hyper-parameter of the individual process' kernel.}
 \item{int_i_sigma}{A vector of 2 numbers, defining an interval of admissible
 values for the noise hyper-parameter.}
 
-\item{m0_intercept}{A vector of 2 numbers, defining an interval of admissible
-values for the intercept of m0.}
-
 \item{m0_slope}{A vector of 2 numbers, defining an interval of admissible
 values for the slope of m0.}
+
+\item{m0_intercept}{A vector of 2 numbers, defining an interval of admissible
+values for the intercept of m0.}
 
 \item{covariate}{A vector of 2 numbers, defining an interval of admissible
 values for the covariate inputs.}

@@ -7,18 +7,20 @@
 se_kernel(x, y, hp)
 }
 \arguments{
-\item{x}{a vector/matrix}
+\item{x}{A vector of inputs.}
 
-\item{y}{a vector/matrix}
+\item{y}{A vector of inputs.}
 
-\item{hp}{a tibble of the hyperameters}
+\item{hp}{A tibble containing the kernel's hyperparameters.
+Required columns: 'variance', 'lengthscale', and 'scale'.}
 }
 \value{
-The value of dot production <f(t1),f(t2)> computed from the kernel
+The evaluation of the kernel.
 }
 \description{
 Squared Exponential Kernel
 }
 \examples{
-se_kernel(c(1, 0), c(0, 1), tibble::tibble(variance = 1, lengthscale = 0.5))
+se_kernel(c(1, 0), c(0, 1),
+          tibble::tibble(variance = 1, lengthscale = 0.5))
 }
