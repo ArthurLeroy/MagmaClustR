@@ -35,25 +35,28 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
     ) %>% as.vector(),
     "Input" = input,
     "Covariate" = covariate,
-    "Variance" = v,
-    "Lengthscale" = l,
-    "Noise" = sigma
+    "variance" = v,
+    "lengthscale" = l,
+    "noise" = sigma
   )
   return(db)
 }
+
 
 #' Draw a number
 #'
 #' Draw uniformly a number within a specified interval
 #'
-#' @param int An interval of values we wan to draw uniformly in.
+#' @param int An interval of values we want to draw uniformly in.
 #'
 #' @return A 2-decimals-rounded random number
 #'
 #' @examples
 #' draw(c(1, 2))
-draw <- function(int) {
-  return(stats::runif(1, int[1], int[2]) %>% round(2))
+draw <- function(int){
+  stats::runif(1, int[1], int[2]) %>%
+    round(2) %>%
+    return()
 }
 
 #' Simulate a complete training dataset
@@ -162,7 +165,7 @@ simu_db <- function(M = 10,
   }
   db = sapply(seq_len(M), floop, simplify = F, USE.NAMES = T) %>%
     dplyr::bind_rows()
-  if(!add_hp){db = db %>% dplyr::select(- c('Variance', 'Lengthscale', 'Noise'))}
+  if(!add_hp){db = db %>% dplyr::select(- c('variance', 'lengthscale', 'noise'))}
 
   return(db)
 }

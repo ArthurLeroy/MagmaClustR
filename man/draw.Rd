@@ -7,7 +7,7 @@
 draw(int)
 }
 \arguments{
-\item{int}{An interval of values we wan to draw uniformly in.}
+\item{int}{An interval of values we want to draw uniformly in.}
 }
 \value{
 A 2-decimals-rounded random number

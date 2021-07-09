@@ -23,6 +23,7 @@ Imports:
     mvtnorm,
     optimr,
     rlang,
+    stats,
     tibble,
     tidyr
 Suggests: 

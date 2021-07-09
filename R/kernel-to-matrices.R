@@ -128,3 +128,81 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0) {
     return()
 }
 
+#' Compute a covariance matrix for multiple individuals
+#'
+#' Compute the covariance matrices associated with all individuals in the
+#' database, taking into account their specific inputs and hyper-parameters.
+#'
+#' @param data A tibble or data frame of input data. Required column: 'ID'.
+#'   Suggested column: 'Input' (for indicating the reference input).
+#' @param kern A kernel function.
+#' @param hp A tibble or data frame, containing the hyper-parameters associated
+#' with each individual.
+#'
+#' @return A named list containing all of the inverse covariance matrices.
+#'
+#' @examples
+#' db = simu_db(M = 3)
+#' hp = tibble::tibble(ID = unique(db$ID), hp())
+#' list_kern_to_cov(db, 'SE', hp)
+list_kern_to_cov = function(data, kern, hp){
+
+  floop = function(i)
+  {
+    db_i = data %>%
+      dplyr::filter(.data$ID == i) %>%
+      select(- .data$ID)
+    ## To avoid throwing an error if 'Output' has already been removed
+    if("Output" %in% names(db_i)){db_i = db_i %>% dplyr::select(- .data$Output)}
+
+    hp_i = hp%>%
+      filter(.data$ID == i)%>%
+      select(- .data$ID)
+
+    kern_to_cov(db_i, 'SE', hp_i) %>%
+      return()
+  }
+  sapply(unique(data$ID), floop, simplify = F, USE.NAMES = T) %>%
+    return()
+}
+
+#' Compute an inverse covariance matrix for multiple individuals
+#'
+#' Compute the inverse covariance matrices associated with all individuals
+#' in the database, taking into account their specific inputs and
+#' hyper-parameters.
+#'
+#' @param data A tibble or data frame of input data. Required column: 'ID'.
+#'   Suggested column: 'Input' (for indicating the reference input).
+#' @param kern A kernel function.
+#' @param hp A tibble or data frame, containing the hyper-parameters associated
+#' with each individual.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#' numerical issues when inverting nearly singular matrices.
+#'
+#' @return A named list containing all of the inverse covariance matrices.
+#'
+#' @examples
+#' db = simu_db(M = 3)
+#' hp = tibble::tibble(ID = unique(db$ID), hp())
+#' list_kern_to_inv(db, 'SE', hp, 0)
+list_kern_to_inv = function(data, kern, hp, pen_diag = 0){
+
+  floop = function(i)
+  {
+    db_i = data %>%
+      dplyr::filter(.data$ID == i) %>%
+      select(- .data$ID)
+    ## To avoid throwing an error if 'Output' has already been removed
+    if("Output" %in% names(db_i)){db_i = db_i %>% dplyr::select(- .data$Output)}
+
+    hp_i = hp%>%
+      filter(.data$ID == i)%>%
+      select(- .data$ID)
+
+    kern_to_inv(db_i, 'SE', hp_i, pen_diag) %>%
+      return()
+  }
+  sapply(unique(data$ID), floop, simplify = F, USE.NAMES = T) %>%
+    return()
+}
