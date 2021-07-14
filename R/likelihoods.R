@@ -38,7 +38,7 @@ dmvnorm <- function (x, mu, inv_Sigma, log = FALSE)
   attributes(logdetS) <- NULL
 
   ssq <- t(z) %*% inv_Sigma %*% z
-  loglik <- -(n * (log(2*pi)) +  logdetS + ssq)/2
+  loglik <- (-(n * (log(2*pi)) +  logdetS + ssq)/2) %>% as.vector()
   if (log) return(loglik) else return(exp(loglik))
 }
 
@@ -77,8 +77,10 @@ logL_GP<- function(hp, db, mean, kern, new_cov)
 #' @export
 #'
 #' @examples
-#'logL_GP(tibble::tibble(sigma = 1, lengthscale = 0.5),
-#'tibble::tibble(input= 1:5,Output= 2:6),rep(3,5),kernel_sqrd_exp,0)
+#' db = tibble(Input= 1:5, Output= 2:6)
+#' mean = rep(0, 5)
+#' hp = tibble(variance = 1, lengthscale = 0.5)
+#' logL_GP_mod(hp, db, mean, 'SE', 0, 0.001)
 #'
 logL_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag)
 {

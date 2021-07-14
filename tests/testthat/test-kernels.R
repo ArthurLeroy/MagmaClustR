@@ -22,8 +22,8 @@ test_that("gradients for the Squared Exponential kernel are valid", {
   hp_v <- tibble::tibble(variance = 1 + 10^(-8), lengthscale = 1)
   hp_l <- tibble::tibble(variance = 1, lengthscale = 1 + 10^(-8))
 
-  deriv_v = attributes(se_kernel(c(1,2), c(2,3), hp))$variance
-  deriv_l = attributes(se_kernel(c(1,2), c(2,3), hp))$lengthscale
+  deriv_v = se_kernel(c(1,2), c(2,3), hp, 'variance')
+  deriv_l = se_kernel(c(1,2), c(2,3), hp, 'lengthscale')
 
   emp_deriv_v = (se_kernel(c(1,2), c(2,3), hp_v)[1] -
                    se_kernel(c(1,2), c(2,3), hp)[1]) / 10^(-8)
@@ -40,9 +40,9 @@ test_that("gradients for the Periodic kernel are valid", {
   hp_l <- tibble::tibble(variance = 1, lengthscale = 1 + 10^(-8), period = pi)
   hp_p <- tibble::tibble(variance = 1, lengthscale = 1, period = pi + 10^(-8))
 
-  deriv_v = attributes(perio_kernel(c(1,2), c(2,3), hp))$variance
-  deriv_l = attributes(perio_kernel(c(1,2), c(2,3), hp))$lengthscale
-  deriv_p = attributes(perio_kernel(c(1,2), c(2,3), hp))$period
+  deriv_v = perio_kernel(c(1,2), c(2,3), hp, 'variance')
+  deriv_l = perio_kernel(c(1,2), c(2,3), hp, 'lengthscale')
+  deriv_p = perio_kernel(c(1,2), c(2,3), hp, 'period')
 
   emp_deriv_v = (perio_kernel(c(1,2), c(2,3), hp_v)[1] -
                    perio_kernel(c(1,2), c(2,3), hp)[1]) / 10^(-8)
@@ -62,9 +62,9 @@ test_that("gradients for the Rational Quadratic kernel are valid", {
   hp_l <- tibble::tibble(variance = 1, lengthscale = 1 + 10^(-8), scale = 1)
   hp_s <- tibble::tibble(variance = 1, lengthscale = 1, scale = 1 + 10^(-8))
 
-  deriv_v = attributes(rq_kernel(c(1,2), c(2,3), hp))$variance
-  deriv_l = attributes(rq_kernel(c(1,2), c(2,3), hp))$lengthscale
-  deriv_s = attributes(rq_kernel(c(1,2), c(2,3), hp))$scale
+  deriv_v = rq_kernel(c(1,2), c(2,3), hp, 'variance')
+  deriv_l = rq_kernel(c(1,2), c(2,3), hp, 'lengthscale')
+  deriv_s = rq_kernel(c(1,2), c(2,3), hp, 'scale')
 
   emp_deriv_v = (rq_kernel(c(1,2), c(2,3), hp_v)[1] -
                    rq_kernel(c(1,2), c(2,3), hp)[1]) / 10^(-8)

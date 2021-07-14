@@ -14,36 +14,23 @@
 #' TRUE
 gr_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
 {
-  y = db$Output
-  t = db$Input
+  list_hp = names(hp)
+  output = db$Output
+  input = db$Input
 
-  att = attributes(kern)
-  deriv_hp1 = att$derivative_sigma()
-  deriv_hp2 = att$derivative_lengthscale()
+  inv = kern_to_inv(input, kern, hp, pen_diag)
+  prod_inv = inv %*% (output - mean)
+  common_term = prod_inv %*% t(prod_inv) +
+    inv %*% ( new_cov %*% inv - diag(1, length(input)) )
 
-  ## Mean GP (mu_0) is noiseless and thus has only 2 hp. We add a penalty on diag for numerical stability
-  sigma = ifelse((length(hp) == 3), hp$sigma, pen_diag)
-  inv = kern_to_inv(t, kern, hp)
-  prod_inv = inv %*% (y - mean)
-  cste_term = prod_inv %*% t(prod_inv) + inv %*% ( new_cov %*% inv - diag(1, length(t)) )
-
-
-  g_1 = 1/2 * (cste_term %*% kern_to_cov(t, deriv_hp1, hp)) %>%  diag() %>% sum()
-  if(length(t) == 1)
-  { ## Second hp has a 0 diagonal, and dist() return an error for only one observation
-    g_2 = 0
+  floop = function(deriv){
+    (- 1/2 * (common_term %*% kern_to_cov(input, kern, hp, deriv))) %>%
+      diag() %>%
+      sum() %>%
+      return()
   }
-  else
-  {
-    g_2 = 1/2 * (cste_term %*% as.matrix(deriv_hp2(t,t, hp) ))  %>%  diag() %>% sum()
-  }
-
-  if(length(hp) == 3)
-  {
-    g_3 = hp$sigma * (cste_term %>% diag() %>% sum() )
-    (- c(g_1, g_2, g_3)) %>% return()
-  }
-  else   (- c(g_1, g_2)) %>% return()
+  sapply(list_hp, floop) %>%
+    return()
 }
 
 #' Gradient common Gaussian Process
@@ -83,19 +70,19 @@ gr_GP_mod_common_hp = function(hp, db, mean, kern, new_cov)
       inv = kern_to_inv(t_i, kern, hp)
     }
     prod_inv = inv %*% (y_i - mean %>% dplyr::filter(db$input %in% t_i) %>% dplyr::pull(db$output))
-    cste_term = prod_inv %*% t(prod_inv) + inv %*%
+    common_term = prod_inv %*% t(prod_inv) + inv %*%
       ( new_cov[input_i,input_i] %*% inv - diag(1, length(t_i)) )
 
-    g_1 = g_1 + 1/2 * (cste_term %*% kern_to_cov(t_i, deriv_hp1, hp_2)) %>%  diag() %>% sum()
+    g_1 = g_1 + 1/2 * (common_term %*% kern_to_cov(t_i, deriv_hp1, hp_2)) %>%  diag() %>% sum()
     if(length(t_i) == 1)
     { ## Second hp has a 0 diagonal, and dist() return an error for only one observation
       g_2 = g_2 + 0
     }
     else
     {
-      g_2 = g_2 + 1/2 * (cste_term %*% as.matrix(deriv_hp2(t_i,t_i, hp) ))  %>%  diag() %>% sum()
+      g_2 = g_2 + 1/2 * (common_term %*% as.matrix(deriv_hp2(t_i,t_i, hp) ))  %>%  diag() %>% sum()
     }
-    g_3 = g_3 + hp$sigma * (cste_term %>% diag() %>% sum() )
+    g_3 = g_3 + hp$sigma * (common_term %>% diag() %>% sum() )
     t_i_old = t_i
   }
   return(- c(g_1, g_2, g_3))

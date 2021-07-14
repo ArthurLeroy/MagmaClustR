@@ -81,3 +81,20 @@ test_that("kern_to_cov() works for custom kernels", {
   kern_to_cov(df, "PERIO", hp_perio) %>%
     expect_equal(kern_to_cov(df, perio_kernel, hp_perio))
 })
+
+test_that("kern_to_cov() works for derivative matrices", {
+  hp_se <- tibble::tibble(variance = 2, lengthscale = 1)
+  hp_perio <- tibble::tibble(variance = 2, lengthscale = 1, period = 1)
+  hp_rq <- tibble::tibble(variance = 2, lengthscale = 1, scale = 1)
+  df <- data.frame(Input = c(5, 6, 7), Cov1 = c(2, 3, 4))
+
+  kern_to_cov(df, "SE", hp_se) %>%
+    expect_equal(kern_to_cov(df, "SE", hp_se, 'variance'))
+  kern_to_cov(df, "RQ", hp_rq) %>%
+    expect_equal(kern_to_cov(df, "RQ", hp_rq, 'variance'))
+  kern_to_cov(df, "PERIO", hp_rq) %>%
+    expect_equal(kern_to_cov(df, "PERIO", hp_rq, 'variance'))
+  ## Test for custom kernel
+  kern_to_cov(df, "PERIO", hp_perio) %>%
+    expect_equal(kern_to_cov(df, perio_kernel, hp_perio, 'variance'))
+})

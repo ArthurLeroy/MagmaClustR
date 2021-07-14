@@ -35,7 +35,7 @@
 #'   "SE",
 #'   tibble::tibble(variance = 1, lengthscale = 0.5)
 #' )
-kern_to_cov <- function(input, kern = "SE", hp) {
+kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
 
   if (is.character(kern)) {
     if (kern == "SE") {
@@ -73,12 +73,12 @@ kern_to_cov <- function(input, kern = "SE", hp) {
     }
   }
 
-  outer(list_input, list_input, Vectorize(function(x, y) kernel(x, y, hp))) %>%
+  outer(list_input, list_input,
+        Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))) %>%
     `rownames<-`(reference) %>%
     `colnames<-`(reference) %>%
     return()
 }
-
 
 #' Create inverse of a covariance matrix from a kernel
 #'
@@ -120,8 +120,8 @@ kern_to_cov <- function(input, kern = "SE", hp) {
 #'   "SE",
 #'   tibble::tibble(variance = 1, lengthscale = 0.5)
 #' )
-kern_to_inv <- function(input, kern, hp, pen_diag = 0) {
-  mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp)
+kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
+  mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
   diag <- diag(x = pen_diag, ncol = ncol(mat_cov), nrow = nrow(mat_cov))
 
   (mat_cov + diag) %>%
@@ -146,7 +146,7 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0) {
 #' db = simu_db(M = 3)
 #' hp = tibble::tibble(ID = unique(db$ID), hp())
 #' list_kern_to_cov(db, 'SE', hp)
-list_kern_to_cov = function(data, kern, hp){
+list_kern_to_cov = function(data, kern, hp, deriv = NULL){
 
   floop = function(i)
   {
@@ -160,7 +160,7 @@ list_kern_to_cov = function(data, kern, hp){
       filter(.data$ID == i)%>%
       select(- .data$ID)
 
-    kern_to_cov(db_i, 'SE', hp_i) %>%
+    kern_to_cov(db_i, 'SE', hp_i, deriv = deriv) %>%
       return()
   }
   sapply(unique(data$ID), floop, simplify = F, USE.NAMES = T) %>%
@@ -187,7 +187,7 @@ list_kern_to_cov = function(data, kern, hp){
 #' db = simu_db(M = 3)
 #' hp = tibble::tibble(ID = unique(db$ID), hp())
 #' list_kern_to_inv(db, 'SE', hp, 0)
-list_kern_to_inv = function(db, kern, hp, pen_diag = 0){
+list_kern_to_inv = function(db, kern, hp, pen_diag = 0, deriv = NULL){
 
   floop = function(i)
   {
@@ -201,7 +201,7 @@ list_kern_to_inv = function(db, kern, hp, pen_diag = 0){
       filter(.data$ID == i)%>%
       select(- .data$ID)
 
-    kern_to_inv(db_i, 'SE', hp_i, pen_diag) %>%
+    kern_to_inv(db_i, 'SE', hp_i, pen_diag, deriv = deriv) %>%
       return()
   }
   sapply(unique(db$ID), floop, simplify = F, USE.NAMES = T) %>%
