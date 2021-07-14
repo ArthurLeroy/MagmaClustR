@@ -7,7 +7,7 @@
 plot_db(db)
 }
 \arguments{
-\item{db}{database with format : ID, input, Output}
+\item{db}{database with format : ID, Input, Output}
 }
 \value{
 Visualize smoothed raw data.

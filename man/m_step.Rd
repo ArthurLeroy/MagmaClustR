@@ -2,30 +2,63 @@
 % Please edit documentation in R/em-algorithm.R
 \name{m_step}
 \alias{m_step}
-\title{M-step of the training procedure for Magma}
+\title{M-Step of the EM algorithm}
 \usage{
-m_step(db, old_hp, mean, cov, kern_0, kern_i, m_0, common_hp)
+m_step(
+  db,
+  m_0,
+  kern_0,
+  kern_i,
+  old_hp_0,
+  old_hp_i,
+  mean,
+  cov,
+  common_hp,
+  pen_diag
+)
 }
 \arguments{
-\item{db}{full database with all individuals. Columns required : ID, input, Output}
+\item{db}{A tibble or data frame. Columns required: ID, Input, Output.
+Additional columns for covariates can be specified.}
 
-\item{old_hp}{the set of hyper-parameters from the previous step of the EM}
+\item{m_0}{A vector, corresponding to the prior mean of the mean GP
+(\eqn{\mu_0}).}
 
-\item{mean}{mean parameter of the mean GP (mu_0), computed during the E step}
+\item{kern_0}{A kernel function, associated with the mean GP (\eqn{\mu_{0}}).}
 
-\item{cov}{covariance parameter of the mean GP (mu_0), computed during the E step}
+\item{old_hp_0}{A tibble or data frame, containing the hyper-parameters
+from the previous M-step (or initialisation) associated with the mean GP
+(\eqn{\mu_{0}}).}
 
-\item{kern_0}{kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i)}
+\item{old_hp_i}{A tibble or data frame, containing the hyper-parameters
+from the previous M-step (or initialisation) associated with the
+individual GPs (\eqn{f_{i}}).}
 
-\item{kern_i}{kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0)}
+\item{mean}{A tibble, coming out of the E step, containing the Input and
+associated Output of the hyper-posterior mean parameter.}
 
-\item{m_0}{prior value of the mean parameter of the mean GP (mu_0). Length = 1 or nrow(db)}
+\item{cov}{A matrix, coming out of the E step, being the hyper-posterior
+covariance parameter.}
 
-\item{common_hp}{your common Hyperparameters}
+\item{common_hp}{A logical value, indicating whether the set of
+hyper-parameters is assumed to be common to all indiviuals.}
 }
 \value{
-set of optimised hyper parameters for the different kernels of the model
+A named list, containing the elements \code{hp_0}, a tibble
+containing the hyper-parameters associated with the mean GP,
+(\eqn{\mu_{0}}), \code{hp_i}, a tibble containing the hyper-parameters
+associated with the individual GPs (\eqn{\mu_{0}}).
 }
 \description{
-M-step of the training procedure for Magma
+Maximisation step of the EM algorithm to compute hyper-parameters of all the
+kernels involved in Magma.
+}
+\examples{
+db <- simu_db(N = 10, common_input = T)
+m_0 <- rep(0, 10)
+hp_0 <- hp()
+hp_i <- hp("SE", list_ID = unique(db$ID))
+post <- e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
+
+m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov, F, 0.001)
 }

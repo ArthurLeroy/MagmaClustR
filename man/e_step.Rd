@@ -2,28 +2,45 @@
 % Please edit documentation in R/em-algorithm.R
 \name{e_step}
 \alias{e_step}
-\title{E Step}
+\title{E-Step of the EM algorithm}
 \usage{
 e_step(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag)
 }
 \arguments{
-\item{db}{full database with all individuals. Columns required : ID, input, Output}
+\item{db}{A tibble or data frame. Columns required: ID, Input, Output.
+Additional columns for covariates can be specified.}
 
-\item{m_0}{mean of your Gaussian Process initial (mu_0)}
+\item{m_0}{A vector, corresponding to the prior mean of the mean GP
+(\eqn{\mu_0}).}
 
-\item{kern_0}{kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0)}
+\item{kern_0}{A kernel function, associated with the mean GP (\eqn{\mu_{0}}).}
 
-\item{kern_i}{kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i)}
+\item{hp_0}{A named vector, tibble or data frame of hyper-parameters
+associated with \code{kern_0}.}
 
-\item{hp_0}{hyperparameters for the kernel 0}
+\item{hp_i}{A named vector, tibble or data frame of hyper-parameters
+associated with \code{kern_i}.}
 
-\item{hp_i}{hyperparameters for each kernel i}
-
-\item{pen_diag}{value of the penalization of the diagonal}
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 }
 \value{
-mean and covariance parameters of the mean GP (mu_0)
+A named list, containing the elements \code{mean}, a tibble
+containing the Input and associated Output of the hyper-posterior mean
+parameter, and \code{cov}, the hyper-posterior covariance matrix.
 }
 \description{
-E Step
+Expectation step of the EM algorithm to compute the parameters of the
+hyper-posterior Gaussian distribution of the mean process in Magma.
+}
+\examples{
+db <- simu_db(N = 10, common_input = T)
+m_0 <- rep(0, 10)
+hp_0 <- hp()
+hp_i <- hp("SE", list_ID = unique(db$ID))
+e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
+
+db_async <- simu_db(N = 10, common_input = F)
+m_0_async <- rep(0, db_async$Input \%>\% unique() \%>\% length())
+e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
 }

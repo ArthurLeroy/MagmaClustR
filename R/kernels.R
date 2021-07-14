@@ -2,8 +2,8 @@
 #'
 #' @param x A vector of inputs.
 #' @param y A vector of inputs.
-#' @param hp A tibble containing the kernel's hyperparameters.
-#' Required columns: 'variance', 'lengthscale', and 'scale'.
+#' @param hp A tibble, data frame or named vector, containing the kernel's
+#'    hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.
 #'
 #' @return The evaluation of the kernel.
 #'
@@ -12,15 +12,20 @@
 #'   c(1, 0), c(0, 1),
 #'   tibble::tibble(variance = 1, lengthscale = 0.5)
 #' )
-se_kernel <- function(x, y, hp) {
-  top_term <- exp(-hp$lengthscale) * 0.5 * sum((x - y)^2)
-  kern <- exp(hp$variance - top_term)
+se_kernel <- function(x, y, hp, deriv = NULL) {
+  top_term <- exp(-hp[['lengthscale']]) * 0.5 * sum((x - y)^2)
 
-  attr(kern, "variance") <- exp(hp$variance - top_term)
+  if(deriv %>% is.null()){
+    exp(hp[['variance']] - top_term) %>% return()
+  }
 
-  attr(kern, "lengthscale") <- exp(hp$variance) * top_term * exp(-top_term)
+  if(deriv == 'variance'){
+    exp(hp[['variance']] - top_term) %>% return()
+  }
 
-  return(kern)
+  if(deriv == 'lengthscale'){
+    exp(hp[['variance']]) * top_term * exp(-top_term) %>% return()
+  }
 }
 
 
@@ -28,8 +33,8 @@ se_kernel <- function(x, y, hp) {
 #'
 #' @param x A vector of inputs.
 #' @param y A vector of inputs.
-#' @param hp A tibble containing the kernel's hyperparameters.
-#' Required columns: 'variance', 'lengthscale', and 'scale'.
+#' @param hp A tibble, data frame or named vector, containing the kernel's
+#'    hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.
 #'
 #' @return The evaluation of the kernel.
 #'
@@ -40,19 +45,19 @@ se_kernel <- function(x, y, hp) {
 #' )
 perio_kernel <- function(x, y, hp) {
   distance <- abs(x - y) %>% sum()
-  angle <- pi * distance / hp$period
+  angle <- pi * distance / hp[['period']]
 
-  kern <- exp(hp$variance) * exp(-2 * sin(angle)^2 * exp(-hp$lengthscale))
+  kern <- exp(hp[['variance']]) * exp(-2 * sin(angle)^2 * exp(-hp[['lengthscale']]))
 
-  attr(kern, "variance") <- exp(hp$variance) *
-    exp(-2 * sin(angle)^2 * exp(-hp$lengthscale))
+  attr(kern, "variance") <- exp(hp[['variance']]) *
+    exp(-2 * sin(angle)^2 * exp(-hp[['lengthscale']]))
 
-  attr(kern, "period") <- exp(hp$variance) * (pi * distance / hp$period^2) *
-    cos(angle) * (2 * exp(-hp$lengthscale) * 2 * sin(angle)) *
-    exp(-2 * sin(angle)^2 * exp(-hp$lengthscale))
+  attr(kern, "period") <- exp(hp[['variance']]) * (pi * distance / hp[['period']]^2) *
+    cos(angle) * (2 * exp(-hp[['lengthscale']]) * 2 * sin(angle)) *
+    exp(-2 * sin(angle)^2 * exp(-hp[['lengthscale']]))
 
-  attr(kern, "lengthscale") <- exp(hp$variance) * 2 * sin(angle)^2 *
-    exp(-hp$lengthscale) * exp(-2 * sin(angle)^2 * exp(-hp$lengthscale))
+  attr(kern, "lengthscale") <- exp(hp[['variance']]) * 2 * sin(angle)^2 *
+    exp(-hp[['lengthscale']]) * exp(-2 * sin(angle)^2 * exp(-hp[['lengthscale']]))
 
   return(kern)
 }
@@ -61,8 +66,8 @@ perio_kernel <- function(x, y, hp) {
 
 #' @param x A vector of inputs.
 #' @param y A vector of inputs.
-#' @param hp A tibble containing the kernel's hyperparameters.
-#' Required columns: 'variance', 'lengthscale', and 'scale'.
+#' @param hp A tibble, data frame or named vector, containing the kernel's
+#'    hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.
 #'
 #' @return The evaluation of the kernel.
 #'
@@ -73,17 +78,17 @@ perio_kernel <- function(x, y, hp) {
 #' )
 rq_kernel <- function(x, y, hp) {
   distance <- sum((x - y)^2)
-  term <- (1 + distance * exp(-hp$lengthscale) / (2 * hp$scale))
+  term <- (1 + distance * exp(-hp[['lengthscale']]) / (2 * hp[['scale']]))
 
-  kern <- exp(hp$variance) * term^(-hp$scale)
+  kern <- exp(hp[['variance']]) * term^(-hp[['scale']])
 
-  attr(kern, "variance") <- exp(hp$variance) * term^(-hp$scale)
+  attr(kern, "variance") <- exp(hp[['variance']]) * term^(-hp[['scale']])
 
-  attr(kern, "scale") <- exp(hp$variance) * term^(-hp$scale) *
-    (distance * exp(-hp$lengthscale) / (2 * hp$scale * term) - log(term))
+  attr(kern, "scale") <- exp(hp[['variance']]) * term^(-hp[['scale']]) *
+    (distance * exp(-hp[['lengthscale']]) / (2 * hp[['scale']] * term) - log(term))
 
-  attr(kern, "lengthscale") <- exp(hp$variance) * distance * 0.5 *
-    exp(-hp$lengthscale) * term^(-hp$scale - 1)
+  attr(kern, "lengthscale") <- exp(hp[['variance']]) * distance * 0.5 *
+    exp(-hp[['lengthscale']]) * term^(-hp[['scale']] - 1)
 
   return(kern)
 }

@@ -4,7 +4,7 @@
 \alias{logL_GP_mod}
 \title{Modified Log Likelihood function of the Gaussian Process}
 \usage{
-logL_GP_mod(hp, db, mean, kern, new_cov, pen_diag = NULL)
+logL_GP_mod(hp, db, mean, kern, new_cov, pen_diag)
 }
 \arguments{
 \item{hp}{vector or list of parameters of the kernel}

@@ -1,136 +1,210 @@
-#' E Step
+#' E-Step of the EM algorithm
 #'
-#' @param db full database with all individuals. Columns required : ID, input, Output
-#' @param m_0 mean of your Gaussian Process initial (mu_0)
-#' @param kern_0 kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0)
-#' @param hp_0 hyperparameters for the kernel 0
-#' @param hp_i hyperparameters for each kernel i
-#' @param kern_i kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i)
-#' @param pen_diag value of the penalization of the diagonal
+#' Expectation step of the EM algorithm to compute the parameters of the
+#' hyper-posterior Gaussian distribution of the mean process in Magma.
 #'
-#' @return mean and covariance parameters of the mean GP (mu_0)
-#' @export
+#' @param db A tibble or data frame. Columns required: ID, Input, Output.
+#'    Additional columns for covariates can be specified.
+#' @param m_0 A vector, corresponding to the prior mean of the mean GP
+#'    (\eqn{\mu_0}).
+#' @param kern_0 A kernel function, associated with the mean GP (\eqn{\mu_{0}}).
+#' @param kern_i A kernel function, associated with the individual GPs
+#'    (\eqn{\Psi_{i}).
+#' @param hp_0 A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern_0}.
+#' @param hp_i A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#' numerical issues when inverting nearly singular matrices.
 #'
-#' @examples
-e_step = function(db, m_0, kern_0, kern_i, hp_0,hp_i,pen_diag)
-{
-  all_t = unique(db$input) %>% sort()
-  ## Mean GP (mu_0) is noiseless and thus has only 2 hp. We add a penalty on diag for numerical stability
-  #pen_diag = sapply(hp$theta_i, function(x) x[[3]]) %>% mean
-
-  #hp_0$sigma = pen_diag ## ou sigma + pen_diag
-  inv_0 = kern_to_inv(all_t, kern_0, hp_0)
-  inv_i = kern_to_inv(db, kern_i, hp_i)
-  value_i = base::split(db$Output, list(db$ID))
-
-  new_inv = update_inv(prior_inv = inv_0, list_inv_i = inv_i)
-  new_cov = tryCatch(solve(new_inv), error = function(e){MASS::ginv(new_inv)}) ## fast or slow matrix inversion if singular
-  #new_cov = solve(new_inv)
-
-  weighted_mean = update_mean(prior_mean = m_0, prior_inv = inv_0, list_inv_i = inv_i, list_value_i = value_i)
-  new_mean = new_cov %*% weighted_mean %>% as.vector()
-
-  list('mean' = tibble::tibble('input' = all_t, 'Output' = new_mean), 'cov' = new_cov,
-       'pred_GP' = tibble::tibble('input' = all_t, 'Mean' = new_mean, 'Var' = diag(new_cov)) ) %>% return()
-}
-
-#' Update Inv
-#'
-#' @param prior_inv inverse of the covariance matrix of the prior mean GP (mu_0). dim = all inputs
-#' @param list_inv_i list of inverse of the covariance matrices of each individuals. dim = inputs of i
-#'
-#' @return inverse of the covariance of the posterior mean GP (mu_0 | (y_i)_i). dim = (all inputs)^2
-#' @export
+#' @return A named list, containing the elements \code{mean}, a tibble
+#' containing the Input and associated Output of the hyper-posterior mean
+#' parameter, and \code{cov}, the hyper-posterior covariance matrix.
 #'
 #' @examples
-update_inv = function(prior_inv, list_inv_i)
-{
-  new_inv = prior_inv
+#' db <- simu_db(N = 10, common_input = T)
+#' m_0 <- rep(0, 10)
+#' hp_0 <- hp()
+#' hp_i <- hp("SE", list_ID = unique(db$ID))
+#' e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
+#'
+#' db_async <- simu_db(N = 10, common_input = F)
+#' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
+#' e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
+e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
+  ## Define the union of all reference Inputs in the dataset
+  all_t <- unique(db$Input) %>% sort()
+  ## Compute all the inverse covariance matrices
+  inv_0 <- kern_to_inv(all_t, kern_0, hp_0, pen_diag)
+  list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)
+  ## Create a named list of Output values for all individuals
+  list_output_i <- base::split(db$Output, list(db$ID))
 
-  for(x in list_inv_i)
+  ## Update the posterior inverse covariance ##
+  new_inv <- inv_0
+  for (inv_i in list_inv_i)
   {
-    inv_i = x
-    common_times = intersect(row.names(inv_i), row.names(new_inv))
-    new_inv[common_times, common_times] = new_inv[common_times, common_times] + inv_i[common_times, common_times]
+    ## Collect the input's common indices between mean and individual processes
+    common_times <- intersect(row.names(inv_i), row.names(new_inv))
+    ## Sum the common inverse covariance's terms
+    new_inv[common_times, common_times] <- new_inv[common_times, common_times] +
+      inv_i[common_times, common_times]
   }
-  return(new_inv)
-}
+  ##############################################
 
-
-#' update Mean
-#'
-#' @param prior_mean mean parameter of the prior mean GP (mu_0)
-#' @param prior_inv inverse of the covariance matrix of the prior mean GP (mu_0). dim = (all inputs)^2
-#' @param list_inv_i list of inverse of the covariance matrices of each individuals. dim = (inputs of i)^2
-#' @param list_value_i list of outputs (y_i) for each individuals. dim = (inputs of i) x 1list of outputs (y_i) for each individuals. dim = (inputs of i) x 1
-#'
-#' @return mean parameter of the posterior mean GP (mu_0 | (y_i)_i). dim = (all inputs) x 1
-#' @export
-#'
-#' @examples
-update_mean = function(prior_mean, prior_inv, list_inv_i, list_value_i)
-{
-  if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(prior_inv))}
-  weighted_mean = prior_inv %*% prior_mean
-  #row.names(weithed_mean) = row.names(prior_inv)
-
-  for(i in list_inv_i %>% names())
+  ## Update the posterior mean ##
+  weighted_0 <- inv_0 %*% m_0
+  for (i in names(list_inv_i))
   {
-    weighted_i = list_inv_i[[i]] %*% list_value_i[[i]]
-    #row.names(weithed_i) = row.names(list_inv_i[[i]])
-
-    common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
-    weighted_mean[common_times,] = weighted_mean[common_times,] + weighted_i[common_times,]
+    ## Compute the weighted mean for the i-th individual
+    weighted_i <- list_inv_i[[i]] %*% list_output_i[[i]]
+    ## Collect the input's common indices between mean and individual processes
+    common_times <- intersect(row.names(weighted_i), row.names(weighted_0))
+    ## Sum the common weighted mean's terms
+    weighted_0[common_times, ] <- weighted_0[common_times, ] +
+      weighted_i[common_times, ]
   }
-  return(weighted_mean)
+
+  ## Fast or slow matrix inversion if nearly singular
+  new_cov <- tryCatch(solve(new_inv), error = function(e) {
+    MASS::ginv(new_inv)
+  })
+  ## Compute the updated mean parameter
+  new_mean <- new_cov %*% weighted_0 %>% as.vector()
+  ##############################################
+
+  list(
+    "mean" = tibble::tibble("Input" = all_t, "Output" = new_mean),
+    "cov" = new_cov
+  ) %>%
+    return()
 }
 
 
-#' M-step of the training procedure for Magma
+#' M-Step of the EM algorithm
 #'
-#' @param db full database with all individuals. Columns required : ID, input, Output
-#' @param old_hp the set of hyper-parameters from the previous step of the EM
-#' @param mean mean parameter of the mean GP (mu_0), computed during the E step
-#' @param cov covariance parameter of the mean GP (mu_0), computed during the E step
-#' @param kern_0 kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i)
-#' @param kern_i kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0)
-#' @param m_0 prior value of the mean parameter of the mean GP (mu_0). Length = 1 or nrow(db)
-#' @param common_hp your common Hyperparameters
+#' Maximisation step of the EM algorithm to compute hyper-parameters of all the
+#' kernels involved in Magma.
 #'
-#' @return set of optimised hyper parameters for the different kernels of the model
-#' @export
+#' @param db A tibble or data frame. Columns required: ID, Input, Output.
+#'    Additional columns for covariates can be specified.
+#' @param old_hp_0 A tibble or data frame, containing the hyper-parameters
+#'    from the previous M-step (or initialisation) associated with the mean GP
+#'    (\eqn{\mu_{0}}).
+#' @param old_hp_i A tibble or data frame, containing the hyper-parameters
+#'    from the previous M-step (or initialisation) associated with the
+#'    individual GPs (\eqn{f_{i}}).
+#' @param mean A tibble, coming out of the E step, containing the Input and
+#'    associated Output of the hyper-posterior mean parameter.
+#' @param cov A matrix, coming out of the E step, being the hyper-posterior
+#'    covariance parameter.
+#' @param kern_0 A kernel function, associated with the mean GP (\eqn{\mu_{0}}).
+#' @param kern_i A kernel function, associated with the individual GPs
+#'    (\eqn{f_{i}).
+#' @param m_0 A vector, corresponding to the prior mean of the mean GP
+#'    (\eqn{\mu_0}).
+#' @param common_hp A logical value, indicating whether the set of
+#'    hyper-parameters is assumed to be common to all indiviuals.
+#'
+#' @return A named list, containing the elements \code{hp_0}, a tibble
+#'    containing the hyper-parameters associated with the mean GP,
+#'    (\eqn{\mu_{0}}), \code{hp_i}, a tibble containing the hyper-parameters
+#'    associated with the individual GPs (\eqn{\mu_{0}}).
 #'
 #' @examples
-m_step = function(db, old_hp, mean, cov, kern_0, kern_i, m_0, common_hp)
-{
-  list_ID = unique(db$ID)
-  ## Mean GP (mu_0) is noiseless and thus has only 2 hp. We add a penalty on diag for numerical stability
-  pen_diag = sapply(old_hp$theta_i, function(x) 2*x[[3]]) %>% mean
+#' db <- simu_db(N = 10, common_input = T)
+#' m_0 <- rep(0, 10)
+#' hp_0 <- hp()
+#' hp_i <- hp("SE", list_ID = unique(db$ID))
+#' post <- e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
+#'
+#' m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov, F, 0.001)
+m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
+                   mean, cov, common_hp, pen_diag) {
 
-  t1 = Sys.time()
-  new_theta_0 = optimr::opm(old_hp$theta_0, logL_GP_mod, gr = gr_GP_mod, db = mean, mean = m_0, kern = kern_0,
-                            new_cov = cov, pen_diag = pen_diag, method = "L-BFGS-B", control = list(kkt = FALSE))[1,1:2]
+  list_ID <- unique(db$ID)
+  list_hp_0 <- old_hp_0 %>% names()
+  list_hp_i <- old_hp_i %>%
+    dplyr::select(-ID) %>%
+    names()
 
-  if(common_hp)
-  {
-    param = optimr::opm(old_hp$theta_i[[1]], logL_GP_mod_common_hp, gr = gr_GP_mod_common_hp , db = db, mean = mean,
-                        kern = kern_i, new_cov = cov, method = "L-BFGS-B", control = list(kkt = F))[1,1:3]
-    new_theta_i = param %>% list() %>% rep(length(list_ID))  %>% stats::setNames(nm = list_ID)
+  new_hp_0 <- optimr::opm(
+    par = old_hp_0,
+    fn = logL_GP_mod,
+    gr = gr_GP_mod,
+    db = mean,
+    mean = m_0,
+    kern = kern_0,
+    new_cov = cov,
+    pen_diag = pen_diag,
+    method = "L-BFGS-B",
+    control = list(kkt = FALSE)
+  ) %>%
+    dplyr::select(list_hp_0) %>%
+    tibble::as_tibble()
+
+  if (common_hp) {
+    new_hp_i <- optimr::opm(
+      par = old_hp_i %>% select(- .data$ID) %>% slice(1),
+      fn = logL_GP_mod_common_hp,
+      gr = gr_GP_mod_common_hp,
+      db = db,
+      mean = mean,
+      kern = kern_i,
+      new_cov = cov,
+      method = "L-BFGS-B",
+      control = list(kkt = F)
+    ) %>%
+      dplyr::select(list_hp_i) %>%
+      tibble::as_tibble() %>%
+      dplyr::uncount(weights = length(list_ID)) %>%
+      dplyr::mutate(ID = list_ID, .before = 1)
   }
-  else
-  {
-    floop = function(i)
-    {
-      t_i = db %>% dplyr::filter(db$ID == i) %>% dplyr::pull(db$input)
-      return(optimr::opm(old_hp$theta_i[[i]] %>% unlist(), logL_GP_mod, gr = gr_GP_mod , db = db %>% dplyr::filter(db$ID == i),
-                         mean = mean %>% dplyr::filter(db$input %in% t_i) %>% dplyr::pull(db$Output), kern = kern_i,
-                         new_cov = cov[paste0('X', t_i), paste0('X', t_i)], method = "L-BFGS-B",
-                         control = list(kkt = F))[1,1:3])
+  else {
+    floop <- function(i) {
+      ## Extract the i-th specific inputs
+      input_i <- db %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::pull(.data$Input)
+      ## Extract the mean values associated with the i-th specific inputs
+      mean_i = mean %>%
+        dplyr::filter(.data$Input %in% input_i) %>%
+        dplyr::pull(.data$Output)
+      ## Extract the covariance values associated with the i-th specific inputs
+      cov_i = cov[as.character(input_i), as.character(input_i)]
+      ## Extract the data associated with the i-th individual
+      db_i = db %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::select(- .data$ID)
+      ## Extract the hyper-parameters associated with the i-th individual
+      par_i = old_hp_i %>%
+        filter(.data$ID == i) %>%
+        select(- .data$ID)
+
+      optimr::opm(
+        par = par_i,
+        fn = logL_GP_mod,
+        gr = gr_GP_mod,
+        db = db_i,
+        mean = mean_i,
+        kern = kern_i,
+        new_cov = cov_i,
+        pen_diag = 0,
+        method = "L-BFGS-B",
+        control = list(kkt = F)
+      ) %>%
+        dplyr::select(list_hp_i) %>%
+        tibble::as_tibble()
+      return()
     }
-    new_theta_i = sapply(list_ID, floop, simplify = FALSE, USE.NAMES = TRUE)
+    new_hp_i <- sapply(list_ID, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
+      enframe(name = 'ID', value = hp) %>%
+      unnest(cols = hp)
   }
 
-  t2 = Sys.time()
-  print(t2-t1)
-  list('theta_0' = new_theta_0, 'theta_i' = new_theta_i) %>% return()
+  list(
+    "hp_0" = new_hp_0,
+    "hp_i" = new_hp_i
+  ) %>%
+    return()
 }

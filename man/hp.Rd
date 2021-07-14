@@ -4,7 +4,7 @@
 \alias{hp}
 \title{Generate random hyper-parameters}
 \usage{
-hp(kern = "SE")
+hp(kern = "SE", list_ID = NULL)
 }
 \arguments{
 \item{kern}{A character string indicating the type of kernel among:
@@ -22,5 +22,5 @@ Generate a set of random hyper-parameters, specific to the chosen type of
 kernel.
 }
 \examples{
-hp("PERIOD")
+hp("PERIO")
 }

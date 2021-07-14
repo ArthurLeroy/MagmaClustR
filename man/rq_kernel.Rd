@@ -21,6 +21,8 @@ The evaluation of the kernel.
 Rational Quadratic Kernel
 }
 \examples{
-kernel_quad(c(1, 0), c(0, 1),
-            tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3))
+kernel_quad(
+  c(1, 0), c(0, 1),
+  tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3)
+)
 }

@@ -1,6 +1,6 @@
 test_that("list_kern_to_cov() and list_kern_to_inv() are inverse of the other", {
 
-  db = simu_db(M = 3, N = 3)
+  db = simu_db(M = 2, N = 3)
   hp = hp('SE', unique(db$ID))
 
   list_cov = list_kern_to_cov(db, 'SE', hp)

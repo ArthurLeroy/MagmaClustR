@@ -18,6 +18,8 @@ training = function(db, prior_mean, ini_hp_0, ini_hp_i, kern_0, kern_i, common_h
   db$ID = db$ID %>% as.character
   list_ID = unique(db$ID)
 
+  ## TODO: Set m_0 to a coherent size := Ut_i
+
   cv = FALSE
   logLL_monitoring = - Inf
   list_plot = list()

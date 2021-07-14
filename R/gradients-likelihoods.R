@@ -15,7 +15,7 @@
 gr_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
 {
   y = db$Output
-  t = db$input
+  t = db$Input
 
   att = attributes(kern)
   deriv_hp1 = att$derivative_sigma()

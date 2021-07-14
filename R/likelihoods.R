@@ -1,3 +1,47 @@
+#' Compute the Multivariate Gaussian likelihood
+#'
+#' Modification of the function \code{dmvnorm()} from the package \code{mvtnorm},
+#' providing an implementation of the Multivariate Gaussian likelihood. This
+#' version uses inverse of the covariance function as argument instead of the
+#' traditional covariance.
+#'
+#' @param x A vector, containing values the likelihood is evaluated on.
+#' @param mu A vector or matrix, specifying the mean parameter.
+#' @param inv_Sigma A matrix, specifying the inverse of covariance parameter.
+#' @param log A logical value, indicating whether we return the log-likelihood.
+#'
+#' @return
+#'
+#' @examples
+#' dmvnorm(c(1, 2), c(0,0), cbind(c(1,0), c(0,1)), F)
+#' dmvnorm(c(1, 2), c(0,0), cbind(c(1,0), c(0,1)), T)
+dmvnorm <- function (x, mu, inv_Sigma, log = FALSE)
+{
+  if (is.vector(x))
+    x = t(as.matrix(x))
+  n = length(mu)
+  if (is.vector(mu)) {
+    p <- length(mu)
+    if (is.matrix(x)) {
+      mu <- matrix(rep(mu, nrow(x)), ncol = p, byrow = TRUE)
+    }
+  }
+  else {
+    p <- ncol(mu)
+  }
+  if (!all(dim(inv_Sigma) == c(p, p)) || nrow(x) != nrow(mu))
+    stop("incompatible arguments")
+
+  z <- t(x - mu)
+  logdetS <- try(- determinant(inv_Sigma, logarithm = TRUE)$modulus,
+                 silent=TRUE)
+  attributes(logdetS) <- NULL
+
+  ssq <- t(z) %*% inv_Sigma %*% z
+  loglik <- -(n * (log(2*pi)) +  logdetS + ssq)/2
+  if (log) return(loglik) else return(exp(loglik))
+}
+
 #' Log Likelihood function of the Gaussian Process
 #'
 #' @param hp The hyperparameters of your kernel
@@ -7,7 +51,6 @@
 #' @param new_cov posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)
 #'
 #' @return value of the Gaussian log-likelihood for one GP as it appears in the model
-#' @export
 #'
 #' @examples
 #'logL_GP(tibble::tibble(sigma = 1, lengthscale = 0.5),
@@ -17,7 +60,7 @@ logL_GP<- function(hp, db, mean, kern, new_cov)
 {
   cov = kern_to_cov(db$input, kern, hp) + new_cov
   inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
-  (-mvtnorm::dmvnorm(db$Output, mean, inv , log = T)) %>%  return()
+  (- dmvnorm(db$Output, mean, inv , log = T)) %>%  return()
 }
 
 
@@ -37,20 +80,18 @@ logL_GP<- function(hp, db, mean, kern, new_cov)
 #'logL_GP(tibble::tibble(sigma = 1, lengthscale = 0.5),
 #'tibble::tibble(input= 1:5,Output= 2:6),rep(3,5),kernel_sqrd_exp,0)
 #'
-logL_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
+logL_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag)
 {
-  t1 = Sys.time()
-  if(length(mean) == 1){mean = rep(mean, nrow(db))} ## mean is equal for all inputs
-  ## Mean GP (mu_0) is noiseless and thus has only 2 hp. We add a penalty on diag for numerical stability
-  if(length(hp) != 3){hp$sigma<- pen_diag}
+  ## Extract the input variables (reference Input + Covariates)
+  input = db %>% dplyr::select(- Output)
+  ## Compute the inverse of the covariance matrix
+  inv =  kern_to_inv(input, kern, hp, pen_diag)
 
+  ## Classical Gaussian log-likelihood
+  LL_norm = - dmvnorm(db$Output, mean, inv, log = T)
+  ## Correction trace term (- 1/2 * Trace(inv %*% new_cov))
+  cor_term =  0.5 * (inv * new_cov) %>% sum()
 
-  inv =  kern_to_inv(db$input, kern, hp)
-
-  LL_norm = - mvtnorm::dmvnorm(db$Output, mean, inv, log = T) ## classic gaussian loglikelihood
-  cor_term =  0.5 * (inv * new_cov) %>% sum() ## correction term (0.5 * Trace(inv %*% new_cov))
-  t2 = Sys.time()
-  #print(paste0('LogL_0 iteration ', t2 - t1))
   return(LL_norm + cor_term)
 }
 
@@ -85,7 +126,7 @@ logL_GP_mod_common_hp = function(hp, db, mean, kern, new_cov)
       inv =  kern_to_inv(t_i, kern, hp)
     }
 
-    LL_norm = LL_norm - mvtnorm::dmvnorm(y_i, mean %>% dplyr::filter(db$input %in% t_i) %>% dplyr::pull(db$Output), inv, log = T)
+    LL_norm = LL_norm - dmvnorm(y_i, mean %>% dplyr::filter(db$input %in% t_i) %>% dplyr::pull(db$Output), inv, log = T)
     cor_term = cor_term + 0.5 * (inv * new_cov[input_i, input_i]) %>% sum()  ##(0.5 * Trace(inv %*% new_cov))
 
     t_i_old = t_i

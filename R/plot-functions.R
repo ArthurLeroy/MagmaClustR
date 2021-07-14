@@ -1,14 +1,20 @@
 #' Plot smoothed raw data
 #'
-#' @param db database with format : ID, input, Output
+#' @param db database with format : ID, Input, Output
 #'
 #' @return Visualize smoothed raw data.
 #'
 #' @examples
 plot_db = function(db)
 {
-  ggplot2::ggplot(db) + ggplot2::geom_smooth(ggplot2::aes(db$input, db$Output, color = db$ID)) +
-    ggplot2::geom_point(ggplot2::aes(db$input, db$Output, color = db$ID))
+  ggplot2::ggplot(db) +
+    ggplot2::geom_smooth(ggplot2::aes(.data$Input,
+                                      .data$Output,
+                                      color = .data$ID), se = F) +
+    ggplot2::geom_point(ggplot2::aes(.data$Input,
+                                     .data$Output,
+                                     color = .data$ID)) +
+    ggplot2::theme_classic()
 }
 
 #' Plot your Gaussian Process

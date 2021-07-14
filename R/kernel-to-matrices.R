@@ -36,6 +36,7 @@
 #'   tibble::tibble(variance = 1, lengthscale = 0.5)
 #' )
 kern_to_cov <- function(input, kern = "SE", hp) {
+
   if (is.character(kern)) {
     if (kern == "SE") {
       kernel <- se_kernel
@@ -172,7 +173,7 @@ list_kern_to_cov = function(data, kern, hp){
 #' in the database, taking into account their specific inputs and
 #' hyper-parameters.
 #'
-#' @param data A tibble or data frame of input data. Required column: 'ID'.
+#' @param db A tibble or data frame of input data. Required column: 'ID'.
 #'   Suggested column: 'Input' (for indicating the reference input).
 #' @param kern A kernel function.
 #' @param hp A tibble or data frame, containing the hyper-parameters associated
@@ -186,11 +187,11 @@ list_kern_to_cov = function(data, kern, hp){
 #' db = simu_db(M = 3)
 #' hp = tibble::tibble(ID = unique(db$ID), hp())
 #' list_kern_to_inv(db, 'SE', hp, 0)
-list_kern_to_inv = function(data, kern, hp, pen_diag = 0){
+list_kern_to_inv = function(db, kern, hp, pen_diag = 0){
 
   floop = function(i)
   {
-    db_i = data %>%
+    db_i = db %>%
       dplyr::filter(.data$ID == i) %>%
       select(- .data$ID)
     ## To avoid throwing an error if 'Output' has already been removed
@@ -203,6 +204,6 @@ list_kern_to_inv = function(data, kern, hp, pen_diag = 0){
     kern_to_inv(db_i, 'SE', hp_i, pen_diag) %>%
       return()
   }
-  sapply(unique(data$ID), floop, simplify = F, USE.NAMES = T) %>%
+  sapply(unique(db$ID), floop, simplify = F, USE.NAMES = T) %>%
     return()
 }
