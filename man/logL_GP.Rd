@@ -9,7 +9,7 @@ logL_GP(hp, db, mean, kern, new_cov)
 \arguments{
 \item{hp}{The hyperparameters of your kernel}
 
-\item{db}{tibble containing values we want to compute. Required columns : input, Output}
+\item{db}{tibble containing the values we want to compute. Required columns : input, Output}
 
 \item{mean}{mean of the GP at corresponding inputs}
 
@@ -24,7 +24,8 @@ value of the Gaussian log-likelihood for one GP as it appears in the model
 Log Likelihood function of the Gaussian Process
 }
 \examples{
-logL_GP(tibble::tibble(sigma = 1, lengthscale = 0.5),
-tibble::tibble(input= 1:5,Output= 2:6),rep(3,5),kernel_sqrd_exp,0)
-
+logL_GP(
+  tibble::tibble(variance = 1, lengthscale = 0.5),
+  tibble::tibble(Input = 1:5, Output = 2:6), rep(3, 5), se_kernel, 0
+)
 }

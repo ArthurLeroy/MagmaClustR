@@ -4,7 +4,7 @@
 \alias{gr_GP_mod_common_hp}
 \title{Gradient common Gaussian Process}
 \usage{
-gr_GP_mod_common_hp(hp, db, mean, kern, new_cov)
+gr_GP_mod_common_hp(hp, db, mean, kern, new_cov, pen_diag)
 }
 \arguments{
 \item{hp}{set of hyper-parameter}
@@ -16,6 +16,8 @@ gr_GP_mod_common_hp(hp, db, mean, kern, new_cov)
 \item{kern}{kernel used to compute the covariance matrix at corresponding inputs}
 
 \item{new_cov}{posterior covariance matrix of the mean GP (mu_0).}
+
+\item{pen_diag}{A jitter}
 }
 \value{
 Gradient of the common Gaussian Process

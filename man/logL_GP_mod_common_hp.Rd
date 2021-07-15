@@ -2,28 +2,41 @@
 % Please edit documentation in R/likelihoods.R
 \name{logL_GP_mod_common_hp}
 \alias{logL_GP_mod_common_hp}
-\title{Modified Gaussian log-likelihood for the sum of all indiv}
+\title{Modified log-Likelihood function with common HPs for GPs}
 \usage{
-logL_GP_mod_common_hp(hp, db, mean, kern, new_cov)
+logL_GP_mod_common_hp(hp, db, mean, kern, new_cov, pen_diag)
 }
 \arguments{
-\item{hp}{vector of common hyperparameters for all individuals.}
+\item{hp}{A tibble, data frame or name vector of hyper-parameters.}
 
-\item{db}{tibble of data. Required columns : ID, input, Output}
+\item{db}{A tibble containing the values we want to compute the logL on.
+Required columns: ID, Input, Output. Additional covariate columns are
+allowed.}
 
-\item{mean}{mean of the GP at union of observed inputs}
+\item{mean}{A vector, specifying the mean of the GP at the reference inputs.}
 
-\item{kern}{kernel used to compute the covariance matrix at corresponding inputs}
+\item{kern}{A kernel function.}
 
-\item{new_cov}{posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)}
+\item{new_cov}{A matrix, covariance parameter of the hyper-posterior.
+Used to compute the correction term.}
+
+\item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
+numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-value of the modified Gaussian log-likelihood for the sum of all indiv with same HPs
+A number, corresponding to the value of the modified Gaussian
+log-Likelihood with common hyper-parameters defined in Magma.
 }
 \description{
-Modified Gaussian log-likelihood for the sum of all indiv
+Log-Likelihood function involved in Magma during the maximisation step of
+the training, in the particular case where the hyper-parameters are shared by
+all individuals. The log-Likelihood is defined as a sum over all individuals
+of Gaussian likelihoods added with correction trace terms.
 }
 \examples{
-logL_GP(tibble::tibble(sigma = 1, lengthscale = 0.5),
-tibble::tibble(ID = 1:5, input= 1:5,Output= 2:6),rep(3,5),kernel_sqrd_exp,0)
+db <- simu_db(N = 10, common_input = T)
+mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
+hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+cov <- kern_to_cov(unique(db$Input), 'SE', hp)
+logL_GP_mod_common_hp(hp, db, mean, "SE", cov, 0.001)
 }

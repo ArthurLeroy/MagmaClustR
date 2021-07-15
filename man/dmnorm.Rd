@@ -16,15 +16,14 @@ dmnorm(x, mu, inv_Sigma, log = FALSE)
 \item{log}{A logical value, indicating whether we return the log-likelihood.}
 }
 \value{
-
+A number, corresponding to the Multivariate Gaussian (log)-likelihood.
 }
 \description{
-Modification of the function \code{dmnorm()} from the package \code{mvtnorm},
+Modification of the function \code{dmvnorm()} from the package \code{mvtnorm},
 providing an implementation of the Multivariate Gaussian likelihood. This
 version uses inverse of the covariance function as argument instead of the
 traditional covariance.
 }
 \examples{
-dmnorm(c(1, 2), c(0,0), cbind(c(1,0), c(0,1)), F)
-dmnorm(c(1, 2), c(0,0), cbind(c(1,0), c(0,1)), T)
+dmnorm(c(1, 2), c(0, 0), cbind(c(1, 0), c(0, 1)), T)
 }

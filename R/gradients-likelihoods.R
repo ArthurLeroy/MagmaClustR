@@ -16,15 +16,18 @@ gr_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
 {
   list_hp = names(hp)
   output = db$Output
+  ## Extract the reference Input
   input = db$Input
+  ## Extract the input variables (reference Input + Covariates)
+  inputs = db %>% dplyr::select(- .data$Output)
 
-  inv = kern_to_inv(input, kern, hp, pen_diag)
+  inv <- kern_to_inv(inputs, kern, hp, pen_diag)
   prod_inv = inv %*% (output - mean)
   common_term = prod_inv %*% t(prod_inv) +
     inv %*% ( new_cov %*% inv - diag(1, length(input)) )
 
   floop = function(deriv){
-    (- 1/2 * (common_term %*% kern_to_cov(input, kern, hp, deriv))) %>%
+    (- 1/2 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
       diag() %>%
       sum() %>%
       return()
@@ -40,50 +43,61 @@ gr_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
 #' @param mean mean of the GP at union of observed input
 #' @param kern kernel used to compute the covariance matrix at corresponding inputs
 #' @param new_cov posterior covariance matrix of the mean GP (mu_0).
+#' @param pen_diag A jitter
 #'
 #' @return Gradient of the common Gaussian Process
 #' @export
 #'
 #' @examples
 #' TRUE
-gr_GP_mod_common_hp = function(hp, db, mean, kern, new_cov)
+gr_GP_mod_common_hp = function(hp, db, mean, kern, new_cov, pen_diag)
 {
-  g_1 = 0
-  g_2 = 0
-  g_3 = 0
-  t_i_old = NULL
-  hp_2 <- hp
-  hp_2$sigma = 0
+  list_hp = names(hp)
+  ## Initialise the the sum of the gradients and inputs
+  gr_hp = rep(0, length(hp)) %>% `names<-`(hp %>% names())
+  input_i_old = NULL
 
-  att = attributes(kern)
-  deriv_hp1 = att$derivative_sigma()
-  deriv_hp2 = att$derivative_lengthscale()
+  ## Loop over individuals to compute the sum of log-Likelihoods
+  for(i in unique(db$ID)){
+    ## Extract the i-th specific reference inputs
+    input_i <- db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::pull(.data$Input)
+    ## Extract the Output values associated with the i-th specific inputs
+    output_i <- db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::pull(.data$Output)
+    ## Extract the mean values associated with the i-th specific inputs
+    mean_i = mean %>%
+      dplyr::filter(.data$Input %in% input_i) %>%
+      dplyr::pull(.data$Output)
+    ## Extract the covariance values associated with the i-th specific inputs
+    new_cov_i = new_cov[as.character(input_i), as.character(input_i)]
 
-  for(i in unique(db$ID))
-  {
-    t_i = db %>% dplyr::filter(db$ID == i) %>% dplyr::pull(db$input)
-    input_i = paste0('X', t_i)
-    y_i = db %>% dplyr::filter(db$ID == i) %>% dplyr::pull(db$output)
-
-    if( !identical(t_i, t_i_old) )
-    { ## We update the inverse cov matrix only if necessary (if different inputs)
-      inv = kern_to_inv(t_i, kern, hp)
+    ## Update the inverse cov matrix only if necessary (if different inputs)
+    if (!identical(input_i, input_i_old)) {
+      ## Extract the i-th specific inputs (reference + covariates)
+      inputs_i = db %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::select(- c(.data$ID, .data$Output))
+      inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
     }
-    prod_inv = inv %*% (y_i - mean %>% dplyr::filter(db$input %in% t_i) %>% dplyr::pull(db$output))
-    common_term = prod_inv %*% t(prod_inv) + inv %*%
-      ( new_cov[input_i,input_i] %*% inv - diag(1, length(t_i)) )
 
-    g_1 = g_1 + 1/2 * (common_term %*% kern_to_cov(t_i, deriv_hp1, hp_2)) %>%  diag() %>% sum()
-    if(length(t_i) == 1)
-    { ## Second hp has a 0 diagonal, and dist() return an error for only one observation
-      g_2 = g_2 + 0
+    ## Compute the terms common to all hyper-parameters
+    prod_inv = inv %*% (output_i - mean_i)
+    common_term = prod_inv %*% t(prod_inv) +
+      inv %*% (new_cov_i  %*% inv - diag(1, length(input_i)) )
+    ## Loop over the derivatives of hyper-parameters for computing the gradient
+    floop = function(deriv){
+      (- 1/2 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
+        diag() %>%
+        sum() %>%
+        return()
     }
-    else
-    {
-      g_2 = g_2 + 1/2 * (common_term %*% as.matrix(deriv_hp2(t_i,t_i, hp) ))  %>%  diag() %>% sum()
-    }
-    g_3 = g_3 + hp$sigma * (common_term %>% diag() %>% sum() )
-    t_i_old = t_i
+    ## Add a new term to the sum of gradients
+    gr_hp = gr_hp + sapply(list_hp, floop)
+    ## Keep track of the reference inputs
+    input_i_old <- input_i
   }
-  return(- c(g_1, g_2, g_3))
+  return(gr_hp)
 }

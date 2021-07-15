@@ -67,7 +67,9 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
   ## Fast or slow matrix inversion if nearly singular
   new_cov <- tryCatch(new_inv %>% chol() %>% chol2inv(), error = function(e) {
     MASS::ginv(new_inv)
-  })
+  }) %>%
+    `rownames<-`(all_t) %>%
+    `colnames<-`(all_t)
   ## Compute the updated mean parameter
   new_mean <- new_cov %*% weighted_0 %>% as.vector()
   ##############################################
@@ -156,7 +158,7 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
     new_cov = cov,
     pen_diag = pen_diag,
     method = "L-BFGS-B",
-    lower=-100, upper=100,
+    lower = -100 , upper = 100,
     control = list(kkt = FALSE)
   ) %>%
     dplyr::select(list_hp_0) %>%
@@ -172,8 +174,9 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
       mean = mean,
       kern = kern_i,
       new_cov = cov,
+      pen_diag = pen_diag,
       method = "L-BFGS-B",
-      lower=-100, upper=100,
+      lower = -100, upper = 100,
       control = list(kkt = F)
     ) %>%
       dplyr::select(list_hp_i) %>%
@@ -213,7 +216,7 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         new_cov = cov_i,
         pen_diag = pen_diag,
         method = "L-BFGS-B",
-        lower=-100, upper=100,
+        lower = -100, upper = 100,
         control = list(kkt = F)
       ) %>%
         dplyr::select(list_hp_i) %>%

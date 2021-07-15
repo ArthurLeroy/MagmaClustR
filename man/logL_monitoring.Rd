@@ -2,7 +2,7 @@
 % Please edit documentation in R/likelihoods.R
 \name{logL_monitoring}
 \alias{logL_monitoring}
-\title{Title}
+\title{Log-Likelihood for monitoring the EM algorithm}
 \usage{
 logL_monitoring(hp_0, hp_i, db, kern_i, kern_0, mean_mu, cov_mu, m_0, pen_diag)
 }
@@ -31,13 +31,11 @@ The full likelihood is composed of M+1 independent parts, depending on only thet
 for each i. The following code computes and sums these M+1 (modified) gaussian likelihoods.
 }
 \description{
-Title
+Log-Likelihood for monitoring the EM algorithm
 }
 \examples{
-kern_i = kern_0 = kernel_sqrd_exp
-hp_0 = tibble::tibble(sigma = 1, lengthscale = 0.5)
-hp_i = list(hp_0,hp_0,hp_0,hp_0,hp_0)
-db = mean_mu = tibble::tibble(ID=1:5,input= 1:5,Output= 2:6)
-
-
+kern_i <- kern_0 <- kernel_sqrd_exp
+hp_0 <- tibble::tibble(sigma = 1, lengthscale = 0.5)
+hp_i <- list(hp_0, hp_0, hp_0, hp_0, hp_0)
+db <- mean_mu <- tibble::tibble(ID = 1:5, input = 1:5, Output = 2:6)
 }

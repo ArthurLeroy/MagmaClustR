@@ -2,33 +2,38 @@
 % Please edit documentation in R/likelihoods.R
 \name{logL_GP_mod}
 \alias{logL_GP_mod}
-\title{Modified Log Likelihood function of the Gaussian Process}
+\title{Modified log-Likelihood function for GPs}
 \usage{
 logL_GP_mod(hp, db, mean, kern, new_cov, pen_diag)
 }
 \arguments{
-\item{hp}{vector or list of parameters of the kernel}
+\item{hp}{A tibble, data frame or name vector of hyper-parameters.}
 
-\item{db}{tibble containing values we want to compute logL on. Required columns : input, Output}
+\item{db}{A tibble containing values we want to compute logL on.
+Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{mean}{mean of the GP at corresponding inputs}
+\item{mean}{A vector, specifying the mean of the GP at the reference inputs.}
 
-\item{kern}{kernel used to compute the covariance matrix at corresponding inputs}
+\item{kern}{A kernel function.}
 
-\item{new_cov}{posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)}
+\item{new_cov}{A matrix, covariance parameter of the hyper-posterior.
+Used to compute the correction term.}
 
-\item{pen_diag}{value of the penalization of the diagonal}
+\item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
+numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-value of the modified Gaussian log-likelihood for one GP as it appears in the model
+A number, corresponding to the value of the modified Gaussian
+log-Likelihood defined in Magma.
 }
 \description{
-Modified Log Likelihood function of the Gaussian Process
+Log-Likelihood function involved in Magma during the maximisation step of
+the training. The log-Likelihood is defined as a simple Gaussian likelihood
+added with correction trace term.
 }
 \examples{
-db = tibble(Input= 1:5, Output= 2:6)
-mean = rep(0, 5)
-hp = tibble(variance = 1, lengthscale = 0.5)
-logL_GP_mod(hp, db, mean, 'SE', 0, 0.001)
-
+db <- tibble(Input = 1:5, Output = 2:6)
+mean <- rep(0, 5)
+hp <- tibble(variance = 1, lengthscale = 0.5)
+logL_GP_mod(hp, db, mean, "SE", 0, 0.001)
 }
