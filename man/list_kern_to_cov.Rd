@@ -4,7 +4,7 @@
 \alias{list_kern_to_cov}
 \title{Compute a covariance matrix for multiple individuals}
 \usage{
-list_kern_to_cov(data, kern, hp)
+list_kern_to_cov(data, kern, hp, deriv = NULL)
 }
 \arguments{
 \item{data}{A tibble or data frame of input data. Required column: 'ID'.
@@ -14,6 +14,10 @@ Suggested column: 'Input' (for indicating the reference input).}
 
 \item{hp}{A tibble or data frame, containing the hyper-parameters associated
 with each individual.}
+
+\item{deriv}{A character, indicating according to which hyper-parameter the
+derivative should be computed. If NULL (defaut), the function simply returns
+the list of covariance matrices.}
 }
 \value{
 A named list containing all of the inverse covariance matrices.
@@ -23,7 +27,7 @@ Compute the covariance matrices associated with all individuals in the
 database, taking into account their specific inputs and hyper-parameters.
 }
 \examples{
-db = simu_db(M = 3)
-hp = tibble::tibble(ID = unique(db$ID), hp())
-list_kern_to_cov(db, 'SE', hp)
+db <- simu_db(M = 3)
+hp <- tibble::tibble(ID = unique(db$ID), hp())
+list_kern_to_cov(db, "SE", hp)
 }

@@ -4,18 +4,22 @@
 \alias{se_kernel}
 \title{Squared Exponential Kernel}
 \usage{
-se_kernel(x, y, hp)
+se_kernel(x, y, hp, deriv = NULL)
 }
 \arguments{
 \item{x}{A vector of inputs.}
 
 \item{y}{A vector of inputs.}
 
-\item{hp}{A tibble containing the kernel's hyperparameters.
-Required columns: 'variance', 'lengthscale', and 'scale'.}
+\item{hp}{A tibble, data frame or named vector, containing the kernel's
+hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.}
+
+\item{deriv}{A character, indicating according to which hyper-parameter the
+derivative should be computed. If NULL (defaut), the function simply returns
+the evaluation of the kernel.}
 }
 \value{
-The evaluation of the kernel.
+A scalar, conresponding to the evaluation of the kernel.
 }
 \description{
 Squared Exponential Kernel

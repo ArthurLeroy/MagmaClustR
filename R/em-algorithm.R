@@ -7,15 +7,14 @@
 #'    Additional columns for covariates can be specified.
 #' @param m_0 A vector, corresponding to the prior mean of the mean GP
 #'    (\eqn{\mu_0}).
-#' @param kern_0 A kernel function, associated with the mean GP (\eqn{\mu_{0}}).
-#' @param kern_i A kernel function, associated with the individual GPs
-#'    (\eqn{\Psi_{i}).
+#' @param kern_0 A kernel function, associated with the mean GP.
+#' @param kern_i A kernel function, associated with the individual GPs.
 #' @param hp_0 A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_0}.
 #' @param hp_i A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
-#' numerical issues when inverting nearly singular matrices.
+#'    numerical issues when inverting nearly singular matrices.
 #'
 #' @return A named list, containing the elements \code{mean}, a tibble
 #' containing the Input and associated Output of the hyper-posterior mean
@@ -66,7 +65,7 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
   }
 
   ## Fast or slow matrix inversion if nearly singular
-  new_cov <- tryCatch(solve(new_inv), error = function(e) {
+  new_cov <- tryCatch(new_inv %>% chol() %>% chol2inv(), error = function(e) {
     MASS::ginv(new_inv)
   })
   ## Compute the updated mean parameter
@@ -88,28 +87,27 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
+#' @param m_0 A vector, corresponding to the prior mean of the mean GP.
+#' @param kern_0 A kernel function, associated with the mean GP.
+#' @param kern_i A kernel function, associated with the individual GPs.
 #' @param old_hp_0 A tibble or data frame, containing the hyper-parameters
-#'    from the previous M-step (or initialisation) associated with the mean GP
-#'    (\eqn{\mu_{0}}).
+#'    from the previous M-step (or initialisation) associated with the mean GP.
 #' @param old_hp_i A tibble or data frame, containing the hyper-parameters
 #'    from the previous M-step (or initialisation) associated with the
-#'    individual GPs (\eqn{f_{i}}).
+#'    individual GPs.
 #' @param mean A tibble, coming out of the E step, containing the Input and
 #'    associated Output of the hyper-posterior mean parameter.
 #' @param cov A matrix, coming out of the E step, being the hyper-posterior
 #'    covariance parameter.
-#' @param kern_0 A kernel function, associated with the mean GP (\eqn{\mu_{0}}).
-#' @param kern_i A kernel function, associated with the individual GPs
-#'    (\eqn{f_{i}).
-#' @param m_0 A vector, corresponding to the prior mean of the mean GP
-#'    (\eqn{\mu_0}).
 #' @param common_hp A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all indiviuals.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#' numerical issues when inverting nearly singular matrices.
 #'
 #' @return A named list, containing the elements \code{hp_0}, a tibble
 #'    containing the hyper-parameters associated with the mean GP,
-#'    (\eqn{\mu_{0}}), \code{hp_i}, a tibble containing the hyper-parameters
-#'    associated with the individual GPs (\eqn{\mu_{0}}).
+#'    \code{hp_i}, a tibble containing the hyper-parameters
+#'    associated with the individual GPs.
 #'
 #' @examples
 #' db <- simu_db(N = 10, common_input = T)
@@ -119,15 +117,35 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
 #' post <- e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 #'
 #' m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov, F, 0.001)
+#'
+#' db_async <- simu_db(N = 10, common_input = F)
+#' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
+#' post_async = e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
+#'
+#' m_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i,
+#'  post_async$mean, post_async$cov, F, 0.001)
 m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
                    mean, cov, common_hp, pen_diag) {
-
   list_ID <- unique(db$ID)
   list_hp_0 <- old_hp_0 %>% names()
   list_hp_i <- old_hp_i %>%
-    dplyr::select(-ID) %>%
+    dplyr::select(- .data$ID) %>%
     names()
 
+  ## Detect whether the kernel_0 provides derivatives for its hyper-parameters
+  if(kern_0 %>% is.function()){
+    if( !("deriv" %in% methods::formalArgs(kern_0))){gr_GP_mod = NULL}
+  }
+
+  ## Detect whether the kernel_i provides derivatives for its hyper-parameters
+  if(kern_i %>% is.function()){
+    if( !("deriv" %in% methods::formalArgs(kern_i))){
+        gr_GP_mod = NULL
+        gr_GP_mod_common_hp = NULL
+      }
+  }
+
+  ## Optimise hyper-parameters of the mean process
   new_hp_0 <- optimr::opm(
     par = old_hp_0,
     fn = logL_GP_mod,
@@ -138,14 +156,16 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
     new_cov = cov,
     pen_diag = pen_diag,
     method = "L-BFGS-B",
+    lower=-100, upper=100,
     control = list(kkt = FALSE)
   ) %>%
     dplyr::select(list_hp_0) %>%
     tibble::as_tibble()
 
   if (common_hp) {
+    ## Optimise hyper-parameters of the individual processes
     new_hp_i <- optimr::opm(
-      par = old_hp_i %>% select(- .data$ID) %>% slice(1),
+      par = old_hp_i %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
       fn = logL_GP_mod_common_hp,
       gr = gr_GP_mod_common_hp,
       db = db,
@@ -153,12 +173,13 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
       kern = kern_i,
       new_cov = cov,
       method = "L-BFGS-B",
+      lower=-100, upper=100,
       control = list(kkt = F)
     ) %>%
       dplyr::select(list_hp_i) %>%
       tibble::as_tibble() %>%
-      dplyr::uncount(weights = length(list_ID)) %>%
-      dplyr::mutate(ID = list_ID, .before = 1)
+      tidyr::uncount(weights = length(list_ID)) %>%
+      dplyr::mutate('ID' = list_ID, .before = 1)
   }
   else {
     floop <- function(i) {
@@ -167,20 +188,21 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(.data$Input)
       ## Extract the mean values associated with the i-th specific inputs
-      mean_i = mean %>%
+      mean_i <- mean %>%
         dplyr::filter(.data$Input %in% input_i) %>%
         dplyr::pull(.data$Output)
       ## Extract the covariance values associated with the i-th specific inputs
-      cov_i = cov[as.character(input_i), as.character(input_i)]
+      cov_i <- cov[as.character(input_i), as.character(input_i)]
       ## Extract the data associated with the i-th individual
-      db_i = db %>%
+      db_i <- db %>%
         dplyr::filter(.data$ID == i) %>%
-        dplyr::select(- .data$ID)
+        dplyr::select(-.data$ID)
       ## Extract the hyper-parameters associated with the i-th individual
-      par_i = old_hp_i %>%
-        filter(.data$ID == i) %>%
-        select(- .data$ID)
+      par_i <- old_hp_i %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::select(-.data$ID)
 
+      ## Optimise hyper-parameters of the individual processes
       optimr::opm(
         par = par_i,
         fn = logL_GP_mod,
@@ -189,17 +211,18 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         mean = mean_i,
         kern = kern_i,
         new_cov = cov_i,
-        pen_diag = 0,
+        pen_diag = pen_diag,
         method = "L-BFGS-B",
+        lower=-100, upper=100,
         control = list(kkt = F)
       ) %>%
         dplyr::select(list_hp_i) %>%
-        tibble::as_tibble()
-      return()
+        tibble::as_tibble() %>%
+        return()
     }
     new_hp_i <- sapply(list_ID, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
-      enframe(name = 'ID', value = hp) %>%
-      unnest(cols = hp)
+      tibble::enframe(name = "ID") %>%
+      tidyr::unnest(cols = .data$value)
   }
 
   list(

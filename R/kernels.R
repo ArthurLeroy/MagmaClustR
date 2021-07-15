@@ -4,8 +4,11 @@
 #' @param y A vector of inputs.
 #' @param hp A tibble, data frame or named vector, containing the kernel's
 #'    hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.
+#' @param deriv A character, indicating according to which hyper-parameter the
+#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  the evaluation of the kernel.
 #'
-#' @return The evaluation of the kernel.
+#' @return A scalar, conresponding to the evaluation of the kernel.
 #'
 #' @examples
 #' se_kernel(
@@ -36,11 +39,14 @@ se_kernel <- function(x, y, hp, deriv = NULL) {
 #' @param y A vector of inputs.
 #' @param hp A tibble, data frame or named vector, containing the kernel's
 #'    hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.
+#' @param deriv A character, indicating according to which hyper-parameter the
+#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  the evaluation of the kernel.
 #'
-#' @return The evaluation of the kernel.
+#' @return A scalar, conresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' kernel_period(
+#' perio_kernel(
 #'   c(1, 0), c(0, 1),
 #'   tibble::tibble(variance = 1, lengthscale = 0.5, period = 2)
 #' )
@@ -79,11 +85,14 @@ perio_kernel <- function(x, y, hp, deriv = NULL) {
 #' @param y A vector of inputs.
 #' @param hp A tibble, data frame or named vector, containing the kernel's
 #'    hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.
+#' @param deriv A character, indicating according to which hyper-parameter the
+#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  the evaluation of the kernel.
 #'
-#' @return The evaluation of the kernel.
+#' @return A scalar, conresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' kernel_quad(
+#' rq_kernel(
 #'   c(1, 0), c(0, 1),
 #'   tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3)
 #' )
@@ -125,6 +134,9 @@ rq_kernel <- function(x, y, hp, deriv = NULL) {
 #'  - "SE": the Squared Exponential kernel,
 #'  - "PERIO": the Periodic kernel,
 #'  - "RQ": the Rational Quadratic kernel.
+#' @param list_ID A vector, associating an \code{ID} value with each individual
+#'    for whom hyper-parameters are generated. If NULL (defaut) only one set of
+#'    hyper-parameters is return without the \code{ID} column.
 #'
 #' @return A tibble, gathering a set of hyper-parameters.
 #'
@@ -134,22 +146,22 @@ hp <- function(kern = "SE", list_ID = NULL) {
   if (is.null(list_ID)) {
     if (kern == "SE") {
       hp <- tibble::tibble(
-        variance = runif(1, 1, 5),
-        lengthscale = runif(1, 1, 5)
+        variance = stats::runif(1, 1, 5),
+        lengthscale = stats::runif(1, 1, 5)
       )
     }
     else if (kern == "PERIO") {
       hp <- tibble::tibble(
-        variance = runif(1, 1, 5),
-        lengthscale = runif(1, 1, 5),
-        period = runif(1, 0, 2 * pi)
+        variance = stats::runif(1, 1, 5),
+        lengthscale = stats::runif(1, 1, 5),
+        period = stats::runif(1, 0, 2 * pi)
       )
     }
     else if (kern == "RQ") {
       hp <- tibble::tibble(
-        variance = runif(1, 1, 5),
-        lengthscale = runif(1, 1, 5),
-        scale = runif(1, 1, 5)
+        variance = stats::runif(1, 1, 5),
+        lengthscale = stats::runif(1, 1, 5),
+        scale = stats::runif(1, 1, 5)
       )
     }
   }
@@ -158,24 +170,24 @@ hp <- function(kern = "SE", list_ID = NULL) {
     if (kern == "SE") {
       hp <- tibble::tibble(
         ID = list_ID,
-        variance = runif(len, 1, 5),
-        lengthscale = runif(len, 1, 5)
+        variance = stats::runif(len, 1, 5),
+        lengthscale = stats::runif(len, 1, 5)
       )
     }
     else if (kern == "PERIO") {
       hp <- tibble::tibble(
         ID = list_ID,
-        variance = runif(len, 1, 5),
-        lengthscale = runif(len, 1, 5),
-        period = runif(len, 0, 2 * pi)
+        variance = stats::runif(len, 1, 5),
+        lengthscale = stats::runif(len, 1, 5),
+        period = stats::runif(len, 0, 2 * pi)
       )
     }
     else if (kern == "RQ") {
       hp <- tibble::tibble(
         ID = list_ID,
-        variance = runif(len, 1, 5),
-        lengthscale = runif(len, 1, 5),
-        scale = runif(len, 1, 5)
+        variance = stats::runif(len, 1, 5),
+        lengthscale = stats::runif(len, 1, 5),
+        scale = stats::runif(len, 1, 5)
       )
     }
   }

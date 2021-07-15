@@ -21,18 +21,18 @@ m_step(
 \item{db}{A tibble or data frame. Columns required: ID, Input, Output.
 Additional columns for covariates can be specified.}
 
-\item{m_0}{A vector, corresponding to the prior mean of the mean GP
-(\eqn{\mu_0}).}
+\item{m_0}{A vector, corresponding to the prior mean of the mean GP.}
 
-\item{kern_0}{A kernel function, associated with the mean GP (\eqn{\mu_{0}}).}
+\item{kern_0}{A kernel function, associated with the mean GP.}
+
+\item{kern_i}{A kernel function, associated with the individual GPs.}
 
 \item{old_hp_0}{A tibble or data frame, containing the hyper-parameters
-from the previous M-step (or initialisation) associated with the mean GP
-(\eqn{\mu_{0}}).}
+from the previous M-step (or initialisation) associated with the mean GP.}
 
 \item{old_hp_i}{A tibble or data frame, containing the hyper-parameters
 from the previous M-step (or initialisation) associated with the
-individual GPs (\eqn{f_{i}}).}
+individual GPs.}
 
 \item{mean}{A tibble, coming out of the E step, containing the Input and
 associated Output of the hyper-posterior mean parameter.}
@@ -42,12 +42,15 @@ covariance parameter.}
 
 \item{common_hp}{A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all indiviuals.}
+
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 }
 \value{
 A named list, containing the elements \code{hp_0}, a tibble
 containing the hyper-parameters associated with the mean GP,
-(\eqn{\mu_{0}}), \code{hp_i}, a tibble containing the hyper-parameters
-associated with the individual GPs (\eqn{\mu_{0}}).
+\code{hp_i}, a tibble containing the hyper-parameters
+associated with the individual GPs.
 }
 \description{
 Maximisation step of the EM algorithm to compute hyper-parameters of all the
@@ -61,4 +64,11 @@ hp_i <- hp("SE", list_ID = unique(db$ID))
 post <- e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 
 m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov, F, 0.001)
+
+db_async <- simu_db(N = 10, common_input = F)
+m_0_async <- rep(0, db_async$Input \%>\% unique() \%>\% length())
+post_async = e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
+
+m_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i,
+ post_async$mean, post_async$cov, F, 0.001)
 }

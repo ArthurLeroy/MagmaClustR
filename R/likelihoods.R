@@ -1,6 +1,6 @@
 #' Compute the Multivariate Gaussian likelihood
 #'
-#' Modification of the function \code{dmvnorm()} from the package \code{mvtnorm},
+#' Modification of the function \code{dmnorm()} from the package \code{mvtnorm},
 #' providing an implementation of the Multivariate Gaussian likelihood. This
 #' version uses inverse of the covariance function as argument instead of the
 #' traditional covariance.
@@ -13,9 +13,9 @@
 #' @return
 #'
 #' @examples
-#' dmvnorm(c(1, 2), c(0,0), cbind(c(1,0), c(0,1)), F)
-#' dmvnorm(c(1, 2), c(0,0), cbind(c(1,0), c(0,1)), T)
-dmvnorm <- function (x, mu, inv_Sigma, log = FALSE)
+#' dmnorm(c(1, 2), c(0,0), cbind(c(1,0), c(0,1)), F)
+#' dmnorm(c(1, 2), c(0,0), cbind(c(1,0), c(0,1)), T)
+dmnorm <- function (x, mu, inv_Sigma, log = FALSE)
 {
   if (is.vector(x))
     x = t(as.matrix(x))
@@ -60,7 +60,7 @@ logL_GP<- function(hp, db, mean, kern, new_cov)
 {
   cov = kern_to_cov(db$input, kern, hp) + new_cov
   inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
-  (- dmvnorm(db$Output, mean, inv , log = T)) %>%  return()
+  (- dmnorm(db$Output, mean, inv , log = T)) %>%  return()
 }
 
 
@@ -85,12 +85,12 @@ logL_GP<- function(hp, db, mean, kern, new_cov)
 logL_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag)
 {
   ## Extract the input variables (reference Input + Covariates)
-  input = db %>% dplyr::select(- Output)
+  input = db %>% dplyr::select(- .data$Output)
   ## Compute the inverse of the covariance matrix
   inv =  kern_to_inv(input, kern, hp, pen_diag)
 
   ## Classical Gaussian log-likelihood
-  LL_norm = - dmvnorm(db$Output, mean, inv, log = T)
+  LL_norm = - dmnorm(db$Output, mean, inv, log = T)
   ## Correction trace term (- 1/2 * Trace(inv %*% new_cov))
   cor_term =  0.5 * (inv * new_cov) %>% sum()
 
@@ -128,7 +128,7 @@ logL_GP_mod_common_hp = function(hp, db, mean, kern, new_cov)
       inv =  kern_to_inv(t_i, kern, hp)
     }
 
-    LL_norm = LL_norm - dmvnorm(y_i, mean %>% dplyr::filter(db$input %in% t_i) %>% dplyr::pull(db$Output), inv, log = T)
+    LL_norm = LL_norm - dmnorm(y_i, mean %>% dplyr::filter(db$input %in% t_i) %>% dplyr::pull(db$Output), inv, log = T)
     cor_term = cor_term + 0.5 * (inv * new_cov[input_i, input_i]) %>% sum()  ##(0.5 * Trace(inv %*% new_cov))
 
     t_i_old = t_i

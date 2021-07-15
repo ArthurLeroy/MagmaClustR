@@ -23,6 +23,9 @@
 #' @param hp A list, data frame or tibble containing the hyper-parameters used
 #'   in the kernel. The name of the elements (or columns) should correspond
 #'   exactly to those used in the kernel definition.
+#' @param deriv A character, indicating according to which hyper-parameter the
+#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  the covariance matrix.
 #'
 #' @export
 #'
@@ -36,7 +39,6 @@
 #'   tibble::tibble(variance = 1, lengthscale = 0.5)
 #' )
 kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
-
   if (is.character(kern)) {
     if (kern == "SE") {
       kernel <- se_kernel
@@ -73,8 +75,20 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
     }
   }
 
-  outer(list_input, list_input,
-        Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))) %>%
+  ## Detect whether the custom kernel provides derivatives
+  if ("deriv" %in% methods::formalArgs(kernel)) {
+    mat <- outer(
+      list_input, list_input,
+      Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))
+    )
+  }
+  else {
+    mat <- outer(
+      list_input, list_input,
+      Vectorize(function(x, y) kernel(x, y, hp))
+    )
+  }
+  mat %>%
     `rownames<-`(reference) %>%
     `colnames<-`(reference) %>%
     return()
@@ -108,6 +122,9 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
 #'   exactly to those used in the kernel definition.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
+#' @param deriv A character, indicating according to which hyper-parameter the
+#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  the inverse covariance matrix.
 #'
 #' @return The inverse of a covariance matrix, which elements are evaluations of
 #'    the associated kernel for each pair of reference inputs.
@@ -122,10 +139,19 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
 #' )
 kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
+  reference <- row.names(mat_cov)
   diag <- diag(x = pen_diag, ncol = ncol(mat_cov), nrow = nrow(mat_cov))
 
-  (mat_cov + diag) %>%
-    solve() %>%
+
+
+  inv <- tryCatch((mat_cov + diag) %>% chol() %>% chol2inv(),
+    error = function(e) {
+      MASS::ginv(mat_cov + diag)
+    }
+  )
+  inv %>%
+    `rownames<-`(reference) %>%
+    `colnames<-`(reference) %>%
     return()
 }
 
@@ -139,28 +165,31 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
 #' @param kern A kernel function.
 #' @param hp A tibble or data frame, containing the hyper-parameters associated
 #' with each individual.
+#' @param deriv A character, indicating according to which hyper-parameter the
+#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  the list of covariance matrices.
 #'
 #' @return A named list containing all of the inverse covariance matrices.
 #'
 #' @examples
-#' db = simu_db(M = 3)
-#' hp = tibble::tibble(ID = unique(db$ID), hp())
-#' list_kern_to_cov(db, 'SE', hp)
-list_kern_to_cov = function(data, kern, hp, deriv = NULL){
-
-  floop = function(i)
-  {
-    db_i = data %>%
+#' db <- simu_db(M = 3)
+#' hp <- tibble::tibble(ID = unique(db$ID), hp())
+#' list_kern_to_cov(db, "SE", hp)
+list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
+  floop <- function(i) {
+    db_i <- data %>%
       dplyr::filter(.data$ID == i) %>%
-      select(- .data$ID)
+      dplyr::select(-.data$ID)
     ## To avoid throwing an error if 'Output' has already been removed
-    if("Output" %in% names(db_i)){db_i = db_i %>% dplyr::select(- .data$Output)}
+    if ("Output" %in% names(db_i)) {
+      db_i <- db_i %>% dplyr::select(-.data$Output)
+    }
 
-    hp_i = hp%>%
-      filter(.data$ID == i)%>%
-      select(- .data$ID)
+    hp_i <- hp %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::select(-.data$ID)
 
-    kern_to_cov(db_i, 'SE', hp_i, deriv = deriv) %>%
+    kern_to_cov(db_i, "SE", hp_i, deriv = deriv) %>%
       return()
   }
   sapply(unique(data$ID), floop, simplify = F, USE.NAMES = T) %>%
@@ -180,28 +209,31 @@ list_kern_to_cov = function(data, kern, hp, deriv = NULL){
 #' with each individual.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
+#' @param deriv A character, indicating according to which hyper-parameter the
+#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  the list of covariance matrices.
 #'
 #' @return A named list containing all of the inverse covariance matrices.
 #'
 #' @examples
-#' db = simu_db(M = 3)
-#' hp = tibble::tibble(ID = unique(db$ID), hp())
-#' list_kern_to_inv(db, 'SE', hp, 0)
-list_kern_to_inv = function(db, kern, hp, pen_diag = 0, deriv = NULL){
-
-  floop = function(i)
-  {
-    db_i = db %>%
+#' db <- simu_db(M = 3)
+#' hp <- tibble::tibble(ID = unique(db$ID), hp())
+#' list_kern_to_inv(db, "SE", hp, 0)
+list_kern_to_inv <- function(db, kern, hp, pen_diag = 0, deriv = NULL) {
+  floop <- function(i) {
+    db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      select(- .data$ID)
+      dplyr::select(-.data$ID)
     ## To avoid throwing an error if 'Output' has already been removed
-    if("Output" %in% names(db_i)){db_i = db_i %>% dplyr::select(- .data$Output)}
+    if ("Output" %in% names(db_i)) {
+      db_i <- db_i %>% dplyr::select(-.data$Output)
+    }
 
-    hp_i = hp%>%
-      filter(.data$ID == i)%>%
-      select(- .data$ID)
+    hp_i <- hp %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::select(- .data$ID)
 
-    kern_to_inv(db_i, 'SE', hp_i, pen_diag, deriv = deriv) %>%
+    kern_to_inv(db_i, "SE", hp_i, pen_diag, deriv = deriv) %>%
       return()
   }
   sapply(unique(db$ID), floop, simplify = F, USE.NAMES = T) %>%

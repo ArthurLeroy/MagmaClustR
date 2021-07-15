@@ -4,24 +4,28 @@
 \alias{rq_kernel}
 \title{Rational Quadratic Kernel}
 \usage{
-rq_kernel(x, y, hp)
+rq_kernel(x, y, hp, deriv = NULL)
 }
 \arguments{
 \item{x}{A vector of inputs.}
 
 \item{y}{A vector of inputs.}
 
-\item{hp}{A tibble containing the kernel's hyperparameters.
-Required columns: 'variance', 'lengthscale', and 'scale'.}
+\item{hp}{A tibble, data frame or named vector, containing the kernel's
+hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.}
+
+\item{deriv}{A character, indicating according to which hyper-parameter the
+derivative should be computed. If NULL (defaut), the function simply returns
+the evaluation of the kernel.}
 }
 \value{
-The evaluation of the kernel.
+A scalar, conresponding to the evaluation of the kernel.
 }
 \description{
 Rational Quadratic Kernel
 }
 \examples{
-kernel_quad(
+rq_kernel(
   c(1, 0), c(0, 1),
   tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3)
 )

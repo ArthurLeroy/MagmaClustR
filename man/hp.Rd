@@ -13,6 +13,10 @@ hp(kern = "SE", list_ID = NULL)
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
 }}
+
+\item{list_ID}{A vector, associating an \code{ID} value with each individual
+for whom hyper-parameters are generated. If NULL (defaut) only one set of
+hyper-parameters is return without the \code{ID} column.}
 }
 \value{
 A tibble, gathering a set of hyper-parameters.

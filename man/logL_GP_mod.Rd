@@ -26,7 +26,9 @@ value of the modified Gaussian log-likelihood for one GP as it appears in the mo
 Modified Log Likelihood function of the Gaussian Process
 }
 \examples{
-logL_GP(tibble::tibble(sigma = 1, lengthscale = 0.5),
-tibble::tibble(input= 1:5,Output= 2:6),rep(3,5),kernel_sqrd_exp,0)
+db = tibble(Input= 1:5, Output= 2:6)
+mean = rep(0, 5)
+hp = tibble(variance = 1, lengthscale = 0.5)
+logL_GP_mod(hp, db, mean, 'SE', 0, 0.001)
 
 }

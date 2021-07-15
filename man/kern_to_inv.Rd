@@ -4,7 +4,7 @@
 \alias{kern_to_inv}
 \title{Create inverse of a covariance matrix from a kernel}
 \usage{
-kern_to_inv(input, kern, hp, pen_diag = 0)
+kern_to_inv(input, kern, hp, pen_diag = 0, deriv = NULL)
 }
 \arguments{
 \item{input}{A vector, matrix, data frame or tibble containing all inputs for
@@ -31,6 +31,10 @@ exactly to those used in the kernel definition.}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
+
+\item{deriv}{A character, indicating according to which hyper-parameter the
+derivative should be computed. If NULL (defaut), the function simply returns
+the inverse covariance matrix.}
 }
 \value{
 The inverse of a covariance matrix, which elements are evaluations of

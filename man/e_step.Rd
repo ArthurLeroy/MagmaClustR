@@ -13,7 +13,9 @@ Additional columns for covariates can be specified.}
 \item{m_0}{A vector, corresponding to the prior mean of the mean GP
 (\eqn{\mu_0}).}
 
-\item{kern_0}{A kernel function, associated with the mean GP (\eqn{\mu_{0}}).}
+\item{kern_0}{A kernel function, associated with the mean GP.}
+
+\item{kern_i}{A kernel function, associated with the individual GPs.}
 
 \item{hp_0}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_0}.}

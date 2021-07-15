@@ -4,7 +4,7 @@
 \alias{kern_to_cov}
 \title{Create covariance matrix from a kernel}
 \usage{
-kern_to_cov(input, kern = "SE", hp)
+kern_to_cov(input, kern = "SE", hp, deriv = NULL)
 }
 \arguments{
 \item{input}{A vector, matrix, data frame or tibble containing all inputs for
@@ -28,6 +28,10 @@ Radial Basis Function or Gaussian kernel),
 \item{hp}{A list, data frame or tibble containing the hyper-parameters used
 in the kernel. The name of the elements (or columns) should correspond
 exactly to those used in the kernel definition.}
+
+\item{deriv}{A character, indicating according to which hyper-parameter the
+derivative should be computed. If NULL (defaut), the function simply returns
+the covariance matrix.}
 }
 \value{
 A covariance matrix, where elements are evaluations of the associated
