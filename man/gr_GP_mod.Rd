@@ -9,7 +9,7 @@ gr_GP_mod(hp, db, mean, kern, new_cov, pen_diag = NULL)
 \arguments{
 \item{hp}{set of hyper-parameter}
 
-\item{db}{full database with all individuals. Columns required : ID, input, Output}
+\item{db}{full database with all individuals. Columns required : ID, Input, Output}
 
 \item{mean}{mean of your Gaussian Process}
 

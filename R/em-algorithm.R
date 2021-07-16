@@ -128,6 +128,7 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
 #'  post_async$mean, post_async$cov, F, 0.001)
 m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
                    mean, cov, common_hp, pen_diag) {
+  browser()
   list_ID <- unique(db$ID)
   list_hp_0 <- old_hp_0 %>% names()
   list_hp_i <- old_hp_i %>%

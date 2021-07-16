@@ -1,7 +1,45 @@
+#' Gradient Gaussian Process
+#'
+#' @param hp Set of hyper-parameter.
+#' @param db Full database with all individuals. Columns required : ID, Input, Output
+#' @param mean Mean of your Gaussian Process.
+#' @param kern Kernel used to compute the covariance matrix.
+#' @param new_cov Posterior covariance matrix of the mean GP (mu_0).
+#'
+#' @return Gradient of the Gaussian Process
+#' @export
+#'
+#' @examples
+gr_GP = function(hp, db, mean, kern, new_cov)
+{
+  list_hp = names(hp)
+  output = db$Output
+  ## Extract the reference Input
+  input = db$Input
+  ## Extract the input variables (reference Input + Covariates)
+  inputs = db %>% dplyr::select(- .data$Output)
+
+  cov = kern_to_cov(inputs, kern, hp) + new_cov
+  inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
+  prod_inv = inv %*% (output - mean)
+  common_term = prod_inv %*% t(prod_inv) - inv
+
+  floop = function(deriv){
+    (- 1/2 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
+      diag() %>%
+      sum() %>%
+      return()
+  }
+  sapply(list_hp, floop) %>%
+    return()
+
+}
+
+
 #' Gradient Gaussian Process modif
 #'
 #' @param hp set of hyper-parameter
-#' @param db full database with all individuals. Columns required : ID, input, Output
+#' @param db full database with all individuals. Columns required : ID, Input, Output
 #' @param mean mean of your Gaussian Process
 #' @param kern kernel used to compute the covariance matrix
 #' @param new_cov posterior covariance matrix of the mean GP (mu_0).
@@ -21,7 +59,7 @@ gr_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
   ## Extract the input variables (reference Input + Covariates)
   inputs = db %>% dplyr::select(- .data$Output)
 
-  inv <- kern_to_inv(inputs, kern, hp, pen_diag)
+  inv <- kern_to_inv(inputs, kern, hp, pen_diag = pen_diag)
   prod_inv = inv %*% (output - mean)
   common_term = prod_inv %*% t(prod_inv) +
     inv %*% ( new_cov %*% inv - diag(1, length(input)) )
@@ -101,3 +139,4 @@ gr_GP_mod_common_hp = function(hp, db, mean, kern, new_cov, pen_diag)
   }
   return(gr_hp)
 }
+
