@@ -61,14 +61,16 @@ db <- simu_db(N = 10, common_input = T)
 m_0 <- rep(0, 10)
 hp_0 <- hp()
 hp_i <- hp("SE", list_ID = unique(db$ID))
-post <- e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
+post <- MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 
-m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov, F, 0.001)
+MagmaClustR:::m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov,
+ F, 0.001)
 
 db_async <- simu_db(N = 10, common_input = F)
 m_0_async <- rep(0, db_async$Input \%>\% unique() \%>\% length())
-post_async = e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
+post_async = MagmaClustR:::e_step(db_async, m_0_async, "SE", "SE",
+ hp_0, hp_i, 0.001)
 
-m_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i,
+MagmaClustR:::m_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i,
  post_async$mean, post_async$cov, F, 0.001)
 }

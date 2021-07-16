@@ -25,11 +25,11 @@
 #' m_0 <- rep(0, 10)
 #' hp_0 <- hp()
 #' hp_i <- hp("SE", list_ID = unique(db$ID))
-#' e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
+#' MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 #'
 #' db_async <- simu_db(N = 10, common_input = F)
 #' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
-#' e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
+#' MagmaClustR:::e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
 e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
   ## Define the union of all reference Inputs in the dataset
   all_t <- unique(db$Input) %>% sort()
@@ -114,17 +114,24 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
 #' @examples
 #' db <- simu_db(N = 10, common_input = T)
 #' m_0 <- rep(0, 10)
-#' hp_0 <- hp()
-#' hp_i <- hp("SE", list_ID = unique(db$ID))
-#' post <- e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
+#' hp_0 <- MagmaClustR:::hp()
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+#' post <- MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 #'
-#' m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov, F, 0.001)
+#' MagmaClustR:::m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov,
+#'  F, 0.001)
+#'
+#' hp_i_common = tibble::tibble(ID = unique(db$ID),
+#'  variance = 1, lengthscale = 1)
+#' MagmaClustR:::m_step(db, m_0, "SE", "SE", hp_0, hp_i_common,
+#'  post$mean, post$cov, T, 0.001)
 #'
 #' db_async <- simu_db(N = 10, common_input = F)
 #' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
-#' post_async = e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
+#' post_async = MagmaClustR:::e_step(db_async, m_0_async, "SE", "SE",
+#'  hp_0, hp_i, 0.001)
 #'
-#' m_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i,
+#' MagmaClustR:::m_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i,
 #'  post_async$mean, post_async$cov, F, 0.001)
 m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
                    mean, cov, common_hp, pen_diag) {

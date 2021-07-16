@@ -21,9 +21,9 @@
 #' @importFrom rlang .data
 #'
 #' @examples
-#' simu_indiv_se("A", 1:10, 0, rep(0, 10), "SE", 2, 1, 0.5)
-#' simu_indiv_se("B", 1:10, 2:11, 3:12, "SE", 1, 1, 1)
-#' simu_indiv_se("C", 1:10, 5, rep(0, 10), "SE", 2, 1, 0.5)
+#' MagmaClustR:::simu_indiv_se("A", 1:10, 0, rep(0, 10), "SE", 2, 1, 0.5)
+#' MagmaClustR:::simu_indiv_se("B", 1:10, 2:11, 3:12, "SE", 1, 1, 1)
+#' MagmaClustR:::simu_indiv_se("C", 1:10, 5, rep(0, 10), "SE", 2, 1, 0.5)
 simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
   db <- tibble::tibble(
     "ID" = ID,
@@ -52,7 +52,7 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
 #' @return A 2-decimals-rounded random number
 #'
 #' @examples
-#' draw(c(1, 2))
+#' MagmaClustR:::draw(c(1, 2))
 draw <- function(int){
   stats::runif(1, int[1], int[2]) %>%
     round(2) %>%
@@ -95,7 +95,7 @@ draw <- function(int){
 #' @param covariate A vector of 2 numbers, defining an interval of admissible
 #' values for the covariate inputs.
 #'
-#' @return A full dataset of simulated training data
+#' @return A full dataset of simulated training data.
 #' @export
 #'
 #' @examples

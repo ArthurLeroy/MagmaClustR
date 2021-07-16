@@ -16,5 +16,5 @@ A 2-decimals-rounded random number
 Draw uniformly a number within a specified interval
 }
 \examples{
-draw(c(1, 2))
+MagmaClustR:::draw(c(1, 2))
 }
