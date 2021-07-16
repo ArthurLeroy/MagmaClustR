@@ -34,6 +34,7 @@ gr_GP = function(hp, db, mean, kern, new_cov)
     return()
 }
 
+
 #' Gradient Gaussian Process modif
 #'
 #' @param hp set of hyper-parameter
