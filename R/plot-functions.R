@@ -5,6 +5,7 @@
 #' @return Visualize smoothed raw data.
 #'
 #' @examples
+#' TRUE
 plot_db = function(db)
 {
   ggplot2::ggplot(db) +
@@ -29,6 +30,7 @@ plot_db = function(db)
 #' @export
 #'
 #' @examples
+#' TRUE
 plot_gp = function(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI = F)
 {
   gg = ggplot2::ggplot() +
@@ -61,6 +63,7 @@ plot_gp = function(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI
 #' @export
 #'
 #' @examples
+#' TRUE
 plot_heat =  function(pred_gp, data = NULL, data_train = NULL, mean = NULL, ygrid = NULL, interactive = F, CI = T)
 {
   if(is.null(ygrid)){ygrid = seq(min(pred_gp$Mean) - 2 * sqrt(max(pred_gp$Var)) ,
@@ -70,16 +73,16 @@ plot_heat =  function(pred_gp, data = NULL, data_train = NULL, mean = NULL, ygri
 
   if(CI)
   {
-    db_heat = tidyr::expand(pred_gp, tidyr::nesting(pred_gp$input, pred_gp$Mean, pred_gp$Var), Ygrid = ygrid) %>%
-      plotly::mutate(Proba = 2 * stats::pnorm(abs((Ygrid - pred_gp$Mean)/ sqrt(pred_gp$Var))) - 1)
-    gg = ggplot2::ggplot(db_heat) + ggplot2::geom_tile(ggplot2::aes(pred_gp$input, Ygrid, fill = Proba)) + ggplot2::scale_fill_distiller(palette = "RdPu") +
+    db_heat = tidyr::expand(pred_gp, tidyr::nesting(pred_gp$input, pred_gp$Mean, pred_gp$Var), 'Ygrid' = ygrid) %>%
+      plotly::mutate('Proba' = 2 * stats::pnorm(abs((.data$Ygrid - pred_gp$Mean)/ sqrt(pred_gp$Var))) - 1)
+    gg = ggplot2::ggplot(db_heat) + ggplot2::geom_tile(ggplot2::aes(pred_gp$input, .data$Ygrid, fill = .data$Proba)) + ggplot2::scale_fill_distiller(palette = "RdPu") +
       ggplot2::theme_minimal() + ggplot2::ylab("Output") + ggplot2::labs(fill = "Proba CI")
   }
   else
   {
-    db_heat = tidyr::expand(pred_gp, tidyr::nesting(pred_gp$input, pred_gp$Mean, pred_gp$Var), Ygrid = ygrid) %>%
-      plotly::mutate(Proba = stats::dnorm(Ygrid, mean = pred_gp$Mean, sd = sqrt(pred_gp$Var)) )
-    gg = ggplot2::ggplot(db_heat) + ggplot2::geom_tile(ggplot2::aes(pred_gp$input, Ygrid, fill = Proba)) +
+    db_heat = tidyr::expand(pred_gp, tidyr::nesting(pred_gp$input, pred_gp$Mean, pred_gp$Var), 'Ygrid' = ygrid) %>%
+      plotly::mutate('Proba' = stats::dnorm(.data$Ygrid, mean = pred_gp$Mean, sd = sqrt(pred_gp$Var)) )
+    gg = ggplot2::ggplot(db_heat) + ggplot2::geom_tile(ggplot2::aes(pred_gp$input, .data$Ygrid, fill = .data$Proba)) +
       ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse") +
       ggplot2::theme_minimal() + ggplot2::ylab("Output") + ggplot2::labs(fill = "Likelihood")
   }
@@ -107,9 +110,10 @@ plot_heat =  function(pred_gp, data = NULL, data_train = NULL, mean = NULL, ygri
 #' @export
 #'
 #' @examples
+#' TRUE
 plot_animate = function(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI = F, file = "gganim.gif")
 {
   gg = plot_gp(pred_gp, data, data_train, mean, mean_CI)  +
-    gganimate::transition_states(Nb_data, transition_length = 2, state_length = 1)
+    gganimate::transition_states(.data$Nb_data, transition_length = 2, state_length = 1)
   gganimate::animate(gg, renderer = gganimate::gifski_renderer(file)) %>% return()
 }

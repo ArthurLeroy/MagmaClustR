@@ -27,3 +27,6 @@ list of trained HP, boolean to indicate convergence
 \description{
 Training
 }
+\examples{
+TRUE
+}

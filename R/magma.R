@@ -18,6 +18,7 @@
 #' @export
 #'
 #' @examples
+#' TRUE
 full_algo = function(db, new_db, timestamps, kern_i, common_hp = T, plot = T, prior_mean,
                      kern_0 = NULL, list_hp = NULL, mu = NULL, ini_hp_0 = NULL, ini_hp_i = NULL, hp_new_i = NULL)
 {

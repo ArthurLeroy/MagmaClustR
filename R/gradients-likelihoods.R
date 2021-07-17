@@ -1,31 +1,49 @@
-#' Gradient Gaussian Process
+#' Gradient of the logLikelihood of a Gaussian Process
 #'
-#' @param hp Set of hyper-parameter.
-#' @param db Full database with all individuals. Columns required : ID, Input, Output
-#' @param mean Mean of your Gaussian Process.
-#' @param kern Kernel used to compute the covariance matrix.
-#' @param new_cov Posterior covariance matrix of the mean GP (mu_0).
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
+#' @param db A tibble containing the values we want to compute the logL on.
+#'    Required columns: Input, Output. Additional covariate columns are allowed.
+#' @param mean A vector, specifying the mean of the GP at the reference inputs.
+#' @param kern A kernel function.
+#' @param new_cov (optional) A matrix, corresponding to covariance parameter of
+#'    the hyper-posterior. Used to compute the hyper-prior distribution of a new
+#'    individual in Magma.
+#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
+#'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return
-#' @export
+#' @return A named vector, corresponding to the value of the hyper-parameters
+#'    gradients for the Gaussian log-Likelihood (where the covariance can be the
+#'    sum of the individual and the hyper-posterior's mean process covariances).
 #'
 #' @examples
-gr_GP = function(hp, db, mean, kern, new_cov)
-{
-  list_hp = names(hp)
-  output = db$Output
+#' db <- tibble::tibble(Input = 1:5, Output = 2:6)
+#' mean <- rep(0, 5)
+#' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+#' new_cov = kern_to_cov(1:5, 'SE', hp)
+#' MagmaClustR:::gr_GP(hp, db, mean, "SE", new_cov, 0.001)
+gr_GP <- function(hp, db, mean, kern, new_cov, pen_diag) {
+  list_hp <- names(hp)
+  output <- db$Output
   ## Extract the reference Input
-  input = db$Input
+  input <- db$Input
   ## Extract the input variables (reference Input + Covariates)
-  inputs = db %>% dplyr::select(- .data$Output)
+  inputs <- db %>% dplyr::select(-.data$Output)
 
-  cov = kern_to_cov(inputs, kern, hp) + new_cov
-  inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
-  prod_inv = inv %*% (output - mean)
-  common_term = prod_inv %*% t(prod_inv) - inv
+  cov <- kern_to_cov(inputs, kern, hp) + new_cov
+  diag <- diag(x = pen_diag, ncol = ncol(cov), nrow = nrow(cov))
+  inv <- tryCatch((cov + diag) %>% chol() %>% chol2inv(),
+    error = function(e) {
+      MASS::ginv(cov + diag)
+    }
+  )
 
-  floop = function(deriv){
-    (- 1/2 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
+  ## Compute the term common to all partial derivatives
+  prod_inv <- inv %*% (output - mean)
+  common_term <- prod_inv %*% t(prod_inv) - inv
+
+  ## Loop over the derivatives of hyper-parameters for computing the gradient
+  floop <- function(deriv) {
+    (-0.5 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
       diag() %>%
       sum() %>%
       return()
@@ -35,36 +53,44 @@ gr_GP = function(hp, db, mean, kern, new_cov)
 }
 
 
-#' Gradient Gaussian Process modif
+#' Gradient of the modified logLikelihood for GPs in Magma
 #'
-#' @param hp set of hyper-parameter
-#' @param db full database with all individuals. Columns required : ID, input, Output
-#' @param mean mean of your Gaussian Process
-#' @param kern kernel used to compute the covariance matrix
-#' @param new_cov posterior covariance matrix of the mean GP (mu_0).
-#' @param pen_diag value of the penalization of the diagonal
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
+#' @param db A tibble containing the values we want to compute the logL on.
+#'    Required columns: Input, Output. Additional covariate columns are allowed.
+#' @param mean A vector, specifying the mean of the GPs at the reference inputs.
+#' @param kern A kernel function.
+#' @param new_cov A matrix, covariance parameter of the hyper-posterior.
+#'    Used to compute the correction term.
+#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
+#'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return Gradient of the Gaussian Process modified
-#' @export
+#' @return A named vector, corresponding to the value of the hyper-parameters
+#'    gradients for the modified Gaussian log-Likelihood involved in Magma.
 #'
 #' @examples
-#' TRUE
-gr_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
-{
-  list_hp = names(hp)
-  output = db$Output
+#' db <- tibble::tibble(Input = 1:5, Output = 2:6)
+#' mean <- rep(0, 5)
+#' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+#' new_cov = kern_to_cov(1:5, 'SE', hp)
+#' MagmaClustR:::gr_GP_mod(hp, db, mean, "SE", new_cov, 0.001)
+gr_GP_mod <- function(hp, db, mean, kern, new_cov, pen_diag) {
+  list_hp <- names(hp)
+  output <- db$Output
   ## Extract the reference Input
-  input = db$Input
+  input <- db$Input
   ## Extract the input variables (reference Input + Covariates)
-  inputs = db %>% dplyr::select(- .data$Output)
+  inputs <- db %>% dplyr::select(-.data$Output)
 
   inv <- kern_to_inv(inputs, kern, hp, pen_diag)
-  prod_inv = inv %*% (output - mean)
-  common_term = prod_inv %*% t(prod_inv) +
-    inv %*% ( new_cov %*% inv - diag(1, length(input)) )
+  ## Compute the term common to all partial derivatives
+  prod_inv <- inv %*% (output - mean)
+  common_term <- prod_inv %*% t(prod_inv) +
+    inv %*% (new_cov %*% inv - diag(1, length(input)))
 
-  floop = function(deriv){
-    (- 1/2 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
+  ## Loop over the derivatives of hyper-parameters for computing the gradient
+  floop <- function(deriv) {
+    (-1 / 2 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
       diag() %>%
       sum() %>%
       return()
@@ -73,29 +99,38 @@ gr_GP_mod = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
     return()
 }
 
-#' Gradient common Gaussian Process
+#' Gradient of the modified logLikelihood with common HPs for GPs in Magma
 #'
-#' @param hp set of hyper-parameter
-#' @param db full database with all individuals. Columns required : ID, input, Output
-#' @param mean mean of the GP at union of observed input
-#' @param kern kernel used to compute the covariance matrix at corresponding inputs
-#' @param new_cov posterior covariance matrix of the mean GP (mu_0).
-#' @param pen_diag A jitter
+#' @param hp A tibble or data frame containing hyper-parameters for all
+#'    individuals.
+#' @param db A tibble containing the values we want to compute the logL on.
+#'    Required columns: ID, Input, Output. Additional covariate columns are
+#'    allowed.
+#' @param mean A vector, specifying the mean of the GPs at the reference inputs.
+#' @param kern A kernel function.
+#' @param new_cov A matrix, covariance parameter of the hyper-posterior.
+#'    Used to compute the correction term.
+#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
+#'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return Gradient of the common Gaussian Process
-#' @export
+#' @return A named vector, corresponding to the value of the hyper-parameters'
+#'    gradients for the modified Gaussian log-Likelihood involved in Magma with
+#'    the 'common HP' setting.
 #'
 #' @examples
-#' TRUE
-gr_GP_mod_common_hp = function(hp, db, mean, kern, new_cov, pen_diag)
-{
-  list_hp = names(hp)
+#' db <- simu_db(N = 10, common_input = TRUE)
+#' mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
+#' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+#' new_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
+#' MagmaClustR:::gr_GP_mod_common_hp(hp, db, mean, "SE", new_cov, 0.001)
+gr_GP_mod_common_hp <- function(hp, db, mean, kern, new_cov, pen_diag) {
+  list_hp <- names(hp)
   ## Initialise the the sum of the gradients and inputs
-  gr_hp = rep(0, length(hp)) %>% `names<-`(hp %>% names())
-  input_i_old = NULL
+  gr_hp <- rep(0, length(hp)) %>% `names<-`(hp %>% names())
+  input_i_old <- NULL
 
   ## Loop over individuals to compute the sum of log-Likelihoods
-  for(i in unique(db$ID)){
+  for (i in unique(db$ID)) {
     ## Extract the i-th specific reference inputs
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
@@ -105,34 +140,34 @@ gr_GP_mod_common_hp = function(hp, db, mean, kern, new_cov, pen_diag)
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(.data$Output)
     ## Extract the mean values associated with the i-th specific inputs
-    mean_i = mean %>%
+    mean_i <- mean %>%
       dplyr::filter(.data$Input %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
-    new_cov_i = new_cov[as.character(input_i), as.character(input_i)]
+    new_cov_i <- new_cov[as.character(input_i), as.character(input_i)]
 
     ## Update the inverse cov matrix only if necessary (if different inputs)
     if (!identical(input_i, input_i_old)) {
       ## Extract the i-th specific inputs (reference + covariates)
-      inputs_i = db %>%
+      inputs_i <- db %>%
         dplyr::filter(.data$ID == i) %>%
-        dplyr::select(- c(.data$ID, .data$Output))
+        dplyr::select(-c(.data$ID, .data$Output))
       inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
     }
 
-    ## Compute the terms common to all hyper-parameters
-    prod_inv = inv %*% (output_i - mean_i)
-    common_term = prod_inv %*% t(prod_inv) +
-      inv %*% (new_cov_i  %*% inv - diag(1, length(input_i)) )
+    ## Compute the term common to all partial derivatives
+    prod_inv <- inv %*% (output_i - mean_i)
+    common_term <- prod_inv %*% t(prod_inv) +
+      inv %*% (new_cov_i %*% inv - diag(1, length(input_i)))
     ## Loop over the derivatives of hyper-parameters for computing the gradient
-    floop = function(deriv){
-      (- 1/2 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
+    floop <- function(deriv) {
+      (-1 / 2 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
         diag() %>%
         sum() %>%
         return()
     }
     ## Add a new term to the sum of gradients
-    gr_hp = gr_hp + sapply(list_hp, floop)
+    gr_hp <- gr_hp + sapply(list_hp, floop)
     ## Keep track of the reference inputs
     input_i_old <- input_i
   }

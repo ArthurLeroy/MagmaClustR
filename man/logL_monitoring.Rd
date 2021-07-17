@@ -2,40 +2,50 @@
 % Please edit documentation in R/likelihoods.R
 \name{logL_monitoring}
 \alias{logL_monitoring}
-\title{Log-Likelihood for monitoring the EM algorithm}
+\title{Log-Likelihood for monitoring the EM algorithm in Magma}
 \usage{
-logL_monitoring(hp_0, hp_i, db, kern_i, kern_0, mean_mu, cov_mu, m_0, pen_diag)
+logL_monitoring(hp_0, hp_i, db, m_0, kern_0, kern_i, mean, cov, pen_diag)
 }
 \arguments{
-\item{hp_0}{hyperparameters for the kernel 0}
+\item{hp_0}{A tibble or data frame, containing the hyper-parameters
+associated with the mean GP.}
 
-\item{hp_i}{hyperparameters for each kernel i}
+\item{hp_i}{A tibble or data frame, containing the hyper-parameters with the
+individual GPs.}
 
-\item{db}{tibble containing values we want to compute logL on. Required columns : ID, input, Output}
+\item{db}{A tibble or data frame. Columns required: ID, Input, Output.
+Additional columns for covariates can be specified.}
 
-\item{kern_i}{kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i)}
+\item{m_0}{A vector, corresponding to the prior mean of the mean GP.}
 
-\item{kern_0}{kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0)}
+\item{kern_0}{A kernel function, associated with the mean GP.}
 
-\item{mean_mu}{posterior mean of the mean GP (mu_0). Needed to compute the log-likelihood}
+\item{kern_i}{A kernel function, associated with the individual GPs.}
 
-\item{cov_mu}{posterior covariance matrix of the mean GP (mu_0). Needed to compute correction term}
+\item{mean}{A tibble, coming out of the E step, containing the Input and
+associated Output of the hyper-posterior mean parameter.}
 
-\item{m_0}{prior value of the mean parameter of the mean GP (mu_0). Length = 1 or nrow(db)}
+\item{cov}{A matrix, coming out of the E step, being the hyper-posterior
+covariance parameter.}
 
-\item{pen_diag}{value of the penalization of the diagonal}
+\item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
+numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-value of expectation of joint log-likelihood of the model. The function to be maximised in step M
-The full likelihood is composed of M+1 independent parts, depending on only theta_0, or theta_i respectively
-for each i. The following code computes and sums these M+1 (modified) gaussian likelihoods.
+A number, expectation of joint log-likelihood of the model. This
+quantity is supposed to increase at each step of the EM algorithm, and
+thus used for monitoring the procedure.
 }
 \description{
-Log-Likelihood for monitoring the EM algorithm
+Log-Likelihood for monitoring the EM algorithm in Magma
 }
 \examples{
-kern_i <- kern_0 <- kernel_sqrd_exp
-hp_0 <- tibble::tibble(sigma = 1, lengthscale = 0.5)
-hp_i <- list(hp_0, hp_0, hp_0, hp_0, hp_0)
-db <- mean_mu <- tibble::tibble(ID = 1:5, input = 1:5, Output = 2:6)
+db <- simu_db(N = 10, common_input = TRUE)
+m_0 <- rep(0, 10)
+hp_0 <- tibble::tibble(variance = 1, lengthscale = 0.5)
+hp_i <- MagmaClustR:::hp('SE', unique(db$ID))
+mean <- tibble::tibble(Input = unique(db$Input), Output = 5)
+cov <- kern_to_cov(unique(db$Input), 'SE', hp_0)
+MagmaClustR:::logL_monitoring(hp_0, hp_i, db, m_0,
+ "SE", "SE", mean, cov, 0.001)
 }

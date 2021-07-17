@@ -28,6 +28,6 @@ database, taking into account their specific inputs and hyper-parameters.
 }
 \examples{
 db <- simu_db(M = 3)
-hp <- tibble::tibble(ID = unique(db$ID), hp())
-list_kern_to_cov(db, "SE", hp)
+hp <- tibble::tibble(ID = unique(db$ID), MagmaClustR:::hp())
+MagmaClustR:::list_kern_to_cov(db, "SE", hp)
 }

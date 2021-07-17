@@ -32,3 +32,6 @@ plot the animated curves of the GP (GIF) with the 0.95 confidence interval (opti
 \description{
 Plot the animated (GIF) curves of the GP
 }
+\examples{
+TRUE
+}

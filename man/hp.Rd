@@ -26,5 +26,5 @@ Generate a set of random hyper-parameters, specific to the chosen type of
 kernel.
 }
 \examples{
-hp("PERIO")
+MagmaClustR:::hp("PERIO")
 }

@@ -23,3 +23,6 @@ list of trained HP
 \description{
 Training new gaussian process
 }
+\examples{
+TRUE
+}

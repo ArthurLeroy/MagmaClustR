@@ -2,8 +2,6 @@
 
 export("%>%")
 export(full_algo)
-export(gr_GP_mod)
-export(gr_GP_mod_common_hp)
 export(kern_to_cov)
 export(kern_to_inv)
 export(plot_animate)

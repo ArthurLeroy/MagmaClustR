@@ -25,7 +25,7 @@ A scalar, conresponding to the evaluation of the kernel.
 Periodic Kernel
 }
 \examples{
-perio_kernel(
+MagmaClustR:::perio_kernel(
   c(1, 0), c(0, 1),
   tibble::tibble(variance = 1, lengthscale = 0.5, period = 2)
 )

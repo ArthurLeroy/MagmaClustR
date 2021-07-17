@@ -25,7 +25,7 @@ A scalar, conresponding to the evaluation of the kernel.
 Squared Exponential Kernel
 }
 \examples{
-se_kernel(
+MagmaClustR:::se_kernel(
   c(1, 0), c(0, 1),
   tibble::tibble(variance = 1, lengthscale = 0.5)
 )

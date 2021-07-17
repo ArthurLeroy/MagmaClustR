@@ -2,30 +2,39 @@
 % Please edit documentation in R/likelihoods.R
 \name{logL_GP}
 \alias{logL_GP}
-\title{Log Likelihood function of the Gaussian Process}
+\title{Log-Likelihood function of a Gaussian Process}
 \usage{
-logL_GP(hp, db, mean, kern, new_cov)
+logL_GP(hp, db, mean, kern, new_cov, pen_diag)
 }
 \arguments{
-\item{hp}{The hyperparameters of your kernel}
+\item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
 
-\item{db}{tibble containing the values we want to compute. Required columns : input, Output}
+\item{db}{A tibble containing the values we want to compute the logL on.
+Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{mean}{mean of the GP at corresponding inputs}
+\item{mean}{A vector, specifying the mean of the GP at the reference inputs.}
 
-\item{kern}{kernel used to compute the covariance matrix at corresponding inputs}
+\item{kern}{A kernel function.}
 
-\item{new_cov}{posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)}
+\item{new_cov}{(optional) A matrix, corresponding to covariance parameter of
+the hyper-posterior. Used to compute the hyper-prior distribution of a new
+individual in Magma.}
+
+\item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
+numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-value of the Gaussian log-likelihood for one GP as it appears in the model
+A number, corresponding to the value of Gaussian
+log-Likelihood (where the covariance can be the sum of the individual and
+the hyper-posterior's mean process covariances).
 }
 \description{
-Log Likelihood function of the Gaussian Process
+Log-Likelihood function of a Gaussian Process
 }
 \examples{
-logL_GP(
-  tibble::tibble(variance = 1, lengthscale = 0.5),
-  tibble::tibble(Input = 1:5, Output = 2:6), rep(3, 5), se_kernel, 0
-)
+db <- tibble::tibble(Input = 1:5, Output = 2:6)
+mean <- rep(0, 5)
+hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+new_cov = kern_to_cov(1:5, 'SE', hp)
+MagmaClustR:::logL_GP(hp, db, mean, "SE", new_cov, 0.001)
 }

@@ -13,27 +13,28 @@
 #' @export
 #'
 #' @examples
+#' TRUE
 posterior_mu = function(db, new_db, timestamps, m_0, kern_0, kern_i, hp_0,hp_i)
 {
-  t_pred = timestamps %>% union(unique(db$input)) %>% union(unique(new_db$input)) %>% sort()
-  ## Mean GP (mu_0) is noiseless and thus has only 2 hp. We add a penalty on diag for numerical stability
-  pen_diag = 0.1 #sapply(hp_i, function(x) x[[3]]) %>% mean
-
-  inv_0 = kern_to_inv(t_pred, kern_0, hp_0, pen_diag)
-  inv_i = kern_to_inv(db, kern_i, hp_i)
-  value_i = base::split(db$Output, list(db$ID))
-
-  new_inv = update_inv(prior_inv = inv_0, list_inv_i = inv_i)
-  new_cov = tryCatch(solve(new_inv), error = function(e){MASS::ginv(new_inv)}) ## fast or slow matrix inversion if singular
-  rownames(new_cov) = rownames(new_inv)
-  colnames(new_cov) = colnames(new_inv)
-
-  weighted_mean = update_mean(prior_mean = m_0, prior_inv = inv_0, list_inv_i = inv_i, list_value_i = value_i)
-  new_mean = (new_cov %*% weighted_mean) %>% as.vector
-
-  #names(mean_mu) = paste0('X', t_mu)
-  list('mean' = tibble::tibble('input' = t_pred, 'Output' = new_mean) , 'cov' = new_cov,
-       'pred_GP' = tibble::tibble('input' = t_pred, 'Mean' = new_mean, 'Var' = diag(new_cov))) %>% return()
+  # t_pred = timestamps %>% union(unique(db$input)) %>% union(unique(new_db$input)) %>% sort()
+  # ## Mean GP (mu_0) is noiseless and thus has only 2 hp. We add a penalty on diag for numerical stability
+  # pen_diag = 0.1 #sapply(hp_i, function(x) x[[3]]) %>% mean
+  #
+  # inv_0 = kern_to_inv(t_pred, kern_0, hp_0, pen_diag)
+  # inv_i = kern_to_inv(db, kern_i, hp_i)
+  # value_i = base::split(db$Output, list(db$ID))
+  #
+  # new_inv = update_inv(prior_inv = inv_0, list_inv_i = inv_i)
+  # new_cov = tryCatch(solve(new_inv), error = function(e){MASS::ginv(new_inv)}) ## fast or slow matrix inversion if singular
+  # rownames(new_cov) = rownames(new_inv)
+  # colnames(new_cov) = colnames(new_inv)
+  #
+  # weighted_mean = update_mean(prior_mean = m_0, prior_inv = inv_0, list_inv_i = inv_i, list_value_i = value_i)
+  # new_mean = (new_cov %*% weighted_mean) %>% as.vector
+  #
+  # #names(mean_mu) = paste0('X', t_mu)
+  # list('mean' = tibble::tibble('input' = t_pred, 'Output' = new_mean) , 'cov' = new_cov,
+  #      'pred_GP' = tibble::tibble('input' = t_pred, 'Mean' = new_mean, 'Var' = diag(new_cov))) %>% return()
 }
 
 #' Prediction Gaussian Process
@@ -49,6 +50,7 @@ posterior_mu = function(db, new_db, timestamps, m_0, kern_0, kern_i, hp_0,hp_i)
 #' @export
 #'
 #' @examples
+#' TRUE
 pred_gp = function(db, timestamps = NULL, mean_mu = 0, cov_mu = NULL, kern, hp)
 {
   tn = db %>% dplyr::pull(db$input)
@@ -105,6 +107,7 @@ pred_gp = function(db, timestamps = NULL, mean_mu = 0, cov_mu = NULL, kern, hp)
 #' @export
 #'
 #' @examples
+#' TRUE
 pred_gp_animate = function(db, timestamps = NULL, mean_mu = 0, cov_mu = NULL,
                            kern, hp)
 {

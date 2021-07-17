@@ -69,7 +69,7 @@ values for the intercept of m0.}
 values for the covariate inputs.}
 }
 \value{
-A full dataset of simulated training data
+A full dataset of simulated training data.
 }
 \description{
 Simulate a complete training dataset, which may be coherent in many different
@@ -78,8 +78,10 @@ individuals, of observed input, and the values of many parameters
 controlling the data generation.
 }
 \examples{
+\donttest{
 simu_db(M = 5, N = 3)
-simu_db(M = 5, N = 3, common_input = F)
-simu_db(M = 5, N = 3, common_hp = F, add_hp = T)
-simu_db(M = 5, N = 3, common_input = F, common_hp = F)
+simu_db(M = 5, N = 3, common_input = FALSE)
+simu_db(M = 5, N = 3, common_hp = FALSE, add_hp = TRUE)
+simu_db(M = 5, N = 3, common_input = FALSE, common_hp = FALSE)
+}
 }

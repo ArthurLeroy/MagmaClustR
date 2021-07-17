@@ -15,24 +15,33 @@
 #'    associated with \code{kern_i}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
+#' @param grid_inputs A vector, indicating the grid of additional reference
+#' inputs on which the mean process' hyper-posterior should be evaluated.
 #'
 #' @return A named list, containing the elements \code{mean}, a tibble
-#' containing the Input and associated Output of the hyper-posterior mean
-#' parameter, and \code{cov}, the hyper-posterior covariance matrix.
+#' containing the Input and associated Output of the hyper-posterior's mean
+#' parameter, and \code{cov}, the hyper-posterior's covariance matrix.
 #'
 #' @examples
-#' db <- simu_db(N = 10, common_input = T)
+#' db <- simu_db(N = 10, common_input = TRUE)
 #' m_0 <- rep(0, 10)
-#' hp_0 <- hp()
-#' hp_i <- hp("SE", list_ID = unique(db$ID))
+#' hp_0 <- MagmaClustR:::hp()
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #' MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 #'
-#' db_async <- simu_db(N = 10, common_input = F)
+#' db_async <- simu_db(N = 10, common_input = FALSE)
 #' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
 #' MagmaClustR:::e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
-e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
-  ## Define the union of all reference Inputs in the dataset
-  all_t <- unique(db$Input) %>% sort()
+e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
+                   pen_diag, grid_inputs = NULL) {
+  if(grid_inputs %>% is.null()){
+    ## Define the union of all reference Inputs in the dataset
+    all_t <- unique(db$Input) %>% sort()
+  }
+  else{
+    ## Define the union among all reference Inputs and a specified grid
+    all_t <- unique(db$Input) %>% union(grid_inputs) %>% sort()
+  }
   ## Compute all the inverse covariance matrices
   inv_0 <- kern_to_inv(all_t, kern_0, hp_0, pen_diag)
   list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)
@@ -112,46 +121,63 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
 #'    associated with the individual GPs.
 #'
 #' @examples
-#' db <- simu_db(N = 10, common_input = T)
+#' \donttest{
+#' ## Common inputs across individuals and different HPs
+#' db <- simu_db(N = 10, common_input = TRUE)
 #' m_0 <- rep(0, 10)
 #' hp_0 <- MagmaClustR:::hp()
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #' post <- MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 #'
-#' MagmaClustR:::m_step(db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov,
-#'  F, 0.001)
+#' MagmaClustR:::m_step(
+#'   db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov,
+#'   FALSE, 0.001
+#' )
 #'
-#' hp_i_common = tibble::tibble(ID = unique(db$ID),
-#'  variance = 1, lengthscale = 1)
-#' MagmaClustR:::m_step(db, m_0, "SE", "SE", hp_0, hp_i_common,
-#'  post$mean, post$cov, T, 0.001)
+#' ## Common inputs across individuals and common HPs
+#' hp_i_common <- tibble::tibble(
+#'   ID = unique(db$ID),
+#'   variance = 1, lengthscale = 1
+#' )
+#' MagmaClustR:::m_step(
+#'   db, m_0, "SE", "SE", hp_0, hp_i_common,
+#'   post$mean, post$cov, TRUE, 0.001
+#' )
 #'
-#' db_async <- simu_db(N = 10, common_input = F)
+#' ## Different inputs across individuals and common HPs
+#' db_async <- simu_db(N = 10, common_input = FALSE)
 #' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
-#' post_async = MagmaClustR:::e_step(db_async, m_0_async, "SE", "SE",
-#'  hp_0, hp_i, 0.001)
+#' post_async <- MagmaClustR:::e_step(
+#'   db_async, m_0_async, "SE", "SE",
+#'   hp_0, hp_i, 0.001
+#' )
 #'
-#' MagmaClustR:::m_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i,
-#'  post_async$mean, post_async$cov, F, 0.001)
+#' MagmaClustR:::m_step(
+#'   db_async, m_0_async, "SE", "SE", hp_0, hp_i,
+#'   post_async$mean, post_async$cov, FALSE, 0.001
+#' )
+#' }
 m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
                    mean, cov, common_hp, pen_diag) {
   list_ID <- unique(db$ID)
   list_hp_0 <- old_hp_0 %>% names()
   list_hp_i <- old_hp_i %>%
-    dplyr::select(- .data$ID) %>%
+    dplyr::select(-.data$ID) %>%
     names()
 
   ## Detect whether the kernel_0 provides derivatives for its hyper-parameters
-  if(kern_0 %>% is.function()){
-    if( !("deriv" %in% methods::formalArgs(kern_0))){gr_GP_mod = NULL}
+  if (kern_0 %>% is.function()) {
+    if (!("deriv" %in% methods::formalArgs(kern_0))) {
+      gr_GP_mod <- NULL
+    }
   }
 
   ## Detect whether the kernel_i provides derivatives for its hyper-parameters
-  if(kern_i %>% is.function()){
-    if( !("deriv" %in% methods::formalArgs(kern_i))){
-        gr_GP_mod = NULL
-        gr_GP_mod_common_hp = NULL
-      }
+  if (kern_i %>% is.function()) {
+    if (!("deriv" %in% methods::formalArgs(kern_i))) {
+      gr_GP_mod <- NULL
+      gr_GP_mod_common_hp <- NULL
+    }
   }
 
   ## Optimise hyper-parameters of the mean process
@@ -165,12 +191,13 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
     new_cov = cov,
     pen_diag = pen_diag,
     method = "L-BFGS-B",
-    lower = -100 , upper = 100,
+    lower = -100, upper = 100,
     control = list(kkt = FALSE)
   ) %>%
     dplyr::select(list_hp_0) %>%
     tibble::as_tibble()
 
+  ## Check whether hyper-parameters are common to all individuals
   if (common_hp) {
     ## Optimise hyper-parameters of the individual processes
     new_hp_i <- optimr::opm(
@@ -189,7 +216,7 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
       dplyr::select(list_hp_i) %>%
       tibble::as_tibble() %>%
       tidyr::uncount(weights = length(list_ID)) %>%
-      dplyr::mutate('ID' = list_ID, .before = 1)
+      dplyr::mutate("ID" = list_ID, .before = 1)
   }
   else {
     floop <- function(i) {

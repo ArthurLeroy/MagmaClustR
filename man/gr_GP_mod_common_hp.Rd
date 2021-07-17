@@ -2,29 +2,40 @@
 % Please edit documentation in R/gradients-likelihoods.R
 \name{gr_GP_mod_common_hp}
 \alias{gr_GP_mod_common_hp}
-\title{Gradient common Gaussian Process}
+\title{Gradient of the modified logLikelihood with common HPs for GPs in Magma}
 \usage{
 gr_GP_mod_common_hp(hp, db, mean, kern, new_cov, pen_diag)
 }
 \arguments{
-\item{hp}{set of hyper-parameter}
+\item{hp}{A tibble or data frame containing hyper-parameters for all
+individuals.}
 
-\item{db}{full database with all individuals. Columns required : ID, input, Output}
+\item{db}{A tibble containing the values we want to compute the logL on.
+Required columns: ID, Input, Output. Additional covariate columns are
+allowed.}
 
-\item{mean}{mean of the GP at union of observed input}
+\item{mean}{A vector, specifying the mean of the GPs at the reference inputs.}
 
-\item{kern}{kernel used to compute the covariance matrix at corresponding inputs}
+\item{kern}{A kernel function.}
 
-\item{new_cov}{posterior covariance matrix of the mean GP (mu_0).}
+\item{new_cov}{A matrix, covariance parameter of the hyper-posterior.
+Used to compute the correction term.}
 
-\item{pen_diag}{A jitter}
+\item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
+numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-Gradient of the common Gaussian Process
+A named vector, corresponding to the value of the hyper-parameters'
+gradients for the modified Gaussian log-Likelihood involved in Magma with
+the 'common HP' setting.
 }
 \description{
-Gradient common Gaussian Process
+Gradient of the modified logLikelihood with common HPs for GPs in Magma
 }
 \examples{
-TRUE
+db <- simu_db(N = 10, common_input = TRUE)
+mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
+hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+new_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
+MagmaClustR:::gr_GP_mod_common_hp(hp, db, mean, "SE", new_cov, 0.001)
 }

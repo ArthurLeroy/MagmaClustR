@@ -53,3 +53,6 @@ predicted GP parameters | posterior mean process | all trained hyperparameters
 \description{
 Full algorithm MAGMA
 }
+\examples{
+TRUE
+}

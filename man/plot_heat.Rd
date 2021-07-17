@@ -35,3 +35,6 @@ A heatmap illustrating the GP predition results (Optionnal diplay of raw data an
 \description{
 Title
 }
+\examples{
+TRUE
+}

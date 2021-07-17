@@ -11,7 +11,7 @@
 #' @return A scalar, conresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' se_kernel(
+#' MagmaClustR:::se_kernel(
 #'   c(1, 0), c(0, 1),
 #'   tibble::tibble(variance = 1, lengthscale = 0.5)
 #' )
@@ -46,7 +46,7 @@ se_kernel <- function(x, y, hp, deriv = NULL) {
 #' @return A scalar, conresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' perio_kernel(
+#' MagmaClustR:::perio_kernel(
 #'   c(1, 0), c(0, 1),
 #'   tibble::tibble(variance = 1, lengthscale = 0.5, period = 2)
 #' )
@@ -92,7 +92,7 @@ perio_kernel <- function(x, y, hp, deriv = NULL) {
 #' @return A scalar, conresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' rq_kernel(
+#' MagmaClustR:::rq_kernel(
 #'   c(1, 0), c(0, 1),
 #'   tibble::tibble(variance = 1, lengthscale = 0.5, scale = 3)
 #' )
@@ -141,7 +141,7 @@ rq_kernel <- function(x, y, hp, deriv = NULL) {
 #' @return A tibble, gathering a set of hyper-parameters.
 #'
 #' @examples
-#' hp("PERIO")
+#' MagmaClustR:::hp("PERIO")
 hp <- function(kern = "SE", list_ID = NULL) {
   if (is.null(list_ID)) {
     if (kern == "SE") {

@@ -12,6 +12,7 @@
 #' @export
 #'
 #' @examples
+#' TRUE
 training = function(db, prior_mean, ini_hp_0, ini_hp_i, kern_0, kern_i, common_hp = T)
 {
   n_loop_max = 25
@@ -88,6 +89,7 @@ training = function(db, prior_mean, ini_hp_0, ini_hp_i, kern_0, kern_i, common_h
 #' @export
 #'
 #' @examples
+#' TRUE
 train_new_gp = function(db, mean_mu, cov_mu, ini_hp_i, kern_i)
 {
   if(is.vector(mean_mu)){mean = mean_mu}
