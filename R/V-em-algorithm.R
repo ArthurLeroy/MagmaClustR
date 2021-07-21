@@ -142,6 +142,11 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
 {
   list_ID_k = names(m_k)
   list_ID_i = unique(db$ID)
+
+  list_hp_i <- old_hp_i %>%
+    dplyr::select(-.data$ID) %>%
+    names()
+
   t1 = Sys.time()
   if(common_hp_i)
   {
@@ -153,7 +158,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
                 kern = kern_i,
                 method = "L-BFGS-B",
                 control = list(kkt = F)) %>%
-      dplyr::select(.data$list_hp_i) %>%
+      dplyr::select(list_hp_i) %>%
       tibble::as_tibble() %>%
       tidyr::uncount(weights = length(list_ID_i)) %>%
       dplyr::mutate('ID' = list_ID_i, .before = 1)
@@ -203,7 +208,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
   {
     funloop = function(k)
     {
-      c(optimr::opm(old_hp_k %>% dplyr::select(-.data$ID) %>% dplyr::slice(1:2),
+      c(optimr::opm(old_hp_k %>% dplyr::select(-.data$ID) %>% dplyr::slice(k),
             logL_GP_mod,
             gr = gr_GP_mod,
             db = list_mu_param$mean[[k]],
