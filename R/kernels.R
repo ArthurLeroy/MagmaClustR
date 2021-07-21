@@ -130,21 +130,40 @@ rq_kernel <- function(x, y, hp, deriv = NULL) {
 #' Generate a set of random hyper-parameters, specific to the chosen type of
 #'  kernel.
 #'
-#' @param kern A character string indicating the type of kernel among:
-#'  - "SE": the Squared Exponential kernel,
-#'  - "PERIO": the Periodic kernel,
-#'  - "RQ": the Rational Quadratic kernel.
-#' @param list_ID A vector, associating an \code{ID} value with each individual
-#'    for whom hyper-parameters are generated. If NULL (defaut) only one set of
-#'    hyper-parameters is return without the \code{ID} column.
+#' @param kern A function, or a character string indicating the chosen type of
+#'    kernel among:
+#'    - "SE": the Squared Exponential kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
 #'
-#' @return A tibble, gathering a set of hyper-parameters.
+#'    In case of a custom kernel function, the argument \code{list_hp} has to be
+#'    provided as well, for designing a tibble with the correct names of
+#'    hyper-parameters.
+#' @param list_ID A vector, associating an \code{ID} value with each individual
+#'    for whom hyper-parameters are generated. If NULL (default) only one set of
+#'    hyper-parameters is return without the \code{ID} column.
+#' @param list_hp A vector of characters, providing the name of each
+#'    hyper-parameter, in case where \code{kern} is a custom kernel function.
+#' @param common_hp A logical value, indicating whether the set of
+#'    hyper-parameters is assumed to be common to all indiviuals.
+#'
+#' @return A tibble, providing a set of random hyper-parameters associated with
+#'   the kernel specified through the argument \code{kern}.
+#'
+#' @export
 #'
 #' @examples
-#' MagmaClustR:::hp("PERIO")
-hp <- function(kern = "SE", list_ID = NULL) {
+#' hp("PERIO")
+#' hp(MagmaClustR:::se_kernel, 1:5, c("var", "lengthsc"), TRUE)
+hp <- function(kern = "SE", list_ID = NULL, list_hp = NULL, common_hp = F) {
   if (is.null(list_ID)) {
-    if (kern == "SE") {
+    if (kern %>% is.function()){
+      hp <- tibble::tibble(.rows = 1)
+      for(i in list_hp){
+        hp[i] = stats::runif(1, 1, 5)
+      }
+    }
+    else if (kern == "SE") {
       hp <- tibble::tibble(
         variance = stats::runif(1, 1, 5),
         lengthscale = stats::runif(1, 1, 5)
@@ -166,17 +185,23 @@ hp <- function(kern = "SE", list_ID = NULL) {
     }
   }
   else {
-    len <- length(list_ID)
-    if (kern == "SE") {
+    if(common_hp) len <- 1  else len <- length(list_ID)
+    if (kern %>% is.function()){
+      hp <- tibble::tibble(ID = as.character(list_ID))
+      for(i in list_hp){
+        hp[i] = stats::runif(len, 1, 5)
+      }
+    }
+    else if (kern == "SE") {
       hp <- tibble::tibble(
-        ID = list_ID,
+        ID = as.character(list_ID),
         variance = stats::runif(len, 1, 5),
         lengthscale = stats::runif(len, 1, 5)
       )
     }
     else if (kern == "PERIO") {
       hp <- tibble::tibble(
-        ID = list_ID,
+        ID = as.character(list_ID),
         variance = stats::runif(len, 1, 5),
         lengthscale = stats::runif(len, 1, 5),
         period = stats::runif(len, 0, 2 * pi)
@@ -184,7 +209,7 @@ hp <- function(kern = "SE", list_ID = NULL) {
     }
     else if (kern == "RQ") {
       hp <- tibble::tibble(
-        ID = list_ID,
+        ID = as.character(list_ID),
         variance = stats::runif(len, 1, 5),
         lengthscale = stats::runif(len, 1, 5),
         scale = stats::runif(len, 1, 5)

@@ -4,10 +4,10 @@
 \alias{train_new_gp}
 \title{Training new gaussian process}
 \usage{
-train_new_gp(db, mean_mu, cov_mu, ini_hp_i, kern_i)
+train_new_gp(data, mean_mu, cov_mu, ini_hp_i, kern_i)
 }
 \arguments{
-\item{db}{Database with all individuals in training set}
+\item{data}{Database with all individuals in training set}
 
 \item{mean_mu}{mean value of mean GP at timestamps (obs + pred)}
 

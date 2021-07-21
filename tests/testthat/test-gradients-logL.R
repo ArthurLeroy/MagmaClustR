@@ -48,7 +48,7 @@ test_that("gradient of logL_GP_mod_common_hp() works", {
   db = tibble::tibble(ID = rep(1:5, each = 4),
                       Output = 1:20,
                       Input = 2:21,
-                      Covariate = 3:22)
+                      Covariate = c(1:10, 23, 77, 1:8))
   mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
   hp = tibble::tibble(variance = 1, lengthscale = 0.5)
   new_cov = kern_to_cov(db$Input, 'SE', hp)

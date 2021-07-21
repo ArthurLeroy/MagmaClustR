@@ -53,9 +53,9 @@ posterior_mu = function(db, new_db, timestamps, m_0, kern_0, kern_i, hp_0,hp_i)
 #' TRUE
 pred_gp = function(db, timestamps = NULL, mean_mu = 0, cov_mu = NULL, kern, hp)
 {
-  tn = db %>% dplyr::pull(db$input)
+  tn = db %>% dplyr::pull(db$Input)
   #input = db %>% dplyr::pull(Input)
-  input = paste0('X', db$input)
+  input = paste0('X', db$Input)
   yn = db %>% dplyr::pull(db$Output)
 
   ## Define a default prediction grid
@@ -75,8 +75,8 @@ pred_gp = function(db, timestamps = NULL, mean_mu = 0, cov_mu = NULL, kern, hp)
   }
   else
   { ## If the provided mean has defined values at timestamps, typically from training. Format : input, Output
-    mean_mu_obs = mean_mu %>%  dplyr::filter(db$input %in% tn) %>% dplyr::pull(db$Output)
-    mean_mu_pred = mean_mu %>% dplyr::filter(db$input %in% timestamps) %>% dplyr::pull(db$Output)
+    mean_mu_obs = mean_mu %>%  dplyr::filter(db$Input %in% tn) %>% dplyr::pull(db$Output)
+    mean_mu_pred = mean_mu %>% dplyr::filter(db$Input %in% timestamps) %>% dplyr::pull(db$Output)
   }
 
   cov_tn_tn = kern_to_cov(tn, kern, hp) + cov_mu[input, input]
@@ -87,7 +87,7 @@ pred_gp = function(db, timestamps = NULL, mean_mu = 0, cov_mu = NULL, kern, hp)
 
   cov_t_t = kern_to_cov(timestamps, kern, hp) + cov_mu[input_t ,input_t]
 
-  tibble::tibble('input' = timestamps,
+  tibble::tibble('Input' = timestamps,
                  'Mean' = (mean_mu_pred + t(cov_tn_t) %*% inv_mat %*% (yn - mean_mu_obs)) %>% as.vector(),
                  'Var' = (cov_t_t - t(cov_tn_t) %*% inv_mat %*% cov_tn_t) %>% diag()) %>% return()
 }

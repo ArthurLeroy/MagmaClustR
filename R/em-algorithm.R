@@ -5,13 +5,12 @@
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
-#' @param m_0 A vector, corresponding to the prior mean of the mean GP
-#'    (\eqn{\mu_0}).
+#' @param m_0 A vector, corresponding to the prior mean of the mean GP.
 #' @param kern_0 A kernel function, associated with the mean GP.
 #' @param kern_i A kernel function, associated with the individual GPs.
 #' @param hp_0 A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_0}.
-#' @param hp_i A named vector, tibble or data frame of hyper-parameters
+#' @param hp_i A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
@@ -22,8 +21,11 @@
 #' containing the Input and associated Output of the hyper-posterior's mean
 #' parameter, and \code{cov}, the hyper-posterior's covariance matrix.
 #'
+#' @export
+#'
 #' @examples
-#' db <- simu_db(N = 10, common_input = TRUE)
+#'
+#'
 #' m_0 <- rep(0, 10)
 #' hp_0 <- MagmaClustR:::hp()
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
@@ -36,26 +38,26 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
                    pen_diag, grid_inputs = NULL) {
   if(grid_inputs %>% is.null()){
     ## Define the union of all reference Inputs in the dataset
-    all_t <- unique(db$Input) %>% sort()
+    all_inputs <- unique(db$Input) %>% sort()
   }
   else{
     ## Define the union among all reference Inputs and a specified grid
-    all_t <- unique(db$Input) %>% union(grid_inputs) %>% sort()
+    all_inputs <- unique(db$Input) %>% union(grid_inputs) %>% sort()
   }
   ## Compute all the inverse covariance matrices
-  inv_0 <- kern_to_inv(all_t, kern_0, hp_0, pen_diag)
+  inv_0 <- kern_to_inv(all_inputs, kern_0, hp_0, pen_diag)
   list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)
   ## Create a named list of Output values for all individuals
   list_output_i <- base::split(db$Output, list(db$ID))
 
   ## Update the posterior inverse covariance ##
-  new_inv <- inv_0
+  post_inv <- inv_0
   for (inv_i in list_inv_i)
   {
     ## Collect the input's common indices between mean and individual processes
-    common_times <- intersect(row.names(inv_i), row.names(new_inv))
+    common_times <- intersect(row.names(inv_i), row.names(post_inv))
     ## Sum the common inverse covariance's terms
-    new_inv[common_times, common_times] <- new_inv[common_times, common_times] +
+    post_inv[common_times, common_times] <- post_inv[common_times, common_times] +
       inv_i[common_times, common_times]
   }
   ##############################################
@@ -74,18 +76,18 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
   }
 
   ## Fast or slow matrix inversion if nearly singular
-  new_cov <- tryCatch(new_inv %>% chol() %>% chol2inv(), error = function(e) {
-    MASS::ginv(new_inv)
+  post_cov <- tryCatch(post_inv %>% chol() %>% chol2inv(), error = function(e) {
+    MASS::ginv(post_inv)
   }) %>%
-    `rownames<-`(all_t) %>%
-    `colnames<-`(all_t)
+    `rownames<-`(all_inputs) %>%
+    `colnames<-`(all_inputs)
   ## Compute the updated mean parameter
-  new_mean <- new_cov %*% weighted_0 %>% as.vector()
+  post_mean <- post_cov %*% weighted_0 %>% as.vector()
   ##############################################
 
   list(
-    "mean" = tibble::tibble("Input" = all_t, "Output" = new_mean),
-    "cov" = new_cov
+    "mean" = tibble::tibble("Input" = all_inputs, "Output" = post_mean),
+    "cov" = post_cov
   ) %>%
     return()
 }
@@ -101,14 +103,15 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
 #' @param m_0 A vector, corresponding to the prior mean of the mean GP.
 #' @param kern_0 A kernel function, associated with the mean GP.
 #' @param kern_i A kernel function, associated with the individual GPs.
-#' @param old_hp_0 A tibble or data frame, containing the hyper-parameters
-#'    from the previous M-step (or initialisation) associated with the mean GP.
+#' @param old_hp_0 A named vector, tibble or data frame, containing the
+#'    hyper-parameters from the previous M-step (or initialisation) associated
+#'     with the mean GP.
 #' @param old_hp_i A tibble or data frame, containing the hyper-parameters
 #'    from the previous M-step (or initialisation) associated with the
 #'    individual GPs.
-#' @param mean A tibble, coming out of the E step, containing the Input and
+#' @param post_mean A tibble, coming out of the E step, containing the Input and
 #'    associated Output of the hyper-posterior mean parameter.
-#' @param cov A matrix, coming out of the E step, being the hyper-posterior
+#' @param post_cov A matrix, coming out of the E step, being the hyper-posterior
 #'    covariance parameter.
 #' @param common_hp A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all indiviuals.
@@ -131,7 +134,7 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
 #'
 #' MagmaClustR:::m_step(
 #'   db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov,
-#'   FALSE, 0.001
+#'   FALSE, 0.1
 #' )
 #'
 #' ## Common inputs across individuals and common HPs
@@ -141,10 +144,10 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
 #' )
 #' MagmaClustR:::m_step(
 #'   db, m_0, "SE", "SE", hp_0, hp_i_common,
-#'   post$mean, post$cov, TRUE, 0.001
+#'   post$mean, post$cov, TRUE, 0.5
 #' )
 #'
-#' ## Different inputs across individuals and common HPs
+#' ## Different inputs across individuals and different HPs
 #' db_async <- simu_db(N = 10, common_input = FALSE)
 #' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
 #' post_async <- MagmaClustR:::e_step(
@@ -154,11 +157,11 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
 #'
 #' MagmaClustR:::m_step(
 #'   db_async, m_0_async, "SE", "SE", hp_0, hp_i,
-#'   post_async$mean, post_async$cov, FALSE, 0.001
+#'   post_async$mean, post_async$cov, FALSE, 0.01
 #' )
 #' }
 m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
-                   mean, cov, common_hp, pen_diag) {
+                   post_mean, post_cov, common_hp, pen_diag) {
   list_ID <- unique(db$ID)
   list_hp_0 <- old_hp_0 %>% names()
   list_hp_i <- old_hp_i %>%
@@ -185,10 +188,10 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
     par = old_hp_0,
     fn = logL_GP_mod,
     gr = gr_GP_mod,
-    db = mean,
+    db = post_mean,
     mean = m_0,
     kern = kern_0,
-    new_cov = cov,
+    post_cov = post_cov,
     pen_diag = pen_diag,
     method = "L-BFGS-B",
     lower = -100, upper = 100,
@@ -201,13 +204,13 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
   if (common_hp) {
     ## Optimise hyper-parameters of the individual processes
     new_hp_i <- optimr::opm(
-      par = old_hp_i %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
+      par = old_hp_i%>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
       fn = logL_GP_mod_common_hp,
       gr = gr_GP_mod_common_hp,
       db = db,
-      mean = mean,
+      mean = post_mean,
       kern = kern_i,
-      new_cov = cov,
+      post_cov = post_cov,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
       lower = -100, upper = 100,
@@ -225,11 +228,11 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(.data$Input)
       ## Extract the mean values associated with the i-th specific inputs
-      mean_i <- mean %>%
+      post_mean_i <- post_mean %>%
         dplyr::filter(.data$Input %in% input_i) %>%
         dplyr::pull(.data$Output)
       ## Extract the covariance values associated with the i-th specific inputs
-      cov_i <- cov[as.character(input_i), as.character(input_i)]
+      post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
       ## Extract the data associated with the i-th individual
       db_i <- db %>%
         dplyr::filter(.data$ID == i) %>%
@@ -245,9 +248,9 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         fn = logL_GP_mod,
         gr = gr_GP_mod,
         db = db_i,
-        mean = mean_i,
+        mean = post_mean_i,
         kern = kern_i,
-        new_cov = cov_i,
+        post_cov = post_cov_i,
         pen_diag = pen_diag,
         method = "L-BFGS-B",
         lower = -100, upper = 100,
