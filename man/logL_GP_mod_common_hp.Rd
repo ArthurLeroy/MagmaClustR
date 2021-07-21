@@ -7,7 +7,7 @@
 logL_GP_mod_common_hp(hp, db, mean, kern, post_cov, pen_diag)
 }
 \arguments{
-\item{hp}{A tibble, data frame or name vector of hyper-parameters.}
+\item{hp}{A tibble, data frame of hyper-parameters.}
 
 \item{db}{A tibble containing the values we want to compute the logL on.
 Required columns: ID, Input, Output. Additional covariate columns are

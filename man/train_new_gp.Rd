@@ -13,7 +13,8 @@ train_new_gp(data, mean_mu, cov_mu, ini_hp_i, kern_i)
 
 \item{cov_mu}{covariance value of mean GP at timestamps (obs + pred)}
 
-\item{ini_hp_i}{Initial values of each parameters of the HP to start the training.}
+\item{ini_hp_i}{Initial values of each parameters of the HP to start the
+training.}
 
 \item{kern_i}{Kernel associated to individual GPs.}
 }

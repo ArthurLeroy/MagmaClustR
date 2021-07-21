@@ -19,7 +19,7 @@ Additional columns for covariates can be specified.}
 \item{hp_0}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_0}.}
 
-\item{hp_i}{A named vector, tibble or data frame of hyper-parameters
+\item{hp_i}{A tibble or data frame of hyper-parameters
 associated with \code{kern_i}.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
@@ -38,7 +38,8 @@ Expectation step of the EM algorithm to compute the parameters of the
 hyper-posterior Gaussian distribution of the mean process in Magma.
 }
 \examples{
-db <- simu_db(N = 10, common_input = TRUE)
+
+
 m_0 <- rep(0, 10)
 hp_0 <- MagmaClustR:::hp()
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))

@@ -27,8 +27,9 @@ Additional columns for covariates can be specified.}
 
 \item{kern_i}{A kernel function, associated with the individual GPs.}
 
-\item{old_hp_0}{A tibble or data frame, containing the hyper-parameters
-from the previous M-step (or initialisation) associated with the mean GP.}
+\item{old_hp_0}{A named vector, tibble or data frame, containing the
+hyper-parameters from the previous M-step (or initialisation) associated
+with the mean GP.}
 
 \item{old_hp_i}{A tibble or data frame, containing the hyper-parameters
 from the previous M-step (or initialisation) associated with the

@@ -10,6 +10,8 @@
 #'
 #' @return A scalar, conresponding to the evaluation of the kernel.
 #'
+#' @export
+#'
 #' @examples
 #' MagmaClustR:::se_kernel(
 #'   c(1, 0), c(0, 1),

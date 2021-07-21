@@ -17,8 +17,8 @@ logL_monitoring(
 )
 }
 \arguments{
-\item{hp_0}{A tibble or data frame, containing the hyper-parameters
-associated with the mean GP.}
+\item{hp_0}{A named vector, tibble or data frame, containing the
+hyper-parameters associated with the mean GP.}
 
 \item{hp_i}{A tibble or data frame, containing the hyper-parameters with the
 individual GPs.}
