@@ -23,3 +23,6 @@ plot the predicted curve of the GP with the 0.95 confidence interval (optional d
 \description{
 Plot your Gaussian Process
 }
+\examples{
+TRUE
+}

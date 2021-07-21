@@ -29,3 +29,6 @@ pamameters of the mean GP at timestamps
 \description{
 Posterior mu
 }
+\examples{
+TRUE
+}

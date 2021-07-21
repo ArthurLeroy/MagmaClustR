@@ -25,3 +25,6 @@ pamameters of the gaussian density predicted at timestamps
 \description{
 Prediction Gaussian Process
 }
+\examples{
+TRUE
+}

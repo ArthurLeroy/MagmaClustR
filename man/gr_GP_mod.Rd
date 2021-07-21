@@ -2,29 +2,37 @@
 % Please edit documentation in R/gradients-likelihoods.R
 \name{gr_GP_mod}
 \alias{gr_GP_mod}
-\title{Gradient Gaussian Process modif}
+\title{Gradient of the modified logLikelihood for GPs in Magma}
 \usage{
-gr_GP_mod(hp, db, mean, kern, new_cov, pen_diag = NULL)
+gr_GP_mod(hp, db, mean, kern, post_cov, pen_diag)
 }
 \arguments{
-\item{hp}{set of hyper-parameter}
+\item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
 
-\item{db}{full database with all individuals. Columns required : ID, Input, Output}
+\item{db}{A tibble containing the values we want to compute the logL on.
+Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{mean}{mean of your Gaussian Process}
+\item{mean}{A vector, specifying the mean of the GPs at the reference inputs.}
 
-\item{kern}{kernel used to compute the covariance matrix}
+\item{kern}{A kernel function.}
 
-\item{new_cov}{posterior covariance matrix of the mean GP (mu_0).}
+\item{post_cov}{A matrix, covariance parameter of the hyper-posterior.
+Used to compute the correction term.}
 
-\item{pen_diag}{value of the penalization of the diagonal}
+\item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
+numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-Gradient of the Gaussian Process modified
+A named vector, corresponding to the value of the hyper-parameters
+gradients for the modified Gaussian log-Likelihood involved in Magma.
 }
 \description{
-Gradient Gaussian Process modif
+Gradient of the modified logLikelihood for GPs in Magma
 }
 \examples{
-TRUE
+db <- tibble::tibble(Input = 1:5, Output = 2:6)
+mean <- rep(0, 5)
+hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+post_cov = kern_to_cov(1:5, 'SE', hp)
+MagmaClustR:::gr_GP_mod(hp, db, mean, "SE", post_cov, 0.001)
 }

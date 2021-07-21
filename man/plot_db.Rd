@@ -15,3 +15,6 @@ Visualize smoothed raw data.
 \description{
 Plot smoothed raw data
 }
+\examples{
+TRUE
+}

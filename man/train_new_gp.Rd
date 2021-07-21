@@ -4,16 +4,17 @@
 \alias{train_new_gp}
 \title{Training new gaussian process}
 \usage{
-train_new_gp(db, mean_mu, cov_mu, ini_hp_i, kern_i)
+train_new_gp(data, mean_mu, cov_mu, ini_hp_i, kern_i)
 }
 \arguments{
-\item{db}{Database with all individuals in training set}
+\item{data}{Database with all individuals in training set}
 
 \item{mean_mu}{mean value of mean GP at timestamps (obs + pred)}
 
 \item{cov_mu}{covariance value of mean GP at timestamps (obs + pred)}
 
-\item{ini_hp_i}{Initial values of each parameters of the HP to start the training.}
+\item{ini_hp_i}{Initial values of each parameters of the HP to start the
+training.}
 
 \item{kern_i}{Kernel associated to individual GPs.}
 }
@@ -22,4 +23,7 @@ list of trained HP
 }
 \description{
 Training new gaussian process
+}
+\examples{
+TRUE
 }

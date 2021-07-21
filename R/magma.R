@@ -18,11 +18,12 @@
 #' @export
 #'
 #' @examples
+#' TRUE
 full_algo = function(db, new_db, timestamps, kern_i, common_hp = T, plot = T, prior_mean,
                      kern_0 = NULL, list_hp = NULL, mu = NULL, ini_hp_0 = NULL, ini_hp_i = NULL, hp_new_i = NULL)
 {
   ## If hp are not provided, train the model
-  if(is.null(list_hp)){list_hp = training(db, prior_mean, ini_hp_0, ini_hp_i, kern_0, kern_i, common_hp)$hp}
+  if(is.null(list_hp)){list_hp = train_magma(db, prior_mean, ini_hp_0, ini_hp_i, kern_0, kern_i, common_hp)$hp}
 
   ## If mean GP (mu_0) paramaters at prediction timestamps are not provided , compute them
   if(is.null(mu)){mu = posterior_mu(db, new_db, timestamps, prior_mean, kern_0, kern_i, list_hp)}

@@ -4,22 +4,34 @@
 \alias{hp}
 \title{Generate random hyper-parameters}
 \usage{
-hp(kern = "SE", list_ID = NULL)
+hp(kern = "SE", list_ID = NULL, list_hp = NULL, common_hp = F)
 }
 \arguments{
-\item{kern}{A character string indicating the type of kernel among:
+\item{kern}{A function, or a character string indicating the chosen type of
+kernel among:
 \itemize{
 \item "SE": the Squared Exponential kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
-}}
+}
+
+In case of a custom kernel function, the argument \code{list_hp} has to be
+provided as well, for designing a tibble with the correct names of
+hyper-parameters.}
 
 \item{list_ID}{A vector, associating an \code{ID} value with each individual
-for whom hyper-parameters are generated. If NULL (defaut) only one set of
+for whom hyper-parameters are generated. If NULL (default) only one set of
 hyper-parameters is return without the \code{ID} column.}
+
+\item{list_hp}{A vector of characters, providing the name of each
+hyper-parameter, in case where \code{kern} is a custom kernel function.}
+
+\item{common_hp}{A logical value, indicating whether the set of
+hyper-parameters is assumed to be common to all indiviuals.}
 }
 \value{
-A tibble, gathering a set of hyper-parameters.
+A tibble, providing a set of random hyper-parameters associated with
+the kernel specified through the argument \code{kern}.
 }
 \description{
 Generate a set of random hyper-parameters, specific to the chosen type of
@@ -27,4 +39,5 @@ kernel.
 }
 \examples{
 hp("PERIO")
+hp(MagmaClustR:::se_kernel, 1:5, c("var", "lengthsc"), TRUE)
 }

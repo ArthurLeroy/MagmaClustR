@@ -2,24 +2,39 @@
 % Please edit documentation in R/gradients-likelihoods.R
 \name{gr_GP}
 \alias{gr_GP}
-\title{Gradient Gaussian Process}
+\title{Gradient of the logLikelihood of a Gaussian Process}
 \usage{
-gr_GP(hp, db, mean, kern, new_cov)
+gr_GP(hp, db, mean, kern, post_cov, pen_diag)
 }
 \arguments{
-\item{hp}{Set of hyper-parameter.}
+\item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
 
-\item{db}{Full database with all individuals. Columns required : ID, Input, Output}
+\item{db}{A tibble containing the values we want to compute the logL on.
+Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{mean}{Mean of your Gaussian Process.}
+\item{mean}{A vector, specifying the mean of the GP at the reference inputs.}
 
-\item{kern}{Kernel used to compute the covariance matrix.}
+\item{kern}{A kernel function.}
 
-\item{new_cov}{Posterior covariance matrix of the mean GP (mu_0).}
+\item{post_cov}{(optional) A matrix, corresponding to covariance parameter of
+the hyper-posterior. Used to compute the hyper-prior distribution of a new
+individual in Magma.}
+
+\item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
+numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-Gradient of the Gaussian Process
+A named vector, corresponding to the value of the hyper-parameters
+gradients for the Gaussian log-Likelihood (where the covariance can be the
+sum of the individual and the hyper-posterior's mean process covariances).
 }
 \description{
-Gradient Gaussian Process
+Gradient of the logLikelihood of a Gaussian Process
+}
+\examples{
+db <- tibble::tibble(Input = 1:5, Output = 2:6)
+mean <- rep(0, 5)
+hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+post_cov = kern_to_cov(1:5, 'SE', hp)
+MagmaClustR:::gr_GP(hp, db, mean, "SE", post_cov, 0.001)
 }

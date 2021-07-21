@@ -25,3 +25,6 @@ tibble of classic GP predictions but with an inscreasing number of data points c
 \description{
 Function used to generate data compatible with a GIF ploting of the results
 }
+\examples{
+TRUE
+}

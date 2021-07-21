@@ -35,7 +35,7 @@ a GP with a the Squared Exponential kernel as covariance structure, and
 specified hyper-parameters and input.
 }
 \examples{
-simu_indiv_se("A", 1:10, 0, rep(0, 10), "SE", 2, 1, 0.5)
-simu_indiv_se("B", 1:10, 2:11, 3:12, "SE", 1, 1, 1)
-simu_indiv_se("C", 1:10, 5, rep(0, 10), "SE", 2, 1, 0.5)
+MagmaClustR:::simu_indiv_se("A", 1:10, 0, rep(0, 10), "SE", 2, 1, 0.5)
+MagmaClustR:::simu_indiv_se("B", 1:10, 2:11, 3:12, "SE", 1, 1, 1)
+MagmaClustR:::simu_indiv_se("C", 1:10, 5, rep(0, 10), "SE", 2, 1, 0.5)
 }
