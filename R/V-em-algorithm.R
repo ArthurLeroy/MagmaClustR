@@ -155,8 +155,8 @@ m_step_VEM = function(db, old_hp_i, old_hp_k, list_mu_param, kern_0, kern_i, m_k
                 control = list(kkt = F)) %>%
       dplyr::select(.data$list_hp_i) %>%
       tibble::as_tibble() %>%
-      tidyr::uncount(weights = length(list_ID)) %>%
-      dplyr::mutate('ID' = list_ID, .before = 1)
+      tidyr::uncount(weights = length(list_ID_i)) %>%
+      dplyr::mutate('ID' = list_ID_i, .before = 1)
 
     new_theta_i = param %>% list() %>% rep(length(list_ID_i))  %>%
       stats::setNames(nm = list_ID_i)
@@ -176,8 +176,8 @@ m_step_VEM = function(db, old_hp_i, old_hp_k, list_mu_param, kern_0, kern_i, m_k
           control = list(kkt = F)) %>%
         dplyr::select(.data$list_hp_i) %>%
         tibble::as_tibble() %>%
-        tidyr::uncount(weights = length(list_ID)) %>%
-        dplyr::mutate('ID' = list_ID, .before = 1) %>% return()
+        tidyr::uncount(weights = length(list_ID_i)) %>%
+        dplyr::mutate('ID' = list_ID_i, .before = 1) %>% return()
     }
     new_theta_i = sapply(list_ID_i, funloop2, simplify = FALSE, USE.NAMES = TRUE)
   }
