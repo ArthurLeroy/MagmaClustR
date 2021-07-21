@@ -24,6 +24,7 @@ Imports:
     methods,
     mvtnorm,
     optimr,
+    purrr,
     rlang,
     stats,
     tibble,

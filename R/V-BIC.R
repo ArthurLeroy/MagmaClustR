@@ -95,3 +95,68 @@ BIC = function(hp_0, hp_i, hp_k, db, kern_0, kern_i, m_k, mu_k_param, clust = T)
   return(LL_i + LL_k - pen)
 }
 
+
+#' Selection of the model
+#'
+#' @param db A tibble containing values we want to compute logL on.
+#'    Required columns: Input, Output. Additional covariate columns are allowed.
+#' @param k_grid A vector, indicating the grid of additional reference
+#'    inputs on which the mean process' hyper-posterior should be evaluated.
+#' @param ini_hp_k named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern_0}, the mean process' kernel. The
+#'    columns/elements should be named according to the hyper-parameters
+#'    that are used in \code{kern_0}.
+#' @param ini_hp_i A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}, the individual processes' kernel.
+#'    Required column : \code{ID}. The \code{ID} column contains the unique
+#'    names/codes used to identify each individual/task. The other columns
+#'    should be named according to the hyper-parameters that are used in
+#'    \code{kern_i}.
+#' @param kern_0 A kernel function, associated with the mean GP.
+#' @param kern_i A kernel function, associated with the individual GPs.
+#' @param ini_tau_i_k initial values of probabiliy to belong to each cluster for each individuals.
+#' @param common_hp_k boolean indicating whether hp are common among mean GPs (for each mu_k)
+#' @param common_hp_i boolean indicating whether hp are common among individual GPs (for each y_i)
+#' @param plot boolean indicating whether you want to plot or not
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+model_selection = function(db, k_grid = 1:5, ini_hp_k, ini_hp_i,
+                           kern_0, kern_i, ini_tau_i_k = NULL, common_hp_k = T, common_hp_i = T,
+                           plot = T, pen_diag)
+{
+  floop = function(K)
+  {
+    print(paste0('K = ', K))
+    prior_mean_k = rep(0, K) %>% stats::setNames(paste0('K', seq_len(K))) %>% as.list
+
+    if(K == 1)
+    {
+      model = train_magma(db, 0, ini_hp_k, ini_hp_i, kern_0, kern_i, common_hp_i, pen_diag)
+    }
+    else
+    {
+      model = train_magma_VEM(db, prior_mean_k, ini_hp_k, ini_hp_i, kern_0, kern_i, ini_tau_i_k, common_hp_k, common_hp_i, pen_diag)
+    }
+    model[['BIC']] = BIC(model$hp_0, model$hp_i, hp_k ,db, kern_0, kern_i, prior_mean_k, model$param, K != 1)
+    ## Comment hp_k ?
+    return(model)
+  }
+  res = k_grid %>% sapply(floop, simplify = FALSE, USE.NAMES = TRUE) %>% stats::setNames(paste0('K = ', k_grid))
+
+  db_plot = tibble::tibble('K' = k_grid, 'BIC' = res %>% purrr::map_dbl('BIC'))
+
+  res$K_max_BIC = db_plot %>% dplyr::filter(BIC == max(BIC)) %>% dplyr::pull(.data$K)
+
+  if(plot)
+  {
+    res$plot = ggplot2::ggplot(db_plot, ggplot2::aes(x = K, y = BIC)) + ggplot2::geom_point() +
+      ggplot2::geom_line() + ggplot2::theme_classic()
+  }
+
+  return(res)
+}

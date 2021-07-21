@@ -138,7 +138,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #' @export
 #'
 #' @examples
-m_step_VEM = function(db, old_hp_i, old_hp_k, list_mu_param, kern_0, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
+m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
 {
   list_ID_k = names(m_k)
   list_ID_i = unique(db$ID)
@@ -222,5 +222,11 @@ m_step_VEM = function(db, old_hp_i, old_hp_k, list_mu_param, kern_0, kern_i, m_k
 
   t3 = Sys.time()
   print(c('mu_k:',t3 - t2, 'indiv:', t2 - t1))
-  list('theta_k' = new_theta_k, 'theta_i' = new_theta_i, 'pi_k' = pi_k) %>% return()
+
+  list(
+    "hp_k" = new_theta_k,
+    "hp_i" = new_theta_i,
+    'pi_k' = pi_k
+  ) %>%
+    return()
 }

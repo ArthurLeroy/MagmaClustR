@@ -6,8 +6,8 @@
 \usage{
 m_step_VEM(
   db,
-  old_hp_i,
   old_hp_k,
+  old_hp_i,
   list_mu_param,
   kern_0,
   kern_i,
@@ -21,12 +21,12 @@ m_step_VEM(
 \item{db}{A tibble or data frame. Columns required: ID, Input, Output.
 Additional columns for covariates can be specified.}
 
+\item{old_hp_k}{A tibble or data frame, containing the hyper-parameters
+from the previous M-step (or initialisation) associated with the variations}
+
 \item{old_hp_i}{A tibble or data frame, containing the hyper-parameters
 from the previous M-step (or initialisation) associated with the
 individual GPs.}
-
-\item{old_hp_k}{A tibble or data frame, containing the hyper-parameters
-from the previous M-step (or initialisation) associated with the variations}
 
 \item{list_mu_param}{List of parameters of the K mean GPs. Format list('mean', 'cov', 'tau_i_k')}
 
