@@ -10,8 +10,7 @@ e_step(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag, grid_inputs = NULL)
 \item{db}{A tibble or data frame. Columns required: ID, Input, Output.
 Additional columns for covariates can be specified.}
 
-\item{m_0}{A vector, corresponding to the prior mean of the mean GP
-(\eqn{\mu_0}).}
+\item{m_0}{A vector, corresponding to the prior mean of the mean GP.}
 
 \item{kern_0}{A kernel function, associated with the mean GP.}
 

@@ -4,7 +4,7 @@
 \alias{logL_GP}
 \title{Log-Likelihood function of a Gaussian Process}
 \usage{
-logL_GP(hp, db, mean, kern, new_cov, pen_diag)
+logL_GP(hp, db, mean, kern, post_cov, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
@@ -16,7 +16,7 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{kern}{A kernel function.}
 
-\item{new_cov}{(optional) A matrix, corresponding to covariance parameter of
+\item{post_cov}{(optional) A matrix, corresponding to covariance parameter of
 the hyper-posterior. Used to compute the hyper-prior distribution of a new
 individual in Magma.}
 
@@ -35,6 +35,6 @@ Log-Likelihood function of a Gaussian Process
 db <- tibble::tibble(Input = 1:5, Output = 2:6)
 mean <- rep(0, 5)
 hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
-new_cov = kern_to_cov(1:5, 'SE', hp)
-MagmaClustR:::logL_GP(hp, db, mean, "SE", new_cov, 0.001)
+post_cov = kern_to_cov(1:5, 'SE', hp)
+MagmaClustR:::logL_GP(hp, db, mean, "SE", post_cov, 0.001)
 }

@@ -4,7 +4,7 @@
 \alias{logL_GP_mod}
 \title{Modified log-Likelihood function for GPs}
 \usage{
-logL_GP_mod(hp, db, mean, kern, new_cov, pen_diag)
+logL_GP_mod(hp, db, mean, kern, post_cov, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or name vector of hyper-parameters.}
@@ -16,7 +16,7 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{kern}{A kernel function.}
 
-\item{new_cov}{A matrix, covariance parameter of the hyper-posterior.
+\item{post_cov}{A matrix, covariance parameter of the hyper-posterior.
 Used to compute the correction term.}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
@@ -35,6 +35,6 @@ added with correction trace term.
 db <- tibble::tibble(Input = 1:5, Output = 2:6)
 mean <- rep(0, 5)
 hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
-new_cov = kern_to_cov(1:5, 'SE', hp)
-MagmaClustR:::logL_GP_mod(hp, db, mean, "SE", new_cov, 0.001)
+post_cov = kern_to_cov(1:5, 'SE', hp)
+MagmaClustR:::logL_GP_mod(hp, db, mean, "SE", post_cov, 0.001)
 }

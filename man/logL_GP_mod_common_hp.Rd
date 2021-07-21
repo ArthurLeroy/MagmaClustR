@@ -4,7 +4,7 @@
 \alias{logL_GP_mod_common_hp}
 \title{Modified log-Likelihood function with common HPs for GPs}
 \usage{
-logL_GP_mod_common_hp(hp, db, mean, kern, new_cov, pen_diag)
+logL_GP_mod_common_hp(hp, db, mean, kern, post_cov, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or name vector of hyper-parameters.}
@@ -17,7 +17,7 @@ allowed.}
 
 \item{kern}{A kernel function.}
 
-\item{new_cov}{A matrix, covariance parameter of the hyper-posterior.
+\item{post_cov}{A matrix, covariance parameter of the hyper-posterior.
 Used to compute the correction term.}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
@@ -37,6 +37,6 @@ of Gaussian likelihoods added with correction trace terms.
 db <- simu_db(N = 10, common_input = TRUE)
 mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
 hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
-new_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
-MagmaClustR:::logL_GP_mod_common_hp(hp, db, mean, "SE", new_cov, 0.001)
+post_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
+MagmaClustR:::logL_GP_mod_common_hp(hp, db, mean, "SE", post_cov, 0.001)
 }

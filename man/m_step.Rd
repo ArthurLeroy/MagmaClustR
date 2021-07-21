@@ -11,8 +11,8 @@ m_step(
   kern_i,
   old_hp_0,
   old_hp_i,
-  mean,
-  cov,
+  post_mean,
+  post_cov,
   common_hp,
   pen_diag
 )
@@ -34,10 +34,10 @@ from the previous M-step (or initialisation) associated with the mean GP.}
 from the previous M-step (or initialisation) associated with the
 individual GPs.}
 
-\item{mean}{A tibble, coming out of the E step, containing the Input and
+\item{post_mean}{A tibble, coming out of the E step, containing the Input and
 associated Output of the hyper-posterior mean parameter.}
 
-\item{cov}{A matrix, coming out of the E step, being the hyper-posterior
+\item{post_cov}{A matrix, coming out of the E step, being the hyper-posterior
 covariance parameter.}
 
 \item{common_hp}{A logical value, indicating whether the set of
@@ -67,7 +67,7 @@ post <- MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 
 MagmaClustR:::m_step(
   db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov,
-  FALSE, 0.001
+  FALSE, 0.1
 )
 
 ## Common inputs across individuals and common HPs
@@ -77,10 +77,10 @@ hp_i_common <- tibble::tibble(
 )
 MagmaClustR:::m_step(
   db, m_0, "SE", "SE", hp_0, hp_i_common,
-  post$mean, post$cov, TRUE, 0.001
+  post$mean, post$cov, TRUE, 0.5
 )
 
-## Different inputs across individuals and common HPs
+## Different inputs across individuals and different HPs
 db_async <- simu_db(N = 10, common_input = FALSE)
 m_0_async <- rep(0, db_async$Input \%>\% unique() \%>\% length())
 post_async <- MagmaClustR:::e_step(
@@ -90,7 +90,7 @@ post_async <- MagmaClustR:::e_step(
 
 MagmaClustR:::m_step(
   db_async, m_0_async, "SE", "SE", hp_0, hp_i,
-  post_async$mean, post_async$cov, FALSE, 0.001
+  post_async$mean, post_async$cov, FALSE, 0.01
 )
 }
 }

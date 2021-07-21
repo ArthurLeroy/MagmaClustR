@@ -4,7 +4,17 @@
 \alias{logL_monitoring}
 \title{Log-Likelihood for monitoring the EM algorithm in Magma}
 \usage{
-logL_monitoring(hp_0, hp_i, db, m_0, kern_0, kern_i, mean, cov, pen_diag)
+logL_monitoring(
+  hp_0,
+  hp_i,
+  db,
+  m_0,
+  kern_0,
+  kern_i,
+  post_mean,
+  post_cov,
+  pen_diag
+)
 }
 \arguments{
 \item{hp_0}{A tibble or data frame, containing the hyper-parameters
@@ -22,10 +32,10 @@ Additional columns for covariates can be specified.}
 
 \item{kern_i}{A kernel function, associated with the individual GPs.}
 
-\item{mean}{A tibble, coming out of the E step, containing the Input and
+\item{post_mean}{A tibble, coming out of the E step, containing the Input and
 associated Output of the hyper-posterior mean parameter.}
 
-\item{cov}{A matrix, coming out of the E step, being the hyper-posterior
+\item{post_cov}{A matrix, coming out of the E step, being the hyper-posterior
 covariance parameter.}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
@@ -44,8 +54,8 @@ db <- simu_db(N = 10, common_input = TRUE)
 m_0 <- rep(0, 10)
 hp_0 <- tibble::tibble(variance = 1, lengthscale = 0.5)
 hp_i <- MagmaClustR:::hp('SE', unique(db$ID))
-mean <- tibble::tibble(Input = unique(db$Input), Output = 5)
-cov <- kern_to_cov(unique(db$Input), 'SE', hp_0)
+post_mean <- tibble::tibble(Input = unique(db$Input), Output = 5)
+post_cov <- kern_to_cov(unique(db$Input), 'SE', hp_0)
 MagmaClustR:::logL_monitoring(hp_0, hp_i, db, m_0,
- "SE", "SE", mean, cov, 0.001)
+ "SE", "SE", post_mean, post_cov, 0.001)
 }
