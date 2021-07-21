@@ -5,7 +5,7 @@
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.
 #' @param kern A kernel function.
-#' @param new_cov (optional) A matrix, corresponding to covariance parameter of
+#' @param post_cov (optional) A matrix, corresponding to covariance parameter of
 #'    the hyper-posterior. Used to compute the hyper-prior distribution of a new
 #'    individual in Magma.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
@@ -19,9 +19,9 @@
 #' db <- tibble::tibble(Input = 1:5, Output = 2:6)
 #' mean <- rep(0, 5)
 #' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
-#' new_cov = kern_to_cov(1:5, 'SE', hp)
-#' MagmaClustR:::gr_GP(hp, db, mean, "SE", new_cov, 0.001)
-gr_GP <- function(hp, db, mean, kern, new_cov, pen_diag) {
+#' post_cov = kern_to_cov(1:5, 'SE', hp)
+#' MagmaClustR:::gr_GP(hp, db, mean, "SE", post_cov, 0.001)
+gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
   output <- db$Output
   ## Extract the reference Input
@@ -29,7 +29,7 @@ gr_GP <- function(hp, db, mean, kern, new_cov, pen_diag) {
   ## Extract the input variables (reference Input + Covariates)
   inputs <- db %>% dplyr::select(-.data$Output)
 
-  cov <- kern_to_cov(inputs, kern, hp) + new_cov
+  cov <- kern_to_cov(inputs, kern, hp) + post_cov
   diag <- diag(x = pen_diag, ncol = ncol(cov), nrow = nrow(cov))
   inv <- tryCatch((cov + diag) %>% chol() %>% chol2inv(),
     error = function(e) {
@@ -60,7 +60,7 @@ gr_GP <- function(hp, db, mean, kern, new_cov, pen_diag) {
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mean A vector, specifying the mean of the GPs at the reference inputs.
 #' @param kern A kernel function.
-#' @param new_cov A matrix, covariance parameter of the hyper-posterior.
+#' @param post_cov A matrix, covariance parameter of the hyper-posterior.
 #'    Used to compute the correction term.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
@@ -72,9 +72,9 @@ gr_GP <- function(hp, db, mean, kern, new_cov, pen_diag) {
 #' db <- tibble::tibble(Input = 1:5, Output = 2:6)
 #' mean <- rep(0, 5)
 #' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
-#' new_cov = kern_to_cov(1:5, 'SE', hp)
-#' MagmaClustR:::gr_GP_mod(hp, db, mean, "SE", new_cov, 0.001)
-gr_GP_mod <- function(hp, db, mean, kern, new_cov, pen_diag) {
+#' post_cov = kern_to_cov(1:5, 'SE', hp)
+#' MagmaClustR:::gr_GP_mod(hp, db, mean, "SE", post_cov, 0.001)
+gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
   output <- db$Output
   ## Extract the reference Input
@@ -86,7 +86,7 @@ gr_GP_mod <- function(hp, db, mean, kern, new_cov, pen_diag) {
   ## Compute the term common to all partial derivatives
   prod_inv <- inv %*% (output - mean)
   common_term <- prod_inv %*% t(prod_inv) +
-    inv %*% (new_cov %*% inv - diag(1, length(input)))
+    inv %*% (post_cov %*% inv - diag(1, length(input)))
 
   ## Loop over the derivatives of hyper-parameters for computing the gradient
   floop <- function(deriv) {
@@ -108,7 +108,7 @@ gr_GP_mod <- function(hp, db, mean, kern, new_cov, pen_diag) {
 #'    allowed.
 #' @param mean A vector, specifying the mean of the GPs at the reference inputs.
 #' @param kern A kernel function.
-#' @param new_cov A matrix, covariance parameter of the hyper-posterior.
+#' @param post_cov A matrix, covariance parameter of the hyper-posterior.
 #'    Used to compute the correction term.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
@@ -121,55 +121,49 @@ gr_GP_mod <- function(hp, db, mean, kern, new_cov, pen_diag) {
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
 #' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
-#' new_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
-#' MagmaClustR:::gr_GP_mod_common_hp(hp, db, mean, "SE", new_cov, 0.001)
-gr_GP_mod_common_hp <- function(hp, db, mean, kern, new_cov, pen_diag) {
+#' post_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
+#' MagmaClustR:::gr_GP_mod_common_hp(hp, db, mean, "SE", post_cov, 0.001)
+gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
+
   list_hp <- names(hp)
-  ## Initialise the the sum of the gradients and inputs
-  gr_hp <- rep(0, length(hp)) %>% `names<-`(hp %>% names())
-  input_i_old <- NULL
 
   ## Loop over individuals to compute the sum of log-Likelihoods
-  for (i in unique(db$ID)) {
-    ## Extract the i-th specific reference inputs
+  funloop <- function(i) {
+    ## Extract the i-th specific reference Input
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(.data$Input)
-    ## Extract the Output values associated with the i-th specific inputs
-    output_i <- db %>%
+    ## Extract the i-th specific inputs (reference + covariates)
+    inputs_i <- db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::select(- c(.data$ID, .data$Output))
+    ## Extract the i-th specific Inputs and Output
+    output_i = db %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(.data$Output)
     ## Extract the mean values associated with the i-th specific inputs
-    mean_i <- mean %>%
+    mean_i = mean %>%
       dplyr::filter(.data$Input %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
-    new_cov_i <- new_cov[as.character(input_i), as.character(input_i)]
-
-    ## Update the inverse cov matrix only if necessary (if different inputs)
-    if (!identical(input_i, input_i_old)) {
-      ## Extract the i-th specific inputs (reference + covariates)
-      inputs_i <- db %>%
-        dplyr::filter(.data$ID == i) %>%
-        dplyr::select(-c(.data$ID, .data$Output))
-      inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
-    }
+    post_cov_i = post_cov[as.character(input_i), as.character(input_i)]
 
     ## Compute the term common to all partial derivatives
+    inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
     prod_inv <- inv %*% (output_i - mean_i)
     common_term <- prod_inv %*% t(prod_inv) +
-      inv %*% (new_cov_i %*% inv - diag(1, length(input_i)))
+      inv %*% (post_cov_i %*% inv - diag(1, length(input_i)))
     ## Loop over the derivatives of hyper-parameters for computing the gradient
     floop <- function(deriv) {
-      (-1 / 2 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
+      (- 0.5 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
         diag() %>%
         sum() %>%
         return()
     }
-    ## Add a new term to the sum of gradients
-    gr_hp <- gr_hp + sapply(list_hp, floop)
-    ## Keep track of the reference inputs
-    input_i_old <- input_i
+    sapply(list_hp, floop) %>%
+      return()
   }
-  return(gr_hp)
+  sapply(unique(db$ID), funloop) %>%
+    rowSums() %>%
+    return()
 }
