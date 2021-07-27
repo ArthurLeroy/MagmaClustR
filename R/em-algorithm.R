@@ -25,7 +25,7 @@
 #'
 #' @examples
 #'
-#'
+#' db <- simu_db(N = 10, common_input = TRUE)
 #' m_0 <- rep(0, 10)
 #' hp_0 <- MagmaClustR:::hp()
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))

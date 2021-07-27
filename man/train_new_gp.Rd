@@ -2,28 +2,74 @@
 % Please edit documentation in R/training.R
 \name{train_new_gp}
 \alias{train_new_gp}
-\title{Training new gaussian process}
+\title{Training a new GP for prediction in magma}
 \usage{
-train_new_gp(data, mean_mu, cov_mu, ini_hp_i, kern_i)
+train_new_gp(
+  data,
+  ini_hp_new = NULL,
+  kernel = "SE",
+  post_mean = NULL,
+  post_cov = NULL,
+  pen_diag = 0.01
+)
 }
 \arguments{
-\item{data}{Database with all individuals in training set}
+\item{data}{A tibble or data frame. Columns required: \code{Input},
+\code{Output}. Additional columns for covariates can be specified.
+The \code{Input} column should define the variable that is used as
+reference for the observations (e.g. time for longitudinal data). The
+\code{Output} column specifies the observed values (the response
+variable). The data frame can also provide as many covariates as desired,
+with no constraints on the column names. These covariates are additional
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
 
-\item{mean_mu}{mean value of mean GP at timestamps (obs + pred)}
+\item{ini_hp_new}{A named vector, tibble or data frame of hyper-parameters
+associated with the \code{kernel} of the new individual/task.
+The columns should be named according to the hyper-parameters that are
+used in \code{kernel}.}
 
-\item{cov_mu}{covariance value of mean GP at timestamps (obs + pred)}
+\item{kernel}{A kernel function, associated with the new GP.}
 
-\item{ini_hp_i}{Initial values of each parameters of the HP to start the
-training.}
+\item{post_mean}{Hyper-posterior mean parameter of the mean GP. Typically,
+this argument would come from a previous training using
+\code{\link{train_magma}}, but it could also be specified under various
+formats, such as:
+\itemize{
+\item NULL (default). The hyper-posterior mean would be set to 0 everywhere.
+\item A number. The hyper-posterior mean would be a constant function.
+\item A vector of the same length as all the distinct Input values in the
+\code{data} argument. This vector would be considered as the evaluation
+of the hyper-posterior mean function at the training Inputs.
+\item A function. This function is defined as the hyper-posterior mean.
+\item A tibble or data frame. Columns required: Input, Output. The Input
+values should include at least the same values as in the \code{data}
+argument.
+}}
 
-\item{kern_i}{Kernel associated to individual GPs.}
+\item{post_cov}{A matrix, the hyper-posterior covariance parameter.}
+
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 }
 \value{
-list of trained HP
+A tibble, containing the trained hyper-parameters for the kernel of
+the new individual/task.
 }
 \description{
-Training new gaussian process
+Training hyper-parameters of any new individual/task in \code{magma} is
+required in the prediction procedure.  By providing data for the new
+individual/task, the trained model (posterior mean and
+covariance parameters) and initialisation values for the hyper-parameters,
+the function computes maximum likelihood estimates of the hyper-parameters.
 }
 \examples{
-TRUE
+db = simu_db(M = 1, N = 10)
+train_new_gp(db)
+
+ini_hp = hp('SE')
+post_mean = tibble::tibble('Input' = db$Input, 'Output' = 1:10)
+post_cov = kern_to_cov(db$Input, 'SE', hp('SE'))
+train_new_gp(db, ini_hp, 'SE', post_mean, post_cov)
+
 }

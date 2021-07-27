@@ -20,8 +20,7 @@ train_magma(
 }
 \arguments{
 \item{data}{A tibble or data frame. Columns required: \code{ID}, \code{Input}
-, \code{Output}.
-Additional columns for covariates can be specified.
+, \code{Output}. Additional columns for covariates can be specified.
 The \code{ID} column contains the unique names/codes used to identify each
 individual/task (or batch of data).
 The \code{Input} column should define the variable that is used as
@@ -29,8 +28,8 @@ reference for the observations (e.g. time for longitudinal data). The
 \code{Output} column specifies the observed values (the response
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
-inputs (explanatory variables) of the models that are also observed at each
-reference \code{Input}.}
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
 
 \item{prior_mean}{Prior mean parameter (m_0) of the mean GP. This argument
 can be specified under various formats, such as:
@@ -106,7 +105,7 @@ The hyper-parameters and the hyper-posterior distribution involved in Magma
 can be learned thanks to an EM algorithm implemented in \code{train_magma}.
 By providing a dataset, the model hypotheses (prior mean parameter and
 covariance kernels) and initialisation values for the hyper-parameters, the
-function compute maximum likelihood estimates of the HPs as well as the
+function computes maximum likelihood estimates of the HPs as well as the
 mean and covariance parameters of the Gaussian hyper-posterior distribution
 of the mean process.
 }
