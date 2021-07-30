@@ -12,8 +12,9 @@
 #' @export
 #'
 #' @examples
-logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag = NULL)
+logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 {
+  #browser()
   names_k = mu_k_param$mean %>% names()
   t_i = db$Input
   y_i = db$Output
@@ -31,10 +32,10 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag = NULL)
     tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
     mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
     corr1 = corr1 + tau_i_k * mean_mu_k
-    corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][paste0('X', t_i), paste0('X', t_i)] )
+    corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
-  return( LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2) )
+  ( LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2) ) %>% return()
 }
 
 #' Modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs
@@ -104,7 +105,7 @@ logL_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
   for(i in unique(db$ID))
   {
     t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-    input_i = paste0('X', t_i)
+    input_i = as.character(t_i)
     y_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Output)
 
     corr1 = 0

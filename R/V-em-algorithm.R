@@ -26,21 +26,37 @@
 #' @export
 #'
 #' @examples
+#' \donttest{
+#' k = seq_len(3)
+#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+#'
+#' db <- simu_db(N = 10, common_input = TRUE)
+#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+#'
+#' old_tau_i_k = ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#' hp_k[['pi']] = sapply( old_tau_i_k, function(x) x %>% unlist() %>% mean() )
+#'
+#' MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
+#'
+#' }
+#'
 e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag = NULL)
 {
+  #browser()
   pi_k = hp_k$pi
   all_t = unique(db$Input) %>% sort()
   t_clust = tibble::tibble('ID' = rep(names(m_k), each = length(all_t)),
-                           'Timestamp' = rep(all_t, length(m_k)))
+                           'Input' = rep(all_t, length(m_k)))
 
-  inv_k = kern_to_inv(t_clust, kern_0, hp_k)
-  list_inv_i = kern_to_inv(db, kern_i, hp_i)
+  list_inv_k = list_kern_to_inv(t_clust, kern_0, hp_k, pen_diag)
+  list_inv_i = list_kern_to_inv(db, kern_i, hp_i, pen_diag)
   value_i = base::split(db$Output, list(db$ID))
 
   ## Update each mu_k parameters
   floop = function(k)
   {
-    new_inv = inv_k[[k]]; tau_i_k = old_tau_i_k[[k]]
+    new_inv = list_inv_k[[k]]; tau_i_k = old_tau_i_k[[k]]
     for(x in list_inv_i %>% names())
     {
       inv_i = list_inv_i[[x]]
@@ -57,7 +73,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 
   floop2 = function(k)
   {
-    prior_mean = m_k[[k]]; prior_inv = inv_k[[k]]; tau_i_k = old_tau_i_k[[k]]
+    prior_mean = m_k[[k]]; prior_inv = list_inv_k[[k]]; tau_i_k = old_tau_i_k[[k]]
 
     if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(prior_inv))}
     weighted_mean = prior_inv %*% prior_mean
@@ -74,7 +90,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 
 
     new_mean = cov_k[[k]] %*% weighted_mean %>% as.vector()
-    tibble::tibble('Timestamp' = all_t, 'Output' = new_mean) %>% return()
+    tibble::tibble('Input' = all_t, 'Output' = new_mean) %>% return()
   }
   mean_k = sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
@@ -85,16 +101,23 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 
   for(i in unique(db$ID))
   { c_i = c_i + 1
-  t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
+  input_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
   for(k in names(m_k))
   { c_k = c_k + 1
 
-  mat_logL[c_k,c_i] = - logL_GP_mod(hp_i[[i]], db %>%
-                                      dplyr::filter(.data$ID == i), mean_k[[k]] %>%
-                                      dplyr::filter(.data$Input %in% t_i) %>%
-                                      dplyr::pull(.data$Output), kern_i,
-                                    cov_k[[k]][paste0('X',t_i),paste0('X',t_i)])
-  if(is.na(mat_logL[c_k,c_i])){print(i)}
+    ## Extract the i-th specific hyper-parameters.
+    hp_i_i = hp_i %>% filter(.data$ID == i)
+    ## Extract the data associated with the i-th individual
+    db_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::select(-.data$ID)
+    ## Extract the mean values associated with the i-th specific inputs
+    mean_k_i = mean_k[[k]] %>%
+      dplyr::filter(.data$Input %in% input_i) %>%
+      dplyr::pull(.data$Output)
+    ## Extract the covariance values associated with the i-th specific inputs
+    cov_k_i = cov_k[[k]][as.character(input_i), as.character(input_i)]
+
+    mat_logL[c_k,c_i] = - logL_GP_mod(hp_i_i, db_i, mean_k_i , kern_i, cov_k_i, pen_diag)
+    if(is.na(mat_logL[c_k,c_i])){print(i)}
   }
   c_k = 0
   }
@@ -138,8 +161,24 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #' @export
 #'
 #' @examples
+#' ## Common inputs across individuals and different HPs
+#' k = seq_len(3)
+#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+#'
+#' db <- simu_db(N = 10, common_input = TRUE)
+#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+#'
+#' old_tau_i_k = ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#' hp_k[['pi']] = sapply( old_tau_i_k, function(x) x %>% unlist() %>% mean() )
+#'
+#' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
+#'
+#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 0.1)
+#'
 m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
 {
+  browser()
   list_ID_k = names(m_k)
   list_ID_i = unique(db$ID)
 
@@ -147,86 +186,127 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
     dplyr::select(-.data$ID) %>%
     names()
 
-  t1 = Sys.time()
+  list_hp_k <- old_hp_k %>%
+    dplyr::select(-.data$ID) %>%
+    names()
+
   if(common_hp_i)
   {
-    param = optimr::opm(old_hp_i %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
-                logL_clust_multi_GP_common_hp_i,
-                gr = gr_clust_multi_GP_common_hp_i,
-                db = db,
-                mu_k_param = list_mu_param,
-                kern = kern_i,
-                method = "L-BFGS-B",
-                control = list(kkt = F)) %>%
-      dplyr::select(list_hp_i) %>%
-      tibble::as_tibble() %>%
-      tidyr::uncount(weights = length(list_ID_i)) %>%
-      dplyr::mutate('ID' = list_ID_i, .before = 1)
-
-    new_theta_i = param %>% list() %>% rep(length(list_ID_i))  %>%
-      stats::setNames(nm = list_ID_i)
-  }
-  else
-  {
-    funloop2 = function(i)
-    {
-      t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-      optimr::opm(old_hp_i %>% dplyr::select(-.data$ID) %>% dplyr::slice(i),
-          logL_clust_multi_GP,
-          gr = gr_clust_multi_GP,
-          db = db %>% dplyr::filter(.data$ID == i),
-          mu_k_param = list_mu_param,
-          kern = kern_i,
-          method = "L-BFGS-B",
-          control = list(kkt = F)) %>%
-        dplyr::select(.data$list_hp_i) %>%
+    param = optimr::opm(
+      par = old_hp_i %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
+      fn = logL_clust_multi_GP_common_hp_i,
+      gr = gr_clust_multi_GP_common_hp_i,
+      db = db,
+      mu_k_param = list_mu_param,
+      kern = kern_i,
+      pen_diag = pen_diag,
+      method = "L-BFGS-B",
+      control = list(kkt = F)
+      ) %>%
+        dplyr::select(list_hp_i) %>%
         tibble::as_tibble() %>%
         tidyr::uncount(weights = length(list_ID_i)) %>%
-        dplyr::mutate('ID' = list_ID_i, .before = 1) %>% return()
-    }
-    new_theta_i = sapply(list_ID_i, funloop2, simplify = FALSE, USE.NAMES = TRUE)
+        dplyr::mutate('ID' = list_ID_i, .before = 1)
+
+    new_theta_i = param %>%
+      list() %>%
+      rep(length(list_ID_i))  %>%
+      stats::setNames(nm = list_ID_i)
   }
-  t2 = Sys.time()
+  else {
+    loop2 = function(i) {
+      ## Extract the hyper-parameters associated with the i-th individual
+      par_i <-  old_hp_i %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::select(-.data$ID)
+      ## Extract the data associated with the i-th individual
+      db_i <- db %>% dplyr::filter(.data$ID == i)
+
+      ## Optimise hyper-parameters of the individual processes
+      optimr::opm(
+        par = par_i,
+        fn = logL_clust_multi_GP,
+        gr = gr_clust_multi_GP,
+        db = db_i,
+        pen_diag = pen_diag,
+        mu_k_param = list_mu_param,
+        kern = kern_i,
+        method = "L-BFGS-B",
+        control = list(kkt = F)
+        ) %>%
+          dplyr::select(.data$list_hp_i) %>%
+          tibble::as_tibble() %>%
+          return()
+    }
+    new_theta_i = sapply(list_ID_i, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
+      tibble::enframe(name = "ID") %>%
+      tidyr::unnest(cols = .data$value)
+  }
 
   if(common_hp_k)
   {
-    param = c(optimr::opm(old_hp_k %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
-                  logL_GP_mod_common_hp_k,
-                  gr = gr_GP_mod_common_hp_k,
-                  db = list_mu_param$mean,
-                  mean = m_k,
-                  kern = kern_0,
-                  new_cov = list_mu_param$cov,
-                  pen_diag = pen_diag,
-                  method = "L-BFGS-B",
-                  control = list(kkt = F))[1,1:2] %>%
-                unlist(), pen_diag)
-    new_theta_k = param %>% list() %>% rep(length(list_ID_k))  %>%
+    param = c(optimr::opm(
+      par = old_hp_k %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
+      fn = logL_GP_mod_common_hp_k,
+      gr = gr_GP_mod_common_hp_k,
+      db = list_mu_param$mean,
+      mean = m_k,
+      kern = kern_0,
+      new_cov = list_mu_param$cov,
+      pen_diag = pen_diag,
+      method = "L-BFGS-B",
+      control = list(kkt = F)
+      ) %>%
+        dplyr::select(list_hp_k) %>%
+        tibble::as_tibble() %>%
+        tidyr::uncount(weights = length(list_ID_k)) %>%
+        dplyr::mutate('ID' = list_ID_k, .before = 1),
+      pen_diag)
+
+    new_theta_k = param %>%
+      list() %>%
+      rep(length(list_ID_k))  %>%
       stats::setNames(nm = list_ID_k)
   }
   else
   {
-    funloop = function(k)
-    {
-      c(optimr::opm(old_hp_k %>% dplyr::select(-.data$ID) %>% dplyr::slice(k),
-            logL_GP_mod,
-            gr = gr_GP_mod,
-            db = list_mu_param$mean[[k]],
-            mean = m_k[[k]],
-            kern = kern_0,
-            new_cov = list_mu_param$cov[[k]],
-            pen_diag = pen_diag,
-            method = "L-BFGS-B",
-            control = list(kkt = FALSE))[1,1:2] %>%
-          unlist(), pen_diag) %>% return()
+    loop = function(k) {
+      ## Extract the hyper-parameters associated with the k-th cluster
+      par_k <- old_hp_k %>%
+        dplyr::filter(.data$ID == k) %>%
+        dplyr::select(-.data$ID)
+      ## Extract the data associated with the k-th cluster
+      db_k <- list_mu_param$mean[[k]]
+      ## Extract the mean values associated with the k-th specific inputs
+      mean_k <- m_k[[k]]
+      ## Extract the covariance values associated with the k-th specific inputs
+      new_cov_k <- list_mu_param$cov[[k]]
+
+      ## Optimise hyper-parameters of the individual processes
+      c(optimr::opm(
+        par = par_k,
+        logL_GP_mod,
+        gr = gr_GP_mod,
+        db = db_k,
+        mean = mean_k,
+        kern = kern_0,
+        new_cov = new_cov_k,
+        pen_diag = pen_diag,
+        method = "L-BFGS-B",
+        control = list(kkt = FALSE)
+        ) %>%
+          dplyr::select(list_hp_k) %>%
+          tibble::as_tibble(),
+          pen_diag) %>%
+          return()
     }
-    new_theta_k = sapply(list_ID_k, funloop, simplify = FALSE, USE.NAMES = TRUE)
+    new_theta_k = sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
+      tibble::enframe(name = "ID") %>%
+      tidyr::unnest(cols = .data$value)
+
   }
 
   pi_k = sapply( list_mu_param$tau_i_k, function(x) x %>% unlist() %>% mean() )
-
-  t3 = Sys.time()
-  print(c('mu_k:',t3 - t2, 'indiv:', t2 - t1))
 
   list(
     "hp_k" = new_theta_k,

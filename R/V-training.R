@@ -241,3 +241,5 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
   }
   list('theta_new' = new_hp , 'tau_k' = tau_k) %>% return()
 }
+
+

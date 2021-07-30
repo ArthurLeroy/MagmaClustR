@@ -19,6 +19,9 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
+\value{
+gradient of modified gaussian processes for clustering
+}
 \description{
 Modified common Gaussian Process for each variations.
 }

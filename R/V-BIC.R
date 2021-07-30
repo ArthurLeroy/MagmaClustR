@@ -152,11 +152,11 @@ model_selection = function(db, k_grid = 1:5, ini_hp_k, ini_hp_i,
 
   res$K_max_BIC = db_plot %>% dplyr::filter(BIC == max(BIC)) %>% dplyr::pull(.data$K)
 
-  if(plot)
-  {
-    res$plot = ggplot2::ggplot(db_plot, ggplot2::aes(x = K, y = BIC)) + ggplot2::geom_point() +
-      ggplot2::geom_line() + ggplot2::theme_classic()
-  }
+  # if(plot)
+  # {
+  #   res$plot = ggplot2::ggplot(db_plot, ggplot2::aes(x = K, y = BIC)) + ggplot2::geom_point() +
+  #     ggplot2::geom_line() + ggplot2::theme_classic()
+  # }
 
   return(res)
 }

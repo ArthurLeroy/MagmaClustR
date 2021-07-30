@@ -171,3 +171,68 @@ simu_db <- function(M = 10,
 
   return(db)
 }
+
+#' ini_kmeans
+#'
+#' @param db tibble containing common Input and associated Output values to cluster
+#' @param k number of clusters set in the kmeans
+#' @param nstart number of initialisations to try in the kmeans
+#' @param summary boolean
+#'
+#' @return Tibble of ID, true clusters, and found clusters with kmeans
+#' @export
+#'
+#' @examples
+ini_kmeans = function(db, k, nstart = 50, summary = F)
+{
+  if( !identical(unique(db$Input), db %>% dplyr::filter(.data$ID == unique(db$ID)[[1]]) %>% dplyr::pull(.data$Input)) )
+  {
+    floop = function(i)
+    {
+      obs_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Output)
+      tibble::tibble('ID' = i,
+             'Input' = seq_len(3) ,
+             'Output' = c(min(obs_i), mean(obs_i) , max(obs_i)) ) %>%
+        return()
+    }
+    db_regular = unique(db$ID) %>% lapply(floop) %>% dplyr::bind_rows %>%
+      dplyr::select(c(.data$ID, .data$Input, .data$Output))
+
+  }
+  else{db_regular = db %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))}
+
+  res = db_regular %>%
+    tidyr::spread(key =  .data$Input, value = .data$Output) %>%
+    dplyr::select(-.data$ID) %>%
+    stats::kmeans(centers = k, nstart = nstart)
+
+  if(summary){res %>% print}
+
+  #browser()
+  broom::augment(res, db_regular %>% tidyr::spread(key =  .data$Input, value = .data$Output)) %>%
+    dplyr::select(c(.data$ID, .data$.cluster)) %>%
+    dplyr::rename(Cluster_ini = .data$.cluster) %>%
+    dplyr::mutate(Cluster_ini = paste0('K', .data$Cluster_ini)) %>%
+    return()
+}
+
+#' ini_tau_i_k
+#'
+#' @param db database
+#' @param k cluster
+#' @param nstart nstart
+#'
+#' @return ini_tau_i_k
+#' @export
+#'
+#' @examples
+ini_tau_i_k = function(db, k, nstart = 50)
+{
+  ini_kmeans(db, k, nstart) %>% dplyr::mutate(value = 1) %>%
+    tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
+    dplyr::arrange(as.integer(.data$ID)) %>%
+    tibble::column_to_rownames(var = "ID") %>%
+    apply(2, as.list) %>%
+    return()
+}
+

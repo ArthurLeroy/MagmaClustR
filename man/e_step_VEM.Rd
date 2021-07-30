@@ -40,3 +40,19 @@ parameter, and \code{cov}, the hyper-posterior covariance matrix.
 Expectation step of the variation of the EM algorithm to compute the parameters of the
 hyper-posterior Gaussian distribution of the mean process in Magma.
 }
+\examples{
+\donttest{
+m_k <- rep(0, 10)
+db <- simu_db(N = 10, common_input = TRUE)
+hp_k <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+
+k = seq_len(3)
+old_tau_i_k = ini_tau_i_k(db = db, k = length(k), nstart = 50)
+hp_k[['pi']] = sapply( old_tau_i_k, function(x) x \%>\% unlist() \%>\% mean() )
+
+MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
+
+}
+
+}
