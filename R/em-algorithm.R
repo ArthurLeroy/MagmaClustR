@@ -38,14 +38,14 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
                    pen_diag, grid_inputs = NULL) {
   if(grid_inputs %>% is.null()){
     ## Define the union of all reference Inputs in the dataset
-    all_inputs <- unique(db$Input) %>% sort()
+    all_input <- unique(db$Input) %>% sort()
   }
   else{
     ## Define the union among all reference Inputs and a specified grid
-    all_inputs <- unique(db$Input) %>% union(grid_inputs) %>% sort()
+    all_input <- unique(db$Input) %>% union(grid_inputs) %>% sort()
   }
   ## Compute all the inverse covariance matrices
-  inv_0 <- kern_to_inv(all_inputs, kern_0, hp_0, pen_diag)
+  inv_0 <- kern_to_inv(all_input, kern_0, hp_0, pen_diag)
   list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)
   ## Create a named list of Output values for all individuals
   list_output_i <- base::split(db$Output, list(db$ID))
@@ -79,14 +79,14 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
   post_cov <- tryCatch(post_inv %>% chol() %>% chol2inv(), error = function(e) {
     MASS::ginv(post_inv)
   }) %>%
-    `rownames<-`(all_inputs) %>%
-    `colnames<-`(all_inputs)
+    `rownames<-`(all_input) %>%
+    `colnames<-`(all_input)
   ## Compute the updated mean parameter
   post_mean <- post_cov %*% weighted_0 %>% as.vector()
   ##############################################
 
   list(
-    "mean" = tibble::tibble("Input" = all_inputs, "Output" = post_mean),
+    "mean" = tibble::tibble("Input" = all_input, "Output" = post_mean),
     "cov" = post_cov
   ) %>%
     return()

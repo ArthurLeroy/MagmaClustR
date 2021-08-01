@@ -34,9 +34,33 @@ plot_db = function(db)
 plot_gp = function(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI = F)
 {
   gg = ggplot2::ggplot() +
-    ggplot2::geom_line(data = pred_gp, ggplot2::aes(x = pred_gp$input, y = pred_gp$Mean), color = 'blue') +
-    ggplot2::geom_ribbon(data = pred_gp, ggplot2::aes(x = pred_gp$input, ymin = pred_gp$Mean - 1.96 * sqrt(pred_gp$Var),
-                                                      ymax = pred_gp$Mean +  1.96 * sqrt(pred_gp$Var)), alpha = 0.2) + ggplot2::ylab('Output')
+    ggplot2::geom_line(data = pred_gp, ggplot2::aes(x = .data$Input, y = .data$Mean), color = 'blue') +
+    ggplot2::geom_ribbon(data = pred_gp, ggplot2::aes(x = .data$Input, ymin = .data$Mean - 1.96 * sqrt(.data$Var),
+                                                      ymax = .data$Mean +  1.96 * sqrt(.data$Var)), alpha = 0.2) + ggplot2::ylab('Output')
+
+  ## Display the raw data and/or mean (with or without its CI) if provided
+  if(!is.null(data_train)){gg = gg + ggplot2::geom_point(data = data_train, ggplot2::aes(x = .data$Input, y = .data$Output, col = .data$ID ),
+                                                         size = 0.5, shape = 4)}
+  if(!is.null(data)){gg = gg + ggplot2::geom_point(data = data, ggplot2::aes(x = .data$Input, y = .data$Output), size = 2, shape = 18)}
+  if(!is.null(mean)){gg = gg + ggplot2::geom_line(data = mean, ggplot2::aes(x = .data$Input, y = .data$Mean), linetype = 'dashed')}
+  if(mean_CI){gg = gg + ggplot2::geom_ribbon(data = mean, ggplot2::aes(x = .data$Input, ymin = .data$Mean - 1.96 * sqrt(.data$Var),
+                                                                       ymax = .data$Mean +  1.96 * sqrt(.data$Var)), alpha = 0.4)}
+
+  return(gg)
+}
+
+sample_gp = function(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI = F)
+{
+  input = pred_gp$pred_gp %>% dplyr::pull(Input)
+  mean = pred_gp$pred_gp %>% dplyr::pull(Mean)
+  cov = pred_gp$cov
+
+  sample = mvtnorm::rmvnorm(input, mean, cov)
+
+  gg = ggplot2::ggplot() +
+    ggplot2::geom_line(data = pred_gp, ggplot2::aes(x = .data$Input, y = .data$Mean), color = 'blue') +
+    ggplot2::geom_ribbon(data = pred_gp, ggplot2::aes(x = .data$Input, ymin = .data$Mean - 1.96 * sqrt(.data$Var),
+                                                      ymax = .data$Mean +  1.96 * sqrt(.data$Var)), alpha = 0.2) + ggplot2::ylab('Output')
 
   ## Display the raw data and/or mean (with or without its CI) if provided
   if(!is.null(data_train)){gg = gg + ggplot2::geom_point(data = data_train, ggplot2::aes(x = data_train $input, y = data_train $Output, col = data_train$ID ),
@@ -73,16 +97,16 @@ plot_heat =  function(pred_gp, data = NULL, data_train = NULL, mean = NULL, ygri
 
   if(CI)
   {
-    db_heat = tidyr::expand(pred_gp, tidyr::nesting(pred_gp$input, pred_gp$Mean, pred_gp$Var), 'Ygrid' = ygrid) %>%
-      plotly::mutate('Proba' = 2 * stats::pnorm(abs((.data$Ygrid - pred_gp$Mean)/ sqrt(pred_gp$Var))) - 1)
-    gg = ggplot2::ggplot(db_heat) + ggplot2::geom_tile(ggplot2::aes(pred_gp$input, .data$Ygrid, fill = .data$Proba)) + ggplot2::scale_fill_distiller(palette = "RdPu") +
+    db_heat = tidyr::expand(pred_gp, tidyr::nesting(.data$Input, .data$Mean, .data$Var), 'Ygrid' = ygrid) %>%
+      plotly::mutate('Proba' = 2 * stats::pnorm(abs((.data$Ygrid - .data$Mean)/ sqrt(pred_gp$Var))) - 1)
+    gg = ggplot2::ggplot(db_heat) + ggplot2::geom_tile(ggplot2::aes(.data$Input, .data$Ygrid, fill = .data$Proba)) + ggplot2::scale_fill_distiller(palette = "RdPu") +
       ggplot2::theme_minimal() + ggplot2::ylab("Output") + ggplot2::labs(fill = "Proba CI")
   }
   else
   {
-    db_heat = tidyr::expand(pred_gp, tidyr::nesting(pred_gp$input, pred_gp$Mean, pred_gp$Var), 'Ygrid' = ygrid) %>%
-      plotly::mutate('Proba' = stats::dnorm(.data$Ygrid, mean = pred_gp$Mean, sd = sqrt(pred_gp$Var)) )
-    gg = ggplot2::ggplot(db_heat) + ggplot2::geom_tile(ggplot2::aes(pred_gp$input, .data$Ygrid, fill = .data$Proba)) +
+    db_heat = tidyr::expand(pred_gp, tidyr::nesting(.data$Input, .data$Mean, .data$Var), 'Ygrid' = ygrid) %>%
+      dplyr::mutate('Proba' = stats::dnorm(pred_gp$Ygrid, mean = pred_gp$Mean, sd = sqrt(pred_gp$Var)) )
+    gg = ggplot2::ggplot(db_heat) + ggplot2::geom_tile(ggplot2::aes(.data$Input, .data$Ygrid, fill = .data$Proba)) +
       ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse") +
       ggplot2::theme_minimal() + ggplot2::ylab("Output") + ggplot2::labs(fill = "Likelihood")
   }

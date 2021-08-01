@@ -2,29 +2,88 @@
 % Please edit documentation in R/prediction.R
 \name{pred_gp}
 \alias{pred_gp}
-\title{Prediction Gaussian Process}
+\title{Gaussian Process prediction}
 \usage{
-pred_gp(db, timestamps = NULL, mean_mu = 0, cov_mu = NULL, kern, hp)
+pred_gp(
+  data,
+  hp,
+  kern = "SE",
+  mean = NULL,
+  grid_inputs = NULL,
+  get_full_cov = FALSE,
+  plot = T,
+  pen_diag = 0.01
+)
 }
 \arguments{
-\item{db}{tibble of data columns required ('input', 'Output')}
+\item{data}{A tibble or data frame. Columns required: \code{Input},
+\code{Output}. Additional columns for covariates can be specified.
+The \code{Input} column should define the variable that is used as
+reference for the observations (e.g. time for longitudinal data). The
+\code{Output} column specifies the observed values (the response
+variable). The data frame can also provide as many covariates as desired,
+with no constraints on the column names. These covariates are additional
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
 
-\item{timestamps}{timestamps on which we want a prediction}
+\item{hp}{A named vector, tibble or data frame of hyper-parameters
+associated with \code{kern}. The columns/elements should be named
+according to the hyper-parameters that are used in \code{kern}. The
+function \code{\link{train_gp}} can be used to learn maximum-likelihood
+estimators of the hyper-parameters,}
 
-\item{mean_mu}{mean value of mean GP at timestamps (obs + pred) (matrix dim: timestamps x 1, with Input rownames)}
+\item{kern}{A kernel function, defining the covariance structure of the GP.}
 
-\item{cov_mu}{covariance of mean GP at timestamps (obs + pred) (square matrix, with Input row/colnames)}
+\item{mean}{Mean parameter of the GP. This argument can be specified under
+various formats, such as:
+\itemize{
+\item NULL (default). The mean would be set to 0 everywhere.
+\item A number. The mean would be a constant function.
+\item A function. This function is defined as the mean.
+\item A tibble or data frame. Columns required: Input, Output. The Input
+values should include at least the same values as in the \code{data}
+argument.
+}}
 
-\item{kern}{kernel associated to the covariance function of the GP}
+\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as \code{data}, except
+'Output'. Nonetheless, in cases where \code{data} provides only one
+'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of \code{data}.}
 
-\item{hp}{list of hyperparameters for the kernel of the GP}
+\item{get_full_cov}{A logical value, indicating whether the full posterior
+covariance matrix should be returned.}
+
+\item{plot}{A logical value, indicating whether a plot of the results is
+automatically displayed.}
+
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 }
 \value{
-pamameters of the gaussian density predicted at timestamps
+A tibble, representing the GP predictions as two column 'Mean' and
+'Var', evaluated on the \code{grid_inputs}. The column 'Input' and
+additional covariates columns are associated to each predicted values.
+If the \code{get_full_cov} argument is TRUE, the function returns a list,
+in which the tibble described above is defined as 'pred_gp' and the full
+posterior covariance matrix is defined as 'cov'.
 }
 \description{
-Prediction Gaussian Process
+Compute the posterior distribution of a simple GP, using the formalism of
+\code{magma}. By providing observed data, the prior mean and covariance
+matrix (by defining a kernel and its associated hyper-parameters), the mean
+and covariance parameters of the posterior distribution are computed on the
+grid of inputs that has been specified. This predictive distribution can be
+evaluated on any arbitrary inputs since a GP is an infinite-dimensional
+object.
 }
 \examples{
-TRUE
+db <- simu_db(M = 1, N = 10)
+grid_inputs <- tibble::tibble(Input = 1:10, Covariate = 2:11)
+hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
+
+pred_gp(db, hp, grid_inputs = grid_inputs)
 }
