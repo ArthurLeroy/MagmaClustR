@@ -106,7 +106,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
   { c_k = c_k + 1
 
     ## Extract the i-th specific hyper-parameters.
-    hp_i_i = hp_i %>% filter(.data$ID == i)
+    hp_i_i = hp_i %>% dplyr::filter(.data$ID == i)
     ## Extract the data associated with the i-th individual
     db_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::select(-.data$ID)
     ## Extract the mean values associated with the i-th specific inputs
@@ -178,7 +178,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #'
 m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
 {
-  browser()
+  #browser()
   list_ID_k = names(m_k)
   list_ID_i = unique(db$ID)
 
@@ -192,8 +192,15 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
 
   if(common_hp_i)
   {
+    ## Extract the hyper-parameters associated with the i-th individual
+    par_i <-  old_hp_i %>%
+      dplyr::select(-.data$ID) %>%
+      dplyr::slice(1)
+
+    print(par_i)
+
     param = optimr::opm(
-      par = old_hp_i %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
+      par = par_i,
       fn = logL_clust_multi_GP_common_hp_i,
       gr = gr_clust_multi_GP_common_hp_i,
       db = db,
@@ -234,7 +241,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
         method = "L-BFGS-B",
         control = list(kkt = F)
         ) %>%
-          dplyr::select(.data$list_hp_i) %>%
+          dplyr::select(list_hp_i) %>%
           tibble::as_tibble() %>%
           return()
     }

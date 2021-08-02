@@ -20,6 +20,7 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   names_k = mu_k_param$mean %>% names()
   t_i = db$Input
   y_i = db$Output
+  #inputs = db %>% dplyr::select(-.data$Output)
   i = unique(db$ID)
 
 
@@ -37,6 +38,7 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   prod_inv = inv %*% y_i
   common_term = (prod_inv - 2 * inv %*% corr1) %*% t(prod_inv)  + inv %*% ( corr2 %*% inv - diag(1, length(t_i)) )
 
+  ## Loop over the derivatives of hyper-parameters for computing the gradient
   floop = function(deriv){
     (- 1/2 * (common_term %*% kern_to_cov(t_i, kern, hp, deriv))) %>%
       diag() %>%
