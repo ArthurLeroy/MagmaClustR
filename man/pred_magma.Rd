@@ -40,10 +40,11 @@ Magma prediction
 db <- simu_db(M = 1, N = 10)
 grid_inputs <- tibble::tibble(Input = 1:10, Covariate = 2:11)
 hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
+all_input = union(db$Input, grid_inputs$Input) \%>\% sort()
 hyperpost <- list(
-  "mean" = rep(0, 10),
-  "cov" = kern_to_cov(union(db$Input, grid_inputs$Input), "SE", hp)
+  "mean" = tibble::tibble(Input = all_input, Output = 0),
+  "cov" = kern_to_cov(1:10, "SE", hp)
 )
 
-pred_magma(db, hp, grid_inputs = grid_inputs, hyperpost = hyperpost)
+pred_magma(db, hp, grid_inputs = grid_inputs, trained_model = bla)
 }

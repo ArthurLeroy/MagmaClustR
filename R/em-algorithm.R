@@ -14,36 +14,31 @@
 #'    associated with \code{kern_i}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
-#' @param grid_inputs A vector, indicating the grid of additional reference
-#' inputs on which the mean process' hyper-posterior should be evaluated.
-#'
 #' @return A named list, containing the elements \code{mean}, a tibble
 #' containing the Input and associated Output of the hyper-posterior's mean
 #' parameter, and \code{cov}, the hyper-posterior's covariance matrix.
-#'
-#' @export
 #'
 #' @examples
 #'
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' m_0 <- rep(0, 10)
-#' hp_0 <- MagmaClustR:::hp()
-#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+#' hp_0 <- hp()
+#' hp_i <- hp("SE", list_ID = unique(db$ID))
 #' MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 #'
 #' db_async <- simu_db(N = 10, common_input = FALSE)
 #' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
 #' MagmaClustR:::e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
-e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i,
-                   pen_diag, grid_inputs = NULL) {
-  if(grid_inputs %>% is.null()){
-    ## Define the union of all reference Inputs in the dataset
-    all_input <- unique(db$Input) %>% sort()
-  }
-  else{
-    ## Define the union among all reference Inputs and a specified grid
-    all_input <- unique(db$Input) %>% union(grid_inputs) %>% sort()
-  }
+e_step <- function(db,
+                   m_0,
+                   kern_0,
+                   kern_i,
+                   hp_0,
+                   hp_i,
+                   pen_diag) {
+
+  all_input <- unique(db$Input) %>% sort()
+
   ## Compute all the inverse covariance matrices
   inv_0 <- kern_to_inv(all_input, kern_0, hp_0, pen_diag)
   list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)

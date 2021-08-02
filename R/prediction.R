@@ -1,7 +1,7 @@
 #' Gaussian Process prediction
 #'
 #' Compute the posterior distribution of a simple GP, using the formalism of
-#' \code{magma}. By providing observed data, the prior mean and covariance
+#' Magma. By providing observed data, the prior mean and covariance
 #' matrix (by defining a kernel and its associated hyper-parameters), the mean
 #' and covariance parameters of the posterior distribution are computed on the
 #' grid of inputs that has been specified. This predictive distribution can be
@@ -265,38 +265,268 @@ pred_gp <- function(data,
   }
 }
 
+#' Compute the hyper-posterior distribution in Magma
+#'
+#' Compute the parameters of the hyper-posterior Gaussian distribution of the
+#' mean process in Magma (similarly to the expectation step of the EM
+#' algorithm used for learning). This hyper-posterior distribution, evaluated
+#' on a grid of inputs provided through the \code{grid_inputs} argument, is a
+#' key component for making prediction in Magma, and is required in the function
+#' \code{\link{pred_magma}}.
+#'
+#' @param data A tibble or data frame. Columns required: \code{Input},
+#'    \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param hp_0 A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern_0}.
+#' @param hp_i A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}.
+#' @param kern_0 A kernel function, associated with the mean GP.
+#' @param kern_i A kernel function, associated with the individual GPs.
+#' @param prior_mean Hyper-prior mean parameter of the mean GP. This argument,
+#'    can be specified under various formats, such as:
+#'    - NULL (default). The hyper-prior mean would be set to 0 everywhere.
+#'    - A number. The hyper-prior mean would be a constant function.
+#'    - A vector of the same length as all the distinct Input values in the
+#'     \code{data} argument. This vector would be considered as the evaluation
+#'     of the hyper-prior mean function at the training Inputs.
+#'    - A function. This function is defined as the hyper-prior mean.
+#'    - A tibble or data frame. Columns required: Input, Output. The Input
+#'     values should include at least the same values as in the \code{data}
+#'     argument.
+#' @param grid_inputs A vector, indicating the grid of additional reference
+#'    inputs on which the mean process' hyper-posterior should be evaluated.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#'
+#' @return A named list, containing the elements \code{mean}, a tibble
+#' containing the Input and associated Output of the hyper-posterior's mean
+#' parameter, and \code{cov}, the hyper-posterior's covariance matrix.
+#'
+#' @export
+#'
+#' @examples
+#' db <- simu_db(N = 10, common_input = TRUE)
+#' hp_0 <- hp()
+#' hp_i <- hp("SE", list_ID = unique(db$ID))
+#' grid_inputs <- seq(0, 10, 0.1)
+#' hyperposterior(db, hp_0, hp_i, "SE", "SE", grid_inputs = grid_inputs)
+hyperposterior <- function(data,
+                           hp_0,
+                           hp_i,
+                           kern_0,
+                           kern_i,
+                           prior_mean = NULL,
+                           grid_inputs = NULL,
+                           pen_diag = 0.01) {
+  if (grid_inputs %>% is.null()) {
+    ## Define the union of all reference Inputs in the dataset
+    all_input <- unique(data$Input) %>% sort()
+    cat(
+      "The argument 'grid_inputs' is NULL, the hyper-posterior distribution",
+      "will only be evaluated on observed Input from 'data'.\n \n"
+    )
+  }
+  else {
+    ## Define the union among all reference Inputs and a specified grid
+    all_input <- unique(data$Input) %>%
+      union(grid_inputs) %>%
+      sort()
+  }
+
+  ## Initialise m_0 according to the value provided by the user
+  if (prior_mean %>% is.null()) {
+    m_0 <- rep(0, length(all_input))
+    cat(
+      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+      "function is thus set to be 0 everywhere.\n \n"
+    )
+  }
+  else if (prior_mean %>% is.vector()) {
+    if (length(prior_mean) == length(all_input)) {
+      m_0 <- prior_mean
+    } else if (length(prior_mean) == 1) {
+      m_0 <- rep(prior_mean, length(all_input))
+      cat(
+        "The provided 'prior_mean' argument is of length 1. Thus, the",
+        "hyper-prior mean function has set to be constant everywhere.\n \n"
+      )
+    }
+    else {
+      stop(
+        "The 'prior_mean' argument is of length ", length(prior_mean),
+        ", whereas the grid of training inputs is of length ",
+        length(all_input)
+      )
+    }
+  }
+  else if (prior_mean %>% is.function()) {
+    m_0 <- prior_mean(all_input)
+  }
+  else if (prior_mean %>% is.data.frame()) {
+    if (all(c("Output", "Input") %in% names(prior_mean))) {
+      m_0 <- prior_mean %>%
+        dplyr::filter(.data$Input %in% all_input) %>%
+        dplyr::arrange(.data$Input) %>%
+        dplyr::pull(.data$Output)
+
+      if (length(m_0) != length(all_input)) {
+        stop(
+          "Problem in the length of the hyper_prior mean parameter. The ",
+          "'pior_mean' argument should provide an Output value for each Input ",
+          "value appearing in the training data."
+        )
+      }
+    } else {
+      stop(
+        "If the 'prior_mean' argument is provided as a data frame, it ",
+        "should contain the mandatory column names: 'Output', 'Input'"
+      )
+    }
+  }
+  else {
+    stop(
+      "Incorrect format for the 'prior_mean' argument. Please read ",
+      "?hyperposterior() for details."
+    )
+  }
+
+  ## Compute all the inverse covariance matrices
+  inv_0 <- kern_to_inv(all_input, kern_0, hp_0, pen_diag)
+  list_inv_i <- list_kern_to_inv(data, kern_i, hp_i, pen_diag)
+  ## Create a named list of Output values for all individuals
+  list_output_i <- base::split(data$Output, list(data$ID))
+
+  ## Update the posterior inverse covariance ##
+  post_inv <- inv_0
+  for (inv_i in list_inv_i)
+  {
+    ## Collect the input's common indices between mean and individual processes
+    common_times <- intersect(row.names(inv_i), row.names(post_inv))
+    ## Sum the common inverse covariance's terms
+    post_inv[
+      common_times,
+      common_times
+    ] <- post_inv[common_times, common_times] +
+         inv_i[common_times, common_times]
+  }
+  ##############################################
+
+  ## Update the posterior mean ##
+  weighted_0 <- inv_0 %*% m_0
+  for (i in names(list_inv_i))
+  {
+    ## Compute the weighted mean for the i-th individual
+    weighted_i <- list_inv_i[[i]] %*% list_output_i[[i]]
+    ## Collect the input's common indices between mean and individual processes
+    common_times <- intersect(row.names(weighted_i), row.names(weighted_0))
+    ## Sum the common weighted mean's terms
+    weighted_0[common_times, ] <- weighted_0[common_times, ] +
+      weighted_i[common_times, ]
+  }
+
+  ## Fast or slow matrix inversion if nearly singular
+  post_cov <- tryCatch(post_inv %>% chol() %>% chol2inv(), error = function(e) {
+    MASS::ginv(post_inv)
+  }) %>%
+    `rownames<-`(all_input) %>%
+    `colnames<-`(all_input)
+  ## Compute the updated mean parameter
+  post_mean <- post_cov %*% weighted_0 %>% as.vector()
+  ##############################################
+
+  list(
+    "mean" = tibble::tibble("Input" = all_input, "Output" = post_mean),
+    "cov" = post_cov
+  ) %>%
+    return()
+}
+
+
 #' Magma prediction
 #'
-#' @param db tibble of data columns required ('input', 'Output')
-#' @param grid_inputs grid_inputs on which we want a prediction
-#' @param mean_mu mean value of mean GP at grid_inputs (obs + pred) (matrix dim: grid_inputs x 1, with Input rownames)
-#' @param cov_mu covariance of mean GP at grid_inputs (obs + pred) (square matrix, with Input row/colnames)
-#' @param hp list of hyperparameters for the kernel of the GP
-#' @param kern kernel associated to the covariance function of the GP
+#' Compute the posterior predictive distribution in Magma. Providing data of any
+#' new inividual/task, its trained hyper-parameters and a previously trained
+#' Magma model, the predictive distribution is evaluated on any arbitrary inputs
+#' that are specified through the 'grid_inputs' argument.
+#'
+#' @param data  A tibble or data frame. Columns required: \code{Input},
+#'    \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern}. The columns/elements should be named
+#'    according to the hyper-parameters that are used in \code{kern}. The
+#'    function \code{\link{train_gp}} can be used to learn maximum-likelihood
+#'    estimators of the hyper-parameters,
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#' @param trained_model A list, containing  the information coming from a
+#'    Magma model, previously trained using the \code{\link{train_magma}}
+#'    function.
+#' @param grid_inputs The grid of inputs (reference Input and covariates) values
+#'    on which the GP should be evaluated. Ideally, this argument should be a
+#'    tibble or a data frame, providing the same columns as \code{data}, except
+#'    'Output'. Nonetheless, in cases where \code{data} provides only one
+#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+#'    vector. This vector would be used as reference input for prediction and if
+#'    NULL, a vector of length 500 is defined, ranging between the min and max
+#'    Input values of \code{data}.
+#' @param hyperpost A list, containing the elements 'mean' and 'cov', the
+#'    parameters of the hyper-posterior distribution of the mean process.
+#'    Typically, this argument should from a previous learning using
+#'    \code{\link{train_magma}}, Tor a previous prediction with
+#'    \code{\link{pred_magma}}, with the argument \code{get_hyperpost} set to
+#'    TRUE. The 'mean' element should be a data frame with two columns 'Input'
+#'    and 'Output'. The 'cov' element should be a covariance matrix with
+#'    colnames and rownames corresponding to the 'Input' in 'mean'. In all
+#'    cases, the column 'Input' should contain all the values appearing both in
+#'    the 'Input' column of \code{data} and in \code{grid_inputs}.
+#' @param get_hyperpost A logical value, indicating whether the hyper-posterior
+#'    distribution of the mean process should be returned. This can be useful
+#'    when planning to perform several predictions on the same grid of inputs,
+#'    since recomputation of the hyper-posterior can be prohibitive for high
+#'    dimensional grids.
+#' @param get_full_cov A logical value, indicating whether the full posterior
+#'    covariance matrix should be returned.
+#' @param plot A logical value, indicating whether a plot of the results is
+#'    automatically displayed.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
 #'
 #' @return pamameters of the gaussian density predicted at grid_inputs
 #' @export
 #'
 #' @examples
 #' db <- simu_db(M = 1, N = 10)
-#' grid_inputs <- tibble::tibble(Input = 1:10, Covariate = 2:11)
+#' grid_inputs <- tibble::tibble(Input = 1:20, Covariate = 2:21)
 #' hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
-#' all_input = union(db$Input, grid_inputs$Input) %>% sort()
+#' all_input <- union(db$Input, grid_inputs$Input) %>% sort()
 #' hyperpost <- list(
 #'   "mean" = tibble::tibble(Input = all_input, Output = 0),
-#'   "cov" = kern_to_cov(1:10, "SE", hp)
+#'   "cov" = kern_to_cov(all_input, "SE", hp)
 #' )
 #'
-#' pred_magma(db, hp, grid_inputs = grid_inputs, trained_model = bla)
+#' pred_magma(db, hp, grid_inputs = grid_inputs, hyperpost = hyperpost)
 pred_magma <- function(data,
                        hp,
                        kern = "SE",
                        trained_model = NULL,
                        grid_inputs = NULL,
                        hyperpost = NULL,
-                       plot = TRUE,
                        get_hyperpost = FALSE,
                        get_full_cov = FALSE,
+                       plot = TRUE,
                        pen_diag = 0.01) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
@@ -315,7 +545,7 @@ pred_magma <- function(data,
   if ("ID" %in% names(data)) {
     inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
   }
-browser()
+
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
     ## Test whether 'data' only provide the Input column and no covariates
@@ -364,9 +594,9 @@ browser()
     )
   }
   ## Define the union of all distinct reference Input
-  all_input <- union(input_obs, input_pred)
+  all_input <- union(input_obs, input_pred) %>% sort()
   ## Check whether the hyper-posterior is provided and recompute if necessary
-  if (is.null(hyperpost)) {
+  if (hyperpost %>% is.null()) {
     if (trained_model %>% is.null()) {
       stop(
         "If the 'hyperpost' argument is NULL, the 'trained_model' ",
@@ -374,19 +604,18 @@ browser()
         "hyper-posterior distribution evaluated on the correct inputs."
       )
     } else if (!all(all_input %in% trained_model$pred_post$Input)) {
-      hyperpost <- e_step(
-        db = trained_model$fct_args$data,
-        m_0 = union(trained_model$fct_args$prior_mean, ,
+      hyperpost <- hyperposterior(
+        data = trained_model$fct_args$data,
         kern_0 = trained_model$fct_args$kern_0,
         kern_i = trained_model$fct_args$kern_i,
         hp_0 = trained_model$hp_0,
         hp_i = trained_model$hp_i,
-        pen_diag = pen_diag,
-        grid_inputs = all_input
+        prior_mean = trained_model$fct_args$prior_mean,
+        grid_inputs = all_input,
+        pen_diag = pen_diag
       )
     }
-  } else if (is.vector(hyperpost$mean$Input) &
-    is.matrix(hyperpost$cov)) {
+  } else if (hyperpost %>% is.list()) {
     ## Check whether the inputs in 'hyperpost' are correct
     if (!all(all_input %in% hyperpost$mean$Input) |
       !all(as.character(all_input) %in% colnames(hyperpost$cov))) {
@@ -400,21 +629,19 @@ browser()
       else {
         cat(
           "The hyper-posterior distribution of the mean process provided in the",
-          "'hyperpost' argument isn't evaluated on the expected inputs. \n \n",
-          "Start evaluating the hyper-posterior on the correct inputs..."
+          "'hyperpost' argument isn't evaluated on the expected inputs.\n \n",
+          "Start evaluating the hyper-posterior on the correct inputs...\n \n"
         )
-
-        hyperpost <- e_step(
-          db = trained_model$fct_args$data,
-          m_0 = trained_model$fct_args$prior_mean,
+        hyperpost <- hyperposterior(
+          data = trained_model$fct_args$data,
           kern_0 = trained_model$fct_args$kern_0,
           kern_i = trained_model$fct_args$kern_i,
           hp_0 = trained_model$hp_0,
           hp_i = trained_model$hp_i,
-          pen_diag = pen_diag,
-          grid_inputs = all_input
+          prior_mean = trained_model$fct_args$prior_mean,
+          grid_inputs = all_input,
+          pen_diag = pen_diag
         )
-
         cat("Done!\n \n")
       }
     }
@@ -436,7 +663,10 @@ browser()
     dplyr::pull(.data$Output)
 
   ## Extract the covariance sub-matrices from the hyper-posterior
-  post_cov_obs <- hyperpost$cov[as.character(input_obs), as.character(input_obs)]
+  post_cov_obs <- hyperpost$cov[
+    as.character(input_obs),
+    as.character(input_obs)
+  ]
   post_cov_pred <- hyperpost$cov[
     as.character(input_pred),
     as.character(input_pred)

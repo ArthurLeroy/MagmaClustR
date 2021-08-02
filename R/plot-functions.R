@@ -18,7 +18,7 @@ plot_db = function(db)
     ggplot2::theme_classic()
 }
 
-#' Plot your Gaussian Process
+#' Plot Gaussian Process predictions
 #'
 #' @param pred_gp tibble coming out of the pred_gp() function, columns required : 'input', 'Mean', 'Var'
 #' @param data tibble of observational data, columns required : 'input', 'Output' (Optional)
@@ -33,6 +33,7 @@ plot_db = function(db)
 #' TRUE
 plot_gp = function(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI = F)
 {
+
   gg = ggplot2::ggplot() +
     ggplot2::geom_line(data = pred_gp, ggplot2::aes(x = .data$Input, y = .data$Mean), color = 'blue') +
     ggplot2::geom_ribbon(data = pred_gp, ggplot2::aes(x = .data$Input, ymin = .data$Mean - 1.96 * sqrt(.data$Var),

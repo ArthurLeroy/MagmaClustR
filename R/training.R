@@ -123,43 +123,23 @@ train_magma <- function(data,
   ## Extract the list of differnt IDs
   list_ID <- data$ID %>% unique()
   ## Extract the union of all reference inputs provided in the training data
-  all_inputs <- data$Input %>%
+  all_input <- data$Input %>%
     unique() %>%
     sort()
-  ## Define the union of training inputs and the provided grid
-  if(!is.null(grid_inputs)){
-    if (grid_inputs %>% is.vector()) {
-      all_inputs_grid = all_inputs %>%
-        union(grid_inputs) %>%
-        sort()
-    }
-    else {
-      grid_inputs = NULL
-      warning("The argument 'grid_inputs' should be a vector. The ",
-            "hyper-posterior will only be evaluated on training data inputs.",
-            "\n \n")
-    }
-  }
-  ## Set m_0_grid to NULL in case no correct value is provided
-  m_0_grid = NULL
 
   ## Initialise m_0 according to the value provided by the user
   if (prior_mean %>% is.null()) {
-    m_0 <- rep(0, length(all_inputs))
-    if(!is.null(grid_inputs)){m_0_grid <- rep(0, length(all_inputs_grid))}
+    m_0 <- rep(0, length(all_input))
     cat(
       "The 'prior_mean' argument has not been specified. The hyper_prior mean",
       "function is thus set to be 0 everywhere.\n \n"
     )
   }
   else if (prior_mean %>% is.vector()) {
-    if (length(prior_mean) == length(all_inputs)) {
+    if (length(prior_mean) == length(all_input)) {
       m_0 <- prior_mean
     } else if (length(prior_mean) == 1) {
-      m_0 <- rep(prior_mean, length(all_inputs))
-      if(!is.null(grid_inputs)){
-        m_0_grid <- rep(prior_mean, length(all_inputs_grid))
-      }
+      m_0 <- rep(prior_mean, length(all_input))
       cat(
         "The provided 'prior_mean' argument is of length 1. Thus, the hyper_prior",
         "mean function has set to be constant everywhere.\n \n"
@@ -169,27 +149,21 @@ train_magma <- function(data,
       stop(
         "The 'prior_mean' argument is of length ", length(prior_mean),
         ", whereas the grid of training inputs is of length ",
-        length(all_inputs)
+        length(all_input)
       )
     }
   }
   else if (prior_mean %>% is.function()) {
-    m_0 <- prior_mean(all_inputs)
-    if(!is.null(grid_inputs)){m_0_grid <- prior_mean(all_inputs_grid)}
+    m_0 <- prior_mean(all_input)
   }
   else if (prior_mean %>% is.data.frame()) {
     if (all(c("Output", "Input") %in% names(prior_mean))) {
       m_0 <- prior_mean %>%
-        dplyr::filter(.data$Input %in% all_inputs) %>%
-        plyr::arrange(.data$Input) %>%
+        dplyr::filter(.data$Input %in% all_input) %>%
+        dplyr::arrange(.data$Input) %>%
         dplyr::pull(.data$Output)
-      if(!is.null(grid_inputs)){
-      m_0_grid <- prior_mean %>%
-          dplyr::filter(.data$Input %in% all_inputs_grid) %>%
-          dplyr::arrange(.data$Input) %>%
-          dplyr::pull(.data$Output)
-      }
-      if (length(m_0) != length(all_inputs)) {
+
+      if (length(m_0) != length(all_input)) {
         stop(
           "Problem in the length of the hyper_prior mean parameter. The ",
           "'pior_mean' argument should provide an Output value for each Input ",
@@ -206,7 +180,7 @@ train_magma <- function(data,
   else {
     stop(
       "Incorrect format for the 'prior_mean' argument. Please read ",
-      "?train_magma() for details."
+      "?hyperposterior() for details."
     )
   }
 
@@ -286,7 +260,7 @@ train_magma <- function(data,
       kern_i = kern_i,
       hp_0 = hp_0,
       hp_i = hp_i,
-      pen_diag = pen_diag,
+      pen_diag = pen_diag
     )
 
     ## M-Step of Magma
@@ -373,27 +347,20 @@ train_magma <- function(data,
 
   ## Evaluate the hyper-posterior on the grid of inputs if provided
   if (!is.null(grid_inputs)) {
-    if (m_0_grid %>% is.null()){
-      warning("The format of 'prior_mean' doesn't allow the evaluation on the ",
-      "provided grid of inputs. Thus, the hyper-posterior has only been ",
-      "evaluated on training data inputs.\n \n")
-    }
-    else {
       cat("Start evaluating hyper-posterior distribution of the mean process",
            "on the provided grid of inputs... \n \n")
 
-      post <- e_step(
-        db = data,
-        m_0 = m_0_grid,
-        kern_0 = kern_0,
-        kern_i = kern_i,
+      post <- hyperposterior(
+        data = data,
         hp_0 = hp_0,
         hp_i = hp_i,
-        pen_diag = pen_diag,
-        grid_inputs = grid_inputs
+        kern_0 = kern_0,
+        kern_i = kern_i,
+        prior_mean = prior_mean,
+        grid_inputs = grid_inputs,
+        pen_diag = pen_diag
       )
       cat("Done!\n \n")
-    }
   }
 
   ## Create a variable for directly plotting the mean process' hyper-posterior
@@ -516,20 +483,20 @@ train_gp <- function(data,
   ## Extract the names of hyper-parameters
   list_hp_new <- hp %>% names()
   ## Extract the reference Input in the data
-  all_inputs <- unique(data$Input) %>% sort()
+  all_input <- unique(data$Input) %>% sort()
   ## Extract the values of the hyper-posterior mean parameter at reference Input
   if (post_mean %>% is.null()) {
-    mean <- rep(0, length(all_inputs))
+    mean <- rep(0, length(all_input))
     cat(
       "The 'post_mean' argument has not been specified. The hyper-posterior",
      "mean function is thus set to be 0 everywhere.\n \n"
     )
   }
   else if (post_mean %>% is.vector()) {
-    if (length(post_mean) == length(all_inputs)) {
+    if (length(post_mean) == length(all_input)) {
       mean <- post_mean
     } else if (length(post_mean) == 1) {
-      mean <- rep(post_mean, length(all_inputs))
+      mean <- rep(post_mean, length(all_input))
 
       cat(
         "The provided 'post_mean' argument is of length 1. Thus, the",
@@ -540,21 +507,21 @@ train_gp <- function(data,
       stop(
         "The 'post_mean' argument is of length ", length(post_mean),
         ", whereas the grid of training inputs is of length ",
-        length(all_inputs)
+        length(all_input)
       )
     }
   }
   else if (post_mean %>% is.function()) {
-    mean <- post_mean(all_inputs)
+    mean <- post_mean(all_input)
   }
   else if (post_mean %>% is.data.frame()) {
     if (all(c("Output", "Input") %in% names(post_mean))) {
       mean <- post_mean %>%
-        dplyr::filter(.data$Input %in% all_inputs) %>%
+        dplyr::filter(.data$Input %in% all_input) %>%
         dplyr::arrange(.data$Input) %>%
         dplyr::pull(.data$Output)
 
-      if (length(mean) != length(all_inputs)) {
+      if (length(mean) != length(all_input)) {
         stop(
           "Problem in the length of the hyper-posterior mean parameter. The ",
           "'pior_mean' argument should provide an Output value for each Input ",
@@ -577,7 +544,7 @@ train_gp <- function(data,
 
   ## Extract the hyper-posterior covariance values at reference Input
   if (is.matrix(post_cov)) {
-    post_cov <- post_cov[as.character(all_inputs), as.character(all_inputs)]
+    post_cov <- post_cov[as.character(all_input), as.character(all_input)]
   }
   else {
     if(!is.null(post_cov)){
