@@ -57,9 +57,20 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 \code{kern_i}.}
 
-\item{kern_0}{A kernel function, associated with the mean GP.}
+\item{kern_0}{A kernel function, associated with the mean GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+}}
 
-\item{kern_i}{A kernel function, associated with the individual GPs.}
+\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
+"PERIO" and "RQ" are aso available here)}
 
 \item{common_hp}{A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all indiviuals.}

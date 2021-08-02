@@ -17,12 +17,6 @@
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
-#' @param hp A named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern}. The columns/elements should be named
-#'    according to the hyper-parameters that are used in \code{kern}. The
-#'    function \code{\link{train_gp}} can be used to learn maximum-likelihood
-#'    estimators of the hyper-parameters,
-#' @param kern A kernel function, defining the covariance structure of the GP.
 #' @param mean Mean parameter of the GP. This argument can be specified under
 #'    various formats, such as:
 #'    - NULL (default). The mean would be set to 0 everywhere.
@@ -31,6 +25,21 @@
 #'    - A tibble or data frame. Columns required: Input, Output. The Input
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
+#' @param hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern}. The columns/elements should be named
+#'    according to the hyper-parameters that are used in \code{kern}. If NULL
+#'    (default), the function \code{\link{train_gp}} is called with random
+#'    initial values for learning maximum-likelihood estimators of the
+#'    hyper-parameters associated with \code{kern}.
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
 #'    tibble or a data frame, providing the same columns as \code{data}, except
@@ -56,14 +65,14 @@
 #'
 #' @examples
 #' db <- simu_db(M = 1, N = 10)
-#' grid_inputs <- tibble::tibble(Input = 1:10, Covariate = 2:11)
+#' grid_inputs <- tibble::tibble(Input = 0:10, Covariate = 1:11)
 #' hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
 #'
-#' pred_gp(db, hp, grid_inputs = grid_inputs)
+#' pred_gp(db, grid_inputs = grid_inputs)
 pred_gp <- function(data,
-                    hp,
-                    kern = "SE",
                     mean = NULL,
+                    hp = NULL,
+                    kern = "SE",
                     grid_inputs = NULL,
                     get_full_cov = FALSE,
                     plot = T,
@@ -194,6 +203,39 @@ pred_gp <- function(data,
       "Incorrect format for the 'mean' argument. Please read ",
       "?pred_gp() for details."
     )
+  }
+
+  ## Learn the hyper-parameters if not provided
+  if (hp %>% is.null()){
+    if (kern %>% is.function()) {
+      stop(
+        "When using a custom kernel function the 'hp' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format, or use 'train_gp()' to ",
+        "learn ML estimators for a better fit of data."
+      )
+    } else if (any(kern %in% c('SE', 'PERIO', 'RQ'))) {
+      hp = quiet(
+        train_gp(data,
+                 ini_hp = hp(kern),
+                 kern = kern,
+                 post_mean = mean_obs,
+                 post_cov = NULL,
+                 pen_diag = pen_diag
+        ))
+
+      cat(
+        "The 'hp' argument has not been specified. The 'train_gp()' function",
+        "(with random initialisation) has been used to learn ML estimators",
+        "for the hyper-parameters associated with the 'kern' argument.\n \n"
+      )
+    } else {
+      stop(
+        "Incorrect format for the 'kern' argument. Please read ?pred_gp() for ",
+        "details."
+      )
+    }
   }
 
   ## Compute the required sub-matrix for prediction
@@ -414,7 +456,7 @@ hyperposterior <- function(data,
       common_times,
       common_times
     ] <- post_inv[common_times, common_times] +
-         inv_i[common_times, common_times]
+      inv_i[common_times, common_times]
   }
   ##############################################
 
@@ -465,15 +507,23 @@ hyperposterior <- function(data,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
+#' @param trained_model A list, containing  the information coming from a
+#'    Magma model, previously trained using the \code{\link{train_magma}}
+#'    function.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}. The columns/elements should be named
 #'    according to the hyper-parameters that are used in \code{kern}. The
 #'    function \code{\link{train_gp}} can be used to learn maximum-likelihood
 #'    estimators of the hyper-parameters,
 #' @param kern A kernel function, defining the covariance structure of the GP.
-#' @param trained_model A list, containing  the information coming from a
-#'    Magma model, previously trained using the \code{\link{train_magma}}
-#'    function.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
 #'    tibble or a data frame, providing the same columns as \code{data}, except
@@ -509,19 +559,18 @@ hyperposterior <- function(data,
 #'
 #' @examples
 #' db <- simu_db(M = 1, N = 10)
-#' grid_inputs <- tibble::tibble(Input = 1:20, Covariate = 2:21)
-#' hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
+#' grid_inputs <- tibble::tibble(Input = 1:20)
 #' all_input <- union(db$Input, grid_inputs$Input) %>% sort()
 #' hyperpost <- list(
 #'   "mean" = tibble::tibble(Input = all_input, Output = 0),
-#'   "cov" = kern_to_cov(all_input, "SE", hp)
+#'   "cov" = kern_to_cov(all_input, "SE", hp("SE"))
 #' )
 #'
-#' pred_magma(db, hp, grid_inputs = grid_inputs, hyperpost = hyperpost)
+#' pred_magma(db %>% dplyr::select(-Covariate), grid_inputs = grid_inputs, hyperpost = hyperpost)
 pred_magma <- function(data,
-                       hp,
-                       kern = "SE",
                        trained_model = NULL,
+                       hp = NULL,
+                       kern = "SE",
                        grid_inputs = NULL,
                        hyperpost = NULL,
                        get_hyperpost = FALSE,
@@ -593,6 +642,7 @@ pred_magma <- function(data,
       "or a data frame depending on the context. Please read ?pred_gp()."
     )
   }
+
   ## Define the union of all distinct reference Input
   all_input <- union(input_obs, input_pred) %>% sort()
   ## Check whether the hyper-posterior is provided and recompute if necessary
@@ -662,6 +712,7 @@ pred_magma <- function(data,
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Output)
 
+
   ## Extract the covariance sub-matrices from the hyper-posterior
   post_cov_obs <- hyperpost$cov[
     as.character(input_obs),
@@ -675,6 +726,39 @@ pred_magma <- function(data,
     as.character(input_obs),
     as.character(input_pred)
   ]
+
+  ## Learn the hyper-parameters if not provided
+  if (hp %>% is.null()){
+    if (kern %>% is.function()) {
+      stop(
+        "When using a custom kernel function the 'hp' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format, or use 'train_gp()' to ",
+        "learn ML estimators for a better fit of data."
+      )
+    } else if (any(kern %in% c('SE', 'PERIO', 'RQ'))) {
+      hp = quiet(
+        train_gp(data,
+                 ini_hp = hp(kern),
+                 kern = kern,
+                 post_mean = mean_obs,
+                 post_cov = post_cov_obs,
+                 pen_diag = pen_diag
+        ))
+
+      cat(
+        "The 'hp' argument has not been specified. The 'train_gp()' function",
+        "(with random initialisation) has been used to learn ML estimators",
+        "for the hyper-parameters associated with the 'kern' argument.\n \n"
+      )
+    } else {
+      stop(
+        "Incorrect format for the 'kern' argument. Please read ?pred_gp() for ",
+        "details."
+      )
+    }
+  }
 
   ## Sum the covariance matrices on oberved inputs and compute the inverse
   cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs

@@ -53,26 +53,26 @@ se_kernel <- function(x, y, hp, deriv = NULL) {
 #'   tibble::tibble(variance = 1, lengthscale = 0.5, period = 2)
 #' )
 perio_kernel <- function(x, y, hp, deriv = NULL) {
-  distance <- abs(x - y) %>% sum()
-  angle <- pi * distance / hp[['period']]
+  angle <- pi * abs(x - y) / exp(hp[['period']])
+  perio_term <- sin(angle)^2 %>% sum()
 
   if(deriv %>% is.null()){
-    (exp(hp[['variance']])*exp(-2 * sin(angle)^2*exp(-hp[['lengthscale']]))) %>%
+    (exp(hp[['variance']])*exp(-2*exp(-hp[['lengthscale']]) * perio_term)) %>%
       return()
   }
   else if(deriv == 'variance'){
-    (exp(hp[['variance']])*exp(-2 * sin(angle)^2*exp(-hp[['lengthscale']]))) %>%
+    (exp(hp[['variance']])*exp(-2*exp(-hp[['lengthscale']]) * perio_term)) %>%
       return()
   }
   else if(deriv == 'period'){
-    (exp(hp[['variance']]) * (pi * distance / hp[['period']]^2) *
-      cos(angle) * (2 * exp(-hp[['lengthscale']]) * 2 * sin(angle)) *
-      exp(-2 * sin(angle)^2 * exp(-hp[['lengthscale']]))) %>%
+    (exp(hp[['variance']]) * exp(-2 * exp(-hp[['lengthscale']]) * perio_term) *
+     2 * exp(-hp[['lengthscale']]) *
+     sum(2 * sin(angle) * cos(angle) * angle)) %>%
       return()
   }
   else if(deriv == 'lengthscale'){
-    (exp(hp[['variance']]) * 2 * sin(angle)^2 * exp(-hp[['lengthscale']]) *
-      exp(-2 * sin(angle)^2 * exp(-hp[['lengthscale']]))) %>%
+    (exp(hp[['variance']]) * 2 * perio_term * exp(-hp[['lengthscale']]) *
+      exp(-2 * perio_term * exp(-hp[['lengthscale']]))) %>%
       return()
   }
   else{
@@ -162,27 +162,27 @@ hp <- function(kern = "SE", list_ID = NULL, list_hp = NULL, common_hp = F) {
     if (kern %>% is.function()){
       hp <- tibble::tibble(.rows = 1)
       for(i in list_hp){
-        hp[i] = stats::runif(1, 1, 5)
+        hp[i] = stats::runif(1, 0, 3)
       }
     }
     else if (kern == "SE") {
       hp <- tibble::tibble(
-        variance = stats::runif(1, 1, 5),
-        lengthscale = stats::runif(1, 1, 5)
+        variance = stats::runif(1, 0, 3),
+        lengthscale = stats::runif(1, 0, 3)
       )
     }
     else if (kern == "PERIO") {
       hp <- tibble::tibble(
-        variance = stats::runif(1, 1, 5),
-        lengthscale = stats::runif(1, 1, 5),
+        variance = stats::runif(1, 0, 3),
+        lengthscale = stats::runif(1, 0, 3),
         period = stats::runif(1, 0, 2 * pi)
       )
     }
     else if (kern == "RQ") {
       hp <- tibble::tibble(
-        variance = stats::runif(1, 1, 5),
-        lengthscale = stats::runif(1, 1, 5),
-        scale = stats::runif(1, 1, 5)
+        variance = stats::runif(1, 0, 3),
+        lengthscale = stats::runif(1, 0, 3),
+        scale = stats::runif(1, 0, 3)
       )
     }
   }
@@ -191,30 +191,30 @@ hp <- function(kern = "SE", list_ID = NULL, list_hp = NULL, common_hp = F) {
     if (kern %>% is.function()){
       hp <- tibble::tibble(ID = as.character(list_ID))
       for(i in list_hp){
-        hp[i] = stats::runif(len, 1, 5)
+        hp[i] = stats::runif(len, 0, 3)
       }
     }
     else if (kern == "SE") {
       hp <- tibble::tibble(
         ID = as.character(list_ID),
-        variance = stats::runif(len, 1, 5),
-        lengthscale = stats::runif(len, 1, 5)
+        variance = stats::runif(len, 0, 3),
+        lengthscale = stats::runif(len, 0, 3)
       )
     }
     else if (kern == "PERIO") {
       hp <- tibble::tibble(
         ID = as.character(list_ID),
-        variance = stats::runif(len, 1, 5),
-        lengthscale = stats::runif(len, 1, 5),
+        variance = stats::runif(len, 0, 3),
+        lengthscale = stats::runif(len, 0, 3),
         period = stats::runif(len, 0, 2 * pi)
       )
     }
     else if (kern == "RQ") {
       hp <- tibble::tibble(
         ID = as.character(list_ID),
-        variance = stats::runif(len, 1, 5),
-        lengthscale = stats::runif(len, 1, 5),
-        scale = stats::runif(len, 1, 5)
+        variance = stats::runif(len, 0, 3),
+        lengthscale = stats::runif(len, 0, 3),
+        scale = stats::runif(len, 0, 3)
       )
     }
   }

@@ -1,4 +1,6 @@
-#' Plot smoothed raw data
+#' Plot smoothed curves of raw data
+#'
+#' Display raw data under the Magma format as smoothed curves.
 #'
 #' @param db database with format : ID, Input, Output
 #'
@@ -52,8 +54,8 @@ plot_gp = function(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI
 
 sample_gp = function(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI = F)
 {
-  input = pred_gp$pred_gp %>% dplyr::pull(Input)
-  mean = pred_gp$pred_gp %>% dplyr::pull(Mean)
+  input = pred_gp$pred_gp %>% dplyr::pull(.data$Input)
+  mean = pred_gp$pred_gp %>% dplyr::pull(.data$Mean)
   cov = pred_gp$cov
 
   sample = mvtnorm::rmvnorm(input, mean, cov)

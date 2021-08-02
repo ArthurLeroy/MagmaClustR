@@ -6,9 +6,9 @@
 \usage{
 pred_gp(
   data,
-  hp,
-  kern = "SE",
   mean = NULL,
+  hp = NULL,
+  kern = "SE",
   grid_inputs = NULL,
   get_full_cov = FALSE,
   plot = T,
@@ -26,14 +26,6 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference \code{Input}.}
 
-\item{hp}{A named vector, tibble or data frame of hyper-parameters
-associated with \code{kern}. The columns/elements should be named
-according to the hyper-parameters that are used in \code{kern}. The
-function \code{\link{train_gp}} can be used to learn maximum-likelihood
-estimators of the hyper-parameters,}
-
-\item{kern}{A kernel function, defining the covariance structure of the GP.}
-
 \item{mean}{Mean parameter of the GP. This argument can be specified under
 various formats, such as:
 \itemize{
@@ -43,6 +35,25 @@ various formats, such as:
 \item A tibble or data frame. Columns required: Input, Output. The Input
 values should include at least the same values as in the \code{data}
 argument.
+}}
+
+\item{hp}{A named vector, tibble or data frame of hyper-parameters
+associated with \code{kern}. The columns/elements should be named
+according to the hyper-parameters that are used in \code{kern}. If NULL
+(default), the function \code{\link{train_gp}} is called with random
+initial values for learning maximum-likelihood estimators of the
+hyper-parameters associated with \code{kern}.}
+
+\item{kern}{A kernel function, defining the covariance structure of the GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
 }}
 
 \item{grid_inputs}{The grid of inputs (reference Input and covariates) values
@@ -73,7 +84,7 @@ posterior covariance matrix is defined as 'cov'.
 }
 \description{
 Compute the posterior distribution of a simple GP, using the formalism of
-\code{magma}. By providing observed data, the prior mean and covariance
+Magma. By providing observed data, the prior mean and covariance
 matrix (by defining a kernel and its associated hyper-parameters), the mean
 and covariance parameters of the posterior distribution are computed on the
 grid of inputs that has been specified. This predictive distribution can be
@@ -82,8 +93,8 @@ object.
 }
 \examples{
 db <- simu_db(M = 1, N = 10)
-grid_inputs <- tibble::tibble(Input = 1:10, Covariate = 2:11)
+grid_inputs <- tibble::tibble(Input = 0:10, Covariate = 1:11)
 hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
 
-pred_gp(db, hp, grid_inputs = grid_inputs)
+pred_gp(db, grid_inputs = grid_inputs)
 }

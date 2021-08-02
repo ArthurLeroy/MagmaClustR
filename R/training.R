@@ -41,7 +41,16 @@
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}.
 #' @param kern_0 A kernel function, associated with the mean GP.
-#' @param kern_i A kernel function, associated with the individual GPs.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
+#'    "PERIO" and "RQ" are aso available here)
 #' @param common_hp A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all indiviuals.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
@@ -187,7 +196,7 @@ train_magma <- function(data,
   ## Track the total training time
   t_1 <- Sys.time()
 
-  ## Initialise the mean process' hp according to user's values
+  ## Initialise the mean process' HPs according to user's values
   if (kern_0 %>% is.function()) {
     if (ini_hp_0 %>% is.null()) {
       stop(
@@ -421,7 +430,15 @@ train_magma <- function(data,
 #'    associated with the \code{kern} of the new individual/task.
 #'    The columns should be named according to the hyper-parameters that are
 #'    used in \code{kern}.
-#' @param kern A kernel function, associated with the new GP.
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
 #' @param post_mean Hyper-posterior mean parameter of the mean GP. Typically,
 #'    this argument would come from a previous training using
 #'    \code{\link{train_magma}}, but it could also be specified under various
@@ -442,16 +459,16 @@ train_magma <- function(data,
 #'
 #' @return A tibble, containing the trained hyper-parameters for the kernel of
 #'   the new individual/task.
+#' @export
 #'
 #' @examples
 #' db = simu_db(M = 1, N = 10)
-#' MagmaCustR::train_gp(db)
+#' train_gp(db)
 #'
 #' ini_hp = hp('SE')
 #' post_mean = tibble::tibble('Input' = db$Input, 'Output' = 1:10)
 #' post_cov = kern_to_cov(db$Input, 'SE', hp('SE'))
-#' MagmaCustR::train_gp(db, ini_hp, 'SE', post_mean, post_cov)
-#'
+#' train_gp(db, ini_hp, 'SE', post_mean, post_cov)
 train_gp <- function(data,
                      ini_hp = NULL,
                      kern = "SE",

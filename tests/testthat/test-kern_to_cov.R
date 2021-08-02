@@ -92,8 +92,8 @@ test_that("kern_to_cov() works for derivative matrices", {
     expect_equal(kern_to_cov(df, "SE", hp_se, 'variance'))
   kern_to_cov(df, "RQ", hp_rq) %>%
     expect_equal(kern_to_cov(df, "RQ", hp_rq, 'variance'))
-  kern_to_cov(df, "PERIO", hp_rq) %>%
-    expect_equal(kern_to_cov(df, "PERIO", hp_rq, 'variance'))
+  kern_to_cov(df, "PERIO", hp_perio) %>%
+    expect_equal(kern_to_cov(df, "PERIO", hp_perio, 'variance'))
   ## Test for custom kernel
   kern_to_cov(df, "PERIO", hp_perio) %>%
     expect_equal(kern_to_cov(df, perio_kernel, hp_perio, 'variance'))

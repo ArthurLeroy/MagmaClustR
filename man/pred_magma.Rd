@@ -6,45 +6,102 @@
 \usage{
 pred_magma(
   data,
-  hp,
-  kern = "SE",
   trained_model = NULL,
+  hp = NULL,
+  kern = "SE",
   grid_inputs = NULL,
   hyperpost = NULL,
-  plot = TRUE,
   get_hyperpost = FALSE,
   get_full_cov = FALSE,
+  plot = TRUE,
   pen_diag = 0.01
 )
 }
 \arguments{
-\item{hp}{list of hyperparameters for the kernel of the GP}
+\item{data}{A tibble or data frame. Columns required: \code{Input},
+\code{Output}. Additional columns for covariates can be specified.
+The \code{Input} column should define the variable that is used as
+reference for the observations (e.g. time for longitudinal data). The
+\code{Output} column specifies the observed values (the response
+variable). The data frame can also provide as many covariates as desired,
+with no constraints on the column names. These covariates are additional
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
 
-\item{kern}{kernel associated to the covariance function of the GP}
+\item{trained_model}{A list, containing  the information coming from a
+Magma model, previously trained using the \code{\link{train_magma}}
+function.}
 
-\item{grid_inputs}{grid_inputs on which we want a prediction}
+\item{hp}{A named vector, tibble or data frame of hyper-parameters
+associated with \code{kern}. The columns/elements should be named
+according to the hyper-parameters that are used in \code{kern}. The
+function \code{\link{train_gp}} can be used to learn maximum-likelihood
+estimators of the hyper-parameters,}
 
-\item{db}{tibble of data columns required ('input', 'Output')}
+\item{kern}{A kernel function, defining the covariance structure of the GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+}}
 
-\item{mean_mu}{mean value of mean GP at grid_inputs (obs + pred) (matrix dim: grid_inputs x 1, with Input rownames)}
+\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as \code{data}, except
+'Output'. Nonetheless, in cases where \code{data} provides only one
+'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of \code{data}.}
 
-\item{cov_mu}{covariance of mean GP at grid_inputs (obs + pred) (square matrix, with Input row/colnames)}
+\item{hyperpost}{A list, containing the elements 'mean' and 'cov', the
+parameters of the hyper-posterior distribution of the mean process.
+Typically, this argument should from a previous learning using
+\code{\link{train_magma}}, Tor a previous prediction with
+\code{\link{pred_magma}}, with the argument \code{get_hyperpost} set to
+TRUE. The 'mean' element should be a data frame with two columns 'Input'
+and 'Output'. The 'cov' element should be a covariance matrix with
+colnames and rownames corresponding to the 'Input' in 'mean'. In all
+cases, the column 'Input' should contain all the values appearing both in
+the 'Input' column of \code{data} and in \code{grid_inputs}.}
+
+\item{get_hyperpost}{A logical value, indicating whether the hyper-posterior
+distribution of the mean process should be returned. This can be useful
+when planning to perform several predictions on the same grid of inputs,
+since recomputation of the hyper-posterior can be prohibitive for high
+dimensional grids.}
+
+\item{get_full_cov}{A logical value, indicating whether the full posterior
+covariance matrix should be returned.}
+
+\item{plot}{A logical value, indicating whether a plot of the results is
+automatically displayed.}
+
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 }
 \value{
 pamameters of the gaussian density predicted at grid_inputs
 }
 \description{
-Magma prediction
+Compute the posterior predictive distribution in Magma. Providing data of any
+new inividual/task, its trained hyper-parameters and a previously trained
+Magma model, the predictive distribution is evaluated on any arbitrary inputs
+that are specified through the 'grid_inputs' argument.
 }
 \examples{
 db <- simu_db(M = 1, N = 10)
-grid_inputs <- tibble::tibble(Input = 1:10, Covariate = 2:11)
-hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
-all_input = union(db$Input, grid_inputs$Input) \%>\% sort()
+grid_inputs <- tibble::tibble(Input = 1:20)
+all_input <- union(db$Input, grid_inputs$Input) \%>\% sort()
 hyperpost <- list(
   "mean" = tibble::tibble(Input = all_input, Output = 0),
-  "cov" = kern_to_cov(1:10, "SE", hp)
+  "cov" = kern_to_cov(all_input, "SE", hp("SE"))
 )
 
-pred_magma(db, hp, grid_inputs = grid_inputs, trained_model = bla)
+pred_magma(db \%>\% dplyr::select(-Covariate), grid_inputs = grid_inputs, hyperpost = hyperpost)
 }

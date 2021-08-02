@@ -8,8 +8,8 @@ kern_to_cov(input, kern = "SE", hp, deriv = NULL)
 }
 \arguments{
 \item{input}{A vector, matrix, data frame or tibble containing all inputs for
-one individual. If a vector, the elements are used as reference, otherwise,
-one column should be named 'Input' to indicate that it represents the
+one individual. If a vector, the elements are used as reference, otherwise
+, one column should be named 'Input' to indicate that it represents the
 reference (e.g. 'Input' would contain the timestamps in time-series
 applications). The other columns are considered as being covariates. If
 no column is named 'Input', the first one is used by default.}

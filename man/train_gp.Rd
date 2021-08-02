@@ -29,7 +29,17 @@ associated with the \code{kern} of the new individual/task.
 The columns should be named according to the hyper-parameters that are
 used in \code{kern}.}
 
-\item{kern}{A kernel function, associated with the new GP.}
+\item{kern}{A kernel function, defining the covariance structure of the GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+}}
 
 \item{post_mean}{Hyper-posterior mean parameter of the mean GP. Typically,
 this argument would come from a previous training using
@@ -69,11 +79,10 @@ maximum likelihood estimates of the hyper-parameters.
 }
 \examples{
 db = simu_db(M = 1, N = 10)
-MagmaCustR::train_gp(db)
+train_gp(db)
 
 ini_hp = hp('SE')
 post_mean = tibble::tibble('Input' = db$Input, 'Output' = 1:10)
 post_cov = kern_to_cov(db$Input, 'SE', hp('SE'))
-MagmaCustR::train_gp(db, ini_hp, 'SE', post_mean, post_cov)
-
+train_gp(db, ini_hp, 'SE', post_mean, post_cov)
 }
