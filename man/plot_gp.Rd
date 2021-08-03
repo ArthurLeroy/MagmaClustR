@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot-functions.R
 \name{plot_gp}
 \alias{plot_gp}
-\title{Plot your Gaussian Process}
+\title{Plot Gaussian Process predictions}
 \usage{
 plot_gp(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI = F)
 }
@@ -21,7 +21,7 @@ plot_gp(pred_gp, data = NULL, data_train = NULL, mean = NULL, mean_CI = F)
 plot the predicted curve of the GP with the 0.95 confidence interval (optional display raw data)
 }
 \description{
-Plot your Gaussian Process
+Plot Gaussian Process predictions
 }
 \examples{
 TRUE

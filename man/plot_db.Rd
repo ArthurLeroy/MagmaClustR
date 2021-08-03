@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot-functions.R
 \name{plot_db}
 \alias{plot_db}
-\title{Plot smoothed raw data}
+\title{Plot smoothed curves of raw data}
 \usage{
 plot_db(db)
 }
@@ -13,7 +13,7 @@ plot_db(db)
 Visualize smoothed raw data.
 }
 \description{
-Plot smoothed raw data
+Display raw data under the Magma format as smoothed curves.
 }
 \examples{
 TRUE

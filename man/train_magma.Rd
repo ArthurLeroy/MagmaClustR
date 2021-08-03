@@ -20,8 +20,7 @@ train_magma(
 }
 \arguments{
 \item{data}{A tibble or data frame. Columns required: \code{ID}, \code{Input}
-, \code{Output}.
-Additional columns for covariates can be specified.
+, \code{Output}. Additional columns for covariates can be specified.
 The \code{ID} column contains the unique names/codes used to identify each
 individual/task (or batch of data).
 The \code{Input} column should define the variable that is used as
@@ -29,18 +28,18 @@ reference for the observations (e.g. time for longitudinal data). The
 \code{Output} column specifies the observed values (the response
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
-inputs (explanatory variables) of the models that are also observed at each
-reference \code{Input}.}
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
 
-\item{prior_mean}{Prior mean parameter (m_0) of the mean GP. This argument
-can be specified under various formats, such as:
+\item{prior_mean}{Hyper-prior mean parameter (m_0) of the mean GP. This
+argument can be specified under various formats, such as:
 \itemize{
-\item NULL (default). The prior mean would be set to 0 everywhere.
-\item A number. The prior mean would be a constant function.
+\item NULL (default). The hyper-prior mean would be set to 0 everywhere.
+\item A number. The hyper-prior mean would be a constant function.
 \item A vector of the same length as all the distinct Input values in the
 \code{data} argument. This vector would be considered as the evaluation
-of the prior mean function at the training Inputs.
-\item A function. This function is defined as the prior mean.
+of the hyper-prior mean function at the training Inputs.
+\item A function. This function is defined as the hyper_prior mean.
 \item A tibble or data frame. Columns required: Input, Output. The Input
 values should include at least the same values as in the \code{data}
 argument.
@@ -58,9 +57,20 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 \code{kern_i}.}
 
-\item{kern_0}{A kernel function, associated with the mean GP.}
+\item{kern_0}{A kernel function, associated with the mean GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+}}
 
-\item{kern_i}{A kernel function, associated with the individual GPs.}
+\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
+"PERIO" and "RQ" are aso available here)}
 
 \item{common_hp}{A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all indiviuals.}
@@ -96,6 +106,9 @@ distribution of the mean process.
 \item pred_post: A tibble, gathering mean and covariance parameters of the
 mean process' hyper-posterior distribution under a format that allows
 direct visualisation as a GP prediction.
+\item ini_args: A list containing the initial values for the hyper-prior mean,
+the hyper-parameters, and the kernels that have been defined and used
+during the learning procedure.
 \item Converged: A logical value indicated whether the EM algorithm converged
 or not.
 \item Training_time: Total running time of the complete training.
@@ -104,9 +117,9 @@ or not.
 \description{
 The hyper-parameters and the hyper-posterior distribution involved in Magma
 can be learned thanks to an EM algorithm implemented in \code{train_magma}.
-By providing a dataset, the model hypotheses (prior mean parameter and
+By providing a dataset, the model hypotheses (hyper-prior mean parameter and
 covariance kernels) and initialisation values for the hyper-parameters, the
-function compute maximum likelihood estimates of the HPs as well as the
+function computes maximum likelihood estimates of the HPs as well as the
 mean and covariance parameters of the Gaussian hyper-posterior distribution
 of the mean process.
 }
