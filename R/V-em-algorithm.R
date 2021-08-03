@@ -34,7 +34,7 @@
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
-#' old_tau_i_k = ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
 #' hp_k[['pi']] = sapply( old_tau_i_k, function(x) x %>% unlist() %>% mean() )
 #'
 #' MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
@@ -169,7 +169,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
-#' old_tau_i_k = ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
 #' hp_k[['pi']] = sapply( old_tau_i_k, function(x) x %>% unlist() %>% mean() )
 #'
 #' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
@@ -197,7 +197,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       dplyr::select(-.data$ID) %>%
       dplyr::slice(1)
 
-    print(par_i)
+    #print(par_i)
 
     param = optimr::opm(
       par = par_i,

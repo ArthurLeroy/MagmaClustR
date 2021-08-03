@@ -4,7 +4,7 @@
 \alias{logL_clust_multi_GP}
 \title{Log-Likelihood function for clusturing mutli-Gaussian Process}
 \usage{
-logL_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag = NULL)
+logL_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or name vector of hyper-parameters.}

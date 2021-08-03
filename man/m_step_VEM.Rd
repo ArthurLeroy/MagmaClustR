@@ -50,3 +50,20 @@ Set of optimised hyper parameters for the different kernels of the model, and th
 Maximization step of the variation of the EM algorithm to compute hyper-parameters of all the
 kernels involved in Magma.
 }
+\examples{
+## Common inputs across individuals and different HPs
+k = seq_len(3)
+m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+
+db <- simu_db(N = 10, common_input = TRUE)
+hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+
+old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+hp_k[['pi']] = sapply( old_tau_i_k, function(x) x \%>\% unlist() \%>\% mean() )
+
+post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
+
+MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 0.1)
+
+}

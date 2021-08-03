@@ -26,13 +26,16 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 
   corr1 = 0
   corr2 = 0
-  for(k in seq_len(length(names_k)))
-  {
+
+  floop2 = function(k){
     tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
     mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
     corr1 = corr1 + tau_i_k * mean_mu_k
     corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
+
+  sapply(seq_len(length(names_k)), floop2) %>%
+    return()
 
   inv = kern_to_inv(t_i, kern, hp, pen_diag)
   prod_inv = inv %*% y_i
@@ -57,7 +60,7 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.
-#' @param new_cov posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)#'
+#' @param post_cov posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)#'
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
@@ -65,36 +68,57 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #' @export
 #'
 #' @examples
-gr_GP_mod_common_hp_k = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
+gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 {
   list_ID_k = names(db)
-  t_k = db[[1]] %>% dplyr::pull(.data$Input)
-  inv =  kern_to_inv(t_k, kern, hp, pen_diag)
+  list_hp <- names(hp)
 
-  g_1 = 0
-  g_2 = 0
-  g_3 = 0
+  ## Extract the i-th specific reference Input
+  input_k <- db[[1]] %>%
+   dplyr::pull(.data$Input)
+  ## Extract the i-th specific inputs (reference + covariates)
+  inputs_k <- db[[1]] %>%
+    dplyr::select(- c(.data$ID, .data$Output))
 
-  for(k in list_ID_k)
-  {
-    y_k = db[[k]] %>% dplyr::pull(.data$Output)
+  inv =  kern_to_inv(inputs_k, kern, hp, pen_diag)
 
-    prod_inv = inv %*% (y_k - mean[[k]])
-    common_term = prod_inv %*% t(prod_inv) + inv %*% ( new_cov[[k]] %*% inv - diag(1, length(t_k)) )
+  ## Loop over individuals to compute the sum of log-Likelihoods
+  funloop <- function(k) {
+    browser()
+    ## Extract the i-th specific reference Input
+    # input_i <- db %>%
+    #   dplyr::filter(.data$ID == k) %>%
+    #   dplyr::pull(.data$Input)
+    # ## Extract the i-th specific inputs (reference + covariates)
+    # inputs_i <- db %>%
+    #   dplyr::filter(.data$ID == k) %>%
+    #   dplyr::select(- c(.data$ID, .data$Output))
+    ## Extract the i-th specific Inputs and Output
+    output_k = db[[k]] %>%
+      dplyr::pull(.data$Output)
+    ## Extract the mean values associated with the i-th specific inputs
+    mean_k = mean[[k]]
+    ## Extract the covariance values associated with the i-th specific inputs
+    post_cov_k = post_cov[[k]]
+
+    #inv =  kern_to_inv(inputs_k, kern, hp, pen_diag)
+
+    prod_inv = inv %*% (output_k - mean_k)
+    common_term = prod_inv %*% t(prod_inv) + inv %*% ( post_cov_k %*% inv - diag(1, length(input_k)) )
 
     floop = function(deriv){
-      (- 1/2 * (common_term %*% kern_to_cov(t_k, kern, hp, deriv))) %>%
+      (- 1/2 * (common_term %*% kern_to_cov(inputs_k, kern, hp, deriv))) %>%
         diag() %>%
         sum() %>%
         return()
     }
 
-     sapply(list_ID_k, floop) %>%
+     sapply(list_hp, floop) %>%
        return()
   }
 
-  #sapply(list_ID_k, floop) %>%
-  #  return()
+  sapply(list_ID_k, funloop) %>%
+    return()
 
 }
 
@@ -115,44 +139,65 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
 #' @examples
 gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NULL)
 {
+  browser()
+  list_hp <- names(hp)
   names_k = mu_k_param$mean %>% names()
   t_i_old = NULL
 
-  for(i in unique(db$ID))
-  {
-    t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-    input_i = as.character(t_i)
-    y_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Output)
+  ## Loop over individuals to compute the sum of log-Likelihoods
+  funloop <- function(i) {
+    browser()
+    ## Extract the i-th specific reference Input
+    input_i <- db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::pull(.data$Input)
+    ## Extract the i-th specific inputs (reference + covariates)
+    inputs_i <- db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::select(- c(.data$ID, .data$Output))
+    ## Extract the i-th specific Inputs and Output
+    output_i = db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::pull(.data$Output)
 
     corr1 = 0
     corr2 = 0
 
-    for(k in seq_len(length(names_k)))
-    {
+    floop2 = function(k){
+      browser()
+      ## Extract the covariance values associated with the i-th specific inputs
+      post_cov_i = mu_k_param$cov[[k]][input_i, input_i]
+
       tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
-      mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
+      mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
       corr1 = corr1 + tau_i_k * mean_mu_k
-      corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][input_i, input_i] )
+      corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i )
     }
 
-    if( !identical(t_i, t_i_old) )
+    sapply(seq_len(length(names_k)), floop2) %>%
+      return()
+
+    if( !identical(input_i, t_i_old) )
     { ## We update the inverse cov matrix only if necessary (if different timestamps)
-      inv = kern_to_inv(t_i, kern, hp, pen_diag)
+      inv = kern_to_inv(inputs_i, kern, hp, pen_diag)
     }
 
-    prod_inv = inv %*% y_i
+    prod_inv = inv %*% output_i
     common_term = (prod_inv - 2 * inv %*% corr1) %*% t(prod_inv)  +
-      inv %*% ( corr2 %*% inv - diag(1, length(t_i)) )
+      inv %*% ( corr2 %*% inv - diag(1, length(input_i)) )
 
     floop = function(deriv){
-      (- 1/2 * (common_term %*% kern_to_cov(t_i, kern, hp, deriv))) %>%
+      (- 1/2 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
         diag() %>%
         sum() %>%
         return()
     }
 
-    sapply(names_k, floop) %>%
+    sapply(list_hp, floop) %>%
       return()
   }
 
-}
+  sapply(unique(db$ID), funloop) %>%
+    #rowSums() %>%
+    return()
+  }

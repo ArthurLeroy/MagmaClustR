@@ -4,7 +4,7 @@
 \alias{gr_GP_mod_common_hp_k}
 \title{Modified common Gaussian Process for each cluster}
 \usage{
-gr_GP_mod_common_hp_k(hp, db, mean, kern, new_cov, pen_diag = NULL)
+gr_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag = NULL)
 }
 \arguments{
 \item{hp}{A tibble, data frame or name vector of hyper-parameters.}
@@ -16,7 +16,7 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{kern}{A kernel function used to compute the covariance matrix at corresponding timestamps.}
 
-\item{new_cov}{posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)#'}
+\item{post_cov}{posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)#'}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
