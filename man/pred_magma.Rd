@@ -86,7 +86,14 @@ automatically displayed.}
 numerical issues when inverting nearly singular matrices.}
 }
 \value{
-pamameters of the gaussian density predicted at grid_inputs
+A tibble, representing Magma predictions as two column 'Mean' and
+'Var', evaluated on the \code{grid_inputs}. The column 'Input' and
+additional covariates columns are associated to each predicted values.
+If the \code{get_full_cov} or \code{get_hyperpost} arguments are TRUE,
+the function returns a list, in which the tibble described above is
+defined as 'pred_gp' and the full posterior covariance matrix is
+defined as 'cov', and the hyper-posterior distribution of the mean process
+is defined as 'hyperpost'.
 }
 \description{
 Compute the posterior predictive distribution in Magma. Providing data of any
@@ -96,12 +103,15 @@ that are specified through the 'grid_inputs' argument.
 }
 \examples{
 db <- simu_db(M = 1, N = 10)
-grid_inputs <- tibble::tibble(Input = 1:20)
+grid_inputs <- tibble::tibble(
+  Input = seq(0, 10, 0.1),
+  Covariate = seq(-5, 5, 0.1)
+)
 all_input <- union(db$Input, grid_inputs$Input) \%>\% sort()
 hyperpost <- list(
   "mean" = tibble::tibble(Input = all_input, Output = 0),
   "cov" = kern_to_cov(all_input, "SE", hp("SE"))
 )
 
-pred_magma(db \%>\% dplyr::select(-Covariate), grid_inputs = grid_inputs, hyperpost = hyperpost)
+pred_magma(db, grid_inputs = grid_inputs, hyperpost = hyperpost)
 }

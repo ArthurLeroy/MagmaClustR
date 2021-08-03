@@ -8,15 +8,15 @@
 #' evaluated on any arbitrary inputs since a GP is an infinite-dimensional
 #' object.
 #'
-#' @param data  A tibble or data frame. Columns required: \code{Input},
-#'    \code{Output}. Additional columns for covariates can be specified.
-#'    The \code{Input} column should define the variable that is used as
+#' @param data  A tibble or data frame. Columns required: 'Input',
+#'    'Output'. Additional columns for covariates can be specified.
+#'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
-#'    \code{Output} column specifies the observed values (the response
+#'    'Output' column specifies the observed values (the response
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference \code{Input}.
+#'    each reference 'Input'.
 #' @param mean Mean parameter of the GP. This argument can be specified under
 #'    various formats, such as:
 #'    - NULL (default). The mean would be set to 0 everywhere.
@@ -75,7 +75,7 @@ pred_gp <- function(data,
                     kern = "SE",
                     grid_inputs = NULL,
                     get_full_cov = FALSE,
-                    plot = T,
+                    plot = TRUE,
                     pen_diag = 0.01) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
@@ -206,7 +206,7 @@ pred_gp <- function(data,
   }
 
   ## Learn the hyper-parameters if not provided
-  if (hp %>% is.null()){
+  if (hp %>% is.null()) {
     if (kern %>% is.function()) {
       stop(
         "When using a custom kernel function the 'hp' argument is ",
@@ -215,15 +215,16 @@ pred_gp <- function(data,
         " hyper-parameters with the desired format, or use 'train_gp()' to ",
         "learn ML estimators for a better fit of data."
       )
-    } else if (any(kern %in% c('SE', 'PERIO', 'RQ'))) {
-      hp = quiet(
+    } else if (any(kern %in% c("SE", "PERIO", "RQ"))) {
+      hp <- quiet(
         train_gp(data,
-                 ini_hp = hp(kern),
-                 kern = kern,
-                 post_mean = mean_obs,
-                 post_cov = NULL,
-                 pen_diag = pen_diag
-        ))
+          ini_hp = hp(kern),
+          kern = kern,
+          post_mean = mean_obs,
+          post_cov = NULL,
+          pen_diag = pen_diag
+        )
+      )
 
       cat(
         "The 'hp' argument has not been specified. The 'train_gp()' function",
@@ -316,15 +317,15 @@ pred_gp <- function(data,
 #' key component for making prediction in Magma, and is required in the function
 #' \code{\link{pred_magma}}.
 #'
-#' @param data A tibble or data frame. Columns required: \code{Input},
-#'    \code{Output}. Additional columns for covariates can be specified.
-#'    The \code{Input} column should define the variable that is used as
+#' @param data A tibble or data frame. Columns required: 'Input',
+#'    'Output'. Additional columns for covariates can be specified.
+#'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
-#'    \code{Output} column specifies the observed values (the response
+#'    'Output' column specifies the observed values (the response
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference \code{Input}.
+#'    each reference 'Input'.
 #' @param hp_0 A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_0}.
 #' @param hp_i A tibble or data frame of hyper-parameters
@@ -498,15 +499,15 @@ hyperposterior <- function(data,
 #' Magma model, the predictive distribution is evaluated on any arbitrary inputs
 #' that are specified through the 'grid_inputs' argument.
 #'
-#' @param data  A tibble or data frame. Columns required: \code{Input},
-#'    \code{Output}. Additional columns for covariates can be specified.
-#'    The \code{Input} column should define the variable that is used as
+#' @param data  A tibble or data frame. Columns required: 'Input',
+#'    'Output'. Additional columns for covariates can be specified.
+#'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
-#'    \code{Output} column specifies the observed values (the response
+#'    'Output' column specifies the observed values (the response
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference \code{Input}.
+#'    each reference 'Input'.
 #' @param trained_model A list, containing  the information coming from a
 #'    Magma model, previously trained using the \code{\link{train_magma}}
 #'    function.
@@ -535,7 +536,7 @@ hyperposterior <- function(data,
 #' @param hyperpost A list, containing the elements 'mean' and 'cov', the
 #'    parameters of the hyper-posterior distribution of the mean process.
 #'    Typically, this argument should from a previous learning using
-#'    \code{\link{train_magma}}, Tor a previous prediction with
+#'    \code{\link{train_magma}}, or a previous prediction with
 #'    \code{\link{pred_magma}}, with the argument \code{get_hyperpost} set to
 #'    TRUE. The 'mean' element should be a data frame with two columns 'Input'
 #'    and 'Output'. The 'cov' element should be a covariance matrix with
@@ -554,19 +555,29 @@ hyperposterior <- function(data,
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
-#' @return pamameters of the gaussian density predicted at grid_inputs
+#' @return A tibble, representing Magma predictions as two column 'Mean' and
+#'   'Var', evaluated on the \code{grid_inputs}. The column 'Input' and
+#'   additional covariates columns are associated to each predicted values.
+#'    If the \code{get_full_cov} or \code{get_hyperpost} arguments are TRUE,
+#'    the function returns a list, in which the tibble described above is
+#'    defined as 'pred_gp' and the full posterior covariance matrix is
+#'    defined as 'cov', and the hyper-posterior distribution of the mean process
+#'    is defined as 'hyperpost'.
 #' @export
 #'
 #' @examples
 #' db <- simu_db(M = 1, N = 10)
-#' grid_inputs <- tibble::tibble(Input = 1:20)
+#' grid_inputs <- tibble::tibble(
+#'   Input = seq(0, 10, 0.1),
+#'   Covariate = seq(-5, 5, 0.1)
+#' )
 #' all_input <- union(db$Input, grid_inputs$Input) %>% sort()
 #' hyperpost <- list(
 #'   "mean" = tibble::tibble(Input = all_input, Output = 0),
 #'   "cov" = kern_to_cov(all_input, "SE", hp("SE"))
 #' )
 #'
-#' pred_magma(db %>% dplyr::select(-Covariate), grid_inputs = grid_inputs, hyperpost = hyperpost)
+#' pred_magma(db, grid_inputs = grid_inputs, hyperpost = hyperpost)
 pred_magma <- function(data,
                        trained_model = NULL,
                        hp = NULL,
@@ -728,7 +739,7 @@ pred_magma <- function(data,
   ]
 
   ## Learn the hyper-parameters if not provided
-  if (hp %>% is.null()){
+  if (hp %>% is.null()) {
     if (kern %>% is.function()) {
       stop(
         "When using a custom kernel function the 'hp' argument is ",
@@ -737,15 +748,16 @@ pred_magma <- function(data,
         " hyper-parameters with the desired format, or use 'train_gp()' to ",
         "learn ML estimators for a better fit of data."
       )
-    } else if (any(kern %in% c('SE', 'PERIO', 'RQ'))) {
-      hp = quiet(
+    } else if (any(kern %in% c("SE", "PERIO", "RQ"))) {
+      hp <- quiet(
         train_gp(data,
-                 ini_hp = hp(kern),
-                 kern = kern,
-                 post_mean = mean_obs,
-                 post_cov = post_cov_obs,
-                 pen_diag = pen_diag
-        ))
+          ini_hp = hp(kern),
+          kern = kern,
+          post_mean = mean_obs,
+          post_cov = post_cov_obs,
+          pen_diag = pen_diag
+        )
+      )
 
       cat(
         "The 'hp' argument has not been specified. The 'train_gp()' function",
@@ -847,35 +859,124 @@ pred_magma <- function(data,
   return(res)
 }
 
-#' Prediction Gaussian Process Animate
+#' Magma prediction for ploting GIFs
 #'
-#' Function used to generate data compatible with a GIF ploting of the results
+#' Generate a Magma or classic GP prediction under a format that is compatible
+#' with a further GIF visualisation of the results. For a Magma prediction,
+#' either the \code{trained_model} or \code{hyperpost} argument is required.
+#' Otherwise, a classic GP prediction is applied and the prior mean can be
+#' specified through the \code{mean} argument.
 #'
-#' @param db Your database, the same as for a classic GP prediction
-#' @param timestamps dl
-#' @param mean_mu mean value of mean GP at timestamps (obs + pred)
-#' @param cov_mu covariance of mean GP at timestamps (obs + pred)
-#' @param kern kernel of your choice use with your hyperparameters
-#' @param hp list of hyperparameters of your model
+#' @param data  A tibble or data frame. Columns required: 'Input',
+#'    'Output'. Additional columns for covariates can be specified.
+#'    The 'Input' column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    'Output' column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference 'Input'.
+#' @param mean Mean parameter of the GP. This argument can be specified under
+#'    various formats, such as:
+#'    - NULL (default). The mean would be set to 0 everywhere.
+#'    - A number. The mean would be a constant function.
+#'    - A function. This function is defined as the mean.
+#'    - A tibble or data frame. Columns required: Input, Output. The Input
+#'     values should include at least the same values as in the \code{data}
+#'     argument.
+#' @param trained_model A list, containing  the information coming from a
+#'    Magma model, previously trained using the \code{\link{train_magma}}
+#'    function.
+#' @param hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern}. The columns/elements should be named
+#'    according to the hyper-parameters that are used in \code{kern}. The
+#'    function \code{\link{train_gp}} can be used to learn maximum-likelihood
+#'    estimators of the hyper-parameters,
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#' @param grid_inputs The grid of inputs (reference Input and covariates) values
+#'    on which the GP should be evaluated. Ideally, this argument should be a
+#'    tibble or a data frame, providing the same columns as \code{data}, except
+#'    'Output'. Nonetheless, in cases where \code{data} provides only one
+#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+#'    vector. This vector would be used as reference input for prediction and if
+#'    NULL, a vector of length 500 is defined, ranging between the min and max
+#'    Input values of \code{data}.
+#' @param hyperpost A list, containing the elements 'mean' and 'cov', the
+#'    parameters of the hyper-posterior distribution of the mean process.
+#'    Typically, this argument should from a previous learning using
+#'    \code{\link{train_magma}}, or a previous prediction with
+#'    \code{\link{pred_magma}}, with the argument \code{get_hyperpost} set to
+#'    TRUE. The 'mean' element should be a data frame with two columns 'Input'
+#'    and 'Output'. The 'cov' element should be a covariance matrix with
+#'    colnames and rownames corresponding to the 'Input' in 'mean'. In all
+#'    cases, the column 'Input' should contain all the values appearing both in
+#'    the 'Input' column of \code{data} and in \code{grid_inputs}.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
 #'
-#' @return tibble of classic GP predictions but with an inscreasing number of data points considered as 'observed'
+#' @return A tibble, representing Magma or GP predictions as two column 'Mean'
+#'    and 'Var', evaluated on the \code{grid_inputs}. The column 'Input' and
+#'    additional covariates columns are associated to each predicted values. An
+#'    additional 'Index' column is created for the sake of GIF creation using
+#'    the function \code{\link{plot_gif}}
 #' @export
 #'
 #' @examples
-#' TRUE
-pred_magma_animate <- function(db, timestamps = NULL, mean_mu = 0, cov_mu = NULL,
-                               kern, hp) {
-  db %>% dplyr::arrange(db$input)
+#' \donttest{
+#' db = simu_db(M = 1)
+#' grid_inputs = tibble::tibble(Input = seq(0,10, 0.1),
+#'                              Covariate = seq(-5,5, 0.1))
+#' pred_gif(db, grid_inputs = grid_inputs)
+#' }
+pred_gif <- function(data,
+                     trained_model = NULL,
+                     hyperpost = NULL,
+                     mean = NULL,
+                     hp = NULL,
+                     kern = "SE",
+                     grid_inputs = NULL,
+                     pen_diag = 0.01) {
   all_pred <- tibble::tibble()
-
-  if (is.null(grid_inputs)) {
-    grid_inputs <- seq(min(db$input), max(db$input), length.out = 500)
-  }
-
-  for (j in 1:nrow(db))
-  {
-    pred_j <- pred_magma(db[1:j, ], grid_inputs, mean_mu, cov_mu, kern, hp) %>% dplyr::mutate(Nb_data = j)
-    all_pred <- all_pred %>% rbind(pred_j)
+  for (j in 1:nrow(data)) {
+    cat(" =>", j)
+    ## Extract the sample of the 'j' first data points
+    data_j <- data %>% slice(1:j)
+    if (!is.null(trained_model) | !is.null(hyperpost)) {
+      ## Compute Magma prediction for this sub-dataset
+      all_pred <- quiet(pred_magma(data_j,
+        trained_model = trained_model,
+        hp = hp,
+        kern = kern,
+        grid_inputs = grid_inputs,
+        hyperpost = hyperpost,
+        get_hyperpost = FALSE,
+        get_full_cov = FALSE,
+        plot = FALSE,
+        pen_diag = pen_diag
+      )) %>%
+        dplyr::mutate(Index = j) %>%
+        bind_rows(all_pred)
+    } else {
+      all_pred <- quiet(pred_gp(data_j,
+        mean = mean,
+        hp = hp,
+        kern = kern,
+        grid_inputs = grid_inputs,
+        get_full_cov = FALSE,
+        plot = FALSE,
+        pen_diag = pen_diag
+      )) %>%
+        dplyr::mutate(Index = j) %>%
+        bind_rows(all_pred)
+    }
   }
   return(all_pred)
 }
