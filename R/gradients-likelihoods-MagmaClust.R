@@ -27,15 +27,17 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   corr1 = 0
   corr2 = 0
 
-  floop2 = function(k){
+  #floop2 = function(k){
+  for(k in seq_len(length(names_k)))
+  {
     tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
     mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
     corr1 = corr1 + tau_i_k * mean_mu_k
     corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
-  sapply(seq_len(length(names_k)), floop2) %>%
-    return()
+  #sapply(seq_len(length(names_k)), floop2) %>%
+  #  return()
 
   inv = kern_to_inv(t_i, kern, hp, pen_diag)
   prod_inv = inv %*% y_i
@@ -70,6 +72,10 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #' @examples
 gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 {
+  if('ID' %in% names(hp)){
+    hp <- hp %>% dplyr::select(- .data$ID)
+  }
+
   list_ID_k = names(db)
   list_hp <- names(hp)
 
@@ -78,21 +84,17 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
    dplyr::pull(.data$Input)
   ## Extract the i-th specific inputs (reference + covariates)
   inputs_k <- db[[1]] %>%
-    dplyr::select(- c(.data$ID, .data$Output))
+    dplyr::select(- .data$Output)
+  if('ID' %in% names(db[[1]])){
+    inputs_k <- inputs_k %>% dplyr::select(- .data$ID)
+  }
+
+
 
   inv =  kern_to_inv(inputs_k, kern, hp, pen_diag)
 
   ## Loop over individuals to compute the sum of log-Likelihoods
   funloop <- function(k) {
-    browser()
-    ## Extract the i-th specific reference Input
-    # input_i <- db %>%
-    #   dplyr::filter(.data$ID == k) %>%
-    #   dplyr::pull(.data$Input)
-    # ## Extract the i-th specific inputs (reference + covariates)
-    # inputs_i <- db %>%
-    #   dplyr::filter(.data$ID == k) %>%
-    #   dplyr::select(- c(.data$ID, .data$Output))
     ## Extract the i-th specific Inputs and Output
     output_k = db[[k]] %>%
       dplyr::pull(.data$Output)
@@ -139,14 +141,13 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 #' @examples
 gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NULL)
 {
-  browser()
+  #browser()
   list_hp <- names(hp)
   names_k = mu_k_param$mean %>% names()
-  t_i_old = NULL
 
   ## Loop over individuals to compute the sum of log-Likelihoods
-  funloop <- function(i) {
-    browser()
+  funloop <- function(i){
+    #browser()
     ## Extract the i-th specific reference Input
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
@@ -163,10 +164,11 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NU
     corr1 = 0
     corr2 = 0
 
-    floop2 = function(k){
-      browser()
+    for(k in seq_len(length(names_k)))
+    {
+      #browser()
       ## Extract the covariance values associated with the i-th specific inputs
-      post_cov_i = mu_k_param$cov[[k]][input_i, input_i]
+      post_cov_i = mu_k_param$cov[[k]][as.character(input_i), as.character(input_i)]
 
       tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
       mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
@@ -174,13 +176,7 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NU
       corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i )
     }
 
-    sapply(seq_len(length(names_k)), floop2) %>%
-      return()
-
-    if( !identical(input_i, t_i_old) )
-    { ## We update the inverse cov matrix only if necessary (if different timestamps)
-      inv = kern_to_inv(inputs_i, kern, hp, pen_diag)
-    }
+    inv = kern_to_inv(inputs_i, kern, hp, pen_diag)
 
     prod_inv = inv %*% output_i
     common_term = (prod_inv - 2 * inv %*% corr1) %*% t(prod_inv)  +
@@ -198,6 +194,7 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NU
   }
 
   sapply(unique(db$ID), funloop) %>%
-    #rowSums() %>%
+    rowSums() %>%
     return()
-  }
+
+}

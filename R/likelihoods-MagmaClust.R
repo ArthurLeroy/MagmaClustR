@@ -27,15 +27,17 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   corr1 = 0
   corr2 = 0
 
-  floop = function(k){
+  #floop = function(k){
+  for(k in seq_len(length(names_k)))
+  {
     tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
     mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
     corr1 = corr1 + tau_i_k * mean_mu_k
     corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
-  sapply(seq_len(length(names_k)), floop) %>%
-    return()
+  #sapply(seq_len(length(names_k)), floop) %>%
+  #  return()
 
   ( LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2) ) %>% return()
 }
@@ -63,7 +65,8 @@ logL_GP_mod_common_hp_k = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
 
   list_ID_k = names(db)
   #t_k = db[[1]] %>% dplyr::pull(.data$Input)
-  t_k = dplyr::select(-.data$ID) %>% dplyr::slice(1) %>% dplyr::pull(.data$Input)
+  t_k = db[[1]] %>%
+    dplyr::pull(.data$Input)
   inv =  kern_to_inv(t_k, kern, hp, pen_diag)
 
   LL_norm = 0
@@ -106,28 +109,42 @@ logL_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
 
   for(i in unique(db$ID))
   {
-    t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-    input_i = as.character(t_i)
-    y_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Output)
+    ## Extract the i-th specific reference Input
+    input_i <- db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::pull(.data$Input)
+    ## Extract the i-th specific inputs (reference + covariates)
+    inputs_i <- db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::select(- c(.data$ID, .data$Output))
+    ## Extract the i-th specific Inputs and Output
+    output_i = db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::pull(.data$Output)
+
+    #t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
+    #input_i = as.character(t_i)
+    #y_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Output)
 
     corr1 = 0
     corr2 = 0
 
     for(k in seq_len(length(names_k)))
     {
+      ## Extract the covariance values associated with the i-th specific inputs
+      post_cov_i = mu_k_param$cov[[k]][as.character(input_i), as.character(input_i)]
+
       tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
-      mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
+      mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
       corr1 = corr1 + tau_i_k * mean_mu_k
-      corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][input_i, input_i] )
+      corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i)
     }
 
-    if( !identical(t_i, t_i_old) )
-    {
-      inv = kern_to_inv(t_i, kern, hp, pen_diag)
-    }
-    LL_norm = - dmnorm(y_i, rep(0, length(y_i)), inv, log = T) ## classic gaussian centered loglikelihood
+    inv = kern_to_inv(inputs_i, kern, hp, pen_diag)
 
-    sum_i = sum_i + LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2)
+    LL_norm = - dmnorm(output_i, rep(0, length(output_i)), inv, log = T) ## classic gaussian centered loglikelihood
+
+    sum_i = sum_i + LL_norm - output_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2)
 
   }
   return(sum_i)
