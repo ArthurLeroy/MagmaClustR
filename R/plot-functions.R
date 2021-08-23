@@ -9,7 +9,6 @@
 #' @examples
 #' simu_db(M = 10) %>% plot_db()
 plot_db <- function(db) {
-  browser()
   ggplot2::ggplot(db) +
     ggplot2::geom_smooth(ggplot2::aes(.data$Input,
       .data$Output,
