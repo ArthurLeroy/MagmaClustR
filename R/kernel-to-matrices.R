@@ -18,11 +18,20 @@
 #'    following list:
 #'    - "SE": (default value) the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param hp A list, data frame or tibble containing the hyper-parameters used
 #'   in the kernel. The name of the elements (or columns) should correspond
-#'   exactly to those used in the kernel definition.
+#'   exactly to those used in the kernel definition. If \code{hp} contains an
+#'   element or a column 'Noise', its value will be added on the diagonal of
+#'   the covariance matrix.
 #' @param deriv A character, indicating according to which hyper-parameter the
 #'  derivative should be computed. If NULL (defaut), the function simply returns
 #'  the covariance matrix.
@@ -39,22 +48,164 @@
 #'   tibble::tibble(variance = 1, lengthscale = 0.5)
 #' )
 kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
+  ## Process the character string defining the covariance structure
   if (is.character(kern)) {
-    if (kern == "SE") {
-      kernel <- se_kernel
-    }
-    else if (kern == "PERIO") {
-      kernel <- perio_kernel
-    }
-    else if (kern == "RQ") {
-      kernel <- rq_kernel
+    kernel <- function(deriv = deriv, vectorized = TRUE, ...) {
+      ## Read the character string
+      str_kern <- strsplit(kern, " +")[[1]]
+      ## Check whether the string correctly starts with a kernel
+      if (str_kern[1] == "+" | str_kern[1] == "*") {
+        stop("The string in 'kern' should start with a kernel not an operator.")
+      }
+      ## Initialise the first and last element of the character string
+      str <- c("start", str_kern, "stop")
+      ## Initialise the combined kernel and the operator
+      out <- 0
+      operator <- get("+")
+      ## Tracking whether the kernel associated with 'deriv' has been founded
+      true_deriv <- F
+      past_true_deriv <- F
+
+      for (i in 2:(length(str) - 1))
+      {
+        s_m <- str[i-1]
+        s <- str[i]
+        s_p <- str[i+1]
+        ## Detect whether we compute kernel or its derivatives
+        if (deriv %>% is.null()) {
+          ## Detect the adequate kernel and combine to others
+          if (s == "SE") {
+            out <- operator(out, se_kernel(deriv = deriv, vectorized = T, ...))
+          } else if (s == "PERIO") {
+            out <- operator(out, perio_kernel(deriv = deriv, vectorized=T, ...))
+          } else if (s == "RQ") {
+            out <- operator(out, rq_kernel(deriv = deriv, vectorized = T, ...))
+          } else if (s == "LIN") {
+            out <- operator(out, lin_kernel(deriv = deriv, vectorized = T, ...))
+          } else if ((s == "+") | (s == "*")) {
+            ## Combine the kernel with the adequate operator
+            operator <- get(s)
+          } else {
+            stop("Incorrect character string specified in the 'kern' argument.")
+          }
+        } else {
+          ## Check whether the element is a kernel or an operator
+          if (any(s %in% c("SE", "PERIO", "RQ", "LIN"))) {
+            ## Choose the correct kernel
+            if (s == "SE") {
+              temp_kern <- se_kernel
+              if(any(deriv %in% c('se_variance', 'se_lengthscale'))){
+                true_deriv = T
+                past_true_deriv <- T
+              }
+            } else if (s == "PERIO") {
+              temp_kern <- perio_kernel
+              if(any(deriv %in%
+                     c('perio_variance', 'perio_lengthscale', 'period'))){
+                true_deriv = T
+                past_true_deriv <- T
+              }
+            } else if (s == "RQ") {
+              temp_kern <- rq_kernel
+              if(any(deriv %in%
+                     c('rq_variance', 'rq_lengthscale', 'rq_scale'))){
+                true_deriv = T
+                past_true_deriv <- T
+              }
+            }
+            else if (s == "LIN") {
+              temp_kern <- lin_kernel
+              if(any(deriv %in% c('lin_slope', 'lin_offset'))){
+                true_deriv = T
+                past_true_deriv <- T
+              }
+            }
+
+            ## Detect the appropriate situation for the derivatives calculus
+            if(s_m == 'start'){
+              if(s_p == 'stop'){
+                out <- temp_kern(deriv=deriv, vectorized=T, ...)
+              } else if(s_p == '+'){
+                if(true_deriv){
+                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+                }
+              } else if(s_p == '*'){
+                if(true_deriv){
+                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+                } else {
+                  out <- operator(out, temp_kern(deriv=NULL, vectorized=T, ...))
+                }
+              } else {
+                stop("Incorrect character string specified in 'kern'.")
+              }
+            } else if(s_m == '+'){
+              if(s_p == 'stop'){
+                if(true_deriv){
+                  out <- temp_kern(deriv=deriv, vectorized=T,...)
+                }
+              } else if(s_p == '+'){
+                if(true_deriv){
+                  out <- temp_kern(deriv=deriv, vectorized=T,...)
+                  break
+                }
+              } else if(s_p == '*'){
+                stop(
+                  "Incorrect character string specified in 'kern'. The ",
+                  "'*' operators should come before '+' operators."
+                )
+              } else {
+                stop("Incorrect character string specified in 'kern'.")
+              }
+            } else if(s_m == '*'){
+              if(s_p == 'stop'){
+                if(true_deriv){
+                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+                } else {
+                  out <- operator(out, temp_kern(deriv=NULL, vectorized=T, ...))
+                }
+              } else if(s_p == '+'){
+                if(true_deriv){
+                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+                  break
+                } else {
+                  if(past_true_deriv){
+                    out <- operator(out, temp_kern(deriv=NULL,vectorized=T,...))
+                    break
+                  } else{
+                    out <- 0
+                  }
+                }
+              } else if(s_p == '*'){
+                if(true_deriv){
+                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+                } else {
+                  out <- operator(out, temp_kern(deriv=NULL, vectorized=T, ...))
+                }
+              } else {
+                stop("Incorrect character string specified in 'kern'.")
+              }
+            } else {
+              stop("Incorrect character string specified in 'kern'.")
+            }
+
+          } else if ((s == "+") | (s == "*")) {
+            ## Combine the kernel with the adequate operator
+            operator <- get(s)
+          } else {
+            stop("Incorrect character string specified in the 'kern' argument.")
+          }
+        }
+        true_deriv = F
+      }
+      return(out)
     }
   }
   else if (is.function(kern)) {
     kernel <- kern
   }
+
   else {
-    stop("Error in the 'kern' argument: please choose 'SE', 'PERIO', 'RQ', or
+    stop("Error in the 'kern' argument: please use a valid character string, or
       provide a valid custom kernel function")
   }
 
@@ -75,19 +226,49 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
     }
   }
 
+  ## Return the derivative of the noise if required
+  if (!is.null(deriv)) {
+    if (deriv == "noise") {
+      mat <- diag(exp(hp[["noise"]]),
+        nrow = length(list_input),
+        ncol = length(list_input)
+      ) %>%
+        `rownames<-`(reference) %>%
+        `colnames<-`(reference)
+
+      return(mat)
+    }
+  }
+
   ## Detect whether the custom kernel provides derivatives
   if ("deriv" %in% methods::formalArgs(kernel)) {
-    mat <- outer(
-      list_input, list_input,
-      Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))
-    )
+    ## Detect whether speed-up vectorised computation is provided
+    if ("vectorized" %in% methods::formalArgs(kernel)) {
+      mat <- kernel(x = input, y = input, hp = hp, deriv = deriv, vectorized =T)
+    } else { ## Compute the matrix element by element
+      mat <- outer(
+        list_input, list_input,
+        Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))
+      )
+    }
   }
   else {
-    mat <- outer(
-      list_input, list_input,
-      Vectorize(function(x, y) kernel(x, y, hp))
-    )
+    ## Detect whether speed-up vectorised computation is provided
+    if ("vectorized" %in% methods::formalArgs(kernel)) {
+      mat <- kernel(x = input, y = input, hp = hp, vectorized = TRUE)
+    } else { ## Compute the matrix element by element
+      mat <- outer(
+        list_input, list_input,
+        Vectorize(function(x, y) kernel(x, y, hp))
+      )
+    }
   }
+
+  ## Add noise on the diagonal if provided (and if not computing gradients)
+  if (("noise" %in% names(hp)) & is.null(deriv)) {
+    mat <- mat + diag(exp(hp[["noise"]]), nrow = nrow(mat), ncol = ncol(mat))
+  }
+
   mat %>%
     `rownames<-`(reference) %>%
     `colnames<-`(reference) %>%
@@ -115,8 +296,15 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
 #'    following list:
 #'    - "SE": (default value) the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param hp A list, data frame or tibble containing the hyper-parameters used
 #'   in the kernel. The name of the elements (or columns) should correspond
 #'   exactly to those used in the kernel definition.
@@ -141,8 +329,6 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
   reference <- row.names(mat_cov)
   diag <- diag(x = pen_diag, ncol = ncol(mat_cov), nrow = nrow(mat_cov))
-
-
 
   inv <- tryCatch((mat_cov + diag) %>% chol() %>% chol2inv(),
     error = function(e) {
@@ -173,7 +359,7 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
 #'
 #' @examples
 #' db <- simu_db(M = 3)
-#' hp <- tibble::tibble(ID = unique(db$ID), MagmaClustR:::hp())
+#' hp <- tibble::tibble(ID = unique(db$ID), hp())
 #' MagmaClustR:::list_kern_to_cov(db, "SE", hp)
 list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
   floop <- function(i) {
@@ -231,7 +417,7 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag = 0, deriv = NULL) {
 
     hp_i <- hp %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(- .data$ID)
+      dplyr::select(-.data$ID)
 
     kern_to_inv(db_i, "SE", hp_i, pen_diag, deriv = deriv) %>%
       return()

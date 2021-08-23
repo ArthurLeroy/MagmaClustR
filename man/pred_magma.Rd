@@ -18,15 +18,15 @@ pred_magma(
 )
 }
 \arguments{
-\item{data}{A tibble or data frame. Columns required: \code{Input},
-\code{Output}. Additional columns for covariates can be specified.
-The \code{Input} column should define the variable that is used as
+\item{data}{A tibble or data frame. Required columns: 'Input',
+'Output'. Additional columns for covariates can be specified.
+The 'Input' column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
-\code{Output} column specifies the observed values (the response
+'Output' column specifies the observed values (the response
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference \code{Input}.}
+each reference 'Input'.}
 
 \item{trained_model}{A list, containing  the information coming from a
 Magma model, previously trained using the \code{\link{train_magma}}
@@ -46,8 +46,15 @@ following list:
 \itemize{
 \item "SE": (default value) the Squared Exponential Kernel (also called
 Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
 \item{grid_inputs}{The grid of inputs (reference Input and covariates) values
@@ -62,7 +69,7 @@ Input values of \code{data}.}
 \item{hyperpost}{A list, containing the elements 'mean' and 'cov', the
 parameters of the hyper-posterior distribution of the mean process.
 Typically, this argument should from a previous learning using
-\code{\link{train_magma}}, Tor a previous prediction with
+\code{\link{train_magma}}, or a previous prediction with
 \code{\link{pred_magma}}, with the argument \code{get_hyperpost} set to
 TRUE. The 'mean' element should be a data frame with two columns 'Input'
 and 'Output'. The 'cov' element should be a covariance matrix with

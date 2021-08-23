@@ -4,15 +4,22 @@
 \alias{hp}
 \title{Generate random hyper-parameters}
 \usage{
-hp(kern = "SE", list_ID = NULL, list_hp = NULL, common_hp = F)
+hp(kern = "SE", list_ID = NULL, list_hp = NULL, noise = F, common_hp = F)
 }
 \arguments{
 \item{kern}{A function, or a character string indicating the chosen type of
 kernel among:
 \itemize{
 \item "SE": the Squared Exponential kernel,
+\item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }
 
 In case of a custom kernel function, the argument \code{list_hp} has to be
@@ -26,6 +33,9 @@ hyper-parameters is return without the \code{ID} column.}
 \item{list_hp}{A vector of characters, providing the name of each
 hyper-parameter, in case where \code{kern} is a custom kernel function.}
 
+\item{noise}{A logical value, indicating whether a 'noise' hyper-parameter
+should be included.}
+
 \item{common_hp}{A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all indiviuals.}
 }
@@ -35,7 +45,7 @@ the kernel specified through the argument \code{kern}.
 }
 \description{
 Generate a set of random hyper-parameters, specific to the chosen type of
-kernel.
+kernel, under the format that is used in Magma.
 }
 \examples{
 hp("PERIO")

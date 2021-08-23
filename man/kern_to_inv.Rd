@@ -21,8 +21,15 @@ following list:
 \itemize{
 \item "SE": (default value) the Squared Exponential Kernel (also called
 Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
 \item{hp}{A list, data frame or tibble containing the hyper-parameters used

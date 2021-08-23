@@ -1,5 +1,5 @@
 test_that("kern_to_inv() works for scalar inputs", {
-  hp <- tibble::tibble(variance = 2, lengthscale = 1)
+  hp <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
   input <- c(2, 3, 4)
 
   res <- matrix(NA, ncol = 3, nrow = 3)
@@ -17,7 +17,7 @@ test_that("kern_to_inv() works for scalar inputs", {
 })
 
 test_that("kern_to_inv() works for vector inputs", {
-  hp <- tibble::tibble(variance = 2, lengthscale = 1)
+  hp <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
   input <- data.frame(Input = c(1, 2, 3), Cov1 = c(2, 3, 4))
 
   res <- matrix(NA, ncol = 3, nrow = 3)
@@ -35,7 +35,7 @@ test_that("kern_to_inv() works for vector inputs", {
 })
 
 test_that("dimension names are correct", {
-  hp <- tibble::tibble(variance = 2, lengthscale = 1)
+  hp <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
   df <- data.frame(Input = c(5, 6, 7), Cov1 = c(2, 3, 4))
   df2 <- data.frame(Cov1 = c(2, 3, 4), Input = c(5, 6, 7))
   df3 <- data.frame(c(5, 6, 7), c(2, 3, 4))

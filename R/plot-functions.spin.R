@@ -8,8 +8,8 @@
 #'
 #' @examples
 #' simu_db(M = 10) %>% plot_db()
+#'
 plot_db <- function(db) {
-  browser()
   ggplot2::ggplot(db) +
     ggplot2::geom_smooth(ggplot2::aes(.data$Input,
       .data$Output,
@@ -24,9 +24,7 @@ plot_db <- function(db) {
 
 #' Plot Magma or GP predictions
 #'
-#' Display Magma or classic GP predictions. According to the dimension of the
-#' inputs, the graph may be a mean curve + Credible Interval or a heatmap of
-#' probabilities.
+#'
 #'
 #' @param pred_gp A tibble or data frame, typically coming from
 #'    \code{\link{pred_magma}} or \code{\link{pred_gp}} functions. Required
@@ -83,8 +81,8 @@ plot_db <- function(db) {
 #'
 #' ## 2-dimensional example
 #' db_2D <- simu_db(M = 1, covariate = T)
-#' pred_gp(db_2D) %>%
-#'  plot_gp(db_2D)
+#' pred_gp(db) %>%
+#'  plot_gp(db)
 #' }
 plot_gp <- function(pred_gp,
                     x_input = NULL,
@@ -183,15 +181,15 @@ plot_gp <- function(pred_gp,
     if (ncol(inputs) == 1) {
       if ((dplyr::n_distinct(inputs) != nrow(inputs)) & is.null(index)) {
         warning(
-          "Some values on the x-axis appear multiple times, probably ",
-          "resulting in an incorrect graphical representation. Please ",
-          "consider recomputing predictions for more adequate inputs. "
+          "Some values on the x-axis appear multiple times, probably resulting ",
+          "in an incorrect graphical representation. Please consider ",
+          "recomputing predictions for more adequate inputs. "
         )
       }
     } else {
       warning(
-        "Impossible to display inputs with dimensions greater than 2. The ",
-        "graph then simply uses 'Input' as x_axis and 'Output' as y-axis. "
+        "Impossible to display inputs with dimensions greater than 2. The graph ",
+        "then simply uses 'Input' as x_axis and 'Output' as y-axis. "
       )
       inputs <- inputs %>% dplyr::select(.data$Input)
     }
@@ -311,51 +309,21 @@ plot_gp <- function(pred_gp,
     return()
 }
 
-#' Display Realisation From Posterior GP
+#' Display a realisation of a GP distribution
 #'
-#' A realisation of a posterior GP distribution is drawn and displayed.
-#' According to the dimension of the inputs, the graph may be a curve or a
-#' heatmap.
+#' @param pred_gp
+#' @param x_input
+#' @param data
+#' @param data_train
 #'
-#' @param pred_gp A tibble or data frame, typically coming from
-#'    \code{\link{pred_magma}} or \code{\link{pred_gp}} functions. Required
-#'    columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
-#'    present in case of multi-dimensional inputs.
-#' @param x_input A vector of character strings, indicating which input should
-#'    be displayed. If NULL(default) the 'Input' column is used for the x-axis.
-#'    If providing a 2-dimensional vector, the corresponding columns are used
-#'    for the x-axis and y-axis.
-#' @param data (Optional) A tibble or data frame, containing the data used in
-#'    the GP prediction.
-#' @param data_train (Optional) A tibble or data frame, containing the training
-#'    data of the Magma model. The data set should have the same format as the
-#'    \code{data} argument with an additional column 'ID' for identifying the
-#'    different individuals/tasks. If provided, those data are displayed as
-#'    backward colourful points (each colour corresponding to one
-#'    individual/task).
-#
-#' @return Draw and visualise from a posterior distribution from Magma or GP
-#'    prediction (optional: display data points, training data points and the
-#'    prior mean function).
+#' @return
 #' @export
 #'
 #' @examples
-#' \donttest{
-#' ## 1-dimensional example
-#' db <- simu_db(M = 1, covariate = F)
-#' pred_gp(db, get_full_cov = T, plot = F) %>%
-#'  sample_gp(data = db)
-#'
-#' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = T)
-#' pred_gp(db_2D, get_full_cov = T, plot = F) %>%
-#' sample_gp(data = db_2D)
-#' }
 sample_gp <- function(pred_gp,
                       x_input = NULL,
                       data = NULL,
-                      data_train = NULL,
-                      prior_mean = NULL) {
+                      data_train = NULL) {
   if (is.data.frame(pred_gp) | !is.list(pred_gp)) {
     stop(
       "The 'pred_gp' argument should be a list containing 'pred' and 'cov' ",
@@ -370,7 +338,6 @@ sample_gp <- function(pred_gp,
   else {
     inputs <- pred_gp$pred[x_input]
   }
-
   ## Extract the predictions for further displaying
   input <- pred_gp$pred %>% dplyr::pull(.data$Input)
   mean <- pred_gp$pred %>% dplyr::pull(.data$Mean)
@@ -393,7 +360,7 @@ sample_gp <- function(pred_gp,
         ),
         interpolate = TRUE
       ) +
-      ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse")
+      ggplot2::scale_fill_distiller(palette = "RdPu")
 
     if (!is.null(data)) {
       ## Round the 'Output' values to reduce size of labels on the graph
@@ -489,22 +456,6 @@ sample_gp <- function(pred_gp,
           shape = 18
         )
     }
-    ## Display the (hyper-)prior mean process if provided
-    if (!is.null(prior_mean)) {
-      if (names(inputs)[1] %in% names(prior_mean)) {
-        gg <- gg +
-          ggplot2::geom_line(
-            data = prior_mean,
-            ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
-            linetype = "dashed"
-          )
-      } else {
-        warning(
-          "The ", names(inputs)[1], " column does not exist in the ",
-          "'prior_mean' argument. The mean function cannot be displayed."
-        )
-      }
-    }
   }
 
   (gg + ggplot2::theme_classic()) %>%
@@ -569,9 +520,9 @@ sample_gp <- function(pred_gp,
 #'
 #' ## 2-dimensional example
 #' db_2D <- simu_db(M = 1, covariate = T)
-#' hp_2D = train_gp(db_2D)
-#' pred_gif(db_2D, hp = hp_2D) %>%
-#'  plot_gif(data = db_2D)
+#' hp_2D = train_gp(db_2)
+#' pred_gif(db_2D, hp = hp) %>%
+#'  plot_gif(db_2D)
 #' }
 plot_gif <- function(pred_gp,
                      x_input = NULL,
@@ -583,7 +534,6 @@ plot_gif <- function(pred_gp,
                      prob_CI = 0.95,
                      path = "gif_gp.gif",
                      ...) {
-  ## If 'heatmap' is TRUE, a grid of values on the y-axis is define
   if (heatmap) {
     if (is.null(y_grid)) {
       y_grid <- seq(
@@ -593,7 +543,7 @@ plot_gif <- function(pred_gp,
       )
     }
   }
-  ## If 'data' is provided, format for a correct displaying in the GIF
+
   if (!is.null(data)) {
     data_anim <- tibble::tibble()
     for (j in 1:nrow(data)) {
@@ -606,7 +556,7 @@ plot_gif <- function(pred_gp,
   } else {
     data_anim <- NULL
   }
-  ## Visualise the GP predictions and create the animation
+
   gg <- plot_gp(
     pred_gp = pred_gp,
     x_input = x_input,

@@ -7,6 +7,7 @@
 simu_db(
   M = 10,
   N = 10,
+  covariate = T,
   grid = seq(0, 10, 0.05),
   common_input = T,
   common_hp = T,
@@ -20,7 +21,7 @@ simu_db(
   int_i_sigma = c(0, 1),
   m0_slope = c(-2, 2),
   m0_intercept = c(0, 10),
-  covariate = c(-5, 5)
+  int_covariate = c(-5, 5)
 )
 }
 \arguments{
@@ -28,11 +29,14 @@ simu_db(
 
 \item{N}{An integer. The number of observations per individual.}
 
+\item{covariate}{A logical value indicating whether the dataset should
+include an additional covariate named 'Covariate'.}
+
 \item{grid}{A vector of numbers defining a grid of observations
 (i.e. the reference inputs).}
 
-\item{common_input}{A logical value indicating whether the reference inputs are
-common to all individual.}
+\item{common_input}{A logical value indicating whether the reference inputs
+are common to all individual.}
 
 \item{common_hp}{A logical value indicating whether the hyper-parameters are
 common to all individual.}
@@ -54,7 +58,8 @@ values for the lengthscale hyper-parameter of the mean process' kernel.}
 values for the variance hyper-parameter of the individual process' kernel.}
 
 \item{int_i_l}{A vector of 2 numbers, defining an interval of admissible
-values for the lengthscale hyper-parameter of the individual process' kernel.}
+values for the lengthscale hyper-parameter of the individual process'
+kernel.}
 
 \item{int_i_sigma}{A vector of 2 numbers, defining an interval of admissible
 values for the noise hyper-parameter.}
@@ -65,8 +70,8 @@ values for the slope of m0.}
 \item{m0_intercept}{A vector of 2 numbers, defining an interval of admissible
 values for the intercept of m0.}
 
-\item{covariate}{A vector of 2 numbers, defining an interval of admissible
-values for the covariate inputs.}
+\item{int_covariate}{A vector of 2 numbers, defining an interval of
+admissible values for the covariate inputs.}
 }
 \value{
 A full dataset of simulated training data.

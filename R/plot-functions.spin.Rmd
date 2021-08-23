@@ -1,15 +1,17 @@
-#' Plot smoothed curves of raw data
-#'
-#' Display raw data under the Magma format as smoothed curves.
-#'
-#' @param db A data frame or tibble with format : ID, Input, Output
-#'
-#' @return Graph of smoothed curves of raw data.
-#'
-#' @examples
-#' simu_db(M = 10) %>% plot_db()
+Plot smoothed curves of raw data
+
+Display raw data under the Magma format as smoothed curves.
+
+@param db A data frame or tibble with format : ID, Input, Output
+
+@return Graph of smoothed curves of raw data.
+
+@examples
+simu_db(M = 10) %>% plot_db()
+
+
+```{r }
 plot_db <- function(db) {
-  browser()
   ggplot2::ggplot(db) +
     ggplot2::geom_smooth(ggplot2::aes(.data$Input,
       .data$Output,
@@ -21,71 +23,72 @@ plot_db <- function(db) {
     )) +
     ggplot2::theme_classic()
 }
+```
 
-#' Plot Magma or GP predictions
-#'
-#' Display Magma or classic GP predictions. According to the dimension of the
-#' inputs, the graph may be a mean curve + Credible Interval or a heatmap of
-#' probabilities.
-#'
-#' @param pred_gp A tibble or data frame, typically coming from
-#'    \code{\link{pred_magma}} or \code{\link{pred_gp}} functions. Required
-#'    columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
-#'    present in case of multi-dimensional inputs.
-#' @param x_input A vector of character strings, indicating which input should
-#'    be displayed. If NULL(default) the 'Input' column is used for the x-axis.
-#'    If providing a 2-dimensional vector, the corresponding columns are used
-#'    for the x-axis and y-axis.
-#' @param data (Optional) A tibble or data frame. Required columns: 'Input',
-#'    'Output'. Additional columns for covariates can be specified.
-#'    The 'Input' column should define the variable that is used as
-#'    reference for the observations (e.g. time for longitudinal data). The
-#'    'Output' column specifies the observed values (the response
-#'    variable). The data frame can also provide as many covariates as desired,
-#'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'.
-#' @param data_train (Optional) A tibble or data frame, containing the training
-#'    data of the Magma model. The data set should have the same format as the
-#'    \code{data} argument with an additional column 'ID' for identifying the
-#'    different individuals/tasks. If provided, those data are displayed as
-#'    backward colourful points (each colour corresponding to one
-#'    individual/task).
-#' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
-#'    and associated 'Output' prior mean parameter of the GP prediction.
-#' @param y_grid A vector, indicating the grid of values on the y-axis for which
-#'    probabilities should be computed for heatmaps of 1-dimensional
-#'    predictions. If NULL (default), a vector of length 50 is defined, ranging
-#'    between the min and max 'Output' values contained in \code{pred_gp}.
-#' @param heatmap A logical value indicating whether the GP prediction should be
-#'    represented as a heatmap of probabilities for 1-dimensional inputs. If
-#'    FALSE (default), the mean curve and associated 95%CI are displayed.
-#' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
-#'    level of the Credible Interval associated with the posterior mean curve.
-#'
-#' @return Visualisation of a Magma or GP prediction (optional: display data
-#'    points, training data points and the prior mean function). For 1-D inputs,
-#'    the prediction is represented as a mean curve and its associated 95%
-#'    Credible Interval, or as a heatmap of probabilities if \code{heatmap} =
-#'    TRUE. For 2-D inputs, the prediction is represented as a heatmap, where
-#'    each couple of inputs on the x-axis and y-axis are associated
-#'    with a gradient of colours for the posterior mean values, whereas the
-#'    uncertainty is indicated by the transparency (the narrower is the 95%CI,
-#'    the more opaque is the associated colour, and vice versa)
-#' @export
-#'
-#' @examples
-#' \donttest{
-#' ## 1-dimensional example
-#' db <- simu_db(M = 1, covariate = F)
-#' pred_gp(db) %>%
-#'  plot_gp(db)
-#'
-#' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = T)
-#' pred_gp(db_2D) %>%
-#'  plot_gp(db_2D)
-#' }
+Plot Magma or GP predictions
+
+
+
+@param pred_gp A tibble or data frame, typically coming from
+   \code{\link{pred_magma}} or \code{\link{pred_gp}} functions. Required
+   columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
+   present in case of multi-dimensional inputs.
+@param x_input A vector of character strings, indicating which input should
+   be displayed. If NULL(default) the 'Input' column is used for the x-axis.
+   If providing a 2-dimensional vector, the corresponding columns are used
+   for the x-axis and y-axis.
+@param data (Optional) A tibble or data frame. Required columns: 'Input',
+   'Output'. Additional columns for covariates can be specified.
+   The 'Input' column should define the variable that is used as
+   reference for the observations (e.g. time for longitudinal data). The
+   'Output' column specifies the observed values (the response
+   variable). The data frame can also provide as many covariates as desired,
+   with no constraints on the column names. These covariates are additional
+   inputs (explanatory variables) of the models that are also observed at
+   each reference 'Input'.
+@param data_train (Optional) A tibble or data frame, containing the training
+   data of the Magma model. The data set should have the same format as the
+   \code{data} argument with an additional column 'ID' for identifying the
+   different individuals/tasks. If provided, those data are displayed as
+   backward colourful points (each colour corresponding to one
+   individual/task).
+@param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
+   and associated 'Output' prior mean parameter of the GP prediction.
+@param y_grid A vector, indicating the grid of values on the y-axis for which
+   probabilities should be computed for heatmaps of 1-dimensional
+   predictions. If NULL (default), a vector of length 50 is defined, ranging
+   between the min and max 'Output' values contained in \code{pred_gp}.
+@param heatmap A logical value indicating whether the GP prediction should be
+   represented as a heatmap of probabilities for 1-dimensional inputs. If
+   FALSE (default), the mean curve and associated 95%CI are displayed.
+@param prob_CI A number between 0 and 1 (default is 0.95), indicating the
+   level of the Credible Interval associated with the posterior mean curve.
+
+@return Visualisation of a Magma or GP prediction (optional: display data
+   points, training data points and the prior mean function). For 1-D inputs,
+   the prediction is represented as a mean curve and its associated 95%
+   Credible Interval, or as a heatmap of probabilities if \code{heatmap} =
+   TRUE. For 2-D inputs, the prediction is represented as a heatmap, where
+   each couple of inputs on the x-axis and y-axis are associated
+   with a gradient of colours for the posterior mean values, whereas the
+   uncertainty is indicated by the transparency (the narrower is the 95%CI,
+   the more opaque is the associated colour, and vice versa)
+@export
+
+@examples
+\donttest{
+## 1-dimensional example
+db <- simu_db(M = 1, covariate = F)
+pred_gp(db) %>%
+ plot_gp(db)
+
+## 2-dimensional example
+db_2D <- simu_db(M = 1, covariate = T)
+pred_gp(db) %>%
+ plot_gp(db)
+}
+
+```{r }
 plot_gp <- function(pred_gp,
                     x_input = NULL,
                     data = NULL,
@@ -183,15 +186,15 @@ plot_gp <- function(pred_gp,
     if (ncol(inputs) == 1) {
       if ((dplyr::n_distinct(inputs) != nrow(inputs)) & is.null(index)) {
         warning(
-          "Some values on the x-axis appear multiple times, probably ",
-          "resulting in an incorrect graphical representation. Please ",
-          "consider recomputing predictions for more adequate inputs. "
+          "Some values on the x-axis appear multiple times, probably resulting ",
+          "in an incorrect graphical representation. Please consider ",
+          "recomputing predictions for more adequate inputs. "
         )
       }
     } else {
       warning(
-        "Impossible to display inputs with dimensions greater than 2. The ",
-        "graph then simply uses 'Input' as x_axis and 'Output' as y-axis. "
+        "Impossible to display inputs with dimensions greater than 2. The graph ",
+        "then simply uses 'Input' as x_axis and 'Output' as y-axis. "
       )
       inputs <- inputs %>% dplyr::select(.data$Input)
     }
@@ -310,52 +313,25 @@ plot_gp <- function(pred_gp,
   (gg + ggplot2::theme_classic()) %>%
     return()
 }
+```
 
-#' Display Realisation From Posterior GP
-#'
-#' A realisation of a posterior GP distribution is drawn and displayed.
-#' According to the dimension of the inputs, the graph may be a curve or a
-#' heatmap.
-#'
-#' @param pred_gp A tibble or data frame, typically coming from
-#'    \code{\link{pred_magma}} or \code{\link{pred_gp}} functions. Required
-#'    columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
-#'    present in case of multi-dimensional inputs.
-#' @param x_input A vector of character strings, indicating which input should
-#'    be displayed. If NULL(default) the 'Input' column is used for the x-axis.
-#'    If providing a 2-dimensional vector, the corresponding columns are used
-#'    for the x-axis and y-axis.
-#' @param data (Optional) A tibble or data frame, containing the data used in
-#'    the GP prediction.
-#' @param data_train (Optional) A tibble or data frame, containing the training
-#'    data of the Magma model. The data set should have the same format as the
-#'    \code{data} argument with an additional column 'ID' for identifying the
-#'    different individuals/tasks. If provided, those data are displayed as
-#'    backward colourful points (each colour corresponding to one
-#'    individual/task).
-#
-#' @return Draw and visualise from a posterior distribution from Magma or GP
-#'    prediction (optional: display data points, training data points and the
-#'    prior mean function).
-#' @export
-#'
-#' @examples
-#' \donttest{
-#' ## 1-dimensional example
-#' db <- simu_db(M = 1, covariate = F)
-#' pred_gp(db, get_full_cov = T, plot = F) %>%
-#'  sample_gp(data = db)
-#'
-#' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = T)
-#' pred_gp(db_2D, get_full_cov = T, plot = F) %>%
-#' sample_gp(data = db_2D)
-#' }
+Display a realisation of a GP distribution
+
+@param pred_gp
+@param x_input
+@param data
+@param data_train
+
+@return
+@export
+
+@examples
+
+```{r }
 sample_gp <- function(pred_gp,
                       x_input = NULL,
                       data = NULL,
-                      data_train = NULL,
-                      prior_mean = NULL) {
+                      data_train = NULL) {
   if (is.data.frame(pred_gp) | !is.list(pred_gp)) {
     stop(
       "The 'pred_gp' argument should be a list containing 'pred' and 'cov' ",
@@ -370,7 +346,6 @@ sample_gp <- function(pred_gp,
   else {
     inputs <- pred_gp$pred[x_input]
   }
-
   ## Extract the predictions for further displaying
   input <- pred_gp$pred %>% dplyr::pull(.data$Input)
   mean <- pred_gp$pred %>% dplyr::pull(.data$Mean)
@@ -393,7 +368,7 @@ sample_gp <- function(pred_gp,
         ),
         interpolate = TRUE
       ) +
-      ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse")
+      ggplot2::scale_fill_distiller(palette = "RdPu")
 
     if (!is.null(data)) {
       ## Round the 'Output' values to reduce size of labels on the graph
@@ -489,90 +464,77 @@ sample_gp <- function(pred_gp,
           shape = 18
         )
     }
-    ## Display the (hyper-)prior mean process if provided
-    if (!is.null(prior_mean)) {
-      if (names(inputs)[1] %in% names(prior_mean)) {
-        gg <- gg +
-          ggplot2::geom_line(
-            data = prior_mean,
-            ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
-            linetype = "dashed"
-          )
-      } else {
-        warning(
-          "The ", names(inputs)[1], " column does not exist in the ",
-          "'prior_mean' argument. The mean function cannot be displayed."
-        )
-      }
-    }
   }
 
   (gg + ggplot2::theme_classic()) %>%
     return()
 }
+```
 
-#' Create a GIF of Magma or GP predictions
-#'
-#' Create a GIF animation displaying how Magma or classic GP
-#' predictions evolve and improve when the number of data points increase.
-#'
-#' @param pred_gp A tibble, typically coming from the \code{\link{pred_gif}}
-#'    function. Required columns: 'Input', 'Mean', 'Var' and 'Index'.
-#' @param x_input A vector of character strings, indicating which input should
-#'    be displayed. If NULL(default) the 'Input' column is used for the x-axis.
-#'    If providing a 2-dimensional vector, the corresponding columns are used
-#'    for the x-axis and y-axis.
-#' @param data (Optional) A tibble or data frame. Required columns: 'Input',
-#'    'Output'. Additional columns for covariates can be specified.
-#'    The 'Input' column should define the variable that is used as
-#'    reference for the observations (e.g. time for longitudinal data). The
-#'    'Output' column specifies the observed values (the response
-#'    variable). The data frame can also provide as many covariates as desired,
-#'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'.
-#' @param data_train (Optional) A tibble or data frame, containing the training
-#'    data of the Magma model. The data set should have the same format as the
-#'    \code{data} argument with an additional column 'ID' for identifying the
-#'    different individuals/tasks. If provided, those data are displayed as
-#'    backward colourful points (each colour corresponding to one
-#'    individual/task).
-#' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
-#'    and associated 'Output' prior mean parameter of the GP prediction.
-#' @param y_grid A vector, indicating the grid of values on the y-axis for which
-#'    probabilities should be computed for heatmaps of 1-dimensional
-#'    predictions. If NULL (default), a vector of length 50 is defined, ranging
-#'    between the min and max 'Output' values contained in \code{pred_gp}.
-#' @param heatmap A logical value indicating whether the GP prediction should be
-#'    represented as a heatmap of probabilities for 1-dimensional inputs. If
-#'    FALSE (default), the mean curve and associated 95% CI are displayed.
-#' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
-#'    level of the Credible Interval associated with the posterior mean curve.
-#' @param path A character string defining the path where the GIF file should be
-#'    exported.
-#' @param ... Any additional parameters that can be passed to the function
-#'    \code{\link{transition_states}} from the \code{gganimate} package.
-#'
-#' @return Visualisation of a Magma or GP prediction (optional: display data
-#'    points, training data points and the prior mean function), where data
-#'    points are added sequentially for visualising changes in prediction as
-#'    information increases.
-#' @export
-#'
-#' @examples
-#' \donttest{
-#' ## 2-dimensional example
-#' db <- simu_db(M = 1, covariate = F)
-#' hp = train_gp(db)
-#' pred_gif(db, hp = hp) %>%
-#'  plot_gif(data = db)
-#'
-#' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = T)
-#' hp_2D = train_gp(db_2D)
-#' pred_gif(db_2D, hp = hp_2D) %>%
-#'  plot_gif(data = db_2D)
-#' }
+Create a GIF of Magma or GP predictions
+
+Create a GIF animation displaying how Magma or classic GP
+predictions evolve and improve when the number of data points increase.
+
+@param pred_gp A tibble, typically coming from the \code{\link{pred_gif}}
+   function. Required columns: 'Input', 'Mean', 'Var' and 'Index'.
+@param x_input A vector of character strings, indicating which input should
+   be displayed. If NULL(default) the 'Input' column is used for the x-axis.
+   If providing a 2-dimensional vector, the corresponding columns are used
+   for the x-axis and y-axis.
+@param data (Optional) A tibble or data frame. Required columns: 'Input',
+   'Output'. Additional columns for covariates can be specified.
+   The 'Input' column should define the variable that is used as
+   reference for the observations (e.g. time for longitudinal data). The
+   'Output' column specifies the observed values (the response
+   variable). The data frame can also provide as many covariates as desired,
+   with no constraints on the column names. These covariates are additional
+   inputs (explanatory variables) of the models that are also observed at
+   each reference 'Input'.
+@param data_train (Optional) A tibble or data frame, containing the training
+   data of the Magma model. The data set should have the same format as the
+   \code{data} argument with an additional column 'ID' for identifying the
+   different individuals/tasks. If provided, those data are displayed as
+   backward colourful points (each colour corresponding to one
+   individual/task).
+@param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
+   and associated 'Output' prior mean parameter of the GP prediction.
+@param y_grid A vector, indicating the grid of values on the y-axis for which
+   probabilities should be computed for heatmaps of 1-dimensional
+   predictions. If NULL (default), a vector of length 50 is defined, ranging
+   between the min and max 'Output' values contained in \code{pred_gp}.
+@param heatmap A logical value indicating whether the GP prediction should be
+   represented as a heatmap of probabilities for 1-dimensional inputs. If
+   FALSE (default), the mean curve and associated 95% CI are displayed.
+@param prob_CI A number between 0 and 1 (default is 0.95), indicating the
+   level of the Credible Interval associated with the posterior mean curve.
+@param path A character string defining the path where the GIF file should be
+   exported.
+@param ... Any additional parameters that can be passed to the function
+   \code{\link{transition_states}} from the \code{gganimate} package.
+
+@return Visualisation of a Magma or GP prediction (optional: display data
+   points, training data points and the prior mean function), where data
+   points are added sequentially for visualising changes in prediction as
+   information increases.
+@export
+
+@examples
+\donttest{
+## 2-dimensional example
+db <- simu_db(M = 1, covariate = F)
+hp = train_gp(db)
+pred_gif(db, hp = hp) %>%
+ plot_gif(data = db)
+
+## 2-dimensional example
+db_2D <- simu_db(M = 1, covariate = T)
+hp_2D = train_gp(db_2)
+pred_gif(db_2D, hp = hp) %>%
+ plot_gif(db_2D)
+}
+
+```{r }
 plot_gif <- function(pred_gp,
                      x_input = NULL,
                      data = NULL,
@@ -583,7 +545,6 @@ plot_gif <- function(pred_gp,
                      prob_CI = 0.95,
                      path = "gif_gp.gif",
                      ...) {
-  ## If 'heatmap' is TRUE, a grid of values on the y-axis is define
   if (heatmap) {
     if (is.null(y_grid)) {
       y_grid <- seq(
@@ -593,7 +554,7 @@ plot_gif <- function(pred_gp,
       )
     }
   }
-  ## If 'data' is provided, format for a correct displaying in the GIF
+
   if (!is.null(data)) {
     data_anim <- tibble::tibble()
     for (j in 1:nrow(data)) {
@@ -606,7 +567,7 @@ plot_gif <- function(pred_gp,
   } else {
     data_anim <- NULL
   }
-  ## Visualise the GP predictions and create the animation
+
   gg <- plot_gp(
     pred_gp = pred_gp,
     x_input = x_input,
@@ -622,3 +583,13 @@ plot_gif <- function(pred_gp,
   gganimate::animate(gg, renderer = gganimate::gifski_renderer(path)) %>%
     return()
 }
+```
+
+
+
+---
+title: plot-functions.R
+author: user
+date: '2021-08-21'
+
+---

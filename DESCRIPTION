@@ -23,6 +23,7 @@ Imports:
     methods,
     mvtnorm,
     optimr,
+    Rcpp,
     rlang,
     stats,
     tibble,

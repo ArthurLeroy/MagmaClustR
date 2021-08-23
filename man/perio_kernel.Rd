@@ -4,22 +4,29 @@
 \alias{perio_kernel}
 \title{Periodic Kernel}
 \usage{
-perio_kernel(x, y, hp, deriv = NULL)
+perio_kernel(x, y, hp, deriv = NULL, vectorized = F)
 }
 \arguments{
-\item{x}{A vector of inputs.}
+\item{x}{A vector (or matrix if vectorized = T) of inputs.}
 
-\item{y}{A vector of inputs.}
+\item{y}{A vector (or matrix if vectorized = T) of inputs.}
 
 \item{hp}{A tibble, data frame or named vector, containing the kernel's
-hyperparameters. Required columns: 'variance', 'lengthscale', and 'scale'.}
+hyperparameters. Required columns: 'perio_variance', 'perio_lengthscale',
+and 'period'.}
 
 \item{deriv}{A character, indicating according to which hyper-parameter the
 derivative should be computed. If NULL (defaut), the function simply returns
 the evaluation of the kernel.}
+
+\item{vectorized}{A logical value, indicating whether the function provides
+a vectorized version for speeded-up calculations. If TRUE, the \code{x}
+and \code{y} arguments should be the vector or matrix containing all
+inputs for which the kernel is evaluated on all pairs of elements.
+If FALSE, the \code{x} and \code{y} arguments are simply two inputs.}
 }
 \value{
-A scalar, conresponding to the evaluation of the kernel.
+A scalar, corresponding to the evaluation of the kernel.
 }
 \description{
 Periodic Kernel
@@ -27,6 +34,6 @@ Periodic Kernel
 \examples{
 MagmaClustR:::perio_kernel(
   c(1, 0), c(0, 1),
-  tibble::tibble(variance = 1, lengthscale = 0.5, period = 2)
+  tibble::tibble(perio_variance = 1, perio_lengthscale = 0.5, period = 2)
 )
 }

@@ -8,7 +8,7 @@
 #' evaluated on any arbitrary inputs since a GP is an infinite-dimensional
 #' object.
 #'
-#' @param data  A tibble or data frame. Columns required: 'Input',
+#' @param data  A tibble or data frame. Required columns: 'Input',
 #'    'Output'. Additional columns for covariates can be specified.
 #'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
@@ -22,7 +22,7 @@
 #'    - NULL (default). The mean would be set to 0 everywhere.
 #'    - A number. The mean would be a constant function.
 #'    - A function. This function is defined as the mean.
-#'    - A tibble or data frame. Columns required: Input, Output. The Input
+#'    - A tibble or data frame. Required columns: Input, Output. The Input
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
@@ -38,8 +38,15 @@
 #'    following list:
 #'    - "SE": (default value) the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
 #'    tibble or a data frame, providing the same columns as \code{data}, except
@@ -59,7 +66,7 @@
 #'   'Var', evaluated on the \code{grid_inputs}. The column 'Input' and
 #'   additional covariates columns are associated to each predicted values.
 #'    If the \code{get_full_cov} argument is TRUE, the function returns a list,
-#'    in which the tibble described above is defined as 'pred_gp' and the full
+#'    in which the tibble described above is defined as 'pred' and the full
 #'    posterior covariance matrix is defined as 'cov'.
 #' @export
 #'
@@ -101,8 +108,19 @@ pred_gp <- function(data,
     if (inputs_obs %>% names() %>% length() == 1) {
       input_pred <- seq(min(data$Input), max(data$Input), length.out = 500)
       inputs_pred <- tibble::tibble("Input" = input_pred)
-    }
-    else {
+    } else if (inputs_obs %>% names() %>% length() == 2) {
+      ## Define a default grid for 'Input'
+      input_pred <- rep(
+        seq(min(data$Input), max(data$Input), length.out = 20),
+        each = 20)
+      inputs_pred <- tibble::tibble("Input" = input_pred)
+      ## Add a grid for the covariate
+      name_cova = inputs_obs %>% dplyr::select(-.data$Input) %>% names()
+      cova = inputs_obs[name_cova]
+      inputs_pred[name_cova] <- rep(
+        seq(min(cova), max(cova), length.out = 20),
+        times = 20)
+    } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
         "or a data frame depending on the context. Please read ?pred_gp()."
@@ -218,7 +236,7 @@ pred_gp <- function(data,
     } else if (any(kern %in% c("SE", "PERIO", "RQ"))) {
       hp <- quiet(
         train_gp(data,
-          ini_hp = hp(kern),
+          ini_hp = hp(kern, noise = T),
           kern = kern,
           post_mean = mean_obs,
           post_cov = NULL,
@@ -296,12 +314,12 @@ pred_gp <- function(data,
 
   ## Display the graph of the prediction if expected
   if (plot) {
-    plot_gp(pred_gp, data) %>% print()
+    plot_gp(pred_gp, data = data) %>% print()
   }
 
   ## Add the posterior covariance matrix in the results if expected
   if (get_full_cov) {
-    list("pred_gp" = pred_gp, "cov" = pred_cov) %>% return()
+    list("pred" = pred_gp, "cov" = pred_cov) %>% return()
   }
   else {
     pred_gp %>% return()
@@ -317,7 +335,7 @@ pred_gp <- function(data,
 #' key component for making prediction in Magma, and is required in the function
 #' \code{\link{pred_magma}}.
 #'
-#' @param data A tibble or data frame. Columns required: 'Input',
+#' @param data A tibble or data frame. Required columns: 'Input',
 #'    'Output'. Additional columns for covariates can be specified.
 #'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
@@ -331,7 +349,23 @@ pred_gp <- function(data,
 #' @param hp_i A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
 #' @param kern_0 A kernel function, associated with the mean GP.
-#' @param kern_i A kernel function, associated with the individual GPs.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
+#'    "PERIO" and "RQ" are aso available here)
 #' @param prior_mean Hyper-prior mean parameter of the mean GP. This argument,
 #'    can be specified under various formats, such as:
 #'    - NULL (default). The hyper-prior mean would be set to 0 everywhere.
@@ -340,7 +374,7 @@ pred_gp <- function(data,
 #'     \code{data} argument. This vector would be considered as the evaluation
 #'     of the hyper-prior mean function at the training Inputs.
 #'    - A function. This function is defined as the hyper-prior mean.
-#'    - A tibble or data frame. Columns required: Input, Output. The Input
+#'    - A tibble or data frame. Required columns: Input, Output. The Input
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
 #' @param grid_inputs A vector, indicating the grid of additional reference
@@ -349,8 +383,9 @@ pred_gp <- function(data,
 #'    numerical issues when inverting nearly singular matrices.
 #'
 #' @return A named list, containing the elements \code{mean}, a tibble
-#' containing the Input and associated Output of the hyper-posterior's mean
-#' parameter, and \code{cov}, the hyper-posterior's covariance matrix.
+#' containing the 'Input' and associated 'Output' of the hyper-posterior's mean
+#' parameter (and a column 'Var' for displaying uncertainty in visualisations),
+#' and \code{cov}, the hyper-posterior's covariance matrix.
 #'
 #' @export
 #'
@@ -484,8 +519,14 @@ hyperposterior <- function(data,
   post_mean <- post_cov %*% weighted_0 %>% as.vector()
   ##############################################
 
+  ## Format the mean parameter of the hyper-posterior distribution
+  tib_mean = tibble::tibble(
+    "Input" = all_input,
+    "Output" = post_mean,
+    "Var" = post_cov %>% diag() %>% as.vector(),
+  )
   list(
-    "mean" = tibble::tibble("Input" = all_input, "Output" = post_mean),
+    "mean" = tib_mean,
     "cov" = post_cov
   ) %>%
     return()
@@ -499,7 +540,7 @@ hyperposterior <- function(data,
 #' Magma model, the predictive distribution is evaluated on any arbitrary inputs
 #' that are specified through the 'grid_inputs' argument.
 #'
-#' @param data  A tibble or data frame. Columns required: 'Input',
+#' @param data  A tibble or data frame. Required columns: 'Input',
 #'    'Output'. Additional columns for covariates can be specified.
 #'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
@@ -523,8 +564,15 @@ hyperposterior <- function(data,
 #'    following list:
 #'    - "SE": (default value) the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
 #'    tibble or a data frame, providing the same columns as \code{data}, except
@@ -612,6 +660,18 @@ pred_magma <- function(data,
     if (inputs_obs %>% names() %>% length() == 1) {
       input_pred <- seq(min(data$Input), max(data$Input), length.out = 500)
       inputs_pred <- tibble::tibble("Input" = input_pred)
+    } else if (inputs_obs %>% names() %>% length() == 2) {
+      ## Define a default grid for 'Input'
+      input_pred <- rep(
+        seq(min(data$Input), max(data$Input), length.out = 20),
+        each = 20)
+      inputs_pred <- tibble::tibble("Input" = input_pred)
+      ## Add a grid for the covariate
+      name_cova = inputs_obs %>% dplyr::select(-.data$Input) %>% names()
+      cova = inputs_obs[name_cova]
+      inputs_pred[name_cova] <- rep(
+        seq(min(cova), max(cova), length.out = 20),
+        times = 20)
     }
     else {
       stop(
@@ -723,7 +783,6 @@ pred_magma <- function(data,
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Output)
 
-
   ## Extract the covariance sub-matrices from the hyper-posterior
   post_cov_obs <- hyperpost$cov[
     as.character(input_obs),
@@ -738,9 +797,40 @@ pred_magma <- function(data,
     as.character(input_pred)
   ]
 
-  ## Learn the hyper-parameters if not provided
+  ## Extract or learn the hyper-parameters if not provided
   if (hp %>% is.null()) {
-    if (kern %>% is.function()) {
+    if(!is.null(trained_model)){
+      ## Check whether hyper-parameters are common if 'trained_model' is provided
+      if(tryCatch(trained_model$fct_args$common_hp, error = function(e) FALSE)){
+        ## Extract the hyper-parameters common to all 'i'
+        hp = trained_model$hp_i %>%
+          dplyr::slice(1) %>%
+          dplyr::select(- .data$ID)
+      } else if (kern %>% is.function()) {
+        stop(
+          "When using a custom kernel function the 'hp' argument is ",
+          "mandatory, in order to provide the name of the hyper-parameters. ",
+          "You can use the function 'hp()' to easily generate a tibble of ",
+          "random hyper-parameters with the desired format, or use ",
+          "'train_gp()' to learn ML estimators for a better fit of data."
+        )
+      } else if (any(kern %in% c("SE", "PERIO", "RQ"))) {
+        hp <- quiet(
+          train_gp(data,
+                   ini_hp = hp(kern, noise = T),
+                   kern = kern,
+                   post_mean = mean_obs,
+                   post_cov = post_cov_obs,
+                   pen_diag = pen_diag
+          )
+        )
+        cat(
+          "The 'hp' argument has not been specified. The 'train_gp()' function",
+          "(with random initialisation) has been used to learn ML estimators",
+          "for the hyper-parameters associated with the 'kern' argument.\n \n"
+        )
+      }
+    } else if (kern %>% is.function()) {
       stop(
         "When using a custom kernel function the 'hp' argument is ",
         "mandatory, in order to provide the name of the hyper-parameters. ",
@@ -751,14 +841,13 @@ pred_magma <- function(data,
     } else if (any(kern %in% c("SE", "PERIO", "RQ"))) {
       hp <- quiet(
         train_gp(data,
-          ini_hp = hp(kern),
+          ini_hp = hp(kern, noise = T),
           kern = kern,
           post_mean = mean_obs,
           post_cov = post_cov_obs,
           pen_diag = pen_diag
         )
       )
-
       cat(
         "The 'hp' argument has not been specified. The 'train_gp()' function",
         "(with random initialisation) has been used to learn ML estimators",
@@ -841,13 +930,13 @@ pred_magma <- function(data,
 
   ## Display the graph of the prediction if expected
   if (plot) {
-    plot_gp(pred_gp, data) %>% print()
+    plot_gp(pred_gp, data = data, prior_mean = hyperpost$mean) %>% print()
   }
 
   res <- pred_gp
   ## Check whether posterior covariance or hyper-posterior should be returned
   if (get_full_cov | get_hyperpost) {
-    res <- list("pred_gp" = pred_gp)
+    res <- list("pred" = pred_gp)
     if (get_full_cov) {
       res[["cov"]] <- pred_cov
     }
@@ -867,7 +956,7 @@ pred_magma <- function(data,
 #' Otherwise, a classic GP prediction is applied and the prior mean can be
 #' specified through the \code{mean} argument.
 #'
-#' @param data  A tibble or data frame. Columns required: 'Input',
+#' @param data  A tibble or data frame. Required columns: 'Input',
 #'    'Output'. Additional columns for covariates can be specified.
 #'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
@@ -881,7 +970,7 @@ pred_magma <- function(data,
 #'    - NULL (default). The mean would be set to 0 everywhere.
 #'    - A number. The mean would be a constant function.
 #'    - A function. This function is defined as the mean.
-#'    - A tibble or data frame. Columns required: Input, Output. The Input
+#'    - A tibble or data frame. Required columns: Input, Output. The Input
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
 #' @param trained_model A list, containing  the information coming from a
@@ -899,8 +988,15 @@ pred_magma <- function(data,
 #'    following list:
 #'    - "SE": (default value) the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
 #'    tibble or a data frame, providing the same columns as \code{data}, except
@@ -944,11 +1040,47 @@ pred_gif <- function(data,
                      kern = "SE",
                      grid_inputs = NULL,
                      pen_diag = 0.01) {
+  ## Extract the inputs (reference Input + covariates)
+  inputs <- data %>% dplyr::select(-.data$Output)
+  ## Remove the 'ID' column if present
+  if ("ID" %in% names(data)) {
+    inputs <- inputs %>% dplyr::select(-.data$ID)
+  }
+  min_data = min(data$Input)
+  max_data = max(data$Input)
+
+  ## Define the target inputs to predict
+  if (grid_inputs %>% is.null()) {
+    ## Test whether 'data' only provide the Input column and no covariates
+    if (inputs %>% names() %>% length() == 1) {
+      grid_inputs <- tibble::tibble(
+        "Input" = seq(min_data, max_data, length.out = 500)
+        )
+    } else if (inputs %>% names() %>% length() == 2) {
+      ## Define a default grid for 'Input'
+      grid_inputs <- tibble::tibble(
+        "Input" = rep(seq(min_data, max_data, length.out = 20),each = 20)
+        )
+      ## Add a grid for the covariate
+      name_cova = inputs %>% dplyr::select(-.data$Input) %>% names()
+      cova = inputs[name_cova]
+      grid_inputs[name_cova] <- rep(
+        seq(min(cova), max(cova), length.out = 20),
+        times = 20)
+    } else {
+      stop(
+        "The 'grid_inputs' argument should be a either a numerical vector ",
+        "or a data frame depending on the context. Please read ?pred_gp()."
+      )
+    }
+  }
+
   all_pred <- tibble::tibble()
   for (j in 1:nrow(data)) {
+
     cat(" =>", j)
     ## Extract the sample of the 'j' first data points
-    data_j <- data %>% slice(1:j)
+    data_j <- data %>% dplyr::slice(1:j)
     if (!is.null(trained_model) | !is.null(hyperpost)) {
       ## Compute Magma prediction for this sub-dataset
       all_pred <- quiet(pred_magma(data_j,
@@ -963,7 +1095,7 @@ pred_gif <- function(data,
         pen_diag = pen_diag
       )) %>%
         dplyr::mutate(Index = j) %>%
-        bind_rows(all_pred)
+        dplyr::bind_rows(all_pred)
     } else {
       all_pred <- quiet(pred_gp(data_j,
         mean = mean,
@@ -975,7 +1107,7 @@ pred_gif <- function(data,
         pen_diag = pen_diag
       )) %>%
         dplyr::mutate(Index = j) %>%
-        bind_rows(all_pred)
+        dplyr::bind_rows(all_pred)
     }
   }
   return(all_pred)

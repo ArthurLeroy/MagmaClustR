@@ -8,7 +8,7 @@
 #' mean and covariance parameters of the Gaussian hyper-posterior distribution
 #' of the mean process.
 #'
-#' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
+#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
 #'    The \code{ID} column contains the unique names/codes used to identify each
 #'    individual/task (or batch of data).
@@ -27,19 +27,22 @@
 #'     \code{data} argument. This vector would be considered as the evaluation
 #'     of the hyper-prior mean function at the training Inputs.
 #'    - A function. This function is defined as the hyper_prior mean.
-#'    - A tibble or data frame. Columns required: Input, Output. The Input
+#'    - A tibble or data frame. Required columns: Input, Output. The Input
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
 #' @param ini_hp_0 A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_0}, the mean process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters
-#'    that are used in \code{kern_0}.
+#'    that are used in \code{kern_0}. If NULL (default), random values are used
+#'    as initialisation.
 #' @param ini_hp_i A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}, the individual processes' kernel.
 #'    Required column : \code{ID}. The \code{ID} column contains the unique
 #'    names/codes used to identify each individual/task. The other columns
 #'    should be named according to the hyper-parameters that are used in
-#'    \code{kern_i}.
+#'    \code{kern_i}. Compared to \code{ini_hp_0} should contain an additional
+#'    'noise' column to initialise the noise hyper-parameter of the model. If
+#'     NULL (default), random values are used as initialisation.
 #' @param kern_0 A kernel function, associated with the mean GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -47,8 +50,15 @@
 #'    following list:
 #'    - "SE": (default value) the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are aso available here)
 #' @param common_hp A logical value, indicating whether the set of
@@ -150,8 +160,8 @@ train_magma <- function(data,
     } else if (length(prior_mean) == 1) {
       m_0 <- rep(prior_mean, length(all_input))
       cat(
-        "The provided 'prior_mean' argument is of length 1. Thus, the hyper_prior",
-        "mean function has set to be constant everywhere.\n \n"
+        "The provided 'prior_mean' argument is of length 1. Thus, the",
+        "hyper_prior mean function has set to be constant everywhere.\n \n"
       )
     }
     else {
@@ -230,7 +240,7 @@ train_magma <- function(data,
     }
   } else {
     if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(kern_i, list_ID, common_hp = common_hp)
+      hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, noise = TRUE)
       cat(
         "The 'ini_hp_i' argument has not been specified. Random values of",
         "hyper-parameters for the individal processes are used as",
@@ -238,7 +248,10 @@ train_magma <- function(data,
       )
     } else if (!("ID" %in% names(ini_hp_i))) {
       ## Create a full tibble of common HPs if the column ID is not specified
-      hp_i <- tibble::tibble(ID = list_ID, dplyr::bind_rows(ini_hp_i))
+      hp_i <- tibble::tibble(
+        ID = list_ID,
+        dplyr::bind_rows(ini_hp_i)
+        )
     } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
       all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
       stop(
@@ -251,6 +264,15 @@ train_magma <- function(data,
     }
   }
 
+  ## Add a 'noise' hyper-parameter if absent
+  if(!('noise' %in% names(hp_i))){
+    if(common_hp){
+      hp_i = hp_i %>% dplyr::mutate('noise' = hp(NULL, noise = T))
+    } else{
+      hp_i = hp_i %>%
+        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = 'ID')
+    }
+  }
   ## Initialise the monitoring information
   cv <- FALSE
   logL_monitoring <- -Inf
@@ -417,7 +439,7 @@ train_magma <- function(data,
 #' initialisation values for the hyper-parameters, the function computes
 #' maximum likelihood estimates of the hyper-parameters.
 #'
-#' @param data A tibble or data frame. Columns required: \code{Input},
+#' @param data A tibble or data frame. Required columns: \code{Input},
 #'    \code{Output}. Additional columns for covariates can be specified.
 #'    The \code{Input} column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
@@ -429,7 +451,9 @@ train_magma <- function(data,
 #' @param ini_hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with the \code{kern} of the new individual/task.
 #'    The columns should be named according to the hyper-parameters that are
-#'    used in \code{kern}.
+#'    used in \code{kern}. In cases where the model includes a noise term,
+#'    \code{ini_hp} should contain an additional 'noise' column. If NULL
+#'    (default), random values are used as initialisation.
 #' @param kern A kernel function, defining the covariance structure of the GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -437,8 +461,15 @@ train_magma <- function(data,
 #'    following list:
 #'    - "SE": (default value) the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param post_mean Hyper-posterior mean parameter of the mean GP. Typically,
 #'    this argument would come from a previous training using
 #'    \code{\link{train_magma}}, but it could also be specified under various
@@ -449,7 +480,7 @@ train_magma <- function(data,
 #'     \code{data} argument. This vector would be considered as the evaluation
 #'     of the hyper-posterior mean function at the training Inputs.
 #'    - A function. This function is defined as the hyper-posterior mean.
-#'    - A tibble or data frame. Columns required: Input, Output. The Input
+#'    - A tibble or data frame. Required columns: Input, Output. The Input
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
 #' @param post_cov A matrix, the hyper-posterior covariance parameter in
@@ -488,10 +519,10 @@ train_gp <- function(data,
     else{hp = ini_hp}
   } else {
     if (ini_hp %>% is.null()) {
-      hp <- hp(kern)
+      hp <- hp(kern, noise = T)
       cat(
         "The 'ini_hp' argument has not been specified. Random values of",
-        "hyper-parameters for the new process are used as initialisation.\n \n"
+        "hyper-parameters are used as initialisation.\n \n"
       )
     } else {
       hp <- ini_hp
@@ -575,7 +606,6 @@ train_gp <- function(data,
   if('ID' %in% names(data)){
     data = data %>% dplyr::select(- .data$ID)
   }
-
   hp_new <- optimr::opm(
     hp,
     fn = logL_GP,

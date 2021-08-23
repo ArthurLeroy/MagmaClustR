@@ -19,7 +19,7 @@ train_magma(
 )
 }
 \arguments{
-\item{data}{A tibble or data frame. Columns required: \code{ID}, \code{Input}
+\item{data}{A tibble or data frame. Required columns: \code{ID}, \code{Input}
 , \code{Output}. Additional columns for covariates can be specified.
 The \code{ID} column contains the unique names/codes used to identify each
 individual/task (or batch of data).
@@ -40,7 +40,7 @@ argument can be specified under various formats, such as:
 \code{data} argument. This vector would be considered as the evaluation
 of the hyper-prior mean function at the training Inputs.
 \item A function. This function is defined as the hyper_prior mean.
-\item A tibble or data frame. Columns required: Input, Output. The Input
+\item A tibble or data frame. Required columns: Input, Output. The Input
 values should include at least the same values as in the \code{data}
 argument.
 }}
@@ -48,14 +48,17 @@ argument.
 \item{ini_hp_0}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_0}, the mean process' kernel. The
 columns/elements should be named according to the hyper-parameters
-that are used in \code{kern_0}.}
+that are used in \code{kern_0}. If NULL (default), random values are used
+as initialisation.}
 
 \item{ini_hp_i}{A tibble or data frame of hyper-parameters
 associated with \code{kern_i}, the individual processes' kernel.
 Required column : \code{ID}. The \code{ID} column contains the unique
 names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
-\code{kern_i}.}
+\code{kern_i}. Compared to \code{ini_hp_0} should contain an additional
+'noise' column to initialise the noise hyper-parameter of the model. If
+NULL (default), random values are used as initialisation.}
 
 \item{kern_0}{A kernel function, associated with the mean GP.
 Several popular kernels
@@ -65,8 +68,15 @@ following list:
 \itemize{
 \item "SE": (default value) the Squared Exponential Kernel (also called
 Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
