@@ -7,7 +7,7 @@
 #' @return Graph of smoothed curves of raw data.
 #'
 #' @examples
-#' simu_db(M = 10) %>% plot_db()
+#' TRUE
 plot_db <- function(db) {
   ggplot2::ggplot(db) +
     ggplot2::geom_smooth(ggplot2::aes(.data$Input,
@@ -76,14 +76,14 @@ plot_db <- function(db) {
 #' @examples
 #' \donttest{
 #' ## 1-dimensional example
-#' db <- simu_db(M = 1, covariate = F)
+#' db <- simu_db(M = 1, covariate = FALSE)
 #' pred_gp(db) %>%
-#'  plot_gp(db)
+#'  plot_gp(data = db)
 #'
 #' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = T)
+#' db_2D <- simu_db(M = 1, covariate = TRUE)
 #' pred_gp(db_2D) %>%
-#'  plot_gp(db_2D)
+#'  plot_gp(data = db_2D)
 #' }
 plot_gp <- function(pred_gp,
                     x_input = NULL,
@@ -94,7 +94,7 @@ plot_gp <- function(pred_gp,
                     heatmap = F,
                     prob_CI = 0.95) {
   ## Compute the quantile of the desired Credible Interval
-  quant_ci <- qnorm((1 + prob_CI) / 2)
+  quant_ci <- stats::qnorm((1 + prob_CI) / 2)
 
   ## Check whether 'pred_gp' has a correct format
   if (pred_gp %>% is.data.frame()) {
@@ -164,7 +164,7 @@ plot_gp <- function(pred_gp,
 
     if (!is.null(data)) {
       ## Round the 'Output' values to reduce size of labels on the graph
-      data <- data %>% dplyr::mutate(Output = round(Output, 1))
+      data <- data %>% dplyr::mutate(Output = round(.data$Output, 1))
 
       gg <- gg + ggplot2::geom_label(
         data = data,
@@ -332,7 +332,9 @@ plot_gp <- function(pred_gp,
 #'    different individuals/tasks. If provided, those data are displayed as
 #'    backward colourful points (each colour corresponding to one
 #'    individual/task).
-#
+#' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
+#'    and associated 'Output' prior mean parameter of the GP prediction.
+#'
 #' @return Draw and visualise from a posterior distribution from Magma or GP
 #'    prediction (optional: display data points, training data points and the
 #'    prior mean function).
@@ -341,12 +343,13 @@ plot_gp <- function(pred_gp,
 #' @examples
 #' \donttest{
 #' ## 1-dimensional example
-#' db <- simu_db(M = 1, covariate = F)
-#' pred_gp(db, get_full_cov = T, plot = F) %>%
+#' db <- simu_db(M = 1, covariate = FALSE)
+#' hp = train_gp(db)
+#' pred_gp(db, get_full_cov = T, plot = T) %>%
 #'  sample_gp(data = db)
 #'
 #' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = T)
+#' db_2D <- simu_db(M = 1, covariate = TRUE)
 #' pred_gp(db_2D, get_full_cov = T, plot = F) %>%
 #' sample_gp(data = db_2D)
 #' }
@@ -396,7 +399,7 @@ sample_gp <- function(pred_gp,
 
     if (!is.null(data)) {
       ## Round the 'Output' values to reduce size of labels on the graph
-      data <- data %>% dplyr::mutate(Output = round(Output, 1))
+      data <- data %>% dplyr::mutate(Output = round(.data$Output, 1))
 
       gg <- gg + ggplot2::geom_label(
         data = data,
@@ -410,7 +413,7 @@ sample_gp <- function(pred_gp,
       )
     }
   } else if (ncol(inputs) == 1) {
-    if (dplyr::n_distinct(inputs) != length(inputs)) {
+    if (dplyr::n_distinct(inputs) != nrow(inputs)) {
       warning(
         "Some values on the x-axis appear multiple times, probably resulting ",
         "in an incorrect graphical representation. Please consider ",
@@ -550,7 +553,8 @@ sample_gp <- function(pred_gp,
 #' @param path A character string defining the path where the GIF file should be
 #'    exported.
 #' @param ... Any additional parameters that can be passed to the function
-#'    \code{\link{transition_states}} from the \code{gganimate} package.
+#'    \code{\link[gganimate]{transition_states}} from the \code{gganimate}
+#'    package.
 #'
 #' @return Visualisation of a Magma or GP prediction (optional: display data
 #'    points, training data points and the prior mean function), where data
@@ -561,13 +565,13 @@ sample_gp <- function(pred_gp,
 #' @examples
 #' \donttest{
 #' ## 2-dimensional example
-#' db <- simu_db(M = 1, covariate = F)
+#' db <- simu_db(M = 1, covariate = FALSE)
 #' hp = train_gp(db)
 #' pred_gif(db, hp = hp) %>%
 #'  plot_gif(data = db)
 #'
 #' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = T)
+#' db_2D <- simu_db(M = 1, covariate = TRUE)
 #' hp_2D = train_gp(db_2D)
 #' pred_gif(db_2D, hp = hp_2D) %>%
 #'  plot_gif(data = db_2D)
@@ -586,8 +590,8 @@ plot_gif <- function(pred_gp,
   if (heatmap) {
     if (is.null(y_grid)) {
       y_grid <- seq(
-        min(pred_gp$Mean) - qnorm((1 + prob_CI) / 2) * sqrt(max(pred_gp$Var)),
-        max(pred_gp$Mean) + qnorm((1 + prob_CI) / 2) * sqrt(max(pred_gp$Var)),
+        min(pred_gp$Mean)-stats::qnorm((1 + prob_CI)/2)*sqrt(max(pred_gp$Var)),
+        max(pred_gp$Mean)+stats::qnorm((1 + prob_CI)/2)*sqrt(max(pred_gp$Var)),
         length.out = 50
       )
     }

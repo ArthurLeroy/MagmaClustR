@@ -109,12 +109,9 @@ Magma model, the predictive distribution is evaluated on any arbitrary inputs
 that are specified through the 'grid_inputs' argument.
 }
 \examples{
-db <- simu_db(M = 1, N = 10)
-grid_inputs <- tibble::tibble(
-  Input = seq(0, 10, 0.1),
-  Covariate = seq(-5, 5, 0.1)
-)
-all_input <- union(db$Input, grid_inputs$Input) \%>\% sort()
+db <- simu_db(M = 1, N = 10, covariate = FALSE)
+grid_inputs <- seq(0, 10, 0.1)
+all_input <- union(db$Input, grid_inputs) \%>\% sort()
 hyperpost <- list(
   "mean" = tibble::tibble(Input = all_input, Output = 0),
   "cov" = kern_to_cov(all_input, "SE", hp("SE"))

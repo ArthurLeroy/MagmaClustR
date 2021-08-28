@@ -257,45 +257,19 @@ pred_gp <- function(data,
     }
   }
 
+  ## Remove the noise of the hp for evaluating some of the sub-matrix
+  if("noise" %in% names(hp)){
+    hp_rm_noi = hp %>% dplyr::select(- .data$noise)
+    noise = hp %>% dplyr::pull(.data$noise) %>% exp()
+  } else {
+    hp_rm_noi = hp
+    noise = 0
+  }
+
   ## Compute the required sub-matrix for prediction
   inv_obs <- kern_to_inv(inputs_obs, kern, hp, pen_diag)
-  cov_pred <- kern_to_cov(inputs_pred, kern, hp)
-
-  ## Check the nature of the 'kern' argument
-  if (is.character(kern)) {
-    if (kern == "SE") {
-      kernel <- se_kernel
-    }
-    else if (kern == "PERIO") {
-      kernel <- perio_kernel
-    }
-    else if (kern == "RQ") {
-      kernel <- rq_kernel
-    }
-  }
-  else if (is.function(kern)) {
-    kernel <- kern
-  }
-  ## Transform the batches of input into lists
-  l_inputs_obs <- split(
-    t(inputs_obs),
-    rep(1:nrow(inputs_obs),
-      each = ncol(inputs_obs)
-    )
-  )
-  l_inputs_pred <- split(
-    t(inputs_pred),
-    rep(1:nrow(inputs_pred),
-      each = ncol(inputs_pred)
-    )
-  )
-  ## Compute the covariance matrix between observed and predicted inputs
-  cov_crossed <- outer(
-    l_inputs_obs, l_inputs_pred,
-    Vectorize(function(x, y) kernel(x, y, hp))
-  ) %>%
-    `rownames<-`(as.character(input_obs)) %>%
-    `colnames<-`(as.character(input_pred))
+  cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi)
+  cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi, input_2 = inputs_pred)
 
   ## Compute the posterior mean
   pred_mean <- (mean_pred +
@@ -308,7 +282,7 @@ pred_gp <- function(data,
   ## Create a tibble of values and associated uncertainty from a GP prediction
   pred_gp <- tibble::tibble(
     "Mean" = pred_mean,
-    "Var" = pred_cov %>% diag()
+    "Var" = diag(pred_cov) + noise
   ) %>%
     dplyr::mutate(inputs_pred)
 
@@ -320,8 +294,7 @@ pred_gp <- function(data,
   ## Add the posterior covariance matrix in the results if expected
   if (get_full_cov) {
     list("pred" = pred_gp, "cov" = pred_cov) %>% return()
-  }
-  else {
+  } else {
     pred_gp %>% return()
   }
 }
@@ -614,12 +587,9 @@ hyperposterior <- function(data,
 #' @export
 #'
 #' @examples
-#' db <- simu_db(M = 1, N = 10)
-#' grid_inputs <- tibble::tibble(
-#'   Input = seq(0, 10, 0.1),
-#'   Covariate = seq(-5, 5, 0.1)
-#' )
-#' all_input <- union(db$Input, grid_inputs$Input) %>% sort()
+#' db <- simu_db(M = 1, N = 10, covariate = FALSE)
+#' grid_inputs <- seq(0, 10, 0.1)
+#' all_input <- union(db$Input, grid_inputs) %>% sort()
 #' hyperpost <- list(
 #'   "mean" = tibble::tibble(Input = all_input, Output = 0),
 #'   "cov" = kern_to_cov(all_input, "SE", hp("SE"))
@@ -749,7 +719,7 @@ pred_magma <- function(data,
       }
       else {
         cat(
-          "The hyper-posterior distribution of the mean process provided in the",
+          "The hyper-posterior distribution of the mean process provided in",
           "'hyperpost' argument isn't evaluated on the expected inputs.\n \n",
           "Start evaluating the hyper-posterior on the correct inputs...\n \n"
         )
@@ -800,7 +770,7 @@ pred_magma <- function(data,
   ## Extract or learn the hyper-parameters if not provided
   if (hp %>% is.null()) {
     if(!is.null(trained_model)){
-      ## Check whether hyper-parameters are common if 'trained_model' is provided
+      ## Check whether hyper-parameters are common if we have 'trained_model'
       if(tryCatch(trained_model$fct_args$common_hp, error = function(e) FALSE)){
         ## Extract the hyper-parameters common to all 'i'
         hp = trained_model$hp_i %>%
@@ -873,45 +843,19 @@ pred_magma <- function(data,
     `rownames<-`(as.character(input_obs)) %>%
     `colnames<-`(as.character(input_obs))
 
-  ## Sum the covariance matrices on prediction inputs
-  cov_pred <- kern_to_cov(inputs_pred, kern, hp) + post_cov_pred
+  ## Remove the noise of the hp for evaluating some of the sub-matrix
+  if("noise" %in% names(hp)){
+    hp_rm_noi = hp %>% dplyr::select(- .data$noise)
+    noise = hp %>% dplyr::pull(.data$noise) %>% exp()
+  } else {
+    hp_rm_noi = hp
+    noise = 0
+  }
 
-  ## Check the nature of the 'kern' argument
-  if (is.character(kern)) {
-    if (kern == "SE") {
-      kernel <- se_kernel
-    }
-    else if (kern == "PERIO") {
-      kernel <- perio_kernel
-    }
-    else if (kern == "RQ") {
-      kernel <- rq_kernel
-    }
-  }
-  else if (is.function(kern)) {
-    kernel <- kern
-  }
-  ## Transform the batches of input into lists
-  l_inputs_obs <- split(
-    t(inputs_obs),
-    rep(1:nrow(inputs_obs),
-      each = ncol(inputs_obs)
-    )
-  )
-  l_inputs_pred <- split(
-    t(inputs_pred),
-    rep(1:nrow(inputs_pred),
-      each = ncol(inputs_pred)
-    )
-  )
-  ## Compute the covariance matrix between observed and predicted inputs
-  cov_crossed <- outer(
-    l_inputs_obs, l_inputs_pred,
-    Vectorize(function(x, y) kernel(x, y, hp))
-  ) %>%
-    `+`(post_cov_crossed) %>%
-    `rownames<-`(as.character(input_obs)) %>%
-    `colnames<-`(as.character(input_pred))
+  ## Compute the required sub-matrix for prediction
+  cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi) + post_cov_pred
+  cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi, input_2=inputs_pred) +
+    post_cov_crossed
 
   ## Compute the posterior mean of a GP
   pred_mean <- (mean_pred +
@@ -924,7 +868,7 @@ pred_magma <- function(data,
   ## Create a tibble of values and associated uncertainty from a GP prediction
   pred_gp <- tibble::tibble(
     "Mean" = pred_mean,
-    "Var" = pred_cov %>% diag()
+    "Var" = diag(pred_cov) + noise
   ) %>%
     dplyr::mutate(inputs_pred)
 

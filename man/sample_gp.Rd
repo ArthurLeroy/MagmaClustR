@@ -32,6 +32,9 @@ data of the Magma model. The data set should have the same format as the
 different individuals/tasks. If provided, those data are displayed as
 backward colourful points (each colour corresponding to one
 individual/task).}
+
+\item{prior_mean}{(Optional) A tibble or a data frame, containing the 'Input'
+and associated 'Output' prior mean parameter of the GP prediction.}
 }
 \value{
 Draw and visualise from a posterior distribution from Magma or GP
@@ -46,12 +49,13 @@ heatmap.
 \examples{
 \donttest{
 ## 1-dimensional example
-db <- simu_db(M = 1, covariate = F)
-pred_gp(db, get_full_cov = T, plot = F) \%>\%
+db <- simu_db(M = 1, covariate = FALSE)
+hp = train_gp(db)
+pred_gp(db, get_full_cov = T, plot = T) \%>\%
  sample_gp(data = db)
 
 ## 2-dimensional example
-db_2D <- simu_db(M = 1, covariate = T)
+db_2D <- simu_db(M = 1, covariate = TRUE)
 pred_gp(db_2D, get_full_cov = T, plot = F) \%>\%
 sample_gp(data = db_2D)
 }

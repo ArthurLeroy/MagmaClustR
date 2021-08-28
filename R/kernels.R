@@ -280,8 +280,8 @@ hp <- function(kern = "SE",
   ## Initiate interval boundaries
   min <- 0
   max <- 3
-  min_noise <- -1
-  max_noise <- 1
+  min_noise <- -10
+  max_noise <- 0
 
   len <- 1
 

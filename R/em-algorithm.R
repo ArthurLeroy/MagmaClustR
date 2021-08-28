@@ -194,7 +194,6 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
     post_cov = post_cov,
     pen_diag = pen_diag,
     method = "L-BFGS-B",
-    lower = -100, upper = 100,
     control = list(kkt = FALSE)
   ) %>%
     dplyr::select(list_hp_0) %>%
@@ -213,7 +212,6 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
       post_cov = post_cov,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
-      lower = -100, upper = 100,
       control = list(kkt = F)
     ) %>%
       dplyr::select(list_hp_i) %>%
@@ -253,7 +251,6 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         post_cov = post_cov_i,
         pen_diag = pen_diag,
         method = "L-BFGS-B",
-        lower = -100, upper = 100,
         control = list(kkt = F)
       ) %>%
         dplyr::select(list_hp_i) %>%

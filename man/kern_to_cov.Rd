@@ -4,7 +4,7 @@
 \alias{kern_to_cov}
 \title{Create covariance matrix from a kernel}
 \usage{
-kern_to_cov(input, kern = "SE", hp, deriv = NULL)
+kern_to_cov(input, kern = "SE", hp, deriv = NULL, input_2 = NULL)
 }
 \arguments{
 \item{input}{A vector, matrix, data frame or tibble containing all inputs for
@@ -39,8 +39,13 @@ element or a column 'Noise', its value will be added on the diagonal of
 the covariance matrix.}
 
 \item{deriv}{A character, indicating according to which hyper-parameter the
-derivative should be computed. If NULL (defaut), the function simply returns
-the covariance matrix.}
+derivative should be computed. If NULL (defaut), the function simply
+returns the covariance matrix.}
+
+\item{input_2}{(optional) A vector, matrix, data frame or tibble under the
+same format as \code{input}. This argument should be used only when the
+kernel needs to be evaluated between two different sets of inputs,
+typically resulting in a non-square matrix.}
 }
 \value{
 A covariance matrix, where elements are evaluations of the associated
@@ -57,6 +62,6 @@ structure of a GP, defined thanks to this kernel.
 kern_to_cov(
   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
   "SE",
-  tibble::tibble(variance = 1, lengthscale = 0.5)
+  tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 )
 }

@@ -180,7 +180,7 @@ simu_db <- function(M = 10,
   }
 
   if(!covariate){
-    db = db %>% dplyr::select(- Covariate)
+    db = db %>% dplyr::select(- .data$Covariate)
   }
 
   return(db)

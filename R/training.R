@@ -616,7 +616,6 @@ train_gp <- function(data,
     post_cov = post_cov,
     pen_diag = pen_diag,
     method = "L-BFGS-B",
-    lower = -100, upper = 100,
     control = list(kkt = FALSE)
   ) %>%
     dplyr::select(list_hp_new) %>%

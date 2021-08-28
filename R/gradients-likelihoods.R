@@ -18,7 +18,7 @@
 #' @examples
 #' db <- tibble::tibble(Input = 1:5, Output = 2:6)
 #' mean <- rep(0, 5)
-#' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+#' hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 #' post_cov = kern_to_cov(1:5, 'SE', hp)
 #' MagmaClustR:::gr_GP(hp, db, mean, "SE", post_cov, 0.001)
 gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
@@ -71,7 +71,7 @@ gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' @examples
 #' db <- tibble::tibble(Input = 1:5, Output = 2:6)
 #' mean <- rep(0, 5)
-#' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+#' hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 #' post_cov = kern_to_cov(1:5, 'SE', hp)
 #' MagmaClustR:::gr_GP_mod(hp, db, mean, "SE", post_cov, 0.001)
 gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
@@ -120,7 +120,7 @@ gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' @examples
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
-#' hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+#' hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 #' post_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
 #' MagmaClustR:::gr_GP_mod_common_hp(hp, db, mean, "SE", post_cov, 0.001)
 gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {

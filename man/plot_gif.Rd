@@ -62,7 +62,8 @@ level of the Credible Interval associated with the posterior mean curve.}
 exported.}
 
 \item{...}{Any additional parameters that can be passed to the function
-\code{\link{transition_states}} from the \code{gganimate} package.}
+\code{\link[gganimate]{transition_states}} from the \code{gganimate}
+package.}
 }
 \value{
 Visualisation of a Magma or GP prediction (optional: display data
@@ -77,13 +78,13 @@ predictions evolve and improve when the number of data points increase.
 \examples{
 \donttest{
 ## 2-dimensional example
-db <- simu_db(M = 1, covariate = F)
+db <- simu_db(M = 1, covariate = FALSE)
 hp = train_gp(db)
 pred_gif(db, hp = hp) \%>\%
  plot_gif(data = db)
 
 ## 2-dimensional example
-db_2D <- simu_db(M = 1, covariate = T)
+db_2D <- simu_db(M = 1, covariate = TRUE)
 hp_2D = train_gp(db_2D)
 pred_gif(db_2D, hp = hp_2D) \%>\%
  plot_gif(data = db_2D)

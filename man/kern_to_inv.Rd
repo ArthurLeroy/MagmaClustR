@@ -8,8 +8,8 @@ kern_to_inv(input, kern, hp, pen_diag = 0, deriv = NULL)
 }
 \arguments{
 \item{input}{A vector, matrix, data frame or tibble containing all inputs for
-one individual. If a vector, the elements are used as reference, otherwise,
-one column should be named 'Input' to indicate that it represents the
+one individual. If a vector, the elements are used as reference, otherwise
+,one column should be named 'Input' to indicate that it represents the
 reference (e.g. 'Input' would contain the timestamps in time-series
 applications). The other columns are considered as being covariates. If
 no column is named 'Input', the first one is used by default.}
@@ -59,6 +59,6 @@ kernel.
 kern_to_inv(
   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
   "SE",
-  tibble::tibble(variance = 1, lengthscale = 0.5)
+  tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 )
 }

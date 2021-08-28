@@ -16,5 +16,5 @@ Graph of smoothed curves of raw data.
 Display raw data under the Magma format as smoothed curves.
 }
 \examples{
-simu_db(M = 10) \%>\% plot_db()
+TRUE
 }

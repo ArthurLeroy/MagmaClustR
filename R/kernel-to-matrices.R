@@ -28,13 +28,17 @@
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param hp A list, data frame or tibble containing the hyper-parameters used
-#'   in the kernel. The name of the elements (or columns) should correspond
-#'   exactly to those used in the kernel definition. If \code{hp} contains an
-#'   element or a column 'Noise', its value will be added on the diagonal of
-#'   the covariance matrix.
+#'    in the kernel. The name of the elements (or columns) should correspond
+#'    exactly to those used in the kernel definition. If \code{hp} contains an
+#'    element or a column 'Noise', its value will be added on the diagonal of
+#'    the covariance matrix.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'  derivative should be computed. If NULL (defaut), the function simply returns
-#'  the covariance matrix.
+#'    derivative should be computed. If NULL (defaut), the function simply
+#'    returns the covariance matrix.
+#' @param input_2 (optional) A vector, matrix, data frame or tibble under the
+#'    same format as \code{input}. This argument should be used only when the
+#'    kernel needs to be evaluated between two different sets of inputs,
+#'    typically resulting in a non-square matrix.
 #'
 #' @export
 #'
@@ -45,9 +49,13 @@
 #' kern_to_cov(
 #'   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
 #'   "SE",
-#'   tibble::tibble(variance = 1, lengthscale = 0.5)
+#'   tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 #' )
-kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
+kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
+  ## If a second set of inputs is not provided, only 'input' against itself
+  if (input_2 %>% is.null()) {
+    input_2 <- input
+  }
   ## Process the character string defining the covariance structure
   if (is.character(kern)) {
     kernel <- function(deriv = deriv, vectorized = TRUE, ...) {
@@ -68,16 +76,19 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
 
       for (i in 2:(length(str) - 1))
       {
-        s_m <- str[i-1]
+        s_m <- str[i - 1]
         s <- str[i]
-        s_p <- str[i+1]
+        s_p <- str[i + 1]
         ## Detect whether we compute kernel or its derivatives
         if (deriv %>% is.null()) {
           ## Detect the adequate kernel and combine to others
           if (s == "SE") {
             out <- operator(out, se_kernel(deriv = deriv, vectorized = T, ...))
           } else if (s == "PERIO") {
-            out <- operator(out, perio_kernel(deriv = deriv, vectorized=T, ...))
+            out <- operator(
+              out,
+              perio_kernel(deriv = deriv, vectorized = T, ...)
+            )
           } else if (s == "RQ") {
             out <- operator(out, rq_kernel(deriv = deriv, vectorized = T, ...))
           } else if (s == "LIN") {
@@ -94,61 +105,70 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
             ## Choose the correct kernel
             if (s == "SE") {
               temp_kern <- se_kernel
-              if(any(deriv %in% c('se_variance', 'se_lengthscale'))){
-                true_deriv = T
+              if (any(deriv %in% c("se_variance", "se_lengthscale"))) {
+                true_deriv <- T
                 past_true_deriv <- T
               }
             } else if (s == "PERIO") {
               temp_kern <- perio_kernel
-              if(any(deriv %in%
-                     c('perio_variance', 'perio_lengthscale', 'period'))){
-                true_deriv = T
+              if (any(deriv %in%
+                c("perio_variance", "perio_lengthscale", "period"))) {
+                true_deriv <- T
                 past_true_deriv <- T
               }
             } else if (s == "RQ") {
               temp_kern <- rq_kernel
-              if(any(deriv %in%
-                     c('rq_variance', 'rq_lengthscale', 'rq_scale'))){
-                true_deriv = T
+              if (any(deriv %in%
+                c("rq_variance", "rq_lengthscale", "rq_scale"))) {
+                true_deriv <- T
                 past_true_deriv <- T
               }
             }
             else if (s == "LIN") {
               temp_kern <- lin_kernel
-              if(any(deriv %in% c('lin_slope', 'lin_offset'))){
-                true_deriv = T
+              if (any(deriv %in% c("lin_slope", "lin_offset"))) {
+                true_deriv <- T
                 past_true_deriv <- T
               }
             }
 
             ## Detect the appropriate situation for the derivatives calculus
-            if(s_m == 'start'){
-              if(s_p == 'stop'){
-                out <- temp_kern(deriv=deriv, vectorized=T, ...)
-              } else if(s_p == '+'){
-                if(true_deriv){
-                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+            if (s_m == "start") {
+              if (s_p == "stop") {
+                out <- temp_kern(deriv = deriv, vectorized = T, ...)
+              } else if (s_p == "+") {
+                if (true_deriv) {
+                  out <- operator(
+                    out,
+                    temp_kern(deriv = deriv, vectorized = T, ...)
+                  )
                 }
-              } else if(s_p == '*'){
-                if(true_deriv){
-                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+              } else if (s_p == "*") {
+                if (true_deriv) {
+                  out <- operator(
+                    out,
+                    temp_kern(deriv = deriv, vectorized = T, ...)
+                  )
                 } else {
-                  out <- operator(out, temp_kern(deriv=NULL, vectorized=T, ...))
+                  out <- operator(
+                    out,
+                    temp_kern(deriv = NULL, vectorized = T, ...)
+                  )
                 }
               } else {
                 stop("Incorrect character string specified in 'kern'.")
               }
-            } else if(s_m == '+'){
-              if(s_p == 'stop'){
-                if(true_deriv){
-                  out <- temp_kern(deriv=deriv, vectorized=T,...)
+            } else if (s_m == "+") {
+              if (s_p == "stop") {
+                if (true_deriv) {
+                  out <- temp_kern(deriv = deriv, vectorized = T, ...)
                 }
-              } else if(s_p == '+'){
-                if(true_deriv){
-                  out <- temp_kern(deriv=deriv, vectorized=T,...)
+              } else if (s_p == "+") {
+                if (true_deriv) {
+                  out <- temp_kern(deriv = deriv, vectorized = T, ...)
                   break
                 }
-              } else if(s_p == '*'){
+              } else if (s_p == "*") {
                 stop(
                   "Incorrect character string specified in 'kern'. The ",
                   "'*' operators should come before '+' operators."
@@ -156,30 +176,48 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
               } else {
                 stop("Incorrect character string specified in 'kern'.")
               }
-            } else if(s_m == '*'){
-              if(s_p == 'stop'){
-                if(true_deriv){
-                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+            } else if (s_m == "*") {
+              if (s_p == "stop") {
+                if (true_deriv) {
+                  out <- operator(
+                    out,
+                    temp_kern(deriv = deriv, vectorized = T, ...)
+                  )
                 } else {
-                  out <- operator(out, temp_kern(deriv=NULL, vectorized=T, ...))
+                  out <- operator(
+                    out,
+                    temp_kern(deriv = NULL, vectorized = T, ...)
+                  )
                 }
-              } else if(s_p == '+'){
-                if(true_deriv){
-                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+              } else if (s_p == "+") {
+                if (true_deriv) {
+                  out <- operator(
+                    out,
+                    temp_kern(deriv = deriv, vectorized = T, ...)
+                  )
                   break
                 } else {
-                  if(past_true_deriv){
-                    out <- operator(out, temp_kern(deriv=NULL,vectorized=T,...))
+                  if (past_true_deriv) {
+                    out <- operator(
+                      out,
+                      temp_kern(deriv = NULL, vectorized = T, ...)
+                    )
                     break
-                  } else{
+                  } else {
                     out <- 0
                   }
                 }
-              } else if(s_p == '*'){
-                if(true_deriv){
-                  out <- operator(out, temp_kern(deriv=deriv, vectorized=T,...))
+              } else if (s_p == "*") {
+                if (true_deriv) {
+                  out <- operator(
+                    out,
+                    temp_kern(deriv = deriv, vectorized = T, ...)
+                  )
                 } else {
-                  out <- operator(out, temp_kern(deriv=NULL, vectorized=T, ...))
+                  out <- operator(
+                    out,
+                    temp_kern(deriv = NULL, vectorized = T, ...)
+                  )
                 }
               } else {
                 stop("Incorrect character string specified in 'kern'.")
@@ -187,7 +225,6 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
             } else {
               stop("Incorrect character string specified in 'kern'.")
             }
-
           } else if ((s == "+") | (s == "*")) {
             ## Combine the kernel with the adequate operator
             operator <- get(s)
@@ -195,7 +232,7 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
             stop("Incorrect character string specified in the 'kern' argument.")
           }
         }
-        true_deriv = F
+        true_deriv <- F
       }
       return(out)
     }
@@ -212,29 +249,35 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
   # Transform the batches of input into lists
   if (input %>% is.vector()) {
     list_input <- input
+    list_input_2 <- input_2
     reference <- as.character(input)
+    reference_2 <- as.character(input_2)
   }
   else {
     list_input <- split(t(input), rep(1:nrow(input), each = ncol(input)))
-    if ("Input" %in% colnames(input)) {
+    list_input_2 <- split(t(input_2), rep(1:nrow(input_2), each = ncol(input_2)))
+    if (("Input" %in% colnames(input)) & ("Input" %in% colnames(input_2))) {
       reference <- input %>%
+        tibble::as_tibble() %>%
+        dplyr::pull("Input") %>%
+        as.character()
+
+      reference_2 <- input_2 %>%
         tibble::as_tibble() %>%
         dplyr::pull("Input") %>%
         as.character()
     } else {
       reference <- as.character(input[, 1])
+      reference_2 <- as.character(input_2[, 1])
     }
   }
 
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
     if (deriv == "noise") {
-      mat <- diag(exp(hp[["noise"]]),
-        nrow = length(list_input),
-        ncol = length(list_input)
-      ) %>%
+      mat = cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]]) %>%
         `rownames<-`(reference) %>%
-        `colnames<-`(reference)
+        `colnames<-`(reference_2)
 
       return(mat)
     }
@@ -244,10 +287,16 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
   if ("deriv" %in% methods::formalArgs(kernel)) {
     ## Detect whether speed-up vectorised computation is provided
     if ("vectorized" %in% methods::formalArgs(kernel)) {
-      mat <- kernel(x = input, y = input, hp = hp, deriv = deriv, vectorized =T)
+      mat <- kernel(
+        x = input,
+        y = input_2,
+        hp = hp,
+        deriv = deriv,
+        vectorized = T
+      )
     } else { ## Compute the matrix element by element
       mat <- outer(
-        list_input, list_input,
+        list_input, list_input_2,
         Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))
       )
     }
@@ -255,10 +304,10 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
   else {
     ## Detect whether speed-up vectorised computation is provided
     if ("vectorized" %in% methods::formalArgs(kernel)) {
-      mat <- kernel(x = input, y = input, hp = hp, vectorized = TRUE)
+      mat <- kernel(x = input, y = input_2, hp = hp, vectorized = TRUE)
     } else { ## Compute the matrix element by element
       mat <- outer(
-        list_input, list_input,
+        list_input, list_input_2,
         Vectorize(function(x, y) kernel(x, y, hp))
       )
     }
@@ -266,12 +315,12 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
 
   ## Add noise on the diagonal if provided (and if not computing gradients)
   if (("noise" %in% names(hp)) & is.null(deriv)) {
-    mat <- mat + diag(exp(hp[["noise"]]), nrow = nrow(mat), ncol = ncol(mat))
+    mat <- mat + cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]])
   }
 
   mat %>%
     `rownames<-`(reference) %>%
-    `colnames<-`(reference) %>%
+    `colnames<-`(reference_2) %>%
     return()
 }
 
@@ -285,8 +334,8 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
 #'    kernel.
 #'
 #' @param input A vector, matrix, data frame or tibble containing all inputs for
-#'    one individual. If a vector, the elements are used as reference, otherwise,
-#'    one column should be named 'Input' to indicate that it represents the
+#'    one individual. If a vector, the elements are used as reference, otherwise
+#'    ,one column should be named 'Input' to indicate that it represents the
 #'    reference (e.g. 'Input' would contain the timestamps in time-series
 #'    applications). The other columns are considered as being covariates. If
 #'    no column is named 'Input', the first one is used by default.
@@ -323,7 +372,7 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL) {
 #' kern_to_inv(
 #'   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
 #'   "SE",
-#'   tibble::tibble(variance = 1, lengthscale = 0.5)
+#'   tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 #' )
 kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
