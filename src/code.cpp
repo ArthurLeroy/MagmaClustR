@@ -42,7 +42,7 @@ NumericMatrix cpp_perio(
     for (int r2 = 0; r2 < nrow2; r2++) {
       double total = 0;
       for (int c12 = 0; c12 < ncol; c12++) {
-        total += pow(sin(M_PI/std::exp(period)*abs(m1(r1, c12)-m2(r2, c12))),2);
+        total += pow(sin(M_PI/exp(period)*abs(m1(r1, c12)-m2(r2, c12))),2);
       }
       out(r1, r2) = total;
     }
@@ -66,7 +66,7 @@ NumericMatrix cpp_perio_deriv(
       for (int r2 = 0; r2 < nrow2; r2++) {
         double total = 0;
         for (int c12 = 0; c12 < ncol; c12++) {
-          double angle = M_PI/std::exp(period) * abs(m1(r1, c12) - m2(r2, c12));
+          double angle = M_PI/exp(period) * abs(m1(r1, c12) - m2(r2, c12));
           total += 2 * sin(angle) * cos(angle) * angle;
         }
         out(r1, r2) = total;

@@ -260,7 +260,7 @@ pred_gp <- function(data,
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if("noise" %in% names(hp)){
     hp_rm_noi = hp %>% dplyr::select(- .data$noise)
-    noise = hp %>% dplyr::pull(.data$noise) %>% exp()
+    noise = exp(hp[['noise']])
   } else {
     hp_rm_noi = hp
     noise = 0
@@ -846,7 +846,7 @@ pred_magma <- function(data,
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if("noise" %in% names(hp)){
     hp_rm_noi = hp %>% dplyr::select(- .data$noise)
-    noise = hp %>% dplyr::pull(.data$noise) %>% exp()
+    noise = exp(hp[['noise']])
   } else {
     hp_rm_noi = hp
     noise = 0

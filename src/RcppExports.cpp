@@ -68,17 +68,3 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-
-static const R_CallMethodDef CallEntries[] = {
-    {"_MagmaClustR_cpp_dist", (DL_FUNC) &_MagmaClustR_cpp_dist, 2},
-    {"_MagmaClustR_cpp_perio", (DL_FUNC) &_MagmaClustR_cpp_perio, 3},
-    {"_MagmaClustR_cpp_perio_deriv", (DL_FUNC) &_MagmaClustR_cpp_perio_deriv, 3},
-    {"_MagmaClustR_cpp_prod", (DL_FUNC) &_MagmaClustR_cpp_prod, 2},
-    {"_MagmaClustR_cpp_noise", (DL_FUNC) &_MagmaClustR_cpp_noise, 3},
-    {NULL, NULL, 0}
-};
-
-RcppExport void R_init_MagmaClustR(DllInfo *dll) {
-    R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
-    R_useDynamicSymbols(dll, FALSE);
-}

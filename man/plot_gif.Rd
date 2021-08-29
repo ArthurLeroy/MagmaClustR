@@ -13,6 +13,7 @@ plot_gif(
   y_grid = NULL,
   heatmap = F,
   prob_CI = 0.95,
+  export_gif = FALSE,
   path = "gif_gp.gif",
   ...
 )
@@ -57,6 +58,9 @@ FALSE (default), the mean curve and associated 95\% CI are displayed.}
 
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
 level of the Credible Interval associated with the posterior mean curve.}
+
+\item{export_gif}{A logical value indicating whether the animation should
+be exported as a .gif file.}
 
 \item{path}{A character string defining the path where the GIF file should be
 exported.}

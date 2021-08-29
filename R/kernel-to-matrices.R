@@ -474,3 +474,7 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag = 0, deriv = NULL) {
   sapply(unique(db$ID), floop, simplify = F, USE.NAMES = T) %>%
     return()
 }
+
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib MagmaClustR, .registration = TRUE
+NULL

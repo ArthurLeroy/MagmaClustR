@@ -345,12 +345,12 @@ plot_gp <- function(pred_gp,
 #' ## 1-dimensional example
 #' db <- simu_db(M = 1, covariate = FALSE)
 #' hp = train_gp(db)
-#' pred_gp(db, get_full_cov = T, plot = T) %>%
+#' pred_gp(db, get_full_cov = TRUE, plot = TRUE) %>%
 #'  sample_gp(data = db)
 #'
 #' ## 2-dimensional example
 #' db_2D <- simu_db(M = 1, covariate = TRUE)
-#' pred_gp(db_2D, get_full_cov = T, plot = F) %>%
+#' pred_gp(db_2D, get_full_cov = TRUE, plot = FALSE) %>%
 #' sample_gp(data = db_2D)
 #' }
 sample_gp <- function(pred_gp,
@@ -550,6 +550,8 @@ sample_gp <- function(pred_gp,
 #'    FALSE (default), the mean curve and associated 95% CI are displayed.
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
+#' @param export_gif A logical value indicating whether the animation should
+#'    be exported as a .gif file.
 #' @param path A character string defining the path where the GIF file should be
 #'    exported.
 #' @param ... Any additional parameters that can be passed to the function
@@ -584,6 +586,7 @@ plot_gif <- function(pred_gp,
                      y_grid = NULL,
                      heatmap = F,
                      prob_CI = 0.95,
+                     export_gif = FALSE,
                      path = "gif_gp.gif",
                      ...) {
   ## If 'heatmap' is TRUE, a grid of values on the y-axis is define
@@ -622,6 +625,9 @@ plot_gif <- function(pred_gp,
   ) +
     gganimate::transition_states(.data$Index, ...)
 
-  gganimate::animate(gg, renderer = gganimate::gifski_renderer(path)) %>%
-    return()
+  if(export_gif){
+    gganimate::animate(gg, renderer = gganimate::gifski_renderer(path))
+  }
+
+  gg %>% return()
 }
