@@ -7,10 +7,10 @@
 plot_db(db)
 }
 \arguments{
-\item{db}{database with format : ID, Input, Output}
+\item{db}{A data frame or tibble with format : ID, Input, Output}
 }
 \value{
-Visualize smoothed raw data.
+Graph of smoothed curves of raw data.
 }
 \description{
 Display raw data under the Magma format as smoothed curves.

@@ -35,7 +35,7 @@ Gradient of the modified logLikelihood with common HPs for GPs in Magma
 \examples{
 db <- simu_db(N = 10, common_input = TRUE)
 mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
-hp <- tibble::tibble(variance = 1, lengthscale = 0.5)
+hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 post_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
 MagmaClustR:::gr_GP_mod_common_hp(hp, db, mean, "SE", post_cov, 0.001)
 }

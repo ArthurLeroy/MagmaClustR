@@ -16,15 +16,15 @@ pred_gp(
 )
 }
 \arguments{
-\item{data}{A tibble or data frame. Columns required: \code{Input},
-\code{Output}. Additional columns for covariates can be specified.
-The \code{Input} column should define the variable that is used as
+\item{data}{A tibble or data frame. Required columns: 'Input',
+'Output'. Additional columns for covariates can be specified.
+The 'Input' column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
-\code{Output} column specifies the observed values (the response
+'Output' column specifies the observed values (the response
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference \code{Input}.}
+each reference 'Input'.}
 
 \item{mean}{Mean parameter of the GP. This argument can be specified under
 various formats, such as:
@@ -32,7 +32,7 @@ various formats, such as:
 \item NULL (default). The mean would be set to 0 everywhere.
 \item A number. The mean would be a constant function.
 \item A function. This function is defined as the mean.
-\item A tibble or data frame. Columns required: Input, Output. The Input
+\item A tibble or data frame. Required columns: Input, Output. The Input
 values should include at least the same values as in the \code{data}
 argument.
 }}
@@ -52,8 +52,15 @@ following list:
 \itemize{
 \item "SE": (default value) the Squared Exponential Kernel (also called
 Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
 \item{grid_inputs}{The grid of inputs (reference Input and covariates) values
@@ -79,7 +86,7 @@ A tibble, representing the GP predictions as two column 'Mean' and
 'Var', evaluated on the \code{grid_inputs}. The column 'Input' and
 additional covariates columns are associated to each predicted values.
 If the \code{get_full_cov} argument is TRUE, the function returns a list,
-in which the tibble described above is defined as 'pred_gp' and the full
+in which the tibble described above is defined as 'pred' and the full
 posterior covariance matrix is defined as 'cov'.
 }
 \description{

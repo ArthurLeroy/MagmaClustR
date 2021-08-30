@@ -1,5 +1,5 @@
 Package: MagmaClustR
-Title: Clustering And Prediction With Multi-Task Gaussian Processes
+Title: Clustering and Prediction with Multi-Task Gaussian Processes
 Version: 0.0.0.9000
 Authors@R: 
     person(given = "Arthur",
@@ -19,12 +19,11 @@ Imports:
     dplyr,
     ggplot2,
     magrittr,
-    maotai,
     MASS,
     methods,
     mvtnorm,
     optimr,
-    purrr,
+    Rcpp,
     rlang,
     stats,
     tibble,
@@ -34,6 +33,11 @@ Suggests:
     knitr,
     testthat (>= 3.0.0),
     plotly,
-    gganimate
+    gganimate,
+    gifski,
+    png,
+    transformr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+LinkingTo: 
+    Rcpp

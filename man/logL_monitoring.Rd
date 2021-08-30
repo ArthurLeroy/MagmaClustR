@@ -52,7 +52,7 @@ Log-Likelihood for monitoring the EM algorithm in Magma
 \examples{
 db <- simu_db(N = 10, common_input = TRUE)
 m_0 <- rep(0, 10)
-hp_0 <- tibble::tibble(variance = 1, lengthscale = 0.5)
+hp_0 <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 hp_i <- MagmaClustR:::hp('SE', unique(db$ID))
 post_mean <- tibble::tibble(Input = unique(db$Input), Output = 5)
 post_cov <- kern_to_cov(unique(db$Input), 'SE', hp_0)

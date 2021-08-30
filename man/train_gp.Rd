@@ -14,7 +14,7 @@ train_gp(
 )
 }
 \arguments{
-\item{data}{A tibble or data frame. Columns required: \code{Input},
+\item{data}{A tibble or data frame. Required columns: \code{Input},
 \code{Output}. Additional columns for covariates can be specified.
 The \code{Input} column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
@@ -27,7 +27,9 @@ each reference \code{Input}.}
 \item{ini_hp}{A named vector, tibble or data frame of hyper-parameters
 associated with the \code{kern} of the new individual/task.
 The columns should be named according to the hyper-parameters that are
-used in \code{kern}.}
+used in \code{kern}. In cases where the model includes a noise term,
+\code{ini_hp} should contain an additional 'noise' column. If NULL
+(default), random values are used as initialisation.}
 
 \item{kern}{A kernel function, defining the covariance structure of the GP.
 Several popular kernels
@@ -37,8 +39,15 @@ following list:
 \itemize{
 \item "SE": (default value) the Squared Exponential Kernel (also called
 Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
 \item{post_mean}{Hyper-posterior mean parameter of the mean GP. Typically,
@@ -52,7 +61,7 @@ formats, such as:
 \code{data} argument. This vector would be considered as the evaluation
 of the hyper-posterior mean function at the training Inputs.
 \item A function. This function is defined as the hyper-posterior mean.
-\item A tibble or data frame. Columns required: Input, Output. The Input
+\item A tibble or data frame. Required columns: Input, Output. The Input
 values should include at least the same values as in the \code{data}
 argument.
 }}

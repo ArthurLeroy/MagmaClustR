@@ -16,15 +16,15 @@ hyperposterior(
 )
 }
 \arguments{
-\item{data}{A tibble or data frame. Columns required: \code{Input},
-\code{Output}. Additional columns for covariates can be specified.
-The \code{Input} column should define the variable that is used as
+\item{data}{A tibble or data frame. Required columns: 'Input',
+'Output'. Additional columns for covariates can be specified.
+The 'Input' column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
-\code{Output} column specifies the observed values (the response
+'Output' column specifies the observed values (the response
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference \code{Input}.}
+each reference 'Input'.}
 
 \item{hp_0}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_0}.}
@@ -32,9 +32,27 @@ associated with \code{kern_0}.}
 \item{hp_i}{A tibble or data frame of hyper-parameters
 associated with \code{kern_i}.}
 
-\item{kern_0}{A kernel function, associated with the mean GP.}
+\item{kern_0}{A kernel function, associated with the mean GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+}}
 
-\item{kern_i}{A kernel function, associated with the individual GPs.}
+\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
+"PERIO" and "RQ" are aso available here)}
 
 \item{prior_mean}{Hyper-prior mean parameter of the mean GP. This argument,
 can be specified under various formats, such as:
@@ -45,7 +63,7 @@ can be specified under various formats, such as:
 \code{data} argument. This vector would be considered as the evaluation
 of the hyper-prior mean function at the training Inputs.
 \item A function. This function is defined as the hyper-prior mean.
-\item A tibble or data frame. Columns required: Input, Output. The Input
+\item A tibble or data frame. Required columns: Input, Output. The Input
 values should include at least the same values as in the \code{data}
 argument.
 }}
@@ -58,8 +76,9 @@ numerical issues when inverting nearly singular matrices.}
 }
 \value{
 A named list, containing the elements \code{mean}, a tibble
-containing the Input and associated Output of the hyper-posterior's mean
-parameter, and \code{cov}, the hyper-posterior's covariance matrix.
+containing the 'Input' and associated 'Output' of the hyper-posterior's mean
+parameter (and a column 'Var' for displaying uncertainty in visualisations),
+and \code{cov}, the hyper-posterior's covariance matrix.
 }
 \description{
 Compute the parameters of the hyper-posterior Gaussian distribution of the

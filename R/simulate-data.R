@@ -30,13 +30,16 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
     "Output" = mvtnorm::rmvnorm(
       1,
       mean + covariate,
-      kern_to_cov(input, kern, tibble::tibble(variance = v, lengthscale = l)) +
+      kern_to_cov(
+        input,
+        kern,
+        tibble::tibble(se_variance = v, se_lengthscale = l)) +
         diag(sigma, length(input), length(input))
     ) %>% as.vector(),
     "Input" = input,
     "Covariate" = covariate,
-    "variance" = v,
-    "lengthscale" = l,
+    "se_variance" = v,
+    "se_lengthscale" = l,
     "noise" = sigma
   )
   return(db)
@@ -68,32 +71,35 @@ draw <- function(int){
 #'
 #' @param M An integer. The number of individual.
 #' @param N An integer. The number of observations per individual.
+#' @param covariate A logical value indicating whether the dataset should
+#'    include an additional covariate named 'Covariate'.
 #' @param grid A vector of numbers defining a grid of observations
-#' (i.e. the reference inputs).
-#' @param common_input A logical value indicating whether the reference inputs are
-#'  common to all individual.
+#'    (i.e. the reference inputs).
+#' @param common_input A logical value indicating whether the reference inputs
+#'    are common to all individual.
 #' @param common_hp  A logical value indicating whether the hyper-parameters are
-#'  common to all individual.
+#'   common to all individual.
 #' @param add_hp A logical value indicating whether the values of
-#' hyper-parameters should be added as columns of the dataset.
+#'    hyper-parameters should be added as columns of the dataset.
 #' @param kern_0 A kernel function, associated with the mean process.
 #' @param kern_i A kernel function, associated with the individual processes.
 #' @param int_mu_v A vector of 2 numbers, defining an interval of admissible
-#' values for the variance hyper-parameter of the mean process' kernel.
+#'    values for the variance hyper-parameter of the mean process' kernel.
 #' @param int_mu_l A vector of 2 numbers, defining an interval of admissible
-#' values for the lengthscale hyper-parameter of the mean process' kernel.
+#'    values for the lengthscale hyper-parameter of the mean process' kernel.
 #' @param int_i_v A vector of 2 numbers, defining an interval of admissible
-#' values for the variance hyper-parameter of the individual process' kernel.
+#'    values for the variance hyper-parameter of the individual process' kernel.
 #' @param int_i_l A vector of 2 numbers, defining an interval of admissible
-#' values for the lengthscale hyper-parameter of the individual process' kernel.
+#'    values for the lengthscale hyper-parameter of the individual process'
+#'    kernel.
 #' @param int_i_sigma A vector of 2 numbers, defining an interval of admissible
-#' values for the noise hyper-parameter.
+#'    values for the noise hyper-parameter.
 #' @param m0_intercept A vector of 2 numbers, defining an interval of admissible
-#' values for the intercept of m0.
+#'    values for the intercept of m0.
 #' @param m0_slope A vector of 2 numbers, defining an interval of admissible
-#' values for the slope of m0.
-#' @param covariate A vector of 2 numbers, defining an interval of admissible
-#' values for the covariate inputs.
+#'    values for the slope of m0.
+#' @param int_covariate A vector of 2 numbers, defining an interval of
+#'    admissible values for the covariate inputs.
 #'
 #' @return A full dataset of simulated training data.
 #' @export
@@ -107,6 +113,7 @@ draw <- function(int){
 #' }
 simu_db <- function(M = 10,
                     N = 10,
+                    covariate = T,
                     grid = seq(0, 10, 0.05),
                     common_input = T,
                     common_hp = T,
@@ -120,7 +127,7 @@ simu_db <- function(M = 10,
                     int_i_sigma = c(0, 1),
                     m0_slope =  c(-2, 2),
                     m0_intercept = c(0, 10),
-                    covariate = c(-5, 5)) {
+                    int_covariate = c(-5, 5)) {
   m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
   mu_v <- draw(int_mu_v)
   mu_l <- draw(int_mu_l)
@@ -151,7 +158,8 @@ simu_db <- function(M = 10,
       dplyr::filter(.data$Input %in% t_i) %>%
       dplyr::pull(.data$Output)
 
-    covariate_i <- stats::runif(N, covariate[1], covariate[2]) %>% round(2)
+    covariate_i <- stats::runif(N, int_covariate[1], int_covariate[2]) %>%
+      round(2)
 
     simu_indiv_se(
       as.character(i),
@@ -167,7 +175,13 @@ simu_db <- function(M = 10,
   }
   db = sapply(seq_len(M), floop, simplify = F, USE.NAMES = T) %>%
     dplyr::bind_rows()
-  if(!add_hp){db = db %>% dplyr::select(- c('variance', 'lengthscale', 'noise'))}
+  if(!add_hp){
+    db = db %>% dplyr::select(- c('se_variance', 'se_lengthscale', 'noise'))
+  }
+
+  if(!covariate){
+    db = db %>% dplyr::select(- .data$Covariate)
+  }
 
   return(db)
 }

@@ -4,7 +4,7 @@
 \alias{kern_to_cov}
 \title{Create covariance matrix from a kernel}
 \usage{
-kern_to_cov(input, kern = "SE", hp, deriv = NULL)
+kern_to_cov(input, kern = "SE", hp, deriv = NULL, input_2 = NULL)
 }
 \arguments{
 \item{input}{A vector, matrix, data frame or tibble containing all inputs for
@@ -21,17 +21,31 @@ following list:
 \itemize{
 \item "SE": (default value) the Squared Exponential Kernel (also called
 Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
 \item{hp}{A list, data frame or tibble containing the hyper-parameters used
 in the kernel. The name of the elements (or columns) should correspond
-exactly to those used in the kernel definition.}
+exactly to those used in the kernel definition. If \code{hp} contains an
+element or a column 'Noise', its value will be added on the diagonal of
+the covariance matrix.}
 
 \item{deriv}{A character, indicating according to which hyper-parameter the
-derivative should be computed. If NULL (defaut), the function simply returns
-the covariance matrix.}
+derivative should be computed. If NULL (defaut), the function simply
+returns the covariance matrix.}
+
+\item{input_2}{(optional) A vector, matrix, data frame or tibble under the
+same format as \code{input}. This argument should be used only when the
+kernel needs to be evaluated between two different sets of inputs,
+typically resulting in a non-square matrix.}
 }
 \value{
 A covariance matrix, where elements are evaluations of the associated
@@ -48,6 +62,6 @@ structure of a GP, defined thanks to this kernel.
 kern_to_cov(
   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
   "SE",
-  tibble::tibble(variance = 1, lengthscale = 0.5)
+  tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 )
 }
