@@ -1,0 +1,49 @@
+---
+title: "Plot"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Plot}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<div style="text-align: justify"> 
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r include = FALSE}
+library(MagmaClustR)
+```
+
+```{r}
+db <- simu_db(M = 1, N = 10, covariate = FALSE)
+grid_inputs <- seq(0, 10, 0.1)
+all_input <- union(db$Input, grid_inputs) %>% sort()
+hyperpost <- list(
+  "mean" = tibble::tibble(Input = all_input, Output = 0),
+  "cov" = kern_to_cov(all_input, "SE", hp("SE"))
+)
+
+plot(x = db$Input,y = db$Output, 'b')
+
+pred_magma(db, grid_inputs = grid_inputs, hyperpost = hyperpost)
+
+
+```
+```{r}
+db <- simu_db(M = 1, covariate = FALSE)
+plot(x = db$Input,y = db$Output, 'b')
+
+hp = train_gp(db)
+pred_gp(db, get_full_cov = TRUE, plot = TRUE) %>%
+sample_gp(data = db)
+
+```
+
+
+</div>

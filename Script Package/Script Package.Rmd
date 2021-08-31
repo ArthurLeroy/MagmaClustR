@@ -1,0 +1,130 @@
+---
+title: "Script Package"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+<div style="text-align: justify"> 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MagmaClustR)
+```
+
+# Using MagmaClustR
+
+The *MagmaClustR* package provides functions to 2 différents algorithms based on Gaussian processes (GPs), **MAGMA** and **MAGMACLUST**. 
+
+**MAGMA** (standing for Multi tAsk Gaussian processes with common MeAn) propose a multi-task Gaussian process framework to simultaneously model batches of individuals with a common mean function and a specific covariance structure. This common mean is defined as a Gaussian process for which the hyper-posterior distribution is tractable. Therefore an EM algorithm can be derived for simultaneous hyper-parameters optimisation and hyper-posterior computation. 
+
+While **MAGMACLUST** is introduced to simultaneously handle multi-task learning, clustering, and prediction for multiple functional data. This procedure acts as a model-based clustering method for functional data as well as a learning step for subsequent predictions for new tasks. The model is instantiated as a mixture of multi-task GPs with common mean processes. A variational EM algorithm is derived for dealing with the optimisation of the hyper-parameters along with the hyper-posteriors’ estimation of latent variables and processes
+
+**MAGMA** is a model where the specific covariance structure of each individual is defined through a kernel and its associated set of hyper-parameters. So to speed-up computations of the stationary kernel, some of the computational parts of the package are implemented in C++ through the use of the Rcpp package.
+
+
+## MAGMA
+
+The magma part of the package use a lot of function to make its prediction. They can be classified as follows :
+
+- The kernels
+- The modification of the kernel to create matrix (or kernel-to-matrices in the package)
+- The likelihoods
+- The gradients
+- The EM algorithm
+- The training of the data
+- The prediction of future timestamps thank to the training of our data
+- The plot functions, to have graphic
+
+### 1. Data structure
+
+The structure of the data is a tibble or a data frame. There are 3 Required columns that must be
+identifiable by their names as *ID*, *Input* and *Output*. Additional columns for covariates can be specified.
+
+The *ID* column contains the unique names/codes used to identify each individual/task (or batch of data).
+
+The *Input* column should define the variable that is used as reference for the observations (e.g. time for longitudinal data). 
+
+The *Output* column specifies the observed values (the response variable). 
+
+The data frame can also provide as many covariates as desired,  with no constraints on the column names. These covariates are additional inputs (explanatory variables) of the models that are also observed at each reference *Input*.
+
+In case of a simulation, the function *simu_db* can be use, the number of individual and observations per individual can be change as will. It will create by default a batch of data with 10 individuals and 10 observations by individuals.
+
+```{r}
+simu_db()
+```
+
+### 2. The Hyper-parameters and kernels Structure
+
+The hyper-parameters chosen have to be adapted to the kernels chosen. Any kernels function can be created but 4 are available by default, and can be called by a character string. 
+
+- "SE": the Squared Exponential kernel,
+- "LIN": the Linear kernel,
+- "PERIO": the Periodic kernel,
+- "RQ": the Rational Quadratic kernel.
+
+Compound kernels can be created as sums or products of the above kernels. For combining kernels, simply provide a formula as a character string where elements are separated by whitespaces (e.g. "SE + PERIO"). As the elements are treated sequentially from the left to the right, the product operator shall always be used before the sum operators (e.g. 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+
+
+The EM algorithm use the partial derivative of the kernel by each hyper-parameters. If not provide, they can be compute, but this will take more time and is less precise.
+
+If the kernels chosen is not one of the 4 above, it is recommended to add a parameters *deriv* of your function kernel which can be NULL or hyper-parameter's name for the derivative of this hyper-parameter.
+
+In case of a simulation, like the database, a function can be use to simulate the hyper-parameters. By default, the hyper-parameters are chosen for the Squared Exponential kernel but you can chose any of the 4 predefined or your own. 
+
+```{r}
+hp()
+hp("PERIO")
+```
+
+### 3. Training Magma with an EM algorithm
+
+The hyper-parameters and the hyper-posterior distribution involved in Magma can be learned thanks to an EM algorithm implemented in the function *train_magma*. By providing a dataset, the model hypotheses (hyper-prior mean parameter and covariance kernels) and initialisation values for the hyper-parameters, the function computes maximum likelihood estimates of the HPs as well as the mean and covariance parameters of the Gaussian hyper-posterior distribution of the mean process.
+
+```{r}
+db = simu_db()
+train_magma(db)
+```
+
+As we can see above, just the database is sufficient to train your model. However, you can change all the parameters. In particular you can chose the initial value of the mean process' kernel and of the individual processes' kernel. Furthermore, the kernel of the mean process and of the individuals are set to the Squared Exponential Kernel, but can be change as please. 
+
+Learning hyper-parameters of any new individual/task in **MAGMA** is required in the prediction procedure. This function *train_gp* can be used to learn the hyper-parameters of a simple GP (just ignore the *post_cov* argument and consider the *post_mean* argument as the  GP's mean parameter). When  using within **MAGMA**, by providing data for the new individual/task, the trained model (hyper-posterior mean and  covariance parameters) and initialisation values for the hyper-parameters, the function computes maximum likelihood estimates of the hyper-parameters. As above for *train_magma*, the function *train_gp* can be use with only your database as input but you can change the initial value of your hyper-parameters. 
+
+```{r}
+db = simu_db(M = 1, N = 10)
+train_gp(db)
+```
+
+```{r}
+ini_hp = hp('SE')
+post_mean = tibble::tibble('Input' = db$Input, 'Output' = 1:10)
+post_cov = kern_to_cov(db$Input, 'SE', hp('SE'))
+```
+```{r}
+train_gp(db, ini_hp, 'SE', post_mean, post_cov)
+```
+
+### 4. Prediction with our trained database
+
+Most of the computing time is in the training part. So the prediction of your different dataset can be made with the same trained model. It is convenient if a lot of prediction is planned. 
+
+
+Thus, the function *pred_magma* compute the posterior predictive distribution in Magma. Providing data of any new inividual/task, its trained hyper-parameters and a previously trained Magma model, the predictive distribution is evaluated on any arbitrary inputs that are specified through the 'grid_inputs' argument.
+
+```{r}
+db <- simu_db(M = 1, N = 10, covariate = FALSE)
+grid_inputs <- seq(0, 10, 0.1)
+all_input <- union(db$Input, grid_inputs) %>% sort()
+hyperpost <- list(
+  "mean" = tibble::tibble(Input = all_input, Output = 0),
+   "cov" = kern_to_cov(all_input, "SE", hp("SE"))
+ )
+
+pred_magma(db, grid_inputs = grid_inputs, hyperpost = hyperpost)
+```
+
+
+### 5. Plot of the prediction / GP
+
+</div>
