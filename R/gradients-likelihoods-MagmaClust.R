@@ -72,12 +72,14 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #' @examples
 gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 {
+  #browser()
   if('ID' %in% names(hp)){
     hp <- hp %>% dplyr::select(- .data$ID)
   }
 
   list_ID_k = names(db)
   list_hp <- names(hp)
+  #if(list_hp %>% utils::tail(1) == "pi"){list_hp = list_hp[list_hp != "pi"]}
 
   ## Extract the i-th specific reference Input
   input_k <- db[[1]] %>%
@@ -119,7 +121,7 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
        return()
   }
 
-  sapply(list_ID_k, funloop) %>%
+  sapply(list_ID_k, funloop) %>% rowSums() %>%
     return()
 
 }
@@ -141,7 +143,6 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 #' @examples
 gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NULL)
 {
-  #browser()
   list_hp <- names(hp)
   names_k = mu_k_param$mean %>% names()
 

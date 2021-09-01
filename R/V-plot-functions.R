@@ -4,7 +4,7 @@
 #' @param cluster boolean indicating whether you want cluster or not
 #' @param legend boolean indicating whether want legend or not
 #'
-#' @return
+#' @return TRUE
 #' @export
 #'
 #' @examples

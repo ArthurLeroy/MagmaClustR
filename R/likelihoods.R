@@ -112,6 +112,10 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' post_cov = kern_to_cov(1:5, 'SE', hp)
 #' MagmaClustR:::logL_GP_mod(hp, db, mean, "SE", post_cov, 0.001)
 logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
+  #browser()
+
+  if(length(mean) == 1){mean = rep(mean, nrow(db))} ## mean is equal for all timestamps
+
   ## Extract the input variables (reference Input + Covariates)
   inputs <- db %>% dplyr::select(-.data$Output)
   ## Compute the inverse of the covariance matrix

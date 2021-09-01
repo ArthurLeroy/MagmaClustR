@@ -47,10 +47,21 @@
 #' @export
 #'
 #' @examples
+#' k = seq_len(3)
+#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+#'
+#' db <- simu_db(N = 10, common_input = TRUE)
+#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#'
+#' train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+
 train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
                         kern_0, kern_i, ini_tau_i_k = NULL,
-                        common_hp_k = T, common_hp_i = T, pen_diag)
+                        common_hp_k = F, common_hp_i = F, pen_diag)
 {
+  browser()
   n_loop_max = 15
   list_ID = unique(data$ID)
   ID_k = names(prior_mean_k)
@@ -60,7 +71,7 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
   cv = 'FALSE'
   if(is.null(ini_tau_i_k)){ini_tau_i_k = ini_tau_i_k(data, k = length(ID_k), nstart = 50)}
   tau_i_k = ini_tau_i_k
-  hp[['pi_k']] = sapply( tau_i_k, function(x) x %>% unlist() %>% mean() )
+  hp_k[['pi']] = sapply( tau_i_k, function(x) x %>% unlist() %>% mean() )
   logLL_monitoring = - Inf
   t1 = Sys.time()
 

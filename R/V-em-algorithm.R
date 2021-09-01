@@ -162,8 +162,8 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #'
 #' @examples
 #' ## Common inputs across individuals and different HPs
-#' k = seq_len(3)
-#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+#' k = seq_len(4)
+#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0, "K4" = 0)
 #'
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
@@ -188,6 +188,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
 
   list_hp_k <- old_hp_k %>%
     dplyr::select(-.data$ID) %>%
+    dplyr::select(-pi) %>%
     names()
 
   if(common_hp_i)
@@ -197,9 +198,8 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       dplyr::select(-.data$ID) %>%
       dplyr::slice(1)
 
-    #print(par_i)
 
-    param = optimr::opm(
+    new_theta_i <- optimr::opm(
       par = par_i,
       fn = logL_clust_multi_GP_common_hp_i,
       gr = gr_clust_multi_GP_common_hp_i,
@@ -215,10 +215,6 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
         tidyr::uncount(weights = length(list_ID_i)) %>%
         dplyr::mutate('ID' = list_ID_i, .before = 1)
 
-    new_theta_i = param %>%
-      list() %>%
-      rep(length(list_ID_i))  %>%
-      stats::setNames(nm = list_ID_i)
   }
   else {
     loop2 = function(i) {
@@ -252,14 +248,22 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
 
   if(common_hp_k)
   {
-    param = c(optimr::opm(
-      par = old_hp_k %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
+    ## Extract the hyper-parameters associated with the k-th cluster
+    par_k <- old_hp_k %>%
+      dplyr::select(-.data$ID) %>%
+      dplyr::slice(1) %>%
+      dplyr::select(-pi)
+
+    #browser()
+
+    new_theta_k <- optimr::opm(
+      par = par_k,
       fn = logL_GP_mod_common_hp_k,
       gr = gr_GP_mod_common_hp_k,
       db = list_mu_param$mean,
       mean = m_k,
       kern = kern_0,
-      new_cov = list_mu_param$cov,
+      post_cov = list_mu_param$cov,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
       control = list(kkt = F)
@@ -267,13 +271,13 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
         dplyr::select(list_hp_k) %>%
         tibble::as_tibble() %>%
         tidyr::uncount(weights = length(list_ID_k)) %>%
-        dplyr::mutate('ID' = list_ID_k, .before = 1),
-      pen_diag)
+        dplyr::mutate('ID' = list_ID_k, .before = 1) %>%
+        dplyr::mutate("pen_diag" = pen_diag)
 
-    new_theta_k = param %>%
-      list() %>%
-      rep(length(list_ID_k))  %>%
-      stats::setNames(nm = list_ID_k)
+
+    #browser()
+
+
   }
   else
   {
@@ -281,14 +285,16 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       ## Extract the hyper-parameters associated with the k-th cluster
       par_k <- old_hp_k %>%
         dplyr::filter(.data$ID == k) %>%
-        dplyr::select(-.data$ID)
+        dplyr::select(-.data$ID) %>%
+        dplyr::select(-pi)
       ## Extract the data associated with the k-th cluster
       db_k <- list_mu_param$mean[[k]]
       ## Extract the mean values associated with the k-th specific inputs
       mean_k <- m_k[[k]]
       ## Extract the covariance values associated with the k-th specific inputs
-      new_cov_k <- list_mu_param$cov[[k]]
+      post_cov_k <- list_mu_param$cov[[k]]
 
+      #browser()
       ## Optimise hyper-parameters of the individual processes
       c(optimr::opm(
         par = par_k,
@@ -297,7 +303,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
         db = db_k,
         mean = mean_k,
         kern = kern_0,
-        new_cov = new_cov_k,
+        post_cov = post_cov_k,
         pen_diag = pen_diag,
         method = "L-BFGS-B",
         control = list(kkt = FALSE)
@@ -307,9 +313,14 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
           pen_diag) %>%
           return()
     }
+
+    #browser()
+
     new_theta_k = sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
-      tidyr::unnest(cols = .data$value)
+      tidyr::unnest_auto(.data$value) %>%
+      dplyr::rename_at(dplyr::vars(names(.) %>%
+      utils::tail(1)),dplyr::funs(paste('pen_diag')) )
 
   }
 

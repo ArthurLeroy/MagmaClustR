@@ -49,7 +49,7 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mean list of the k means of the GP at union of observed timestamps
 #' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
-#' @param new_cov list of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term)
+#' @param post_cov list of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term)
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
@@ -58,10 +58,11 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #' @export
 #'
 #' @examples
-logL_GP_mod_common_hp_k = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
+logL_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 {
   ## To avoid pathological behaviour of the opm optimization function in rare cases
   #if((hp %>% abs %>% sum) > 20){return(10^10)}
+  #browser()
 
   list_ID_k = names(db)
   #t_k = db[[1]] %>% dplyr::pull(.data$Input)
@@ -77,7 +78,7 @@ logL_GP_mod_common_hp_k = function(hp, db, mean, kern, new_cov, pen_diag = NULL)
     y_k = db[[k]] %>% dplyr::pull(.data$Output)
 
     LL_norm = LL_norm - dmnorm(y_k, rep(mean[[k]], length(t_k)), inv, log = T)
-    cor_term = cor_term + 0.5 * (inv * new_cov[[k]]) %>% sum()  ##(0.5 * Trace(inv %*% new_cov))
+    cor_term = cor_term + 0.5 * (inv * post_cov[[k]]) %>% sum()  ##(0.5 * Trace(inv %*% post_cov))
   }
   return(LL_norm + cor_term)
 }

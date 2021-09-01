@@ -53,8 +53,11 @@ should be named according to the hyper-parameters that are used in
 numerical issues when inverting nearly singular matrices.}
 }
 \value{
-
+TRUE
 }
 \description{
 Selection of the model
+}
+\examples{
+TRUE
 }
