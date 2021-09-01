@@ -68,7 +68,7 @@ post <- MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
 
 MagmaClustR:::m_step(
   db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov,
-  FALSE, 0.1
+  TRUE, 0.1
 )
 
 ## Common inputs across individuals and common HPs

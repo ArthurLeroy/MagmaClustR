@@ -61,12 +61,12 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
                         kern_0, kern_i, ini_tau_i_k = NULL,
                         common_hp_k = F, common_hp_i = F, pen_diag)
 {
-  browser()
+  #browser()
   n_loop_max = 15
   list_ID = unique(data$ID)
   ID_k = names(prior_mean_k)
-  hp_k = ini_hp_k %>% list() %>% rep(length(ID_k))  %>% stats::setNames(nm = ID_k)
-  hp_i = ini_hp_i %>% list() %>% rep(length(list_ID))  %>% stats::setNames(nm = list_ID)
+  hp_k = ini_hp_k # %>% list() %>% rep(length(ID_k))  %>% stats::setNames(nm = ID_k)
+  hp_i = ini_hp_i # %>% list() %>% rep(length(list_ID))  %>% stats::setNames(nm = list_ID)
 
   cv = 'FALSE'
   if(is.null(ini_tau_i_k)){ini_tau_i_k = ini_tau_i_k(data, k = length(ID_k), nstart = 50)}
@@ -82,7 +82,7 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
     param = e_step_VEM(data, prior_mean_k, kern_0, kern_i, hp_k, hp_i, tau_i_k, pen_diag)
 
     ## Monitoring of the LL
-    new_logLL_monitoring = logL_monitoring_VEM(hp_k, hp_i, data, kern_i, kern_0, mu_k_param = param , m_k = prior_mean_k)
+    new_logLL_monitoring = logL_monitoring_VEM(hp_k, hp_i, data, kern_i, kern_0, mu_k_param = param , m_k = prior_mean_k, pen_diag)
     #0.5 * (length(param$cov) * nrow(param$cov[[1]]) +
     #Reduce('+', lapply(param$cov, function(x) log(det(x)))) )
     print(new_logLL_monitoring)
@@ -121,11 +121,56 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
     logLL_monitoring = new_logLL_monitoring
   }
   t2 = Sys.time()
-  list('hp_0' = hp_k, 'hp_i' = hp_i, 'pi_k' = pi_k,
+  list('hp_k' = hp_k, 'hp_i' = hp_i, 'pi_k' = pi_k,
        'convergence' = cv,  'param' = param,
        'Training_time' =  difftime(t2, t1, units = "secs")) %>%
     return()
 }
+
+#' Update tau star k EM
+#'
+#' @param db data
+#' @param hp hp
+#' @param pi_k pi
+#' @param mean_k mean
+#' @param cov_k cov
+#' @param kern kernel
+#'
+#' @return update tau star
+#' @export
+#'
+#' @examples
+#' TRUE
+update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
+{
+  browser()
+  names_k = names(mean_k)
+  c_k = 0
+  mat_logL = rep(NA, length(names_k))
+
+  ## Extract the specific inputs
+    input_i <- db %>%
+      dplyr::pull(.data$Input)
+
+  pi = unlist(pi_k)
+
+  for(k in names_k)
+  {
+    c_k = c_k + 1
+
+    mean = mean_k[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
+    cov =  (kern_to_cov(db$Input, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] )
+    inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
+
+    mat_logL[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
+  }
+  ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
+  mat_L = exp(mat_logL - max(mat_logL))
+
+  ((pi * mat_L)/ sum(pi * mat_L)) %>% as.vector %>% split(names_k) %>% return()
+
+}
+
 
 #' Training new GP with the EM algorithm
 #'
@@ -151,8 +196,28 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
 #' @export
 #'
 #' @examples
+#' k = seq_len(3)
+#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+#'
+#' db <- simu_db(N = 10, common_input = TRUE)
+#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+
+#' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#'
+#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#'
+#' timestamps = seq(0.01, 10, 0.01)
+#' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
+#'
+#'
+#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#'
+#' train_new_gp_EM(db, mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
 train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
 {
+  browser()
   mean_mu_k = param_mu_k$mean
   cov_mu_k = param_mu_k$cov
   pi_k = lapply(param_mu_k$tau_i_k, function(x) Reduce("+", x)/ length(x))
@@ -163,27 +228,31 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
 
     for(i in 1:n_loop_max)
     {
+      ## Extract the specific inputs
+      #input_i <- data %>%
+      #  dplyr::pull(.data$Input)
       ## E step
-      names_k = names(mean_mu_k)
-      c_k = 0
-      mat_logL = rep(NA, length(names_k))
-      t_i = data %>% dplyr::pull(.data$Input)
-      pi = unlist(pi_k)
+      # names_k = names(mean_mu_k)
+      # c_k = 0
+      # mat_logL = rep(NA, length(names_k))
+      # pi = unlist(pi_k)
+      #
+      # for(k in names_k)
+      # {
+      #   c_k = c_k + 1
+      #
+      #   mean = mean_mu_k[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
+      #   cov =  (kern_to_cov(data$Input, kern_i, hp) + cov_mu_k[[k]][as.character(input_i), as.character(input_i)] )
+      #   inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
+      #
+      #   mat_logL[c_k] =  dmnorm(data %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
+      # }
+      # ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
+      # mat_L = exp(mat_logL - max(mat_logL))
+      #
+      # tau_k = ( ((pi * mat_L)/ sum(pi * mat_L)) %>% as.vector %>% split(names_k) )
 
-      for(k in names_k)
-      {
-        c_k = c_k + 1
-
-        mean = mean_mu_k[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
-        cov =  (kern_to_cov(data$Input, kern_i, hp) + cov_mu_k[[k]][paste0('X',t_i), paste0('X',t_i)] )
-        inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
-
-        mat_logL[c_k] =  dmnorm(data %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
-      }
-      ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
-      mat_L = exp(mat_logL - max(mat_logL))
-
-      tau_k = ( ((pi * mat_L)/ sum(pi * mat_L)) %>% as.vector %>% split(names_k) )
+      tau_k <- update_tau_star_k_EM(db, mean_mu_k, cov_mu_k, kern_i, hp, pi_k)
 
 
 
@@ -224,30 +293,31 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
   }
   else
   {
-    new_hp = hp_i$hp_i[[1]]
+    new_hp = hp_i %>% slice(1)
 
-    ## E step
-    names_k = names(mean_mu_k)
-    c_k = 0
-    mat_logL = rep(NA, length(names_k))
-    t_i = data %>% dplyr::pull(.data$Input)
-    pi = unlist(pi_k)
+    # ## E step
+    # names_k = names(mean_mu_k)
+    # c_k = 0
+    # mat_logL = rep(NA, length(names_k))
+    # input_i = data %>% dplyr::pull(.data$Input)
+    # pi = unlist(pi_k)
+    #
+    # for(k in names_k)
+    # {
+    #   c_k = c_k + 1
+    #
+    #   mean = mean_mu_k[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
+    #   cov =  (kern_to_cov(data$Input, kern_i, new_hp) + cov_mu_k[[k]][paste0('X',t_i), paste0('X',t_i)] )
+    #   inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
+    #
+    #   mat_logL[c_k] =  dmnorm(data %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
+    # }
+    # ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
+    # mat_L = exp(mat_logL - max(mat_logL))
+    #
+    # tau_k = ( ((pi * mat_L)/ sum(pi * mat_L)) %>% as.vector %>% split(names_k) )
 
-    for(k in names_k)
-    {
-      c_k = c_k + 1
-
-      mean = mean_mu_k[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
-      cov =  (kern_to_cov(data$Input, kern_i, new_hp) + cov_mu_k[[k]][paste0('X',t_i), paste0('X',t_i)] )
-      inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
-
-      mat_logL[c_k] =  dmnorm(data %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
-    }
-    ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
-    mat_L = exp(mat_logL - max(mat_logL))
-
-    tau_k = ( ((pi * mat_L)/ sum(pi * mat_L)) %>% as.vector %>% split(names_k) )
-
+    tau_k <- update_tau_star_k_EM(db, mean_mu_k, cov_mu_k, kern_i, new_hp, pi_k)
 
   }
   list('theta_new' = new_hp , 'tau_k' = tau_k) %>% return()

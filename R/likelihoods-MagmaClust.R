@@ -173,7 +173,7 @@ logL_monitoring_VEM = function(hp_k, hp_i, db, kern_i, kern_0, mu_k_param, m_k, 
 {
   floop = function(k)
   {
-    logL_GP_mod(hp_k[[k]], db = mu_k_param$mean[[k]], mean = m_k[[k]] , kern_0, mu_k_param$cov[[k]], pen_diag) %>%
+    logL_GP_mod(hp_k[hp_k$ID == k,], db = mu_k_param$mean[[k]], mean = m_k[[k]] , kern_0, mu_k_param$cov[[k]], pen_diag) %>%
       return()
   }
   sum_ll_k = sapply(names(m_k), floop) %>% sum()
@@ -181,7 +181,7 @@ logL_monitoring_VEM = function(hp_k, hp_i, db, kern_i, kern_0, mu_k_param, m_k, 
   floop2 = function(i)
   {
     t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-    logL_clust_multi_GP(hp_i[[i]], db %>% dplyr::filter(.data$ID == i), mu_k_param, kern_0) %>% return()
+    logL_clust_multi_GP(hp_i[hp_i$ID == i,], db %>% dplyr::filter(.data$ID == i), mu_k_param, kern_0, pen_diag) %>% return()
   }
   sum_ll_i = sapply(unique(db$ID), floop2) %>% sum()
   return(-sum_ll_k - sum_ll_i)

@@ -43,7 +43,6 @@
 #'
 e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag = NULL)
 {
-  #browser()
   pi_k = hp_k$pi
   all_t = unique(db$Input) %>% sort()
   t_clust = tibble::tibble('ID' = rep(names(m_k), each = length(all_t)),
@@ -272,7 +271,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
         tibble::as_tibble() %>%
         tidyr::uncount(weights = length(list_ID_k)) %>%
         dplyr::mutate('ID' = list_ID_k, .before = 1) %>%
-        dplyr::mutate("pen_diag" = pen_diag)
+        dplyr::mutate("pi" = pen_diag)
 
 
     #browser()
@@ -320,7 +319,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       tibble::enframe(name = "ID") %>%
       tidyr::unnest_auto(.data$value) %>%
       dplyr::rename_at(dplyr::vars(names(.) %>%
-      utils::tail(1)),dplyr::funs(paste('pen_diag')) )
+      utils::tail(1)),dplyr::funs(paste('pi')) )
 
   }
 

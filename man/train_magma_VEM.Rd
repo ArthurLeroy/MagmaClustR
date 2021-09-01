@@ -12,8 +12,8 @@ train_magma_VEM(
   kern_0,
   kern_i,
   ini_tau_i_k = NULL,
-  common_hp_k = T,
-  common_hp_i = T,
+  common_hp_k = F,
+  common_hp_i = F,
   pen_diag
 )
 }
@@ -75,4 +75,15 @@ or not.
 }
 \description{
 Training Magma with a Variation EM algorithm
+}
+\examples{
+k = seq_len(3)
+m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+
+db <- simu_db(N = 10, common_input = TRUE)
+hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+
+train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
 }

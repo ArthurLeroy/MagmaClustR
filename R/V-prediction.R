@@ -13,13 +13,14 @@
 #' @examples
 posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
 {
+  #browser()
   hp_i = list_hp$hp_i
   hp_k = list_hp$hp_k
   #for(k in names(hp_k)){hp_k[[k]][3] = 0.1}
   tau_i_k = list_hp$param$tau_i_k
   #t_clust = tibble::tibble('ID' = rep(names(hp_k), each = length(timestamps)) , 'Timestamp' = rep(timestamps, length(hp_k)))
-  t_clust = tibble::tibble('ID' = rep(names(hp_k), each = length(timestamps)) , 'Input' = rep(timestamps, length(hp_k)))
-  inv_k = kern_to_inv(t_clust, kern_0, hp_k)
+  t_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(timestamps)) , 'Input' = rep(timestamps, length(hp_k$ID)))
+  inv_k = list_kern_to_inv(t_clust, kern_0, hp_k)
   list_inv_i = list_kern_to_inv(db, kern_i, hp_i)
   value_i = base::split(db$Output, list(db$ID))
 
@@ -34,15 +35,21 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
       new_inv[common_times, common_times] = new_inv[common_times, common_times] +
         tau_i_k[[k]][[x]] * inv_i[common_times, common_times]
     }
-    tryCatch(solve(new_inv), error = function(e){MASS::ginv(new_inv)}) %>%
+    tryCatch(solve(new_inv), error = function(e){
+      s_inv<- MASS::ginv(new_inv)
+      colnames(s_inv) <- colnames(new_inv)
+      rownames(s_inv) <- rownames(new_inv)
+      s_inv
+      }) %>%
       return()
   }
-  cov_k = sapply(names(hp_k), floop, simplify = FALSE, USE.NAMES = TRUE)
+  cov_k = sapply(hp_k$ID, floop, simplify = FALSE, USE.NAMES = TRUE)
 
   floop2 = function(k)
   {
-    if(length(m_k[[k]]) == 1){m_k[[k]] = rep(m_k[[k]], ncol(inv_k[[k]]))}
-    weighted_mean = inv_k[[k]] %*% m_k[[k]]
+    prior_mean <- m_k[[k]]
+    if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(inv_k[[k]]))}
+    weighted_mean = inv_k[[k]] %*% prior_mean
     #row.names(weithed_mean) = row.names(inv_k[[k]])
 
     for(i in list_inv_i %>% names())
@@ -58,7 +65,7 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
     #tibble::tibble('Timestamp' = timestamps, 'Output' = new_mean) %>% return()
     tibble::tibble('Input' = timestamps, 'Output' = new_mean) %>% return()
   }
-  mean_k = sapply(names(hp_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
+  mean_k = sapply(hp_k$ID, floop2, simplify = FALSE, USE.NAMES = TRUE)
 
   #names(mean_mu) = paste0('X', t_mu)
   list('mean' = mean_k, 'cov' = cov_k, 'tau_i_k' = tau_i_k) %>% return()
