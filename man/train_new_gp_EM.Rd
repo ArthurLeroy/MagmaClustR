@@ -22,15 +22,26 @@ reference \code{Input}.}
 
 \item{param_mu_k}{list of parameters for the K mean Gaussian processes}
 
-\item{ini_hp_i}{your initial hyperparameters for your individuals}
+\item{ini_hp_i}{A tibble or data frame of hyper-parameters
+associated with \code{kern_i}, the individual processes' kernel.
+Required column : \code{ID}. The \code{ID} column contains the unique
+names/codes used to identify each individual/task. The other columns
+should be named according to the hyper-parameters that are used in
+\code{kern_i}.}
 
-\item{kern_i}{A kernel function, associated with the individual GPs.}
+\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
+"PERIO" and "RQ" are also available here).}
 
 \item{hp_i}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_i}.}
 }
 \value{
-list of trained HP, tau_k
+A list, containing the results of the EM algorithm used for training
+in MagmaClust. The elements of the list are:
+\itemize{
+\item theta_new :
+\item tau_k :
+}
 }
 \description{
 Training new GP with the EM algorithm
@@ -39,7 +50,7 @@ Training new GP with the EM algorithm
 k = seq_len(3)
 m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-db <- simu_db(N = 10, common_input = TRUE)
+db <- simu_db(N = 10, common_input = F)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))

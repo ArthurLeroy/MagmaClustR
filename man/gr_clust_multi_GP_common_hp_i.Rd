@@ -20,7 +20,7 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-gradient of modified gaussian processes for clustering
+The value of the modified Gaussian log-likelihood for one GP as it appears in the model.
 }
 \description{
 Modified common Gaussian Process for each variations.

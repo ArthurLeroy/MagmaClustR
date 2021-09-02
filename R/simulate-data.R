@@ -209,7 +209,7 @@ ini_kmeans = function(db, k, nstart = 50, summary = F)
              'Output' = c(min(obs_i), mean(obs_i) , max(obs_i)) ) %>%
         return()
     }
-    db_regular = unique(db$ID) %>% lapply(floop) %>% dplyr::bind_rows %>%
+    db_regular = unique(db$ID) %>% lapply(floop) %>% dplyr::bind_rows() %>%
       dplyr::select(c(.data$ID, .data$Input, .data$Output))
 
   }

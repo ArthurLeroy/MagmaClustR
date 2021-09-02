@@ -22,23 +22,39 @@ full_algo_clust(
 )
 }
 \arguments{
-\item{db}{Database containing all training data from all individuals. Column: ID - Input - Output.}
-
 \item{new_db}{Database containing data for a new individual we want a prediction on.}
 
 \item{timestamps}{Timestamps we want to predict at.}
 
-\item{kern_i}{Kernel associated to individual GPs.}
+\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
+"PERIO" and "RQ" are aso available here)}
 
 \item{ini_tau_i_k}{Initial probability to belong to each cluster for individuals. Optional, if list_hp is given}
 
-\item{common_hp_k}{boolean indicating whether hp are common among mean GPs (for each mu_k)}
+\item{common_hp_k}{A boolean indicating whether hp are common among mean GPs (for each mu_k)}
 
-\item{common_hp_i}{boolean indicating whether hp are common among individual GPs (for each y_i)}
+\item{common_hp_i}{A boolean indicating whether hp are common among individual GPs (for each y_i)}
 
 \item{prior_mean}{Prior arbitrary value for the mean process. Optional, not needed if 'mu' is given.}
 
-\item{kern_0}{Kernel associated to the mean GPs. Optional, not needed if 'mu' is given.}
+\item{kern_0}{A kernel function, associated with the mean GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+}}
 
 \item{list_hp}{Hyper-parameters for all individuals in training set. Optional, computed if NULL.}
 
@@ -57,6 +73,18 @@ should be named according to the hyper-parameters that are used in
 \code{kern_i}.#' @param hp_new_i Hyper-pameters for the new individual to predict. Optional, computed if NULL.}
 
 \item{hp_new_i}{Hyper-pameters for the new individual to predict. Optional, computed if NULL.}
+
+\item{data}{A tibble or data frame. Required columns: \code{ID}, \code{Input}
+, \code{Output}. Additional columns for covariates can be specified.
+The \code{ID} column contains the unique names/codes used to identify each
+individual/task (or batch of data).
+The \code{Input} column should define the variable that is used as
+reference for the observations (e.g. time for longitudinal data). The
+\code{Output} column specifies the observed values (the response
+variable). The data frame can also provide as many covariates as desired,
+with no constraints on the column names. These covariates are additional
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
 }
 \value{
 predicted GP parameters | posterior mean process | all trained hyperparameters

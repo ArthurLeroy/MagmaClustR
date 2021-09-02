@@ -7,9 +7,9 @@
 logL_monitoring_VEM(hp_k, hp_i, db, kern_i, kern_0, mu_k_param, m_k, pen_diag)
 }
 \arguments{
-\item{hp_k}{A tibble, data frame or name vector of hyper-parameters at corresponding variations.}
+\item{hp_k}{A tibble, data frame or name vector of hyper-parameters at corresponding clusters.}
 
-\item{hp_i}{A tibble, data frame or name vector of hyper-parameters at corresponding inputs.}
+\item{hp_i}{A tibble, data frame or name vector of hyper-parameters at corresponding individuals.}
 
 \item{db}{A tibble containing values we want to compute logL on.
 Required columns: Input, Output. Additional covariate columns are allowed.}

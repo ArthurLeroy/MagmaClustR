@@ -2,7 +2,7 @@
 % Please edit documentation in R/V-training.R
 \name{train_magma_VEM}
 \alias{train_magma_VEM}
-\title{Training Magma with a Variation EM algorithm}
+\title{Training Magma with a Variation of the EM algorithm}
 \usage{
 train_magma_VEM(
   data,
@@ -45,22 +45,40 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 \code{kern_i}.}
 
-\item{kern_0}{A kernel function, associated with the mean GP.}
+\item{kern_0}{A kernel function, associated with the mean GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+}}
 
-\item{kern_i}{A kernel function, associated with the individual GPs.}
+\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
+"PERIO" and "RQ" are also available here)}
 
 \item{ini_tau_i_k}{initial values of probabiliy to belong to each cluster for each individuals.}
 
-\item{common_hp_k}{boolean indicating whether hp are common among mean GPs (for each mu_k)}
+\item{common_hp_k}{A boolean indicating whether hp are common among mean GPs (for each mu_k).}
 
-\item{common_hp_i}{boolean indicating whether hp are common among individual GPs (for each y_i)}
+\item{common_hp_i}{A boolean indicating whether hp are common among individual GPs (for each y_i).}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
 }
 \value{
 A list, containing the results of the EM algorithm used for training
-in Magma. The elements of the list are:
+in MagmaClust. The elements of the list are:
 \itemize{
 \item hp_k: A tibble containing the trained hyper-parameters for the mean
 process' kernel.
@@ -68,13 +86,19 @@ process' kernel.
 individual processes' kernels.
 \item pi_k :
 \item param :
-\item Converged: A logical value indicated whether the EM algorithm converged
+\item Converance: A logical value indicated whether the EM algorithm converged
 or not.
 \item Training_time: Total running time of the complete training.
 }
 }
 \description{
-Training Magma with a Variation EM algorithm
+The hyper-parameters and the hyper-posterior distribution involved in Magma
+can be learned thanks to an EM algorithm implemented in \code{train_magma_VEM}.
+By providing a dataset, the model hypotheses (hyper-prior mean parameter and
+covariance kernels) and initialisation values for the hyper-parameters, the
+function computes maximum likelihood estimates of the HPs as well as the
+mean and covariance parameters of the Gaussian hyper-posterior distribution
+of the mean process.
 }
 \examples{
 k = seq_len(3)

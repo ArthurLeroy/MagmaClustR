@@ -7,22 +7,22 @@
 gr_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag = NULL)
 }
 \arguments{
-\item{hp}{A tibble, data frame or name vector of hyper-parameters.}
+\item{hp}{A tibble, data frame or named vector containing hyper-parameters..}
 
-\item{db}{A tibble containing values we want to compute logL on.
+\item{db}{A tibble containing the values we want to compute the logL on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{mean}{A vector, specifying the mean of the GP at the reference inputs.}
+\item{mean}{A list of the k means of the GP at union of observed timestamps.}
 
-\item{kern}{A kernel function used to compute the covariance matrix at corresponding timestamps.}
+\item{kern}{A kernel function}
 
-\item{post_cov}{posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)#'}
+\item{post_cov}{list of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term)}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-gradient of modified gaussian processes for clustering
+The value of the modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs.
 }
 \description{
 Modified common Gaussian Process for each cluster

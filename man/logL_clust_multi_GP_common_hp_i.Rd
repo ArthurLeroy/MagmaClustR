@@ -7,7 +7,7 @@
 logL_clust_multi_GP_common_hp_i(hp, db, mu_k_param, kern, pen_diag)
 }
 \arguments{
-\item{hp}{A tibble, data frame or name vector of hyper-parameters.}
+\item{hp}{A tibble, data frame or name vector containing hyper-parameters.}
 
 \item{db}{A tibble containing values we want to compute logL on.
 Required columns: Input, Output. Additional covariate columns are allowed.}

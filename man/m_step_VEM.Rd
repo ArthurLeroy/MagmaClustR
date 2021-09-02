@@ -21,14 +21,14 @@ m_step_VEM(
 \item{db}{A tibble or data frame. Columns required: ID, Input, Output.
 Additional columns for covariates can be specified.}
 
-\item{old_hp_k}{A tibble or data frame, containing the hyper-parameters
-from the previous M-step (or initialisation) associated with the variations}
+\item{old_hp_k}{A named vector, tibble or data frame, containing the hyper-parameters
+from the previous M-step (or initialisation) associated with the clusters.}
 
-\item{old_hp_i}{A tibble or data frame, containing the hyper-parameters
+\item{old_hp_i}{A named vector, tibble or data frame, containing the hyper-parameters
 from the previous M-step (or initialisation) associated with the
 individual GPs.}
 
-\item{list_mu_param}{List of parameters of the K mean GPs. Format list('mean', 'cov', 'tau_i_k')}
+\item{list_mu_param}{List of parameters of the K mean GPs.}
 
 \item{kern_0}{kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0)}
 

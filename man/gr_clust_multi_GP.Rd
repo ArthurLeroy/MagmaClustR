@@ -7,14 +7,14 @@
 gr_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag)
 }
 \arguments{
-\item{hp}{A tibble, data frame or name vector of hyper-parameters.}
+\item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
 
-\item{db}{A tibble containing values we want to compute logL on.
+\item{db}{A tibble containing the values we want to compute the logL on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{mu_k_param}{List of parameters for the K mean Gaussian processes.}
 
-\item{kern}{A kernel function used to compute the covariance matrix at corresponding timestamps.}
+\item{kern}{A kernel function.}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}

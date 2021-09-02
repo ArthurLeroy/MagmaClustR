@@ -7,20 +7,30 @@
 posterior_mu_k(db, timestamps, m_k, kern_0, kern_i, list_hp)
 }
 \arguments{
-\item{db}{matrix of data columns required ('Input', 'Output')}
+\item{db}{data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+, \code{Output}. Additional columns for covariates can be specified.
+The \code{ID} column contains the unique names/codes used to identify each
+individual/task (or batch of data).
+The \code{Input} column should define the variable that is used as
+reference for the observations (e.g. time for longitudinal data). The
+\code{Output} column specifies the observed values (the response
+variable). The data frame can also provide as many covariates as desired,
+with no constraints on the column names. These covariates are additional
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
 
 \item{timestamps}{timestamps on which we want a prediction}
 
 \item{m_k}{prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(db)}
 
-\item{kern_0}{kernel associated to the covariance function of the mean GP}
+\item{kern_0}{kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0).}
 
-\item{kern_i}{Kernel associated to individual GPs.}
+\item{kern_i}{kernel used to compute the covariance matrix of individuals GP at corresponding timestamps (Psi_i).}
 
 \item{list_hp}{list of your hyperparameters}
 }
 \value{
-pamameters of the mean GP at timestamps
+Pamameters of the mean GP at timestamps chosen.
 }
 \description{
 Posterior mu of the cluster
