@@ -1,10 +1,10 @@
 #' Gradient multi-Gaussian Process
 #'
-#' @param hp A tibble, data frame or name vector of hyper-parameters.
-#' @param db A tibble containing values we want to compute logL on.
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
+#' @param db A tibble containing the values we want to compute the logL on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
-#' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
+#' @param kern A kernel function.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
@@ -14,7 +14,6 @@
 #' @examples
 gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 {
-  #browser()
   list_hp = names(hp)
 
   names_k = mu_k_param$mean %>% names()
@@ -27,7 +26,6 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   corr1 = 0
   corr2 = 0
 
-  #floop2 = function(k){
   for(k in seq_len(length(names_k)))
   {
     tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
@@ -35,9 +33,6 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
     corr1 = corr1 + tau_i_k * mean_mu_k
     corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
-
-  #sapply(seq_len(length(names_k)), floop2) %>%
-  #  return()
 
   inv = kern_to_inv(t_i, kern, hp, pen_diag)
   prod_inv = inv %*% y_i
@@ -57,16 +52,16 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 
 #' Modified common Gaussian Process for each cluster
 #'
-#' @param hp A tibble, data frame or name vector of hyper-parameters.
-#' @param db A tibble containing values we want to compute logL on.
+#' @param hp A tibble, data frame or named vector containing hyper-parameters..
+#' @param db A tibble containing the values we want to compute the logL on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
-#' @param mean A vector, specifying the mean of the GP at the reference inputs.
-#' @param post_cov posterior covariance matrix of the mean GP (mu_0). Used to compute correction term (cor_term)#'
+#' @param kern A kernel function
+#' @param mean A list of the k means of the GP at union of observed timestamps.
+#' @param post_cov list of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term)
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return gradient of modified gaussian processes for clustering
+#' @return The value of the modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs.
 #' @export
 #'
 #' @examples
@@ -137,7 +132,7 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
 #'
-#' @return gradient of modified gaussian processes for clustering
+#' @return The value of the modified Gaussian log-likelihood for one GP as it appears in the model.
 #' @export
 #'
 #' @examples

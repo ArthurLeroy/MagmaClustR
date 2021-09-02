@@ -1,7 +1,7 @@
 #' Log-Likelihood function for clusturing mutli-Gaussian Process
 #'
-#' @param hp A tibble, data frame or name vector of hyper-parameters.
-#' @param db A tibble containing values we want to compute logL on.
+#' @param hp A tibble, data frame or name vector containing hyper-parameters.
+#' @param db A tibble containing the values we want to compute the logL on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
 #' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
@@ -44,12 +44,12 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 
 #' Modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs
 #'
-#' @param hp A tibble, data frame or name vector of hyper-parameters.
+#' @param hp A tibble, data frame or name vector containing hyper-parameters.
 #' @param db  A tibble containing values we want to compute logL on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mean list of the k means of the GP at union of observed timestamps
 #' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
-#' @param post_cov list of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term)
+#' @param post_cov A List of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term).
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
@@ -85,7 +85,7 @@ logL_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL
 
 #' Modified Gaussian log-likelihood for for the sum of all indiv with same HPs
 #'
-#' @param hp A tibble, data frame or name vector of hyper-parameters.
+#' @param hp A tibble, data frame or name vector containing hyper-parameters.
 #' @param db A tibble containing values we want to compute logL on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
@@ -153,8 +153,8 @@ logL_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
 
 #' Expectation of joint log-likelihood of the model
 #'
-#' @param hp_k A tibble, data frame or name vector of hyper-parameters at corresponding variations.
-#' @param hp_i A tibble, data frame or name vector of hyper-parameters at corresponding inputs.
+#' @param hp_k A tibble, data frame or name vector of hyper-parameters at corresponding clusters.
+#' @param hp_i A tibble, data frame or name vector of hyper-parameters at corresponding individuals.
 #' @param db A tibble containing values we want to compute logL on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param kern_i Kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i).

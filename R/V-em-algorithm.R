@@ -142,17 +142,17 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
-#' @param list_mu_param List of parameters of the K mean GPs. Format list('mean', 'cov', 'tau_i_k')
+#' @param list_mu_param List of parameters of the K mean GPs.
 #' @param kern_0 kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0)
 #' @param kern_i kernel used to compute the covariance matrix of individuals GP at corresponding timestamps (Psi_i)
 #' @param m_k prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(unique(db$Input))
 #' @param common_hp_k boolean indicating whether hp are common among mean GPs (for each mu_k)
 #' @param common_hp_i boolean indicating whether hp are common among individual GPs (for each y_i)
-#' @param old_hp_i A tibble or data frame, containing the hyper-parameters
+#' @param old_hp_i A named vector, tibble or data frame, containing the hyper-parameters
 #'    from the previous M-step (or initialisation) associated with the
 #'    individual GPs.
-#' @param old_hp_k A tibble or data frame, containing the hyper-parameters
-#'    from the previous M-step (or initialisation) associated with the variations
+#' @param old_hp_k A named vector, tibble or data frame, containing the hyper-parameters
+#'    from the previous M-step (or initialisation) associated with the clusters.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
 #'

@@ -1,4 +1,12 @@
-#' Training Magma with a Variation EM algorithm
+#' Training Magma with a Variation of the EM algorithm
+#'
+#' The hyper-parameters and the hyper-posterior distribution involved in Magma
+#' can be learned thanks to an EM algorithm implemented in \code{train_magma_VEM}.
+#' By providing a dataset, the model hypotheses (hyper-prior mean parameter and
+#' covariance kernels) and initialisation values for the hyper-parameters, the
+#' function computes maximum likelihood estimates of the HPs as well as the
+#' mean and covariance parameters of the Gaussian hyper-posterior distribution
+#' of the mean process.
 #'
 #' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
 #'    , \code{Output}.
@@ -23,16 +31,32 @@
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}.
 #' @param kern_0 A kernel function, associated with the mean GP.
-#' @param kern_i A kernel function, associated with the individual GPs.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
+#'    "PERIO" and "RQ" are also available here)
 #' @param ini_tau_i_k initial values of probabiliy to belong to each cluster for each individuals.
-#' @param common_hp_k boolean indicating whether hp are common among mean GPs (for each mu_k)
-#' @param common_hp_i boolean indicating whether hp are common among individual GPs (for each y_i)
+#' @param common_hp_k A boolean indicating whether hp are common among mean GPs (for each mu_k).
+#' @param common_hp_i A boolean indicating whether hp are common among individual GPs (for each y_i).
 #' @param prior_mean_k prior mean parameter of the K mean GPs (mu_k)
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
 #' @return A list, containing the results of the EM algorithm used for training
-#'    in Magma. The elements of the list are:
+#'    in MagmaClust. The elements of the list are:
 #'    - hp_k: A tibble containing the trained hyper-parameters for the mean
 #'    process' kernel.
 #'    - hp_i: A tibble containing all the trained hyper-parameters for the
@@ -41,7 +65,7 @@
 #'
 #'    - param :
 #'
-#'    - Converged: A logical value indicated whether the EM algorithm converged
+#'    - Converance: A logical value indicated whether the EM algorithm converged
 #'    or not.
 #'    - Training_time: Total running time of the complete training.
 #' @export
@@ -187,12 +211,21 @@ update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
 #'    inputs (explanatory variables) of the models that are also observed at each
 #'    reference \code{Input}.
 #' @param param_mu_k list of parameters for the K mean Gaussian processes
-#' @param ini_hp_i your initial hyperparameters for your individuals
-#' @param kern_i A kernel function, associated with the individual GPs.
+#' @param ini_hp_i A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}, the individual processes' kernel.
+#'    Required column : \code{ID}. The \code{ID} column contains the unique
+#'    names/codes used to identify each individual/task. The other columns
+#'    should be named according to the hyper-parameters that are used in
+#'    \code{kern_i}.
+#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
+#'    "PERIO" and "RQ" are also available here).
 #' @param hp_i A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
 #'
-#' @return list of trained HP, tau_k
+#' @return A list, containing the results of the EM algorithm used for training
+#'    in MagmaClust. The elements of the list are:
+#'    - theta_new :
+#'    - tau_k :
 #' @export
 #'
 #' @examples

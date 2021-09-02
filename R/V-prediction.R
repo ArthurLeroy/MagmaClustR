@@ -1,13 +1,23 @@
 #' Posterior mu of the cluster
 #'
-#' @param db matrix of data columns required ('Input', 'Output')
+#' @param db data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+#'    , \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{ID} column contains the unique names/codes used to identify each
+#'    individual/task (or batch of data).
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
 #' @param timestamps timestamps on which we want a prediction
-#' @param kern_0 kernel associated to the covariance function of the mean GP
-#' @param kern_i Kernel associated to individual GPs.
+#' @param kern_0 kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0).
+#' @param kern_i kernel used to compute the covariance matrix of individuals GP at corresponding timestamps (Psi_i).
 #' @param m_k prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(db)
 #' @param list_hp list of your hyperparameters
 #'
-#' @return pamameters of the mean GP at timestamps
+#' @return Pamameters of the mean GP at timestamps chosen.
 #' @export
 #'
 #' @examples
@@ -73,10 +83,36 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
 
 #' Prediction Gaussian Process on the clustering
 #'
-#' @param db tibble of data columns required ('input', 'Output')
+#' @param db A tibble or data frame. Required columns: 'Input',
+#'    'Output'. Additional columns for covariates can be specified.
+#'    The 'Input' column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    'Output' column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference 'Input'.
 #' @param timestamps timestamps on which we want a prediction
-#' @param hp list of hyperparameters and tau_k for the new individual
-#' @param kern kernel associated to the covariance function of the GP
+#' @param hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern}. The columns/elements should be named
+#'    according to the hyper-parameters that are used in \code{kern}.
+#'    List containing hyper-parameters and tau_k for the new individual
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param list_mu List containing mean and cov of the K mean GPs.
 #' - mean   : value of mean GP at timestamps (obs + pred) (matrix dim: timestamps x 1, with Input rownames)
 #' - cov_mu : covariance of mean GP at timestamps (obs + pred) (square matrix, with Input row/colnames)
@@ -121,10 +157,36 @@ pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
 
 #' Prediction animate of the Gaussian Process on the clustering
 #'
-#' @param db tibble of data columns required ('input', 'Output')
+#' @param db A tibble or data frame. Required columns: 'Input',
+#'    'Output'. Additional columns for covariates can be specified.
+#'    The 'Input' column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    'Output' column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference 'Input'.
 #' @param timestamps timestamps on which we want a prediction
-#' @param hp list of hyperparameters and tau_k for the new individual
-#' @param kern kernel associated to the covariance function of the GP
+#' @param hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern}. The columns/elements should be named
+#'    according to the hyper-parameters that are used in \code{kern}.
+#'    List containing hyper-parameters and tau_k for the new individual.
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param list_mu List containing mean and cov of the K mean GPs.
 #' - mean   : value of mean GP at timestamps (obs + pred) (matrix dim: timestamps x 1, with Input rownames)
 #' - cov_mu : covariance of mean GP at timestamps (obs + pred) (square matrix, with Input row/colnames)
