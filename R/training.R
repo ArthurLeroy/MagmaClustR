@@ -320,7 +320,11 @@ train_magma <- function(data,
       break
     }
 
-    ## Monitoring the full log-likelihood
+    ## Compute the additional term in the complete logLikelihood
+    add_term = 0.5 * log(det(post$cov +
+               diag(pen_diag, ncol = ncol(post$cov), nrow = nrow(post$cov))))
+
+    ## Monitoring the complete log-likelihood
     new_logL_monitoring <- logL_monitoring(
       hp_0 = new_hp_0,
       hp_i = new_hp_i,
@@ -331,9 +335,11 @@ train_magma <- function(data,
       post_mean = post$mean,
       post_cov = post$cov,
       pen_diag = pen_diag
-    ) + 0.5 * log(det(post$cov))
+      ) + add_term
 
     diff_logL <- new_logL_monitoring - logL_monitoring
+    if(diff_logL %>% is.nan()){diff_logL <- -Inf}
+
     if (diff_logL < - 0.1) {
       warning("The likelihood descreased. Possible numerical issues.")
     }
@@ -345,6 +351,7 @@ train_magma <- function(data,
 
     ## Compute the convergence ratio
     eps <- diff_logL / abs(logL_monitoring)
+    if(eps %>% is.nan()){eps <- 1}
 
     ## Provide monitoring information
     t_i_2 <- Sys.time()
@@ -572,7 +579,7 @@ train_gp <- function(data,
       if (length(mean) != length(all_input)) {
         stop(
           "Problem in the length of the hyper-posterior mean parameter. The ",
-          "'pior_mean' argument should provide an Output value for each Input ",
+          "'post_mean' argument should provide an Output value for each Input ",
           "value appearing in the training data."
         )
       }
