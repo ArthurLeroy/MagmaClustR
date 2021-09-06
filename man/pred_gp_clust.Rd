@@ -55,3 +55,26 @@ pamameters of the gaussian density predicted at timestamps
 \description{
 Prediction Gaussian Process on the clustering
 }
+\examples{
+
+k = seq_len(2)
+m_k <- c("K1" = 0, "K2" = 0)
+
+db <- simu_db(N = 2, common_input = FALSE)
+hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+
+training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+
+timestamps = seq(0.01, 10, 0.01)
+mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
+
+
+list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+
+new_indiv <- train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
+
+pred_gp_clust(simu_db(M=1, covariate = FALSE), timestamps, mu_k, kern = se_kernel, new_indiv)
+}

@@ -14,6 +14,7 @@
 #' @examples
 gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 {
+  #browser()
   list_hp = names(hp)
 
   names_k = mu_k_param$mean %>% names()
@@ -26,12 +27,12 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   corr1 = 0
   corr2 = 0
 
-  for(k in seq_len(length(names_k)))
+  for(k in (names_k) )
   {
-    tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
+    tau_i_k = mu_k_param$tau_i_k[k][i,]
     mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
-    corr1 = corr1 + tau_i_k * mean_mu_k
-    corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
+    corr1 = corr1 + as.double(tau_i_k) * mean_mu_k
+    corr2 = corr2 + as.double(tau_i_k) * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
   inv = kern_to_inv(t_i, kern, hp, pen_diag)
@@ -160,16 +161,16 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NU
     corr1 = 0
     corr2 = 0
 
-    for(k in seq_len(length(names_k)))
+    for(k in (names_k) )
     {
       #browser()
       ## Extract the covariance values associated with the i-th specific inputs
       post_cov_i = mu_k_param$cov[[k]][as.character(input_i), as.character(input_i)]
 
-      tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
+      tau_i_k = mu_k_param$tau_i_k[k][i,]
       mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
-      corr1 = corr1 + tau_i_k * mean_mu_k
-      corr2 = corr2 + tau_i_k * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i )
+      corr1 = corr1 + as.double(tau_i_k) * mean_mu_k
+      corr2 = corr2 + as.double(tau_i_k) * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i )
     }
 
     inv = kern_to_inv(inputs_i, kern, hp, pen_diag)

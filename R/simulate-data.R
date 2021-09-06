@@ -230,6 +230,26 @@ ini_kmeans = function(db, k, nstart = 50, summary = F)
     return()
 }
 
+#' ini_tau_i_k list test
+#'
+#' @param db database
+#' @param k cluster
+#' @param nstart nstart
+#'
+#' @return ini_tau_i_k
+#' @export
+#'
+#' @examples
+ini_tau_i_k_list = function(db, k, nstart = 50)
+{
+  ini_kmeans(db, k, nstart) %>% dplyr::mutate(value = 1) %>%
+    tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
+    dplyr::arrange(as.integer(.data$ID)) %>%
+    tibble::column_to_rownames(var = "ID") %>%
+    apply(2, as.list) %>%
+    return()
+}
+
 #' ini_tau_i_k
 #'
 #' @param db database
@@ -245,8 +265,7 @@ ini_tau_i_k = function(db, k, nstart = 50)
   ini_kmeans(db, k, nstart) %>% dplyr::mutate(value = 1) %>%
     tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
     dplyr::arrange(as.integer(.data$ID)) %>%
-    tibble::column_to_rownames(var = "ID") %>%
-    apply(2, as.list) %>%
     return()
 }
+
 

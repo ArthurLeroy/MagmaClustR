@@ -64,6 +64,6 @@ hp_k[['pi']] = sapply( old_tau_i_k, function(x) x \%>\% unlist() \%>\% mean() )
 
 post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
 
-MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
+MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, F, TRUE, 0.1)
 
 }

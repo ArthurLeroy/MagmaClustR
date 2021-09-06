@@ -121,28 +121,51 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
 #' @export
 #'
 #' @examples
+#'
+#' k = seq_len(2)
+#' m_k <- c("K1" = 0, "K2" = 0)
+#'
+#' db <- simu_db(N = 2, common_input = FALSE)
+#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+
+#' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#'
+#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#'
+#' timestamps = seq(0.01, 10, 0.01)
+#' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
+#'
+#'
+#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#'
+#' new_indiv <- train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
+#'
+#' pred_gp_clust(simu_db(M=1, covariate = FALSE), timestamps, mu_k, kern = se_kernel, new_indiv)
 pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
 {
-  tn = db %>% dplyr::pull(.data$Input)
-  input = paste0('X', db$Input)
+  #browser()
+
+  inputs = db %>% dplyr::pull(.data$Input)
+  #input_n <- db['Input']
   yn = db %>% dplyr::pull(.data$Output)
 
-  if(is.null(timestamps)){timestamps = seq(min(tn), max(tn), length.out = 500)}
-  input_t = paste0('X', timestamps)
+  if(is.null(timestamps)){timestamps = seq(min(inputs), max(inputs), length.out = 500)}
 
   hp_new = hp$theta_new
   tau_k = hp$tau_k
 
   floop = function(k)
   {
-    mean_mu_obs = list_mu$mean[[k]] %>% dplyr::filter(.data$Input %in% tn) %>% dplyr::pull(.data$Output)
+    mean_mu_obs = list_mu$mean[[k]] %>% dplyr::filter(.data$Input %in% inputs) %>% dplyr::pull(.data$Output)
     mean_mu_pred = list_mu$mean[[k]] %>% dplyr::filter(.data$Input %in% timestamps) %>% dplyr::pull(.data$Output)
     cov_mu = list_mu$cov[[k]]
 
-    cov_tn_tn = (kern_to_cov(tn, kern, hp_new) + cov_mu[input, input])
+    cov_tn_tn = (kern_to_cov(inputs, kern, hp_new) + cov_mu[as.character(inputs), as.character(inputs)])
     inv_mat = tryCatch(solve(cov_tn_tn), error = function(e){MASS::ginv(cov_tn_tn)})
-    cov_tn_t = kern(tn, timestamps, hp_new) + cov_mu[input,input_t]
-    cov_t_t = kern_to_cov(timestamps, kern, hp_new) + cov_mu[input_t ,input_t]
+    cov_tn_t = kern(inputs, timestamps, hp_new) + cov_mu[as.character(inputs), as.character(timestamps)]
+    cov_t_t = kern_to_cov(timestamps, kern, hp_new) + cov_mu[as.character(timestamps), as.character(timestamps)]
 
     tibble::tibble('Input' = timestamps, ##'Timestamp' = timestamps,
            'Mean' = (mean_mu_pred + t(cov_tn_t) %*% inv_mat %*% (yn - mean_mu_obs)) %>% as.vector(),
@@ -195,9 +218,31 @@ pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
 #' @export
 #'
 #' @examples
+#'
+#' k = seq_len(2)
+#' m_k <- c("K1" = 0, "K2" = 0)
+#'
+#' db <- simu_db(N = 2, common_input = FALSE)
+#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+
+#' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#'
+#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#'
+#' timestamps = seq(0.01, 10, 0.01)
+#' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
+#'
+#'
+#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#' new_indiv <- train_new_gp_EM(db, mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
+#'
+#' pred_gp_clust_animate(db, timestamps, mu_k, kern = se_kernel, new_indiv)
 pred_gp_clust_animate = function(db, timestamps = NULL, list_mu, kern, hp)
 {
-  db %>% dplyr::arrange(.data$Input)
+  browser()
+  db <- db %>% dplyr::arrange(.data$Input)
   all_pred = tibble::tibble()
 
   if(is.null(timestamps)){timestamps = seq(min(db$Input), max(db$Input), length.out = 500)}

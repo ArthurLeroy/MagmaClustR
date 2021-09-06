@@ -50,7 +50,8 @@ hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
-hp_k[['pi']] = sapply( old_tau_i_k, function(x) x \%>\% unlist() \%>\% mean() )
+pi_1 <- old_tau_i_k \%>\% dplyr::select(-.data$ID)
+hp_k[['pi']] = sapply( pi_1, function(x) x \%>\% unlist() \%>\% mean() )
 
 MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
 

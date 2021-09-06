@@ -35,7 +35,8 @@
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
 #' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
-#' hp_k[['pi']] = sapply( old_tau_i_k, function(x) x %>% unlist() %>% mean() )
+#' pi_1 <- old_tau_i_k %>% dplyr::select(-.data$ID)
+#' hp_k[['pi']] = sapply( pi_1, function(x) x %>% unlist() %>% mean() )
 #'
 #' MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
 #'
@@ -43,6 +44,7 @@
 #'
 e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag = NULL)
 {
+  #browser()
   pi_k = hp_k$pi
   all_t = unique(db$Input) %>% sort()
   t_clust = tibble::tibble('ID' = rep(names(m_k), each = length(all_t)),
@@ -55,13 +57,16 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
   ## Update each mu_k parameters
   floop = function(k)
   {
-    new_inv = list_inv_k[[k]]; tau_i_k = old_tau_i_k[[k]]
+    #browser()
+    new_inv = list_inv_k[[k]]#; tau_i_k = old_tau_i_k[[k]]
+    tau_i_k = old_tau_i_k[k]
     for(x in list_inv_i %>% names())
     {
       inv_i = list_inv_i[[x]]
       common_times = intersect(row.names(inv_i), row.names(new_inv))
       new_inv[common_times, common_times] = new_inv[common_times, common_times] +
-        tau_i_k[[x]] * inv_i[common_times, common_times]
+        as.double(tau_i_k[x,]) * inv_i[common_times, common_times]
+        #tau_i_k[[x]] * inv_i[common_times, common_times]
     }
 
 
@@ -72,7 +77,8 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 
   floop2 = function(k)
   {
-    prior_mean = m_k[[k]]; prior_inv = list_inv_k[[k]]; tau_i_k = old_tau_i_k[[k]]
+    prior_mean = m_k[[k]]; prior_inv = list_inv_k[[k]]#; tau_i_k = old_tau_i_k[[k]]
+    tau_i_k <- old_tau_i_k[k]
 
     if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(prior_inv))}
     weighted_mean = prior_inv %*% prior_mean
@@ -80,7 +86,9 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 
     for(i in list_inv_i %>% names())
     {
-      weighted_i = tau_i_k[[i]] * list_inv_i[[i]] %*% value_i[[i]]
+      #weighted_i = tau_i_k[[i]] * list_inv_i[[i]] %*% value_i[[i]]
+      weighted_i = as.double(tau_i_k[i,]) * list_inv_i[[i]] %*% value_i[[i]]
+
       #row.names(weithed_i) = row.names(list_inv_i[[j]])
 
       common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
@@ -124,11 +132,20 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
   mat_L = mat_logL %>% apply(2,function(x) exp(x - max(x)))
 
-  tau_i_k = (pi_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
-    `rownames<-`(names(m_k)) %>%
-    `colnames<-`(unique(db$ID)) %>%
-    apply(1, as.list)
+  #browser()
 
+  # tau_i_k = (pi_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
+  #   `rownames<-`(names(m_k)) %>%
+  #   `colnames<-`(unique(db$ID)) %>%
+  #   apply(1, as.list)
+
+  tau_i_k <- (pi_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
+    `rownames<-`(names(m_k)) %>%
+    t %>%
+    tibble::as_tibble()
+
+  tau_i_k <- tibble::tibble('ID' = unique(db$ID)) %>%
+    dplyr::mutate(tau_i_k)
 
   list('mean' = mean_k, 'cov' = cov_k, 'tau_i_k' = tau_i_k) %>% return()
 
@@ -173,7 +190,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #'
 #' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
 #'
-#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
+#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, F, TRUE, 0.1)
 #'
 m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
 {

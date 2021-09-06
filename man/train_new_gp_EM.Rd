@@ -47,10 +47,10 @@ in MagmaClust. The elements of the list are:
 Training new GP with the EM algorithm
 }
 \examples{
-k = seq_len(3)
-m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+k = seq_len(2)
+m_k <- c("K1" = 0, "K2" = 0)
 
-db <- simu_db(N = 10, common_input = F)
+db <- simu_db(N = 2, common_input = FALSE)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
@@ -64,5 +64,5 @@ mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 
 list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
 
-train_new_gp_EM(db, mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
+train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
 }

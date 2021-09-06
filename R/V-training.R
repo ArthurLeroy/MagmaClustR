@@ -237,7 +237,7 @@ update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
 #' k = seq_len(2)
 #' m_k <- c("K1" = 0, "K2" = 0)
 #'
-#' db <- simu_db(N = 2, common_input = F)
+#' db <- simu_db(N = 2, common_input = FALSE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
@@ -252,10 +252,11 @@ update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
 #'
 #' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
 #'
-#' train_new_gp_EM(db, mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
+#' train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
 train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
 {
-  browser()
+  #browser()
+
   mean_mu_k = param_mu_k$mean
   cov_mu_k = param_mu_k$cov
   pi_k = lapply(param_mu_k$tau_i_k, function(x) Reduce("+", x)/ length(x))
@@ -268,7 +269,7 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
     {
       ## E step
 
-      tau_k <- update_tau_star_k_EM(db, mean_mu_k, cov_mu_k, kern_i, hp, pi_k)
+      tau_k <- update_tau_star_k_EM(data, mean_mu_k, cov_mu_k, kern_i, hp, pi_k)
 
 
 
@@ -327,7 +328,7 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
   {
     new_hp = hp_i %>% dplyr::slice(1)
 
-    tau_k <- update_tau_star_k_EM(db, mean_mu_k, cov_mu_k, kern_i, new_hp, pi_k)
+    tau_k <- update_tau_star_k_EM(data, mean_mu_k, cov_mu_k, kern_i, new_hp, pi_k)
 
   }
   list('theta_new' = new_hp , 'tau_k' = tau_k) %>% return()
