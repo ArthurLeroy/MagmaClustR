@@ -471,7 +471,7 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag = 0, deriv = NULL) {
       dplyr::filter(.data$ID == i) %>%
       dplyr::select(-.data$ID)
 
-    kern_to_inv(db_i, "SE", hp_i, pen_diag, deriv = deriv) %>%
+    kern_to_inv(db_i, kern, hp_i, pen_diag, deriv = deriv) %>%
       return()
   }
   sapply(unique(db$ID), floop, simplify = F, USE.NAMES = T) %>%
