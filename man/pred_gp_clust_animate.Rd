@@ -47,7 +47,7 @@ operator '*' shall always be used before the '+' operators (e.g.
 \item{hp}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern}. The columns/elements should be named
 according to the hyper-parameters that are used in \code{kern}.
-List containing hyper-parameters and tau_k for the new individual.}
+List containing hyper-parameters and hp_k_mixture for the new individual.}
 }
 \value{
 tibble of classic GP predictions but with an inscreasing number of data points considered as 'observed'
@@ -64,15 +64,15 @@ db <- simu_db(N = 2, common_input = FALSE)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 
-training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 
 timestamps = seq(0.01, 10, 0.01)
 mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 
 
-list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 new_indiv <- train_new_gp_EM(db, mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
 
 pred_gp_clust_animate(db, timestamps, mu_k, kern = se_kernel, new_indiv)

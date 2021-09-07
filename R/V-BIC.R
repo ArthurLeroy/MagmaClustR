@@ -3,7 +3,7 @@
 #' @param hp_0 A tibble, data frame or name vector of hyper-parameters for your initial hyperparameters.
 #' @param hp_k A tibble, data frame or name vector of hyper-parameters at corresponding variations.
 #' @param hp_i A tibble, data frame or name vector of hyper-parameters at corresponding inputs.
-#' @param db A tibble containing values we want to compute logL on.
+#' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param kern_i Kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i).
 #' @param kern_0 Kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0).
@@ -42,16 +42,16 @@ BIC = function(hp_0, hp_i, hp_k, db, kern_0, kern_i, m_k, mu_k_param, clust = T)
       {
         mu_k_ti = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
         pi_k = hp_k$pi[[k]]
-        tau_i_k = mu_k_param$tau_i_k[[k]][[i]]
+        hp_mixture = mu_k_param$hp_mixture[[k]][[i]]
         cov_k_hat = mu_k_param$cov[[k]][input_t_i, input_t_i]
 
-        sum_LL = sum_LL + tau_i_k * (dmnorm(y_i, mu_k_ti, inv_i, log = T) - 0.5 * sum(inv_i * cov_k_hat))
-        LL_Z = LL_Z + tau_i_k * ifelse((tau_i_k == 0|(pi_k == 0)), 0, log(pi_k/ tau_i_k)) # To avoid log(0)
+        sum_LL = sum_LL + hp_mixture * (dmnorm(y_i, mu_k_ti, inv_i, log = T) - 0.5 * sum(inv_i * cov_k_hat))
+        LL_Z = LL_Z + hp_mixture * ifelse((hp_mixture == 0|(pi_k == 0)), 0, log(pi_k/ hp_mixture)) # To avoid log(0)
       }
     }
     else
     {
-      mu_0 = mu_k_param$mean %>% dplyr::filter(.data$Timestamp %in% t_i) %>% dplyr::pull(.data$Output)
+      mu_0 = mu_k_param$mean %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
       cov_k_hat = mu_k_param$cov[input_t_i, input_t_i]
 
       sum_LL = dmnorm(y_i, mu_0, inv_i, log = T) - 0.5 * sum(inv_i * cov_k_hat)
@@ -98,7 +98,7 @@ BIC = function(hp_0, hp_i, hp_k, db, kern_0, kern_i, m_k, mu_k_param, clust = T)
 
 #' Selection of the model
 #'
-#' @param db A tibble containing values we want to compute logL on.
+#' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param k_grid A vector, indicating the grid of additional reference
 #'    inputs on which the mean process' hyper-posterior should be evaluated.
@@ -114,7 +114,7 @@ BIC = function(hp_0, hp_i, hp_k, db, kern_0, kern_i, m_k, mu_k_param, clust = T)
 #'    \code{kern_i}.
 #' @param kern_0 A kernel function, associated with the mean GP.
 #' @param kern_i A kernel function, associated with the individual GPs.
-#' @param ini_tau_i_k initial values of probabiliy to belong to each cluster for each individuals.
+#' @param ini_hp_mixture initial values of probabiliy to belong to each cluster for each individuals.
 #' @param common_hp_k boolean indicating whether hp are common among mean GPs (for each mu_k)
 #' @param common_hp_i boolean indicating whether hp are common among individual GPs (for each y_i)
 #' @param plot boolean indicating whether you want to plot or not
@@ -127,7 +127,7 @@ BIC = function(hp_0, hp_i, hp_k, db, kern_0, kern_i, m_k, mu_k_param, clust = T)
 #' @examples
 #' TRUE
 model_selection = function(db, k_grid = 1:5, ini_hp_k, ini_hp_i,
-                           kern_0, kern_i, ini_tau_i_k = NULL, common_hp_k = T, common_hp_i = T,
+                           kern_0, kern_i, ini_hp_mixture = NULL, common_hp_k = T, common_hp_i = T,
                            plot = T, pen_diag)
 {
   # floop = function(K)
@@ -141,7 +141,7 @@ model_selection = function(db, k_grid = 1:5, ini_hp_k, ini_hp_i,
   #   }
   #   else
   #   {
-  #     model = train_magma_VEM(db, prior_mean_k, ini_hp_k, ini_hp_i, kern_0, kern_i, ini_tau_i_k, common_hp_k, common_hp_i, pen_diag)
+  #     model = train_magma_VEM(db, prior_mean_k, ini_hp_k, ini_hp_i, kern_0, kern_i, ini_hp_mixture, common_hp_k, common_hp_i, pen_diag)
   #   }
   #   model[['BIC']] = BIC(model$hp_0, model$hp_i, hp_k ,db, kern_0, kern_i, prior_mean_k, model$param, K != 1)
   #   ## Comment hp_k ?

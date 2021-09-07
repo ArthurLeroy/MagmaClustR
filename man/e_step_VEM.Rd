@@ -4,7 +4,16 @@
 \alias{e_step_VEM}
 \title{Variation of the E-Step of the EM algorithm}
 \usage{
-e_step_VEM(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag = NULL)
+e_step_VEM(
+  db,
+  m_k,
+  kern_0,
+  kern_i,
+  hp_k,
+  hp_i,
+  old_hp_mixture,
+  pen_diag = NULL
+)
 }
 \arguments{
 \item{db}{A tibble or data frame. Columns required: ID, Input, Output.
@@ -22,7 +31,7 @@ associated with \code{kern_0}.}
 \item{hp_i}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_i}.}
 
-\item{old_tau_i_k}{values au tau_i_k from previous iterations. List(list(tau)_i)_k}
+\item{old_hp_mixture}{values au hp_mixture from previous iterations.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
@@ -49,11 +58,11 @@ db <- simu_db(N = 10, common_input = TRUE)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
-old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
-pi_1 <- old_tau_i_k \%>\% dplyr::select(-.data$ID)
-hp_k[['pi']] = sapply( pi_1, function(x) x \%>\% unlist() \%>\% mean() )
+old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+prop_mixture_1 <- old_hp_mixture \%>\% dplyr::select(-.data$ID)
+hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x \%>\% unlist() \%>\% mean() )
 
-MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
+MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
 
 }
 

@@ -1,7 +1,7 @@
 #' Gradient multi-Gaussian Process
 #'
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
-#' @param db A tibble containing the values we want to compute the logL on.
+#' @param db A tibble containing the values we want to compute the elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
 #' @param kern A kernel function.
@@ -29,10 +29,10 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 
   for(k in (names_k) )
   {
-    tau_i_k = mu_k_param$tau_i_k[k][i,]
+    hp_mixture = mu_k_param$hp_mixture[k][i,]
     mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
-    corr1 = corr1 + as.double(tau_i_k) * mean_mu_k
-    corr2 = corr2 + as.double(tau_i_k) * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
+    corr1 = corr1 + as.double(hp_mixture) * mean_mu_k
+    corr2 = corr2 + as.double(hp_mixture) * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
   inv = kern_to_inv(t_i, kern, hp, pen_diag)
@@ -54,7 +54,7 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #' Modified common Gaussian Process for each cluster
 #'
 #' @param hp A tibble, data frame or named vector containing hyper-parameters..
-#' @param db A tibble containing the values we want to compute the logL on.
+#' @param db A tibble containing the values we want to compute the elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param kern A kernel function
 #' @param mean A list of the k means of the GP at union of observed timestamps.
@@ -75,7 +75,7 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 
   list_ID_k = names(db)
   list_hp <- names(hp)
-  #if(list_hp %>% utils::tail(1) == "pi"){list_hp = list_hp[list_hp != "pi"]}
+  #if(list_hp %>% utils::tail(1) == "prop_mixture"){list_hp = list_hp[list_hp != "prop_mixture"]}
 
   ## Extract the i-th specific reference Input
   input_k <- db[[1]] %>%
@@ -126,7 +126,7 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 #' Modified common Gaussian Process for each variations.
 #'
 #' @param hp A tibble, data frame or name vector of hyper-parameters.
-#' @param db A tibble containing values we want to compute logL on.
+#' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
@@ -167,10 +167,10 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NU
       ## Extract the covariance values associated with the i-th specific inputs
       post_cov_i = mu_k_param$cov[[k]][as.character(input_i), as.character(input_i)]
 
-      tau_i_k = mu_k_param$tau_i_k[k][i,]
+      hp_mixture = mu_k_param$hp_mixture[k][i,]
       mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
-      corr1 = corr1 + as.double(tau_i_k) * mean_mu_k
-      corr2 = corr2 + as.double(tau_i_k) * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i )
+      corr1 = corr1 + as.double(hp_mixture) * mean_mu_k
+      corr2 = corr2 + as.double(hp_mixture) * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i )
     }
 
     inv = kern_to_inv(inputs_i, kern, hp, pen_diag)

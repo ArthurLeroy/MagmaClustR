@@ -4,10 +4,10 @@
 \alias{pred_max_cluster}
 \title{Prediction of the maximum of cluster}
 \usage{
-pred_max_cluster(tau_i_k)
+pred_max_cluster(hp_mixture)
 }
 \arguments{
-\item{tau_i_k}{tau_i_k}
+\item{hp_mixture}{hp_mixture}
 }
 \value{
 Prediction of the maximum of cluster

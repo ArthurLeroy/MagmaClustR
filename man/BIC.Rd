@@ -13,7 +13,7 @@ BIC(hp_0, hp_i, hp_k, db, kern_0, kern_i, m_k, mu_k_param, clust = T)
 
 \item{hp_k}{A tibble, data frame or name vector of hyper-parameters at corresponding variations.}
 
-\item{db}{A tibble containing values we want to compute logL on.
+\item{db}{A tibble containing values we want to compute elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{kern_0}{Kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0).}

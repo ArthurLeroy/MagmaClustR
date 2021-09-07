@@ -48,7 +48,7 @@
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are also available here)
-#' @param ini_tau_i_k initial values of probabiliy to belong to each cluster for each individuals.
+#' @param ini_hp_mixture initial values of probabiliy to belong to each cluster for each individuals.
 #' @param common_hp_k A boolean indicating whether hp are common among mean GPs (for each mu_k).
 #' @param common_hp_i A boolean indicating whether hp are common among individual GPs (for each y_i).
 #' @param prior_mean_k prior mean parameter of the K mean GPs (mu_k)
@@ -61,7 +61,7 @@
 #'    process' kernel.
 #'    - hp_i: A tibble containing all the trained hyper-parameters for the
 #'    individual processes' kernels.
-#'    - pi_k :
+#'    - prop_mixture_k :
 #'
 #'    - param :
 #'
@@ -77,12 +77,12 @@
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#' train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 
 train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
-                        kern_0, kern_i, ini_tau_i_k = NULL,
+                        kern_0, kern_i, ini_hp_mixture = NULL,
                         common_hp_k = F, common_hp_i = F, pen_diag)
 {
   #browser()
@@ -93,24 +93,26 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
   hp_i = ini_hp_i # %>% list() %>% rep(length(list_ID))  %>% stats::setNames(nm = list_ID)
 
   cv = 'FALSE'
-  if(is.null(ini_tau_i_k)){ini_tau_i_k = ini_tau_i_k(data, k = length(ID_k), nstart = 50)}
-  tau_i_k = ini_tau_i_k
-  hp_k[['pi']] = sapply( tau_i_k, function(x) x %>% unlist() %>% mean() )
-  logLL_monitoring = - Inf
+  if(is.null(ini_hp_mixture)){ini_hp_mixture = ini_hp_mixture(data, k = length(ID_k), nstart = 50)}
+  hp_mixture = ini_hp_mixture
+
+  hp_1 <- hp_mixture %>% dplyr::select(-.data$ID)
+  hp_k[['prop_mixture']] = sapply( hp_1, function(x) x %>% unlist() %>% mean() )
+  elbo_monitoring = - Inf
   t1 = Sys.time()
 
   for(i in 1:n_loop_max)
   {
     print(i)
     ## E-Step
-    param = e_step_VEM(data, prior_mean_k, kern_0, kern_i, hp_k, hp_i, tau_i_k, pen_diag)
+    param = e_step_VEM(data, prior_mean_k, kern_0, kern_i, hp_k, hp_i, hp_mixture, pen_diag)
 
     ## Monitoring of the LL
-    new_logLL_monitoring = logL_monitoring_VEM(hp_k, hp_i, data, kern_i, kern_0, mu_k_param = param , m_k = prior_mean_k, pen_diag)
+    new_elbo_monitoring = elbo_monitoring_VEM(hp_k, hp_i, data, kern_i, kern_0, mu_k_param = param , m_k = prior_mean_k, pen_diag)
     #0.5 * (length(param$cov) * nrow(param$cov[[1]]) +
     #Reduce('+', lapply(param$cov, function(x) log(det(x)))) )
-    print(new_logLL_monitoring)
-    diff_moni = new_logLL_monitoring - logLL_monitoring
+    print(new_elbo_monitoring)
+    diff_moni = new_elbo_monitoring - elbo_monitoring
 
     if(diff_moni < - 0.1){warning('Likelihood descreased')}
 
@@ -125,9 +127,9 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
     }
 
     ## Testing the stoping condition
-    logL_new = logL_monitoring_VEM(new_hp$hp_k, new_hp$hp_i, data, kern_i, kern_0, mu_k_param = param, m_k = prior_mean_k, pen_diag)
-    eps = (logL_new - logL_monitoring_VEM(hp_k, hp_i, data, kern_i, kern_0, mu_k_param = param, m_k = prior_mean_k, pen_diag)) /
-      abs(logL_new)
+    elbo_new = elbo_monitoring_VEM(new_hp$hp_k, new_hp$hp_i, data, kern_i, kern_0, mu_k_param = param, m_k = prior_mean_k, pen_diag)
+    eps = (elbo_new - elbo_monitoring_VEM(hp_k, hp_i, data, kern_i, kern_0, mu_k_param = param, m_k = prior_mean_k, pen_diag)) /
+      abs(elbo_new)
 
     print(c('eps', eps))
     if(eps < 1e-1)
@@ -139,38 +141,38 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
 
     hp_i = new_hp$hp_i
     hp_k = new_hp$hp_k
-    pi_k = new_hp$pi_k
+    prop_mixture_k = new_hp$prop_mixture_k
 
-    tau_i_k = param$tau_i_k
-    logLL_monitoring = new_logLL_monitoring
+    hp_mixture = param$hp_mixture
+    elbo_monitoring = new_elbo_monitoring
   }
   t2 = Sys.time()
-  list('hp_k' = hp_k, 'hp_i' = hp_i, 'pi_k' = pi_k,
+  list('hp_k' = hp_k, 'hp_i' = hp_i, 'prop_mixture_k' = prop_mixture_k,
        'convergence' = cv,  'param' = param,
        'Training_time' =  difftime(t2, t1, units = "secs")) %>%
     return()
 }
 
-#' Update tau star k EM
+#' Update hp_mixture k star EM
 #'
 #' @param db data
 #' @param hp hp
-#' @param pi_k pi
+#' @param prop_mixture_k prop_mixture
 #' @param mean_k mean
 #' @param cov_k cov
 #' @param kern kernel
 #'
-#' @return update tau star
+#' @return update hp_mixture star
 #' @export
 #'
 #' @examples
 #' TRUE
-update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
+update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixture_k)
 {
   #browser()
   names_k = names(mean_k)
   c_k = 0
-  mat_logL = rep(NA, length(names_k))
+  mat_elbo = rep(NA, length(names_k))
 
   ## Extract the specific inputs
     input_i <- db %>%
@@ -179,7 +181,7 @@ update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
 
     #unique_input <- input_i %>% unique
 
-  pi = unlist(pi_k)
+  prop_mixture = unlist(prop_mixture_k)
 
   for(k in names_k)
   {
@@ -191,12 +193,12 @@ update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
     cov =  (kern_to_cov(db$Input, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] )
     inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
 
-    mat_logL[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
+    mat_elbo[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
   }
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
-  mat_L = exp(mat_logL - max(mat_logL))
+  mat_L = exp(mat_elbo - max(mat_elbo))
 
-  ((pi * mat_L)/ sum(pi * mat_L)) %>% as.vector %>% split(names_k) %>% return()
+  ((prop_mixture * mat_L)/ sum(prop_mixture * mat_L)) %>% as.vector %>% split(names_k) %>% return()
 
 }
 
@@ -230,7 +232,7 @@ update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
 #' @return A list, containing the results of the EM algorithm used for training
 #'    in MagmaClust. The elements of the list are:
 #'    - theta_new :
-#'    - tau_k :
+#'    - hp_k_mixture :
 #' @export
 #'
 #' @examples
@@ -242,15 +244,15 @@ update_tau_star_k_EM <- function(db, mean_k, cov_k, kern, hp, pi_k)
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 #' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
 #' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 #'
 #'
-#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 #'
 #' train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
 train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
@@ -259,7 +261,8 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
 
   mean_mu_k = param_mu_k$mean
   cov_mu_k = param_mu_k$cov
-  pi_k = lapply(param_mu_k$tau_i_k, function(x) Reduce("+", x)/ length(x))
+  hp_1 <- param_mu_k$hp_mixture %>% dplyr::select(-.data$ID)
+  prop_mixture_k = lapply(hp_1, function(x) Reduce("+", x)/ length(x))
   if(is.null(hp_i))
   {
     n_loop_max = 25
@@ -269,7 +272,7 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
     {
       ## E step
 
-      tau_k <- update_tau_star_k_EM(data, mean_mu_k, cov_mu_k, kern_i, hp, pi_k)
+      hp_k_mixture <- update_hp_k_mixture_star_EM(data, mean_mu_k, cov_mu_k, kern_i, hp, prop_mixture_k)
 
 
 
@@ -287,7 +290,7 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
                    cov_mu_k[[k]][as.character(inputs), as.character(inputs)])
           inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
 
-          (data$Input - tau_k[[k]] * dmnorm(data$Output, mean, inv, log = T)) %>%
+          (data$Input - hp_k_mixture[[k]] * dmnorm(data$Output, mean, inv, log = T)) %>%
             return()
         }
         sapply(names(mean_mu_k), floop) %>% sum() %>% return()
@@ -314,7 +317,7 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
 
       ## Testing the stoping condition
       eps = (new_hp - hp) %>% abs %>% sum
-      print(c('tau_k', tau_k %>% unlist))
+      print(c('hp_k_mixture', hp_k_mixture %>% unlist))
       print(c('eps', eps))
       if(eps>0 & eps < 1e-3)
       {
@@ -328,10 +331,10 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
   {
     new_hp = hp_i %>% dplyr::slice(1)
 
-    tau_k <- update_tau_star_k_EM(data, mean_mu_k, cov_mu_k, kern_i, new_hp, pi_k)
+    hp_k_mixture <- update_hp_k_mixture_star_EM(data, mean_mu_k, cov_mu_k, kern_i, new_hp, prop_mixture_k)
 
   }
-  list('theta_new' = new_hp , 'tau_k' = tau_k) %>% return()
+  list('theta_new' = new_hp , 'hp_k_mixture' = hp_k_mixture) %>% return()
 }
 
 

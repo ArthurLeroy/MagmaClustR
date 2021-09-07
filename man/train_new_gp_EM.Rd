@@ -40,7 +40,7 @@ A list, containing the results of the EM algorithm used for training
 in MagmaClust. The elements of the list are:
 \itemize{
 \item theta_new :
-\item tau_k :
+\item hp_k_mixture :
 }
 }
 \description{
@@ -54,15 +54,15 @@ db <- simu_db(N = 2, common_input = FALSE)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 
-training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 
 timestamps = seq(0.01, 10, 0.01)
 mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 
 
-list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 
 train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
 }

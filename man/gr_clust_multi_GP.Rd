@@ -9,7 +9,7 @@ gr_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag)
 \arguments{
 \item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
 
-\item{db}{A tibble containing the values we want to compute the logL on.
+\item{db}{A tibble containing the values we want to compute the elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{mu_k_param}{List of parameters for the K mean Gaussian processes.}

@@ -27,7 +27,7 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
   hp_i = list_hp$hp_i
   hp_k = list_hp$hp_k
   #for(k in names(hp_k)){hp_k[[k]][3] = 0.1}
-  tau_i_k = list_hp$param$tau_i_k
+  hp_mixture = list_hp$param$hp_mixture
   #t_clust = tibble::tibble('ID' = rep(names(hp_k), each = length(timestamps)) , 'Timestamp' = rep(timestamps, length(hp_k)))
   t_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(timestamps)) , 'Input' = rep(timestamps, length(hp_k$ID)))
   inv_k = list_kern_to_inv(t_clust, kern_0, hp_k)
@@ -43,7 +43,7 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
       inv_i = list_inv_i[[x]]
       common_times = intersect(row.names(inv_i), row.names(new_inv))
       new_inv[common_times, common_times] = new_inv[common_times, common_times] +
-        tau_i_k[[k]][[x]] * inv_i[common_times, common_times]
+        as.double(hp_mixture[k][x,]) * inv_i[common_times, common_times]
     }
     tryCatch(solve(new_inv), error = function(e){
       s_inv<- MASS::ginv(new_inv)
@@ -64,7 +64,7 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
 
     for(i in list_inv_i %>% names())
     {
-      weighted_i = tau_i_k[[k]][[i]] * list_inv_i[[i]] %*% value_i[[i]]
+      weighted_i = as.double(hp_mixture[k][i,]) * list_inv_i[[i]] %*% value_i[[i]]
       #row.names(weithed_i) = row.names(list_inv_i[[j]])
 
       common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
@@ -78,7 +78,7 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
   mean_k = sapply(hp_k$ID, floop2, simplify = FALSE, USE.NAMES = TRUE)
 
   #names(mean_mu) = paste0('X', t_mu)
-  list('mean' = mean_k, 'cov' = cov_k, 'tau_i_k' = tau_i_k) %>% return()
+  list('mean' = mean_k, 'cov' = cov_k, 'hp_mixture' = hp_mixture) %>% return()
 }
 
 #' Prediction Gaussian Process on the clustering
@@ -96,7 +96,7 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}. The columns/elements should be named
 #'    according to the hyper-parameters that are used in \code{kern}.
-#'    List containing hyper-parameters and tau_k for the new individual
+#'    List containing hyper-parameters and hp_k_mixture for the new individual
 #' @param kern A kernel function, defining the covariance structure of the GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -130,15 +130,15 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 #' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
 #' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 #'
 #'
-#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 #'
 #' new_indiv <- train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
 #'
@@ -154,7 +154,7 @@ pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
   if(is.null(timestamps)){timestamps = seq(min(inputs), max(inputs), length.out = 500)}
 
   hp_new = hp$theta_new
-  tau_k = hp$tau_k
+  hp_k_mixture = hp$hp_k_mixture
 
   floop = function(k)
   {
@@ -170,7 +170,7 @@ pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
     tibble::tibble('Input' = timestamps, ##'Timestamp' = timestamps,
            'Mean' = (mean_mu_pred + t(cov_tn_t) %*% inv_mat %*% (yn - mean_mu_obs)) %>% as.vector(),
            'Var' =  (cov_t_t - t(cov_tn_t) %*% inv_mat %*% cov_tn_t) %>% diag %>% as.vector,
-           'tau_k' = tau_k[[k]]) %>% return()
+           'hp_k_mixture' = hp_k_mixture[[k]]) %>% return()
   }
   pred = sapply(names(list_mu$mean), floop, simplify = FALSE, USE.NAMES = TRUE)
 
@@ -193,7 +193,7 @@ pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}. The columns/elements should be named
 #'    according to the hyper-parameters that are used in \code{kern}.
-#'    List containing hyper-parameters and tau_k for the new individual.
+#'    List containing hyper-parameters and hp_k_mixture for the new individual.
 #' @param kern A kernel function, defining the covariance structure of the GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -227,15 +227,15 @@ pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 #' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
 #' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 #'
 #'
-#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 #' new_indiv <- train_new_gp_EM(db, mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
 #'
 #' pred_gp_clust_animate(db, timestamps, mu_k, kern = se_kernel, new_indiv)
@@ -264,13 +264,13 @@ pred_gp_clust_animate = function(db, timestamps = NULL, list_mu, kern, hp)
 
 #' Prediction of the maximum of cluster
 #'
-#' @param tau_i_k tau_i_k
+#' @param hp_mixture hp_mixture
 #'
 #' @return Prediction of the maximum of cluster
 #' @export
 #'
 #' @examples
-pred_max_cluster = function(tau_i_k)
+pred_max_cluster = function(hp_mixture)
 {
-  tau_i_k %>% tibble::as_tibble %>% tidyr::unnest %>% apply(1, which.max) %>% return()
+  hp_mixture %>% tibble::as_tibble %>% tidyr::unnest %>% apply(1, which.max) %>% return()
 }

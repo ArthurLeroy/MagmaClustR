@@ -14,7 +14,7 @@
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #' @param m_k prior means of the mu_k processes.
-#' @param old_tau_i_k values au tau_i_k from previous iterations. List(list(tau)_i)_k
+#' @param old_hp_mixture values au hp_mixture from previous iterations.
 #'
 #' @return A named list, containing the elements \code{mean}, a tibble
 #' containing the Input and associated Output of the hyper-posterior mean
@@ -34,18 +34,18 @@
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
-#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
-#' pi_1 <- old_tau_i_k %>% dplyr::select(-.data$ID)
-#' hp_k[['pi']] = sapply( pi_1, function(x) x %>% unlist() %>% mean() )
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
+#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
 #'
-#' MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
+#' MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
 #'
 #' }
 #'
-e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag = NULL)
+e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_hp_mixture, pen_diag = NULL)
 {
   #browser()
-  pi_k = hp_k$pi
+  prop_mixture_k = hp_k$prop_mixture
   all_t = unique(db$Input) %>% sort()
   t_clust = tibble::tibble('ID' = rep(names(m_k), each = length(all_t)),
                            'Input' = rep(all_t, length(m_k)))
@@ -58,15 +58,15 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
   floop = function(k)
   {
     #browser()
-    new_inv = list_inv_k[[k]]#; tau_i_k = old_tau_i_k[[k]]
-    tau_i_k = old_tau_i_k[k]
+    new_inv = list_inv_k[[k]]#; hp_mixture = old_hp_mixture[[k]]
+    hp_mixture = old_hp_mixture[k]
     for(x in list_inv_i %>% names())
     {
       inv_i = list_inv_i[[x]]
       common_times = intersect(row.names(inv_i), row.names(new_inv))
       new_inv[common_times, common_times] = new_inv[common_times, common_times] +
-        as.double(tau_i_k[x,]) * inv_i[common_times, common_times]
-        #tau_i_k[[x]] * inv_i[common_times, common_times]
+        as.double(hp_mixture[x,]) * inv_i[common_times, common_times]
+        #hp_mixture[[x]] * inv_i[common_times, common_times]
     }
 
 
@@ -77,8 +77,8 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 
   floop2 = function(k)
   {
-    prior_mean = m_k[[k]]; prior_inv = list_inv_k[[k]]#; tau_i_k = old_tau_i_k[[k]]
-    tau_i_k <- old_tau_i_k[k]
+    prior_mean = m_k[[k]]; prior_inv = list_inv_k[[k]]#; hp_mixture = old_hp_mixture[[k]]
+    hp_mixture <- old_hp_mixture[k]
 
     if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(prior_inv))}
     weighted_mean = prior_inv %*% prior_mean
@@ -86,8 +86,8 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 
     for(i in list_inv_i %>% names())
     {
-      #weighted_i = tau_i_k[[i]] * list_inv_i[[i]] %*% value_i[[i]]
-      weighted_i = as.double(tau_i_k[i,]) * list_inv_i[[i]] %*% value_i[[i]]
+      #weighted_i = hp_mixture[[i]] * list_inv_i[[i]] %*% value_i[[i]]
+      weighted_i = as.double(hp_mixture[i,]) * list_inv_i[[i]] %*% value_i[[i]]
 
       #row.names(weithed_i) = row.names(list_inv_i[[j]])
 
@@ -101,10 +101,10 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
   }
   mean_k = sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
-  ## Update tau_i_k
+  ## Update hp_mixture
   c_i = 0
   c_k = 0
-  mat_logL = matrix(NA, nrow = length(names(m_k)), ncol = length(unique(db$ID)) )
+  mat_elbo = matrix(NA, nrow = length(names(m_k)), ncol = length(unique(db$ID)) )
 
   for(i in unique(db$ID))
   { c_i = c_i + 1
@@ -123,31 +123,31 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
     ## Extract the covariance values associated with the i-th specific inputs
     cov_k_i = cov_k[[k]][as.character(input_i), as.character(input_i)]
 
-    mat_logL[c_k,c_i] = - logL_GP_mod(hp_i_i, db_i, mean_k_i , kern_i, cov_k_i, pen_diag)
-    if(is.na(mat_logL[c_k,c_i])){print(i)}
+    mat_elbo[c_k,c_i] = - logL_GP_mod(hp_i_i, db_i, mean_k_i , kern_i, cov_k_i, pen_diag)
+    if(is.na(mat_elbo[c_k,c_i])){print(i)}
   }
   c_k = 0
   }
 
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
-  mat_L = mat_logL %>% apply(2,function(x) exp(x - max(x)))
+  mat_L = mat_elbo %>% apply(2,function(x) exp(x - max(x)))
 
   #browser()
 
-  # tau_i_k = (pi_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
+  # hp_mixture = (prop_mixture_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
   #   `rownames<-`(names(m_k)) %>%
   #   `colnames<-`(unique(db$ID)) %>%
   #   apply(1, as.list)
 
-  tau_i_k <- (pi_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
+  hp_mixture <- (prop_mixture_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
     `rownames<-`(names(m_k)) %>%
     t %>%
     tibble::as_tibble()
 
-  tau_i_k <- tibble::tibble('ID' = unique(db$ID)) %>%
-    dplyr::mutate(tau_i_k)
+  hp_mixture <- tibble::tibble('ID' = unique(db$ID)) %>%
+    dplyr::mutate(hp_mixture)
 
-  list('mean' = mean_k, 'cov' = cov_k, 'tau_i_k' = tau_i_k) %>% return()
+  list('mean' = mean_k, 'cov' = cov_k, 'hp_mixture' = hp_mixture) %>% return()
 
 }
 
@@ -173,7 +173,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
 #'
-#' @return Set of optimised hyper parameters for the different kernels of the model, and the pi_k
+#' @return Set of optimised hyper parameters for the different kernels of the model, and the prop_mixture_k
 #' @export
 #'
 #' @examples
@@ -185,13 +185,13 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_tau_i_k, pen_diag
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
-#' old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
-#' pi_1 <- old_tau_i_k %>% dplyr::select(-.data$ID)
-#' hp_k[['pi']] = sapply( pi_1, function(x) x %>% unlist() %>% mean() )
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
+#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
 #'
-#' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_tau_i_k ,0.001)
+#' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
 #'
-#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, F, TRUE, 0.1)
+#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 0.1)
 #'
 m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
 {
@@ -205,7 +205,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
 
   list_hp_k <- old_hp_k %>%
     dplyr::select(-.data$ID) %>%
-    dplyr::select(-pi) %>%
+    dplyr::select(-prop_mixture) %>%
     names()
 
   if(common_hp_i)
@@ -218,7 +218,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
 
     new_theta_i <- optimr::opm(
       par = par_i,
-      fn = logL_clust_multi_GP_common_hp_i,
+      fn = elbo_clust_multi_GP_common_hp_i,
       gr = gr_clust_multi_GP_common_hp_i,
       db = db,
       mu_k_param = list_mu_param,
@@ -245,7 +245,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       ## Optimise hyper-parameters of the individual processes
       optimr::opm(
         par = par_i,
-        fn = logL_clust_multi_GP,
+        fn = elbo_clust_multi_GP,
         gr = gr_clust_multi_GP,
         db = db_i,
         pen_diag = pen_diag,
@@ -269,13 +269,13 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
     par_k <- old_hp_k %>%
       dplyr::select(-.data$ID) %>%
       dplyr::slice(1) %>%
-      dplyr::select(-pi)
+      dplyr::select(-prop_mixture)
 
     #browser()
 
     new_theta_k <- optimr::opm(
       par = par_k,
-      fn = logL_GP_mod_common_hp_k,
+      fn = elbo_GP_mod_common_hp_k,
       gr = gr_GP_mod_common_hp_k,
       db = list_mu_param$mean,
       mean = m_k,
@@ -289,7 +289,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
         tibble::as_tibble() %>%
         tidyr::uncount(weights = length(list_ID_k)) %>%
         dplyr::mutate('ID' = list_ID_k, .before = 1) %>%
-        dplyr::mutate("pi" = pen_diag)
+        dplyr::mutate("prop_mixture" = pen_diag)
 
 
     #browser()
@@ -303,7 +303,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       par_k <- old_hp_k %>%
         dplyr::filter(.data$ID == k) %>%
         dplyr::select(-.data$ID) %>%
-        dplyr::select(-pi)
+        dplyr::select(-prop_mixture)
       ## Extract the data associated with the k-th cluster
       db_k <- list_mu_param$mean[[k]]
       ## Extract the mean values associated with the k-th specific inputs
@@ -337,18 +337,22 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       tibble::enframe(name = "ID") %>%
       tidyr::unnest_auto(.data$value) %>%
       dplyr::rename_at(dplyr::vars(names(.) %>%
-      utils::tail(1)),dplyr::funs(paste('pi')) )
+      utils::tail(1)),dplyr::funs(paste('prop_mixture')) )
 
   }
 
   #browser()
 
-  pi_k = sapply( list_mu_param$tau_i_k, function(x) x %>% unlist() %>% mean() )
+  prop_mixture_k_1 <- list_mu_param$hp_mixture %>% dplyr::select(-.data$ID)
+
+  prop_mixture_k = sapply( prop_mixture_k_1, function(x) x %>% unlist() %>% mean() ) %>%
+    t %>%
+    tibble::as_tibble()
 
   list(
     "hp_k" = new_theta_k,
     "hp_i" = new_theta_i,
-    'pi_k' = pi_k
+    'prop_mixture_k' = prop_mixture_k
   ) %>%
     return()
 }

@@ -9,7 +9,7 @@ full_algo_clust(
   new_db,
   timestamps,
   kern_i,
-  ini_tau_i_k = NULL,
+  ini_hp_mixture = NULL,
   common_hp_k = T,
   common_hp_i = T,
   prior_mean = NULL,
@@ -29,7 +29,7 @@ full_algo_clust(
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
 "PERIO" and "RQ" are aso available here)}
 
-\item{ini_tau_i_k}{Initial probability to belong to each cluster for individuals. Optional, if list_hp is given}
+\item{ini_hp_mixture}{Initial probability to belong to each cluster for individuals. Optional, if list_hp is given}
 
 \item{common_hp_k}{A boolean indicating whether hp are common among mean GPs (for each mu_k)}
 

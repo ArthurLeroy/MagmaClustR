@@ -11,7 +11,7 @@ model_selection(
   ini_hp_i,
   kern_0,
   kern_i,
-  ini_tau_i_k = NULL,
+  ini_hp_mixture = NULL,
   common_hp_k = T,
   common_hp_i = T,
   plot = T,
@@ -19,7 +19,7 @@ model_selection(
 )
 }
 \arguments{
-\item{db}{A tibble containing values we want to compute logL on.
+\item{db}{A tibble containing values we want to compute elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{k_grid}{A vector, indicating the grid of additional reference
@@ -41,7 +41,7 @@ should be named according to the hyper-parameters that are used in
 
 \item{kern_i}{A kernel function, associated with the individual GPs.}
 
-\item{ini_tau_i_k}{initial values of probabiliy to belong to each cluster for each individuals.}
+\item{ini_hp_mixture}{initial values of probabiliy to belong to each cluster for each individuals.}
 
 \item{common_hp_k}{boolean indicating whether hp are common among mean GPs (for each mu_k)}
 

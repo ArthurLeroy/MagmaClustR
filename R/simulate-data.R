@@ -250,17 +250,17 @@ ini_tau_i_k_list = function(db, k, nstart = 50)
     return()
 }
 
-#' ini_tau_i_k
+#' ini_hp_mixture
 #'
 #' @param db database
 #' @param k cluster
 #' @param nstart nstart
 #'
-#' @return ini_tau_i_k
+#' @return ini_hp_mixture
 #' @export
 #'
 #' @examples
-ini_tau_i_k = function(db, k, nstart = 50)
+ini_hp_mixture = function(db, k, nstart = 50)
 {
   ini_kmeans(db, k, nstart) %>% dplyr::mutate(value = 1) %>%
     tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%

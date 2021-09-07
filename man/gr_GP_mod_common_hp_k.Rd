@@ -9,7 +9,7 @@ gr_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag = NULL)
 \arguments{
 \item{hp}{A tibble, data frame or named vector containing hyper-parameters..}
 
-\item{db}{A tibble containing the values we want to compute the logL on.
+\item{db}{A tibble containing the values we want to compute the elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{mean}{A list of the k means of the GP at union of observed timestamps.}

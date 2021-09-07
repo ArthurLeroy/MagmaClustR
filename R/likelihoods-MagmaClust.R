@@ -1,7 +1,7 @@
-#' Log-Likelihood function for clusturing mutli-Gaussian Process
+#' Elbo function for clusturing mutli-Gaussian Process
 #'
 #' @param hp A tibble, data frame or name vector containing hyper-parameters.
-#' @param db A tibble containing the values we want to compute the logL on.
+#' @param db A tibble containing the values we want to compute the elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
 #' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
@@ -12,7 +12,7 @@
 #' @export
 #'
 #' @examples
-logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
+elbo_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 {
   #browser()
   names_k = mu_k_param$mean %>% names()
@@ -22,7 +22,7 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 
   inv =  kern_to_inv(t_i, kern, hp, pen_diag)
 
-  LL_norm = - dmnorm(y_i, rep(0, length(y_i)), inv, log = T) ## classic gaussian centered loglikelihood
+  LL_norm = - dmnorm(y_i, rep(0, length(y_i)), inv, log = T) ## classic gaussian centered log likelihood
 
   corr1 = 0
   corr2 = 0
@@ -30,10 +30,10 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   #floop = function(k){
   for(k in (names_k))
   {
-    tau_i_k = mu_k_param$tau_i_k[k][i,]
+    hp_mixture = mu_k_param$hp_mixture[k][i,]
     mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
-    corr1 = corr1 + as.double(tau_i_k) * mean_mu_k
-    corr2 = corr2 + as.double(tau_i_k) * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
+    corr1 = corr1 + as.double(hp_mixture) * mean_mu_k
+    corr2 = corr2 + as.double(hp_mixture) * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
   #sapply(seq_len(length(names_k)), floop) %>%
@@ -45,7 +45,7 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #' Modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs
 #'
 #' @param hp A tibble, data frame or name vector containing hyper-parameters.
-#' @param db  A tibble containing values we want to compute logL on.
+#' @param db  A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mean list of the k means of the GP at union of observed timestamps
 #' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
@@ -58,7 +58,7 @@ logL_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #' @export
 #'
 #' @examples
-logL_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
+elbo_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 {
   ## To avoid pathological behaviour of the opm optimization function in rare cases
   #if((hp %>% abs %>% sum) > 20){return(10^10)}
@@ -86,7 +86,7 @@ logL_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL
 #' Modified Gaussian log-likelihood for for the sum of all indiv with same HPs
 #'
 #' @param hp A tibble, data frame or name vector containing hyper-parameters.
-#' @param db A tibble containing values we want to compute logL on.
+#' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
 #' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
@@ -97,7 +97,7 @@ logL_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL
 #' @export
 #'
 #' @examples
-logL_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
+elbo_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
 {
   ## To avoid pathological behaviour of the opm optimization function in rare cases
   #if((hp %>% abs %>% sum) > 20){return(10^10)}
@@ -135,15 +135,15 @@ logL_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
       ## Extract the covariance values associated with the i-th specific inputs
       post_cov_i = mu_k_param$cov[[k]][as.character(input_i), as.character(input_i)]
 
-      tau_i_k = mu_k_param$tau_i_k[k][i,]
+      hp_mixture = mu_k_param$hp_mixture[k][i,]
       mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
-      corr1 = corr1 + as.double(tau_i_k) * mean_mu_k
-      corr2 = corr2 + as.double(tau_i_k) * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i)
+      corr1 = corr1 + as.double(hp_mixture) * mean_mu_k
+      corr2 = corr2 + as.double(hp_mixture) * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i)
     }
 
     inv = kern_to_inv(inputs_i, kern, hp, pen_diag)
 
-    LL_norm = - dmnorm(output_i, rep(0, length(output_i)), inv, log = T) ## classic gaussian centered loglikelihood
+    LL_norm = - dmnorm(output_i, rep(0, length(output_i)), inv, log = T) ## classic gaussian centered log likelihood
 
     sum_i = sum_i + LL_norm - output_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2)
 
@@ -155,7 +155,7 @@ logL_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
 #'
 #' @param hp_k A tibble, data frame or name vector of hyper-parameters at corresponding clusters.
 #' @param hp_i A tibble, data frame or name vector of hyper-parameters at corresponding individuals.
-#' @param db A tibble containing values we want to compute logL on.
+#' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param kern_i Kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i).
 #' @param kern_0 Kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0).
@@ -169,7 +169,7 @@ logL_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
 #' @export
 #'
 #' @examples
-logL_monitoring_VEM = function(hp_k, hp_i, db, kern_i, kern_0, mu_k_param, m_k, pen_diag)
+elbo_monitoring_VEM = function(hp_k, hp_i, db, kern_i, kern_0, mu_k_param, m_k, pen_diag)
 {
   floop = function(k)
   {
@@ -181,7 +181,7 @@ logL_monitoring_VEM = function(hp_k, hp_i, db, kern_i, kern_0, mu_k_param, m_k, 
   floop2 = function(i)
   {
     t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-    logL_clust_multi_GP(hp_i[hp_i$ID == i,], db %>% dplyr::filter(.data$ID == i), mu_k_param, kern_0, pen_diag) %>% return()
+    elbo_clust_multi_GP(hp_i[hp_i$ID == i,], db %>% dplyr::filter(.data$ID == i), mu_k_param, kern_0, pen_diag) %>% return()
   }
   sum_ll_i = sapply(unique(db$ID), floop2) %>% sum()
   return(-sum_ll_k - sum_ll_i)

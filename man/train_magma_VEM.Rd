@@ -11,7 +11,7 @@ train_magma_VEM(
   ini_hp_i,
   kern_0,
   kern_i,
-  ini_tau_i_k = NULL,
+  ini_hp_mixture = NULL,
   common_hp_k = F,
   common_hp_i = F,
   pen_diag
@@ -67,7 +67,7 @@ operator '*' shall always be used before the '+' operators (e.g.
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
 "PERIO" and "RQ" are also available here)}
 
-\item{ini_tau_i_k}{initial values of probabiliy to belong to each cluster for each individuals.}
+\item{ini_hp_mixture}{initial values of probabiliy to belong to each cluster for each individuals.}
 
 \item{common_hp_k}{A boolean indicating whether hp are common among mean GPs (for each mu_k).}
 
@@ -84,7 +84,7 @@ in MagmaClust. The elements of the list are:
 process' kernel.
 \item hp_i: A tibble containing all the trained hyper-parameters for the
 individual processes' kernels.
-\item pi_k :
+\item prop_mixture_k :
 \item param :
 \item Converance: A logical value indicated whether the EM algorithm converged
 or not.
@@ -107,7 +107,7 @@ m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 db <- simu_db(N = 10, common_input = TRUE)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_tau_i_k = MagmaClustR:::ini_tau_i_k(db = db, k = length(k), nstart = 50)
+old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 
-train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_tau_i_k, FALSE, FALSE, 0.1)
+train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 }
