@@ -46,6 +46,7 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
       sum() %>%
       return()
   }
+  #browser()
   sapply(list_hp, floop) %>%
     return()
 }

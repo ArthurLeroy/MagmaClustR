@@ -39,6 +39,7 @@ elbo_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   #sapply(seq_len(length(names_k)), floop) %>%
   #  return()
 
+  #( LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2) ) %>% print
   ( LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2) ) %>% return()
 }
 

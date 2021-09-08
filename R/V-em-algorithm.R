@@ -5,10 +5,10 @@
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
-#' @param kern_0 A kernel function, associated with the mean GP.
+#' @param kern_k A kernel function, associated with the mean GP.
 #' @param kern_i A kernel function, associated with the individual GPs.
 #' @param hp_k A named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern_0}.
+#'    associated with \code{kern_k}.
 #' @param hp_i A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
@@ -18,11 +18,8 @@
 #'
 #' @return A named list, containing the elements \code{mean}, a tibble
 #' containing the Input and associated Output of the hyper-posterior mean
-#' parameter, and \code{cov}, the hyper-posterior covariance matrix.
-#'
-#' @return A named list, containing the elements \code{mean}, a tibble
-#' containing the Input and associated Output of the hyper-posterior mean
-#' parameter, and \code{cov}, the hyper-posterior covariance matrix.
+#' parameter, \code{cov}, the hyper-posterior covariance matrix,
+#' and \code{hp_mixture}, the probability to belong to a cluster for an individual.
 #' @export
 #'
 #' @examples
@@ -42,62 +39,77 @@
 #'
 #' }
 #'
-e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_hp_mixture, pen_diag = NULL)
-{
-  #browser()
+e_step_VEM = function(db,
+                      m_k,
+                      kern_k,
+                      kern_i,
+                      hp_k,
+                      hp_i,
+                      old_hp_mixture,
+                      pen_diag) {
+
   prop_mixture_k = hp_k$prop_mixture
-  all_t = unique(db$Input) %>% sort()
-  t_clust = tibble::tibble('ID' = rep(names(m_k), each = length(all_t)),
-                           'Input' = rep(all_t, length(m_k)))
+  all_input = unique(db$Input) %>% sort()
+  t_clust = tibble::tibble('ID' = rep(names(m_k), each = length(all_input)),
+                           'Input' = rep(all_input, length(m_k)))
 
-  list_inv_k = list_kern_to_inv(t_clust, kern_0, hp_k, pen_diag)
+  ## Compute all the inverse covariance matrices
+  list_inv_k = list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag)
   list_inv_i = list_kern_to_inv(db, kern_i, hp_i, pen_diag)
-  value_i = base::split(db$Output, list(db$ID))
 
-  ## Update each mu_k parameters
+  ## Create a named list of Output values for all individuals
+  list_output_i <- base::split(db$Output, list(db$ID))
+
+  ## Update each mu_k parameters for each cluster ##
   floop = function(k)
   {
-    #browser()
-    new_inv = list_inv_k[[k]]#; hp_mixture = old_hp_mixture[[k]]
+    new_inv = list_inv_k[[k]]
     hp_mixture = old_hp_mixture[k]
     for(x in list_inv_i %>% names())
     {
       inv_i = list_inv_i[[x]]
+      ## Collect the input's common indices between mean and individual processes
       common_times = intersect(row.names(inv_i), row.names(new_inv))
+      ## Sum the common inverse covariance's terms
       new_inv[common_times, common_times] = new_inv[common_times, common_times] +
         as.double(hp_mixture[x,]) * inv_i[common_times, common_times]
-        #hp_mixture[[x]] * inv_i[common_times, common_times]
     }
 
-
-    tryCatch(solve(new_inv), error = function(e){MASS::ginv(new_inv)}) %>%
+    ## Fast or slow matrix inversion if nearly singular
+    tryCatch(new_inv %>% chol() %>% chol2inv(),
+             error = function(e){MASS::ginv(new_inv)}) %>%
+      `rownames<-`(all_input) %>%
+      `colnames<-`(all_input) %>%
       return()
   }
   cov_k = sapply(names(m_k), floop, simplify = FALSE, USE.NAMES = TRUE)
 
+  ##############################################
+
+  ## Update the posterior mean for each cluster ##
+
   floop2 = function(k)
   {
-    prior_mean = m_k[[k]]; prior_inv = list_inv_k[[k]]#; hp_mixture = old_hp_mixture[[k]]
+    prior_mean = m_k[[k]]; prior_inv = list_inv_k[[k]]
     hp_mixture <- old_hp_mixture[k]
 
     if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(prior_inv))}
     weighted_mean = prior_inv %*% prior_mean
-    #row.names(weithed_mean) = row.names(prior_inv)
 
     for(i in list_inv_i %>% names())
     {
-      #weighted_i = hp_mixture[[i]] * list_inv_i[[i]] %*% value_i[[i]]
-      weighted_i = as.double(hp_mixture[i,]) * list_inv_i[[i]] %*% value_i[[i]]
-
-      #row.names(weithed_i) = row.names(list_inv_i[[j]])
-
+      ## Compute the weighted mean for the i-th individual
+      weighted_i = as.double(hp_mixture[i,]) * list_inv_i[[i]] %*% list_output_i[[i]]
+      ## Collect the input's common indices between mean and individual processes
       common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
-      weighted_mean[common_times,] = weighted_mean[common_times,] + weighted_i[common_times,]
+      ## Sum the common weighted mean's terms
+      weighted_mean[common_times,] = weighted_mean[common_times,] +
+        weighted_i[common_times,]
     }
 
-
+    ## Compute the updated mean parameter
     new_mean = cov_k[[k]] %*% weighted_mean %>% as.vector()
-    tibble::tibble('Input' = all_t, 'Output' = new_mean) %>% return()
+    tibble::tibble('Input' = all_input, 'Output' = new_mean) %>% return()
   }
   mean_k = sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
@@ -132,13 +144,6 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_hp_mixture, pen_d
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
   mat_L = mat_elbo %>% apply(2,function(x) exp(x - max(x)))
 
-  #browser()
-
-  # hp_mixture = (prop_mixture_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
-  #   `rownames<-`(names(m_k)) %>%
-  #   `colnames<-`(unique(db$ID)) %>%
-  #   apply(1, as.list)
-
   hp_mixture <- (prop_mixture_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
     `rownames<-`(names(m_k)) %>%
     t %>%
@@ -147,7 +152,10 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_hp_mixture, pen_d
   hp_mixture <- tibble::tibble('ID' = unique(db$ID)) %>%
     dplyr::mutate(hp_mixture)
 
-  list('mean' = mean_k, 'cov' = cov_k, 'hp_mixture' = hp_mixture) %>% return()
+  list('mean' = mean_k,
+       'cov' = cov_k,
+       'hp_mixture' = hp_mixture) %>%
+    return()
 
 }
 
@@ -160,7 +168,7 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_hp_mixture, pen_d
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
 #' @param list_mu_param List of parameters of the K mean GPs.
-#' @param kern_0 kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0)
+#' @param kern_k kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0)
 #' @param kern_i kernel used to compute the covariance matrix of individuals GP at corresponding timestamps (Psi_i)
 #' @param m_k prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(unique(db$Input))
 #' @param common_hp_k boolean indicating whether hp are common among mean GPs (for each mu_k)
@@ -173,15 +181,23 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_hp_mixture, pen_d
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
 #'
-#' @return Set of optimised hyper parameters for the different kernels of the model, and the prop_mixture_k
+#' @return A named list, containing the elements \code{hp_k}, a tibble
+#'    containing the hyper-parameters associated with each cluster,
+#'    \code{hp_i}, a tibble containing the hyper-parameters
+#'    associated with the individual GPs, and \code{prop_mixture_k},
+#'    a tibble containing the hyper-parameters associated with each individual,
+#'    indicating in which cluster it belongs.
+#'
 #' @export
 #'
 #' @examples
-#' ## Common inputs across individuals and different HPs
-#' k = seq_len(4)
-#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0, "K4" = 0)
+#' \donttest{
 #'
-#' db <- simu_db(N = 10, common_input = TRUE)
+#' ## Common inputs across individuals & cluster and differents HPs across individuals & Cluster
+#' k = seq_len(2)
+#' m_k <- c("K1" = 0, "K2" = 0)
+#'
+#' db <- simu_db(N = 10, common_input = FALSE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
@@ -191,11 +207,73 @@ e_step_VEM = function(db, m_k, kern_0, kern_i, hp_k, hp_i, old_hp_mixture, pen_d
 #'
 #' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
 #'
-#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 0.1)
+#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 2)
 #'
-m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
+#'
+#' ## Different inputs across individuals & cluster and common HPs
+#' k = seq_len(4)
+#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0, "K4" = 0)
+#' db <- simu_db(N = 10, common_input = FALSE)
+#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k), common_hp = TRUE)
+#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID), common_hp = TRUE)
+#'
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
+#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
+#'
+#' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
+#'
+#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
+#'
+#'
+#' ## Different kernels
+#' kernels <- c("SE", "LIN", "PERIO", "SE + PERIO", "SE * LIN + PERIO" )
+#' k = seq_len(2)
+#' m_k <- c("K1" = 0, "K2" = 0)
+#'
+#' for(i in kernels) {
+#'
+#' ## Common inputs across individuals & cluster and differents HPs across individuals & Cluster
+#'
+#' db <- simu_db(N = 10, common_input = TRUE)
+#' hp_k <- MagmaClustR:::hp(i, list_ID = names(m_k))
+#' hp_i <- MagmaClustR:::hp(i, list_ID = unique(db$ID))
+#'
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
+#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
+#'
+#' post = MagmaClustR:::e_step_VEM(db, m_k, i, i, hp_k, hp_i, old_hp_mixture ,0.001)
+#'
+#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, i, i, m_k, FALSE, FALSE, 25) -> a
+#' paste("kernel =",i , "Common inputs across individuals & cluster and differents HPs across individuals & Cluster") %>% print()
+#' print(a)
+#' print(" ")
+#'
+#'
+#' ## Different inputs across individuals & cluster and common HPs
+#' db <- simu_db(N = 10, common_input = FALSE)
+#' hp_k <- MagmaClustR:::hp(i, list_ID = names(m_k), common_hp = TRUE)
+#' hp_i <- MagmaClustR:::hp(i, list_ID = unique(db$ID), common_hp = TRUE)
+#'
+#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
+#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
+#'
+#' post = MagmaClustR:::e_step_VEM(db, m_k, i, i, hp_k, hp_i, old_hp_mixture ,0.001)
+#'
+#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, i, i, m_k, TRUE, TRUE, 0.1) -> b
+#' paste("kernels =", i, "Different inputs across individuals & cluster and common HPs") %>% print()
+#' print(b)
+#' print(" ")
+#'
+#' }
+#'
+#' ## if Error in svd(X) appear, increase the pen_diag
+#'
+#'}
+m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
 {
-  #browser()
   list_ID_k = names(m_k)
   list_ID_i = unique(db$ID)
 
@@ -208,6 +286,24 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
     dplyr::select(-prop_mixture) %>%
     names()
 
+  ## Detect whether the kernel_0 provides derivatives for its hyper-parameters
+  if (kern_k %>% is.function()) {
+    if (!("deriv" %in% methods::formalArgs(kern_k))) {
+      gr_GP_mod <- NULL
+      gr_GP_mod_common_hp_k <- NULL
+    }
+  }
+
+  ## Detect whether the kernel_i provides derivatives for its hyper-parameters
+  if (kern_i %>% is.function()) {
+    if (!("deriv" %in% methods::formalArgs(kern_i))) {
+      gr_clust_multi_GP_common_hp_i <- NULL
+      gr_clust_multi_GP <- NULL
+    }
+  }
+
+
+  ## Check whether hyper-parameters are common to all individuals
   if(common_hp_i)
   {
     ## Extract the hyper-parameters associated with the i-th individual
@@ -215,7 +311,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       dplyr::select(-.data$ID) %>%
       dplyr::slice(1)
 
-
+    ## Optimise hyper-parameters of the individual processes
     new_theta_i <- optimr::opm(
       par = par_i,
       fn = elbo_clust_multi_GP_common_hp_i,
@@ -253,16 +349,17 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
         kern = kern_i,
         method = "L-BFGS-B",
         control = list(kkt = F)
-        ) %>%
-          dplyr::select(list_hp_i) %>%
-          tibble::as_tibble() %>%
-          return()
+      ) %>%
+        dplyr::select(list_hp_i) %>%
+        tibble::as_tibble() %>%
+        return()
     }
     new_theta_i = sapply(list_ID_i, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest(cols = .data$value)
   }
 
+  ## Check whether hyper-parameters are common to all cluster
   if(common_hp_k)
   {
     ## Extract the hyper-parameters associated with the k-th cluster
@@ -271,15 +368,14 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       dplyr::slice(1) %>%
       dplyr::select(-prop_mixture)
 
-    #browser()
-
+    ## Optimise hyper-parameters of the processes of each cluster
     new_theta_k <- optimr::opm(
       par = par_k,
       fn = elbo_GP_mod_common_hp_k,
       gr = gr_GP_mod_common_hp_k,
       db = list_mu_param$mean,
       mean = m_k,
-      kern = kern_0,
+      kern = kern_k,
       post_cov = list_mu_param$cov,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
@@ -290,9 +386,6 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
         tidyr::uncount(weights = length(list_ID_k)) %>%
         dplyr::mutate('ID' = list_ID_k, .before = 1) %>%
         dplyr::mutate("prop_mixture" = pen_diag)
-
-
-    #browser()
 
 
   }
@@ -311,27 +404,24 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       ## Extract the covariance values associated with the k-th specific inputs
       post_cov_k <- list_mu_param$cov[[k]]
 
-      #browser()
-      ## Optimise hyper-parameters of the individual processes
+      ## Optimise hyper-parameters of the processes of each cluster
       c(optimr::opm(
         par = par_k,
         logL_GP_mod,
         gr = gr_GP_mod,
         db = db_k,
         mean = mean_k,
-        kern = kern_0,
+        kern = kern_k,
         post_cov = post_cov_k,
         pen_diag = pen_diag,
         method = "L-BFGS-B",
         control = list(kkt = FALSE)
-        ) %>%
-          dplyr::select(list_hp_k) %>%
-          tibble::as_tibble(),
-          pen_diag) %>%
-          return()
+      ) %>%
+        dplyr::select(list_hp_k) %>%
+        tibble::as_tibble(),
+        pen_diag) %>%
+        return()
     }
-
-    #browser()
 
     new_theta_k = sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
@@ -340,8 +430,6 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_0, kern_i, m_k
       utils::tail(1)),dplyr::funs(paste('prop_mixture')) )
 
   }
-
-  #browser()
 
   prop_mixture_k_1 <- list_mu_param$hp_mixture %>% dplyr::select(-.data$ID)
 
