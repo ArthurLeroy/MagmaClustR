@@ -233,7 +233,7 @@ pred_gp <- function(data,
         " hyper-parameters with the desired format, or use 'train_gp()' to ",
         "learn ML estimators for a better fit of data."
       )
-    } else if (any(kern %in% c("SE", "PERIO", "RQ"))) {
+    } else if (kern %>% is.character) {
       hp <- quiet(
         train_gp(data,
           ini_hp = hp(kern, noise = T),
@@ -784,7 +784,7 @@ pred_magma <- function(data,
           "random hyper-parameters with the desired format, or use ",
           "'train_gp()' to learn ML estimators for a better fit of data."
         )
-      } else if (any(kern %in% c("SE", "PERIO", "RQ"))) {
+      } else if (kern %>% is.character()) {
         hp <- quiet(
           train_gp(data,
                    ini_hp = hp(kern, noise = T),
@@ -808,7 +808,7 @@ pred_magma <- function(data,
         " hyper-parameters with the desired format, or use 'train_gp()' to ",
         "learn ML estimators for a better fit of data."
       )
-    } else if (any(kern %in% c("SE", "PERIO", "RQ"))) {
+    } else if (kern %>% is.character()) {
       hp <- quiet(
         train_gp(data,
           ini_hp = hp(kern, noise = T),
