@@ -21,16 +21,16 @@
 #'    inputs (explanatory variables) of the models that are also observed at each
 #'    reference \code{Input}.
 #' @param ini_hp_k named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern_0}, the mean process' kernel. The
+#'    associated with \code{kern_k}, the mean process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters
-#'    that are used in \code{kern_0}.
+#'    that are used in \code{kern_k}.
 #' @param ini_hp_i A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}, the individual processes' kernel.
 #'    Required column : \code{ID}. The \code{ID} column contains the unique
 #'    names/codes used to identify each individual/task. The other columns
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}.
-#' @param kern_0 A kernel function, associated with the mean GP.
+#' @param kern_k A kernel function, associated with the mean GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 #'    Cookbook}) are already implemented and can be selected within the
@@ -52,8 +52,15 @@
 #' @param common_hp_k A boolean indicating whether hp are common among mean GPs (for each mu_k).
 #' @param common_hp_i A boolean indicating whether hp are common among individual GPs (for each y_i).
 #' @param prior_mean_k prior mean parameter of the K mean GPs (mu_k)
+#' @param n_iter_max A number, indicating the maximum number of iterations of
+#'    the EM algorithm to proceed while not reaching convergence.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
+#' @param cv_threshold A number, indicating the threshold of the likelihood gain
+#'    under which the EM algorithm will stop. The convergence condition is
+#'    defined as the difference of likelihoods between two consecutive steps,
+#'    divided by the absolute value of the last one
+#'    ( (LL_n - LL_n-1) / |LL_n| ).
 #'
 #' @return A list, containing the results of the EM algorithm used for training
 #'    in MagmaClust. The elements of the list are:
@@ -63,11 +70,21 @@
 #'    individual processes' kernels.
 #'    - prop_mixture_k :
 #'
-#'    - param :
+#'    - param : A list 3 containing  The mean, the cov and the hp_mixture.
+#'        -> mean : A tibble containing the values of hyper-posterior's mean
+#'           parameter (\code{Output}) evaluated at each training reference
+#'        -> cov : A matrix, covariance parameter of the hyper-posterior
+#'                 distribution of the mean process.
+#'        -> hp_mixture : the probability to belong to a cluster for an individual.
+#'    \code{Input}.
+#'    - ini_args: A list containing the initial values for the hyper-prior mean,
+#'    the hyper-parameters, and the kernels that have been defined and used
+#'    during the learning procedure.
 #'
-#'    - Converance: A logical value indicated whether the EM algorithm converged
+#'    - Convergence: A logical value indicated whether the EM algorithm converged
 #'    or not.
 #'    - Training_time: Total running time of the complete training.
+#'
 #' @export
 #'
 #' @examples
@@ -79,46 +96,296 @@
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
+#' train_magma_VEM(db, length(k), m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
 
-train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
-                        kern_0, kern_i, ini_hp_mixture = NULL,
-                        common_hp_k = F, common_hp_i = F, pen_diag)
+train_magma_VEM = function(data,
+                           nb_cluster = NULL,
+                           prior_mean_k = NULL,
+                           ini_hp_k = NULL,
+                           ini_hp_i = NULL,
+                           kern_k = "SE",
+                           kern_i = "SE",
+                           ini_hp_mixture = NULL,
+                           common_hp_k = F,
+                           common_hp_i = F,
+                           n_iter_max = 25,
+                           pen_diag = 0.01,
+                           cv_threshold = 1e-3)
 {
   #browser()
-  n_loop_max = 15
-  list_ID = unique(data$ID)
-  ID_k = names(prior_mean_k)
-  hp_k = ini_hp_k # %>% list() %>% rep(length(ID_k))  %>% stats::setNames(nm = ID_k)
-  hp_i = ini_hp_i # %>% list() %>% rep(length(list_ID))  %>% stats::setNames(nm = list_ID)
 
-  cv = 'FALSE'
+  ## Create to return a list of the initial arguments of the function
+  fct_args  = list('data' = data,
+                   'nb_cluster' = 'nb_cluster',
+                   'prior_mean_k' = prior_mean_k,
+                   'ini_hp_k' = ini_hp_k,
+                   'ini_hp_i' = ini_hp_i,
+                   'kern_k'= kern_k,
+                   'kern_i' = kern_i,
+                   'ini_hp_mixture' = ini_hp_mixture,
+                   'common_hp_k' = common_hp_k,
+                   'common_hp_i' = common_hp_i,
+                   'n_iter_max' = n_iter_max,
+                   'pen_diag' = pen_diag,
+                   'cv_threshold' = cv_threshold
+                   )
+
+  ## Check for the correct format of the training data
+  if (data %>% is.data.frame()) {
+    if (!all(c("ID", "Output", "Input") %in% names(data))) {
+      stop(
+        "The 'data' argument should be a tibble or a data frame containing ",
+        "at least the mandatory column names: 'ID', 'Output' and 'Input'"
+      )
+    }
+  } else {
+    stop(
+      "The 'data' argument should be a tibble or a data frame containing ",
+      "at least the mandatory column names: 'ID', 'Output' and 'Input'"
+    )
+  }
+
+  ## Check the number of cluster
+  if(nb_cluster %>% is.null()){
+    if(ini_hp_k %>% is.null()){
+      if(prior_mean_k %>% is.null){
+        prior_mean_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+        ID_k = names(prior_mean_k)
+        cat(
+          "The number of cluster argument has not been specified.
+          There will be 3 cluster by default, named K1, K2 and K3\n \n"
+        )
+      }
+      else{
+        ID_k = names(prior_mean_k)
+      }
+    }
+    else{ID_k = (ini_hp_k$ID)}
+  }
+  else{
+    ID_k <- c()
+    for(i in 1:nb_cluster){
+      ID_k <- ID_k %>% append(paste0("K",i))
+    }
+  }
+
+  ## Certify that IDs are of type 'character'
+  data$ID <- data$ID %>% as.character()
+  ## Extract the list of differnt IDs
+  list_ID = unique(data$ID)
+
+  ## Initialise the individual process' hp according to user's values
+  if (kern_i %>% is.function()) {
+    if (ini_hp_i %>% is.null()) {
+      stop(
+        "When using a custom kernel function the 'ini_hp_i' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format for initialisation."
+      )
+    }
+  } else {
+    if (ini_hp_i %>% is.null()) {
+      hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp_i, noise = TRUE)
+      cat(
+        "The 'ini_hp_i' argument has not been specified. Random values of",
+        "hyper-parameters for the individal processes are used as",
+        "initialisation.\n \n"
+      )
+    } else if (!("ID" %in% names(ini_hp_i))) {
+      ## Create a full tibble of common HPs if the column ID is not specified
+      hp_i <- tibble::tibble(
+        ID = list_ID,
+        dplyr::bind_rows(ini_hp_i)
+      )
+    } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
+                 all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+      stop(
+        "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
+        "'data'."
+      )
+    }
+    else {
+      hp_i <- ini_hp_i
+    }
+  }
+
+  ## Add a 'noise' hyper-parameter if absent
+  if(!('noise' %in% names(hp_i))){
+    if(common_hp_i){
+      hp_i = hp_i %>% dplyr::mutate('noise' = hp(NULL, noise = T))
+    } else{
+      hp_i = hp_i %>%
+        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = 'ID')
+    }
+  }
+
+  ## Initialise the cluster process' hp according to user's values
+  if (kern_k %>% is.function()) {
+    if (ini_hp_k %>% is.null()) {
+      stop(
+        "When using a custom kernel function the 'ini_hp_k' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format for initialisation."
+      )
+    }
+  } else {
+    if (ini_hp_k %>% is.null()) {
+      hp_k <- hp(kern_k, list_ID = ID_k, common_hp = common_hp_k, noise = TRUE)
+      cat(
+        "The 'ini_hp_k' argument has not been specified. Random values of",
+        "hyper-parameters for the individal processes are used as",
+        "initialisation.\n \n"
+      )
+    } else if (!("ID" %in% names(ini_hp_k))) {
+      ## Create a full tibble of common HPs if the column ID is not specified
+      hp_k <- tibble::tibble(
+        ID = ID_k,
+        dplyr::bind_rows(ini_hp_k)
+      )
+    } else if (!(all(as.character(ini_hp_k$ID) %in% as.character(ID_k)) &
+                 all(as.character(ID_k) %in% as.character(ini_hp_k$ID)))) {
+      stop(
+        "The 'ID' column in 'ini_hp_k' is different from the 'ID' of the ",
+        "'data'."
+      )
+    }
+    else {
+      hp_k <- ini_hp_k
+    }
+  }
+
+  ## Add a 'noise' hyper-parameter if absent
+  if(!('noise' %in% names(hp_k))){
+    if(common_hp_k){
+      hp_k = hp_k %>% dplyr::mutate('noise' = hp(NULL, noise = T))
+    } else{
+      hp_k = hp_k %>%
+        dplyr::left_join(hp(NULL, list_ID = hp_k$ID, noise = T), by = 'ID')
+    }
+  }
+
+
+  ## Initialise m_k according to the value provided by the user
+  if (prior_mean_k %>% is.null()) {
+    m_k <- rep(0, length(hp_k$ID))
+    cat(
+      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+      "function is thus set to be 0 everywhere.\n \n"
+    )
+  }
+  else if (prior_mean_k %>% is.vector()) {
+    if (length(prior_mean_k) == length(hp_k$ID)) {
+      m_k <- prior_mean_k
+    } else if (length(prior_mean_k) == 1) {
+      m_k <- rep(prior_mean_k, length(hp_k$ID))
+      cat(
+        "The provided 'prior_mean' argument is of length 1. Thus, the",
+        "hyper_prior mean function has set to be constant everywhere.\n \n"
+      )
+    }
+    else {
+      stop(
+        "The 'prior_mean' argument is of length ", length(prior_mean_k),
+        ", whereas the grid of training inputs is of length ",
+        length(hp_k$ID)
+      )
+    }
+  }
+  else if (prior_mean_k %>% is.function()) {
+    m_k <- prior_mean_k(hp_k$ID)
+  }
+  else if (prior_mean_k %>% is.data.frame()) {
+    if (all(c("Output", "Input") %in% names(prior_mean_k))) {
+      m_k <- prior_mean_k %>%
+        dplyr::filter(.data$Input %in% hp_k$ID) %>%
+        dplyr::arrange(.data$Input) %>%
+        dplyr::pull(.data$Output)
+
+      if (length(m_k) != length(hp_k$ID)) {
+        stop(
+          "Problem in the length of the hyper_prior mean parameter. The ",
+          "'pior_mean' argument should provide an Output value for each Input ",
+          "value appearing in the training data."
+        )
+      }
+    } else {
+      stop(
+        "If the 'prior_mean' argument is provided as a data frame, it ",
+        "should contain the mandatory column names: 'Output', 'Input'"
+      )
+    }
+  }
+  else {
+    stop(
+      "Incorrect format for the 'prior_mean' argument. Please read ",
+      "?hyperposterior() for details."
+    )
+  }
+
+  #Names the m_k
+  if(names(m_k) %>% is.null()){names(m_k) <- ID_k}
+
+  ## Track the total training time
+  t1 <- Sys.time()
+
+  ## Initialize the monitoring information
+  cv <- FALSE
+  elbo_monitoring = - Inf
+
   if(is.null(ini_hp_mixture)){ini_hp_mixture = ini_hp_mixture(data, k = length(ID_k), nstart = 50)}
   hp_mixture = ini_hp_mixture
 
   hp_1 <- hp_mixture %>% dplyr::select(-.data$ID)
   hp_k[['prop_mixture']] = sapply( hp_1, function(x) x %>% unlist() %>% mean() )
-  elbo_monitoring = - Inf
-  t1 = Sys.time()
 
-  for(i in 1:n_loop_max)
+
+  #browser()
+
+  ## Iterate E-step and M-step until convergence
+  for(i in 1:n_iter_max)
   {
-    print(i)
-    ## E-Step
-    param = e_step_VEM(data, prior_mean_k, kern_0, kern_i, hp_k, hp_i, hp_mixture, pen_diag)
+    ## Track the running time for each iteration of the EM algorithm
+    t_i_1 <- Sys.time()
 
-    ## Monitoring of the LL
-    new_elbo_monitoring = elbo_monitoring_VEM(hp_k, hp_i, data, kern_i, kern_0, mu_k_param = param , m_k = prior_mean_k, pen_diag)
-    #0.5 * (length(param$cov) * nrow(param$cov[[1]]) +
-    #Reduce('+', lapply(param$cov, function(x) log(det(x)))) )
+    ## E-Step of MagmaClust
+    param = e_step_VEM(data,
+                       m_k,
+                       kern_k,
+                       kern_i,
+                       hp_k,
+                       hp_i,
+                       hp_mixture,
+                       pen_diag)
+
+    ## Monitoring of the elbo
+    new_elbo_monitoring = elbo_monitoring_VEM(hp_k,
+                                              hp_i,
+                                              data,
+                                              kern_i,
+                                              kern_k,
+                                              mu_k_param = param,
+                                              m_k = m_k,
+                                              pen_diag)
     print(new_elbo_monitoring)
     diff_moni = new_elbo_monitoring - elbo_monitoring
 
     if(diff_moni < - 0.1){warning('Likelihood descreased')}
 
-    ## M-Step
-    new_hp = m_step_VEM(data, hp_k, hp_i, list_mu_param = param, kern_0, kern_i, prior_mean_k, common_hp_k, common_hp_i, pen_diag)
+    ## M-Step of MagmaClsut
+    new_hp = m_step_VEM(data,
+                        hp_k,
+                        hp_i,
+                        list_mu_param = param,
+                        kern_k,
+                        kern_i,
+                        m_k,
+                        common_hp_k,
+                        common_hp_i,
+                        pen_diag)
 
+    ## In case something went wrong during the optimization
     if(new_hp %>% anyNA(recursive = T))
     {
       print(paste0('The M-step encountered an error at iteration : ', i))
@@ -127,10 +394,24 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
     }
 
     ## Testing the stoping condition
-    elbo_new = elbo_monitoring_VEM(new_hp$hp_k, new_hp$hp_i, data, kern_i, kern_0, mu_k_param = param, m_k = prior_mean_k, pen_diag)
-    eps = (elbo_new - elbo_monitoring_VEM(hp_k, hp_i, data, kern_i, kern_0, mu_k_param = param, m_k = prior_mean_k, pen_diag)) /
-      abs(elbo_new)
+    elbo_new = elbo_monitoring_VEM(new_hp$hp_k,
+                                   new_hp$hp_i,
+                                   data,
+                                   kern_i,
+                                   kern_k,
+                                   mu_k_param = param,
+                                   m_k = m_k,
+                                   pen_diag)
+    eps = (elbo_new - elbo_monitoring_VEM(hp_k,
+                                          hp_i,
+                                          data,
+                                          kern_i,
+                                          kern_k,
+                                          mu_k_param = param,
+                                          m_k = m_k,
+                                          pen_diag)) / abs(elbo_new)
 
+    ## Compute the convergence ratio
     print(c('eps', eps))
     if(eps < 1e-1)
     {
@@ -139,18 +420,56 @@ train_magma_VEM = function(data, prior_mean_k, ini_hp_k, ini_hp_i,
       break
     }
 
+    ## Update HPs values and the elbo monitoring
     hp_i = new_hp$hp_i
     hp_k = new_hp$hp_k
     prop_mixture_k = new_hp$prop_mixture_k
 
     hp_mixture = param$hp_mixture
     elbo_monitoring = new_elbo_monitoring
+
+    ## Provide monitoring information
+    t_i_2 <- Sys.time()
+    paste0(
+      "EM algorithm, step ", i, ": ",
+      difftime(t_i_2, t_i_1, units = "secs") %>% round(2),
+      " seconds \n \n"
+    ) %>%
+      cat()
+
+    paste0("Value of the elbo: ",
+           elbo_monitoring,
+           " --- Convergence ratio = ",
+           eps,
+           "\n \n") %>%
+      cat()
+
+    ## Check the convergence condition
+    if (abs(eps) < cv_threshold) {
+      cat("The EM algorithm successfully converged, training is completed.",
+          "\n \n")
+      cv <- TRUE
+      break
+    }
+    ## Check for a prematurate ending of the EM algorithm
+    if (!cv & (i == n_iter_max)) {
+      warning("The EM algorithm has reached the maximum number of iterations ",
+              "before convergence, training might be sub-optimal \n \n")
+    }
   }
+
   t2 = Sys.time()
-  list('hp_k' = hp_k, 'hp_i' = hp_i, 'prop_mixture_k' = prop_mixture_k,
-       'convergence' = cv,  'param' = param,
-       'Training_time' =  difftime(t2, t1, units = "secs")) %>%
+  ## Create and return the list of elements from the trained model
+  list('hp_k' = hp_k,
+       'hp_i' = hp_i,
+       'prop_mixture_k' = prop_mixture_k,
+       'convergence' = cv,
+       "ini_args" = fct_args,
+       'param' = param,
+       'Training_time' =  difftime(t2, t1, units = "secs")
+       ) %>%
     return()
+
 }
 
 #' Update hp_mixture k star EM
@@ -228,6 +547,8 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    "PERIO" and "RQ" are also available here).
 #' @param hp_i A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
+#' @param n_iter_max A number, indicating the maximum number of iterations of
+#'    the EM algorithm to proceed while not reaching convergence.
 #'
 #' @return A list, containing the results of the EM algorithm used for training
 #'    in MagmaClust. The elements of the list are:
@@ -255,7 +576,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
 #'
 #' train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
-train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
+train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL, n_iter_max)
 {
   #browser()
 
@@ -265,10 +586,9 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
   prop_mixture_k = lapply(hp_1, function(x) Reduce("+", x)/ length(x))
   if(is.null(hp_i))
   {
-    n_loop_max = 25
     hp = ini_hp_i
 
-    for(i in 1:n_loop_max)
+    for(i in 1:n_iter_max)
     {
       ## E step
 
