@@ -116,8 +116,6 @@ train_magma_VEM = function(data,
                            pen_diag = 0.01,
                            cv_threshold = 1e-3)
 {
-  #browser()
-
   ## Create to return a list of the initial arguments of the function
   fct_args  = list('data' = data,
                    'nb_cluster' = 'nb_cluster',
@@ -345,8 +343,6 @@ train_magma_VEM = function(data,
   hp_k[['prop_mixture']] = sapply( hp_1, function(x) x %>% unlist() %>% mean() )
 
 
-  #browser()
-
   ## Iterate E-step and M-step until convergence
   for(i in 1:n_iter_max)
   {
@@ -484,7 +480,8 @@ train_magma_VEM = function(data,
 #' TRUE
 update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixture_k)
 {
-  #browser()
+  browser()
+  all_input = unique(db$Input) %>% sort()
   names_k = names(mean_k)
   c_k = 0
   mat_elbo = rep(NA, length(names_k))
@@ -494,19 +491,26 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
       dplyr::pull(.data$Input) %>%
       round(digits = 10)
 
+
     #unique_input <- input_i %>% unique
+  if('ID' %in% names(db)){db_1 <- db %>% dplyr::select(-.data$ID)}
+  else{db_1 <- db}
 
   prop_mixture = unlist(prop_mixture_k)
 
   for(k in names_k)
   {
+    input_cov <- cov_k[[k]] %>% tibble::as_tibble() %>% names() #[497] "9.15641282565131" not good
     c_k = c_k + 1
 
     round_mean <- mean_k[[k]] %>% round(digits = 10)
 
-    mean = round_mean %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
-    cov =  (kern_to_cov(db$Input, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] )
-    inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
+    mean = round_mean %>% dplyr::filter(.data$Input %in% union(input_i, input_cov)) %>% dplyr::pull(.data$Output)
+    cov =  (kern_to_cov(db_1, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] ) #cov_k[[k]][as.character(input_cov), as.character(input_cov)]
+    inv = tryCatch(cov %>% chol() %>% chol2inv(),
+                   error = function(e){MASS::ginv(cov)}) %>%
+      `rownames<-`(all_input) %>%
+      `colnames<-`(all_input)
 
     mat_elbo[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
   }
@@ -541,7 +545,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    \code{kern_i}.
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are also available here).
-#' @param hp_i A named vector, tibble or data frame of hyper-parameters
+#' @param trained_hp_i A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
 #' @param n_iter_max A number, indicating the maximum number of iterations of
 #'    the EM algorithm to proceed while not reaching convergence.
@@ -554,35 +558,87 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'
 #' @examples
 #' k = seq_len(2)
-#' m_k <- c("K1" = 0, "K2" = 0)
+#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 #'
-#' db <- simu_db(N = 2, common_input = FALSE)
+#' db <- simu_db()
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 #' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
+#' training_test = train_magma_VEM(db)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
 #' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 #'
-#'
-#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
-#'
-#' train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
-train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL, n_iter_max)
+#' train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = training_test$hp_i)
+train_new_gp_EM = function(data,
+                           timestamps = NULL,
+                           nb_cluster = NULL,
+                           prior_mean_k = NULL,
+                           param_mu_k = NULL,
+                           ini_hp_k = NULL,
+                           ini_hp_i = NULL,
+                           kern_i = "SE",
+                           trained_magmaclust = NULL,
+                           n_iter_max = 25)
 {
   #browser()
+  ## Initialise the mean process' hp according to user's values
+  if (kern_i %>% is.function()) {
+    if (ini_hp_i %>% is.null()) {
+      stop(
+        "When using a custom kernel function the 'ini_hp_i' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format for initialisation."
+      )
+    }
+    else{hp = ini_hp_i}
+  } else {
+    if (ini_hp_i %>% is.null()) {
+      hp <- hp(kern_i, noise = T, list_ID = unique(data$ID))
+      cat(
+        "The 'ini_hp_i' argument has not been specified. Random values of",
+        "hyper-parameters are used as initialisation.\n \n"
+      )
+    } else {
+      hp <- ini_hp_i
+    }
+  }
+  hp <- hp %>% dplyr::slice(1)
 
+  ## Extract the names of hyper-parameters
+  list_hp_new <- hp %>% names()
+  ## Extract the reference Input in the data
+  all_input = unique(db$Input) %>% sort()
+  ## Extract the values of the hyper-posterior mean and covariance parameter at reference Input
+  trained_hp_i <- trained_magmaclust$hp_i
+  if(param_mu_k %>% is.null()){
+    ## Define a default prediction grid
+    if(is.null(timestamps)){timestamps = seq(min(all_input), max(all_input), length.out = 500)}
+    if(trained_magmaclust %>% is.null()){
+      trained_magmaclust = train_magma_VEM(db, kern_i = kern_i)
+    }
+    param_mu_k <- posterior_mu_k(data,
+                                 timestamps,
+                                 trained_magmaclust$prop_mixture_k,
+                                 trained_magmaclust$ini_args$kern_k,
+                                 trained_magmaclust$ini_args$kern_i,
+                                 trained_magmaclust)
+  }
   mean_mu_k = param_mu_k$mean
   cov_mu_k = param_mu_k$cov
+  ## Remove the ID column
   hp_1 <- param_mu_k$hp_mixture %>% dplyr::select(-.data$ID)
+
   prop_mixture_k = lapply(hp_1, function(x) Reduce("+", x)/ length(x))
-  if(is.null(hp_i))
+
+  browser()
+
+  if(is.null(trained_hp_i))
   {
-    hp = ini_hp_i
 
     for(i in 1:n_iter_max)
     {
@@ -604,7 +660,10 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL, n_it
           mean = round_mean %>% dplyr::filter(.data$Input %in% inputs) %>% dplyr::pull(.data$Output)
           cov = (kern_to_cov(data$Input, kern_i, hp) +
                    cov_mu_k[[k]][as.character(inputs), as.character(inputs)])
-          inv = tryCatch(solve(cov), error = function(e){MASS::ginv(cov)})
+          inv = tryCatch(cov %>% chol() %>% chol2inv(),
+                         error = function(e){MASS::ginv(cov)}) %>%
+                  `rownames<-`(all_input) %>%
+                  `colnames<-`(all_input)
 
           (data$Input - hp_k_mixture[[k]] * dmnorm(data$Output, mean, inv, log = T)) %>%
             return()
@@ -645,7 +704,7 @@ train_new_gp_EM = function(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL, n_it
   }
   else
   {
-    new_hp = hp_i %>% dplyr::slice(1)
+    new_hp = trained_hp_i %>% dplyr::slice(1)
 
     hp_k_mixture <- update_hp_k_mixture_star_EM(data, mean_mu_k, cov_mu_k, kern_i, new_hp, prop_mixture_k)
 
