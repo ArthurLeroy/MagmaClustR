@@ -267,7 +267,7 @@ train_magma <- function(data,
   ## Add a 'noise' hyper-parameter if absent
   if(!('noise' %in% names(hp_i))){
     if(common_hp){
-      hp_i = hp_i %>% dplyr::mutate('noise' = hp(NULL, noise = T))
+      hp_i = hp_i %>% dplyr::mutate(hp(NULL, noise = T))
     } else{
       hp_i = hp_i %>%
         dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = 'ID')

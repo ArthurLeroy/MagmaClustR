@@ -97,7 +97,11 @@
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
 #' train_magma_VEM(db, length(k), m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
-
+#'
+#' ###############################
+#'
+#' db <- simu_db()
+#' train_magma_VEM(db)
 train_magma_VEM = function(data,
                            nb_cluster = NULL,
                            prior_mean_k = NULL,
@@ -213,7 +217,7 @@ train_magma_VEM = function(data,
   ## Add a 'noise' hyper-parameter if absent
   if(!('noise' %in% names(hp_i))){
     if(common_hp_i){
-      hp_i = hp_i %>% dplyr::mutate('noise' = hp(NULL, noise = T))
+      hp_i = hp_i %>% dplyr::mutate(hp(NULL, noise = T))
     } else{
       hp_i = hp_i %>%
         dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = 'ID')
@@ -368,7 +372,6 @@ train_magma_VEM = function(data,
                                               mu_k_param = param,
                                               m_k = m_k,
                                               pen_diag)
-    print(new_elbo_monitoring)
     diff_moni = new_elbo_monitoring - elbo_monitoring
 
     if(diff_moni < - 0.1){warning('Likelihood descreased')}
@@ -383,7 +386,8 @@ train_magma_VEM = function(data,
                         m_k,
                         common_hp_k,
                         common_hp_i,
-                        pen_diag)
+                        pen_diag) %>%
+                          suppressMessages()
 
     ## In case something went wrong during the optimization
     if(new_hp %>% anyNA(recursive = T))
@@ -411,14 +415,6 @@ train_magma_VEM = function(data,
                                           m_k = m_k,
                                           pen_diag)) / abs(elbo_new)
 
-    ## Compute the convergence ratio
-    print(c('eps', eps))
-    if(eps < 1e-1)
-    {
-      if(eps > 0){hp = new_hp}
-      cv = TRUE
-      break
-    }
 
     ## Update HPs values and the elbo monitoring
     hp_i = new_hp$hp_i
