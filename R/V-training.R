@@ -61,6 +61,7 @@
 #'    defined as the difference of likelihoods between two consecutive steps,
 #'    divided by the absolute value of the last one
 #'    ( (LL_n - LL_n-1) / |LL_n| ).
+#' @param nb_cluster The number of clusters wanted.
 #'
 #' @return A list, containing the results of the EM algorithm used for training
 #'    in MagmaClust. The elements of the list are:
@@ -423,7 +424,7 @@ train_magma_VEM = function(data,
     ## Provide monitoring information
     t_i_2 <- Sys.time()
     paste0(
-      "EM algorithm, step ", i, ": ",
+      "EM algorithm on the training of MagmaClust, step ", i, ": ",
       difftime(t_i_2, t_i_1, units = "secs") %>% round(2),
       " seconds \n \n"
     ) %>%
@@ -480,7 +481,7 @@ train_magma_VEM = function(data,
 #' TRUE
 update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixture_k)
 {
-  browser()
+  #browser()
   all_input = unique(db$Input) %>% sort()
   names_k = names(mean_k)
   c_k = 0
@@ -489,7 +490,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
   ## Extract the specific inputs
     input_i <- db %>%
       dplyr::pull(.data$Input) %>%
-      round(digits = 10)
+      round(digits = 2)
 
 
     #unique_input <- input_i %>% unique
@@ -500,62 +501,97 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 
   for(k in names_k)
   {
-    input_cov <- cov_k[[k]] %>% tibble::as_tibble() %>% names() #[497] "9.15641282565131" not good
+    input_cov <- cov_k[[k]] %>%
+      tibble::as_tibble() %>%
+      names()
     c_k = c_k + 1
 
-    round_mean <- mean_k[[k]] %>% round(digits = 10)
+    round_mean <- mean_k[[k]] %>% round(digits = 2)
 
-    mean = round_mean %>% dplyr::filter(.data$Input %in% union(input_i, input_cov)) %>% dplyr::pull(.data$Output)
+    mean = round_mean %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
+
     cov =  (kern_to_cov(db_1, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] ) #cov_k[[k]][as.character(input_cov), as.character(input_cov)]
     inv = tryCatch(cov %>% chol() %>% chol2inv(),
                    error = function(e){MASS::ginv(cov)}) %>%
-      `rownames<-`(all_input) %>%
-      `colnames<-`(all_input)
+      `rownames<-`(input_i) %>%
+      `colnames<-`(input_i)
+      #`rownames<-`(all_input) %>%
+      #`colnames<-`(all_input)
 
     mat_elbo[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
   }
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
   mat_L = exp(mat_elbo - max(mat_elbo))
 
-  ((prop_mixture * mat_L)/ sum(prop_mixture * mat_L)) %>% as.vector %>% split(names_k) %>% return()
+  ((prop_mixture * mat_L)/ sum(prop_mixture * mat_L)) %>% as.vector %>% split(names_k) %>% tibble::as_tibble() %>% return()
 
 }
 
 
-#' Training new GP with the EM algorithm
+#' Learning hyper-parameters of a Gaussian Process
 #'
-#' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
-#'    , \code{Output}.
-#'    Additional columns for covariates can be specified.
-#'    The \code{ID} column contains the unique names/codes used to identify each
-#'    individual/task (or batch of data).
+#' Learning hyper-parameters of any new individual/task in \code{magmaclust} is
+#' required in the prediction procedure. When using within \code{magma},
+#' by providing data for the new individual/task, the trained model
+#' (hyper-posterior mean and  covariance parameters) and
+#' initialization values for the hyper-parameters, the function computes
+#' maximum likelihood estimates of the hyper-parameters.
+#'
+#' @param data  A tibble or data frame. Required columns: \code{Input},
+#'    \code{Output}. Additional columns for covariates can be specified.
 #'    The \code{Input} column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
 #'    \code{Output} column specifies the observed values (the response
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at each
-#'    reference \code{Input}.
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param timestamps A vector, indicating the timestamp of additional reference
+#'    inputs on which the mean process' hyper-posterior should be evaluated.
+#' @param nb_cluster The number of cluster wanted.
 #' @param param_mu_k list of parameters for the K mean Gaussian processes
+#' @param ini_hp_k A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_k}, the cluster processes' kernel.
+#'    Required column : \code{ID}. The \code{ID} column contains the unique
+#'    names/codes used to identify each individual/task. The other columns
+#'    should be named according to the hyper-parameters that are used in
+#'    \code{kern_i}.
 #' @param ini_hp_i A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}, the individual processes' kernel.
 #'    Required column : \code{ID}. The \code{ID} column contains the unique
 #'    names/codes used to identify each individual/task. The other columns
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}.
-#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
-#'    "PERIO" and "RQ" are also available here).
-#' @param trained_hp_i A named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}.
+#' @param kern_i A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param trained_magmaclust A tibble of list containing "hp_i". hp_i being a named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}. Can be compute with the fonction \code{train_magma_VEM}.
+#'    db <- simu_db()
+#'    trained_magmaclust <- train_magma_VEM(db)
 #' @param n_iter_max A number, indicating the maximum number of iterations of
 #'    the EM algorithm to proceed while not reaching convergence.
+#' @param cv_threshold A number, indicating the threshold of the likelihood gain
+#'    under which the EM algorithm will stop.
 #'
 #' @return A list, containing the results of the EM algorithm used for training
 #'    in MagmaClust. The elements of the list are:
 #'    - theta_new :
 #'    - hp_k_mixture :
 #' @export
-#'
 #' @examples
 #' k = seq_len(2)
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
@@ -573,19 +609,25 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 #'
 #' train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = training_test$hp_i)
+#'
+#' ###########################
+#' db <- simu_db()
+#' training_test = train_magma_VEM(db)
+#' train_new_gp_EM(simu_db(M=1), trained_magmaclust = training_test)
+#' ##########################
+#' train_new_gp_EM(simu_db(M=1))
 train_new_gp_EM = function(data,
                            timestamps = NULL,
                            nb_cluster = NULL,
-                           prior_mean_k = NULL,
                            param_mu_k = NULL,
                            ini_hp_k = NULL,
                            ini_hp_i = NULL,
                            kern_i = "SE",
                            trained_magmaclust = NULL,
-                           n_iter_max = 25)
+                           n_iter_max = 25,
+                           cv_threshold = 1e-3)
 {
-  #browser()
-  ## Initialise the mean process' hp according to user's values
+  ## Initialise the individual process' hp according to user's values
   if (kern_i %>% is.function()) {
     if (ini_hp_i %>% is.null()) {
       stop(
@@ -612,16 +654,22 @@ train_new_gp_EM = function(data,
   ## Extract the names of hyper-parameters
   list_hp_new <- hp %>% names()
   ## Extract the reference Input in the data
-  all_input = unique(db$Input) %>% sort()
+  all_input = unique(data$Input) %>% sort()
   ## Extract the values of the hyper-posterior mean and covariance parameter at reference Input
   trained_hp_i <- trained_magmaclust$hp_i
   if(param_mu_k %>% is.null()){
     ## Define a default prediction grid
-    if(is.null(timestamps)){timestamps = seq(min(all_input), max(all_input), length.out = 500)}
-    if(trained_magmaclust %>% is.null()){
-      trained_magmaclust = train_magma_VEM(db, kern_i = kern_i)
+    db_train <- simu_db()
+    if(is.null(timestamps)){timestamps = seq(0.01, 10, 0.01)} # seq(min(all_input), max(all_input), length.out = 500)}
+    if(trained_magmaclust %>% is.null()
+       | trained_magmaclust$prop_mixture_k %>% is.null()
+       | trained_magmaclust$ini_args %>% is.null()){
+      trained_magmaclust = train_magma_VEM(db_train, kern_i = kern_i,
+                                           nb_cluster = nb_cluster,
+                                           ini_hp_k = ini_hp_k,
+                                           ini_hp_i = ini_hp_i)
     }
-    param_mu_k <- posterior_mu_k(data,
+    param_mu_k <- posterior_mu_k(db_train,
                                  timestamps,
                                  trained_magmaclust$prop_mixture_k,
                                  trained_magmaclust$ini_args$kern_k,
@@ -633,20 +681,20 @@ train_new_gp_EM = function(data,
   ## Remove the ID column
   hp_1 <- param_mu_k$hp_mixture %>% dplyr::select(-.data$ID)
 
+  ## Initialize the monitoring information
+  cv <- FALSE
   prop_mixture_k = lapply(hp_1, function(x) Reduce("+", x)/ length(x))
-
-  browser()
 
   if(is.null(trained_hp_i))
   {
 
     for(i in 1:n_iter_max)
     {
+      ## Track the running time for each iteration of the EM algorithm
+      t_i_1 <- Sys.time()
+
       ## E step
-
       hp_k_mixture <- update_hp_k_mixture_star_EM(data, mean_mu_k, cov_mu_k, kern_i, hp, prop_mixture_k)
-
-
 
       ## M step
       LL_GP<- function(hp, data, kern_i)
@@ -677,11 +725,16 @@ train_new_gp_EM = function(data,
       new_hp = optimr::opm(
         par_i,
         LL_GP,
-        db = data,
+        data = data,
         kern = kern_i,
         method = "L-BFGS-B",
         control = list(kkt = FALSE)
-        )[1,1:3]
+        ) %>%
+          dplyr::select(hp %>%
+                          dplyr::select(-.data$ID) %>%
+                          names()) %>%
+        tibble::as_tibble() %>%
+        dplyr::mutate('ID' = 1, .before = 1)
 
       if(new_hp %>% anyNA(recursive = T))
       {
@@ -690,14 +743,38 @@ train_new_gp_EM = function(data,
         break
       }
 
-      ## Testing the stoping condition
-      eps = (new_hp - hp) %>% abs %>% sum
-      print(c('hp_k_mixture', hp_k_mixture %>% unlist))
-      print(c('eps', eps))
-      if(eps>0 & eps < 1e-3)
-      {
-        cv = 'TRUE'
+
+      ## Provide monitoring information
+      t_i_2 <- Sys.time()
+      paste0(
+        "EM algorithm on the trainig of new, step ", i, ": ",
+        difftime(t_i_2, t_i_1, units = "secs") %>% round(2),
+        " seconds \n \n"
+      ) %>%
+        cat()
+
+
+      names_hp <- new_hp %>% dplyr::select(-.data$ID) %>% names()
+      eps = (new_hp[names_hp] - hp[names_hp]) %>% abs %>% sum
+
+      print("Value of the hp mixture: ")
+      print(hp_k_mixture)
+      paste0("Convergence ratio = ",
+             eps,
+             "\n \n") %>%
+        cat()
+
+      ## Check the convergence condition
+      if (abs(eps) < cv_threshold) {
+        cat("The EM algorithm successfully converged, training is completed.",
+            "\n \n")
+        cv <- TRUE
         break
+      }
+      ## Check for a prematurate ending of the EM algorithm
+      if (!cv & (i == n_iter_max)) {
+        warning("The EM algorithm has reached the maximum number of iterations ",
+                "before convergence, training might be sub-optimal \n \n")
       }
       hp = new_hp
     }
@@ -709,6 +786,14 @@ train_new_gp_EM = function(data,
     hp_k_mixture <- update_hp_k_mixture_star_EM(data, mean_mu_k, cov_mu_k, kern_i, new_hp, prop_mixture_k)
 
   }
+
+  ## If something went wrong during the optimization
+  if (new_hp %>% is.na() %>% any()) {
+    warning("Training encountered an error and the function returns initial
+    values of the hyperparameters")
+    new_hp <- hp
+  }
+
   list('theta_new' = new_hp , 'hp_k_mixture' = hp_k_mixture) %>% return()
 }
 
