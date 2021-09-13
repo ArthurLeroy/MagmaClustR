@@ -490,10 +490,9 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
   ## Extract the specific inputs
     input_i <- db %>%
       dplyr::pull(.data$Input) %>%
-      round(digits = 2)
+      round(digits = 5)
 
 
-    #unique_input <- input_i %>% unique
   if('ID' %in% names(db)){db_1 <- db %>% dplyr::select(-.data$ID)}
   else{db_1 <- db}
 
@@ -501,16 +500,13 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 
   for(k in names_k)
   {
-    input_cov <- cov_k[[k]] %>%
-      tibble::as_tibble() %>%
-      names()
     c_k = c_k + 1
 
-    round_mean <- mean_k[[k]] %>% round(digits = 2)
+    round_mean <- mean_k[[k]] %>% round(digits = 5)
 
     mean = round_mean %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
 
-    cov =  (kern_to_cov(db_1, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] ) #cov_k[[k]][as.character(input_cov), as.character(input_cov)]
+    cov =  (kern_to_cov(db_1, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] )
     inv = tryCatch(cov %>% chol() %>% chol2inv(),
                    error = function(e){MASS::ginv(cov)}) %>%
       `rownames<-`(input_i) %>%
@@ -518,7 +514,8 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
       #`rownames<-`(all_input) %>%
       #`colnames<-`(all_input)
 
-    mat_elbo[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T) ## classic gaussian loglikelihood
+    ## Classic gaussian loglikelihood
+    mat_elbo[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T)
   }
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
   mat_L = exp(mat_elbo - max(mat_elbo))
@@ -614,6 +611,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' db <- simu_db()
 #' training_test = train_magma_VEM(db)
 #' train_new_gp_EM(simu_db(M=1), trained_magmaclust = training_test)
+#'
 #' ##########################
 #' train_new_gp_EM(simu_db(M=1))
 train_new_gp_EM = function(data,
@@ -660,10 +658,15 @@ train_new_gp_EM = function(data,
   if(param_mu_k %>% is.null()){
     ## Define a default prediction grid
     db_train <- simu_db()
-    if(is.null(timestamps)){timestamps = seq(0.01, 10, 0.01)} # seq(min(all_input), max(all_input), length.out = 500)}
+    if(is.null(timestamps)){timestamps = seq(0.01, 10, 0.01)}
     if(trained_magmaclust %>% is.null()
        | trained_magmaclust$prop_mixture_k %>% is.null()
        | trained_magmaclust$ini_args %>% is.null()){
+      cat(
+        "Neither the 'param_mu_k' nor 'trained_magmaclust' argument has been specified. The 'train_magma_VEM()' function",
+        "(with random initialisation) has been used to learn ML estimators",
+        "for the hyper-parameters associated with the 'kern' argument.\n \n"
+      )
       trained_magmaclust = train_magma_VEM(db_train, kern_i = kern_i,
                                            nb_cluster = nb_cluster,
                                            ini_hp_k = ini_hp_k,
@@ -734,7 +737,7 @@ train_new_gp_EM = function(data,
                           dplyr::select(-.data$ID) %>%
                           names()) %>%
         tibble::as_tibble() %>%
-        dplyr::mutate('ID' = 1, .before = 1)
+        dplyr::mutate('ID' = unique(hp$ID), .before = 1)
 
       if(new_hp %>% anyNA(recursive = T))
       {

@@ -29,6 +29,7 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
   #for(k in names(hp_k)){hp_k[[k]][3] = 0.1}
   hp_mixture = list_hp$param$hp_mixture
   #t_clust = tibble::tibble('ID' = rep(names(hp_k), each = length(timestamps)) , 'Timestamp' = rep(timestamps, length(hp_k)))
+  #timestamps <- union(unique(db$Input), timestamps)
   t_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(timestamps)) , 'Input' = rep(timestamps, length(hp_k$ID)))
   inv_k = list_kern_to_inv(t_clust, kern_0, hp_k)
   list_inv_i = list_kern_to_inv(db, kern_i, hp_i)
@@ -122,28 +123,19 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
 #'
 #' @examples
 #'
-#' k = seq_len(2)
-#' m_k <- c("K1" = 0, "K2" = 0)
+#' k = seq_len(3)
+#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+#' db <- simu_db(N = 3, common_input = FALSE)
 #'
-#' db <- simu_db(N = 2, common_input = FALSE)
-#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
-#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-
-#' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
-#'
-#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
+#' training_test = train_magma_VEM(db)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
 #' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 #'
+#' new_indiv <- train_new_gp_EM(simu_db(M=1))
 #'
-#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
-#'
-#' new_indiv <- train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
-#'
-#' pred_gp_clust(simu_db(M=1, covariate = FALSE), timestamps, mu_k, kern = se_kernel, new_indiv)
-pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
+#' pred_gp_clust(simu_db(M=1), timestamps, mu_k, kern = se_kernel, new_indiv)
+pred_gp_clust = function(db, timestamps = NULL, list_mu = NULL, kern = NULL, hp = NULL)
 {
   #browser()
 
@@ -151,7 +143,7 @@ pred_gp_clust = function(db, timestamps = NULL, list_mu, kern, hp)
   #input_n <- db['Input']
   yn = db %>% dplyr::pull(.data$Output)
 
-  if(is.null(timestamps)){timestamps = seq(min(inputs), max(inputs), length.out = 500)}
+  if(is.null(timestamps)){timestamps = seq(0.01, 10, 0.01)}
 
   hp_new = hp$theta_new
   hp_k_mixture = hp$hp_k_mixture
