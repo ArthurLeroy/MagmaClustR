@@ -122,44 +122,113 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
 #' @export
 #'
 #' @examples
+#' pred_gp_clust(simu_db(M=1))
 #'
-#' k = seq_len(3)
-#' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
-#' db <- simu_db(N = 3, common_input = FALSE)
-#'
-#' training_test = train_magma_VEM(db)
-#'
-#' timestamps = seq(0.01, 10, 0.01)
-#' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
-#'
-#' new_indiv <- train_new_gp_EM(simu_db(M=1))
-#'
-#' pred_gp_clust(simu_db(M=1), timestamps, mu_k, kern = se_kernel, new_indiv)
-pred_gp_clust = function(db, timestamps = NULL, list_mu = NULL, kern = NULL, hp = NULL)
+pred_gp_clust = function(data,
+                         timestamps = NULL,
+                         list_mu = NULL,
+                         kern = "SE",
+                         hp_new_indiv = NULL,
+                         nb_cluster = NULL,
+                         ini_hp_k = NULL,
+                         ini_hp_i = NULL,
+                         trained_magmaclust = NULL)
 {
   #browser()
 
-  inputs = db %>% dplyr::pull(.data$Input)
-  #input_n <- db['Input']
-  yn = db %>% dplyr::pull(.data$Output)
+  ## Define a default prediction grid
+  db_train <- simu_db()
+  ## Initialize the individual process' hp according to user's values
+  if(hp_new_indiv %>% is.null()){
+    cat(
+      "The 'hp_new_indiv' argument has not been specified. Random values of",
+      "hyper-parameters are used as initialisation.\n \n"
+    )
+    if(trained_magmaclust %>% is.null()){
+    trained_magmaclust <- train_magma_VEM(db_train,
+                               kern_i = kern,
+                               kern_k = kern,
+                               nb_cluster = nb_cluster,
+                               ini_hp_k = ini_hp_k,
+                               ini_hp_i = ini_hp_i)
+  }
 
-  if(is.null(timestamps)){timestamps = seq(0.01, 10, 0.01)}
+    hp <- train_new_gp_EM(data, kern_i = kern, trained_magmaclust = trained_magmaclust)
+  }
+  else{
+    if(hp(kern) %>% names %in% hp_new_indiv$theta_new %>% names() ||
+       new_indiv$hp_k_mixture %>% sum() != 1){
+      cat(
+        "The 'hp_new_indiv' argument has not been specified correctly.",
+        " 'hp_new_indiv' must have 'theta_new' arguments related to your kernel",
+        " 'hp_new_indiv' must have 'hp_k_mixture' arguments with the sum equal to 1 (probability by cluster)",
+        "Random values of hyper-parameters are used as initialisation.\n \n"
+      )
+      if(trained_magmaclust %>% is.null()){
+      trained_magmaclust <- train_magma_VEM(db_train,
+                                            kern_i = kern,
+                                            kern_k = kern,
+                                            nb_cluster = nb_cluster,
+                                            ini_hp_k = ini_hp_k,
+                                            ini_hp_i = ini_hp_i)
+      }
 
+      hp <- train_new_gp_EM(data, kern_i = kern, trained_magmaclust = trained_magmaclust)
+    }
+  }
   hp_new = hp$theta_new
   hp_k_mixture = hp$hp_k_mixture
 
+  ## Extract the observed (reference) Input
+  input_obs <- data %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::pull(.data$Input)
+  ## Round the observed (reference) Input
+  input_round <- input_obs %>% round(digits = 5)
+  ## Extract the observed Output
+  yn = data %>% dplyr::pull(.data$Output)
+  ## Define the target inputs to predict
+  if(is.null(timestamps)){timestamps = seq(0.01, 10, 0.01) %>% round(digits = 5)}
+  ## Extract the values of the hyper-posterior mean and covariance parameter at reference Input
+  if(list_mu %>% is.null()){
+    if(trained_magmaclust %>% is.null()
+       | trained_magmaclust$prop_mixture_k %>% is.null()
+       | trained_magmaclust$ini_args %>% is.null()){
+      cat(
+        "Neither the 'list_mu' nor 'trained_magmaclust' argument has been specified. The 'train_magma_VEM()' function",
+        "(with random initialisation) has been used to learn ML estimators",
+        "for the hyper-parameters associated with the 'kern' argument.\n \n"
+      )
+      trained_magmaclust = train_magma_VEM(db_train,
+                                           kern_i = kern,
+                                           kern_k = kern,
+                                           nb_cluster = nb_cluster,
+                                           ini_hp_k = ini_hp_k,
+                                           ini_hp_i = ini_hp_i)
+    }
+    list_mu <- posterior_mu_k(db_train,
+                                 timestamps,
+                                 trained_magmaclust$prop_mixture_k,
+                                 trained_magmaclust$ini_args$kern_k,
+                                 trained_magmaclust$ini_args$kern_i,
+                                 trained_magmaclust)
+  }
+
+
+
   floop = function(k)
   {
-    mean_mu_obs = list_mu$mean[[k]] %>% dplyr::filter(.data$Input %in% inputs) %>% dplyr::pull(.data$Output)
-    mean_mu_pred = list_mu$mean[[k]] %>% dplyr::filter(.data$Input %in% timestamps) %>% dplyr::pull(.data$Output)
+    mean <- list_mu$mean[[k]] %>% round(digits = 5)
+    mean_mu_obs = mean %>% dplyr::filter(.data$Input %in% input_round) %>% dplyr::pull(.data$Output)
+    mean_mu_pred = mean %>% dplyr::filter(.data$Input %in% timestamps) %>% dplyr::pull(.data$Output)
     cov_mu = list_mu$cov[[k]]
 
-    cov_tn_tn = (kern_to_cov(inputs, kern, hp_new) + cov_mu[as.character(inputs), as.character(inputs)])
+    cov_tn_tn = (kern_to_cov(input_obs, kern, hp_new) + cov_mu[as.character(input_obs), as.character(input_obs)])
     inv_mat = tryCatch(solve(cov_tn_tn), error = function(e){MASS::ginv(cov_tn_tn)})
-    cov_tn_t = kern(inputs, timestamps, hp_new) + cov_mu[as.character(inputs), as.character(timestamps)]
+    cov_tn_t = kern_to_cov(input_obs, kern, hp_new, input_2 = timestamps) + cov_mu[as.character(input_obs), as.character(timestamps)]
     cov_t_t = kern_to_cov(timestamps, kern, hp_new) + cov_mu[as.character(timestamps), as.character(timestamps)]
 
-    tibble::tibble('Input' = timestamps, ##'Timestamp' = timestamps,
+    tibble::tibble('Input' = timestamps,
            'Mean' = (mean_mu_pred + t(cov_tn_t) %*% inv_mat %*% (yn - mean_mu_obs)) %>% as.vector(),
            'Var' =  (cov_t_t - t(cov_tn_t) %*% inv_mat %*% cov_tn_t) %>% diag %>% as.vector,
            'hp_k_mixture' = hp_k_mixture[[k]]) %>% return()
@@ -210,44 +279,42 @@ pred_gp_clust = function(db, timestamps = NULL, list_mu = NULL, kern = NULL, hp 
 #' @export
 #'
 #' @examples
-#'
-#' k = seq_len(2)
-#' m_k <- c("K1" = 0, "K2" = 0)
-#'
-#' db <- simu_db(N = 2, common_input = FALSE)
-#' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
-#' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-
-#' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
-#'
-#' training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
-#'
-#' timestamps = seq(0.01, 10, 0.01)
-#' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
-#'
-#'
-#' list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
-#' new_indiv <- train_new_gp_EM(db, mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
-#'
-#' pred_gp_clust_animate(db, timestamps, mu_k, kern = se_kernel, new_indiv)
-pred_gp_clust_animate = function(db, timestamps = NULL, list_mu, kern, hp)
+#' db <- simu_db()
+#' training_test = train_magma_VEM(db)
+#' pred_gp_clust_animate(simu_db(M=1), trained_magmaclust = training_test)
+pred_gp_clust_animate = function(data,
+                                 timestamps = NULL,
+                                 list_mu = NULL,
+                                 kern = "SE",
+                                 hp_new_indiv = NULL,
+                                 nb_cluster = NULL,
+                                 ini_hp_k = NULL,
+                                 ini_hp_i = NULL,
+                                 trained_magmaclust = NULL)
 {
-  browser()
-  db <- db %>% dplyr::arrange(.data$Input)
+  #browser()
+  data <- data %>% dplyr::arrange(.data$Input)
   all_pred = tibble::tibble()
 
-  if(is.null(timestamps)){timestamps = seq(min(db$Input), max(db$Input), length.out = 500)}
-
-  for(j in 1:nrow(db))
+  for(j in 1:nrow(data))
   {
-    pred_j = pred_gp_clust(db[1:j,], timestamps, list_mu, kern, hp)
+    pred_j = pred_gp_clust(data[1:j,],
+                            timestamps,
+                            list_mu,
+                            kern,
+                            hp_new_indiv,
+                            nb_cluster,
+                            ini_hp_k,
+                            ini_hp_i,
+                            trained_magmaclust)
 
-    for(k in list_mu$mean %>% names)
+    for(k in pred_j %>% names)
     {
       pred_j[[k]] = pred_j[[k]] %>% dplyr::mutate(Nb_data = j, Cluster = k)
     }
-    pred_j_all = pred_j %>% dplyr::bind_rows
+    #browser()
+    #pred_j_all = pred_j %>% dplyr::bind_rows
+    pred_j_all = dplyr::bind_rows(pred_j,pred_j)
 
     all_pred = all_pred %>% rbind(pred_j_all)
   }

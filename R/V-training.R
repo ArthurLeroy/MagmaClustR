@@ -667,7 +667,9 @@ train_new_gp_EM = function(data,
         "(with random initialisation) has been used to learn ML estimators",
         "for the hyper-parameters associated with the 'kern' argument.\n \n"
       )
-      trained_magmaclust = train_magma_VEM(db_train, kern_i = kern_i,
+      trained_magmaclust = train_magma_VEM(db_train,
+                                           kern_i = kern_i,
+                                           kern_k = kern_i,
                                            nb_cluster = nb_cluster,
                                            ini_hp_k = ini_hp_k,
                                            ini_hp_i = ini_hp_i)
