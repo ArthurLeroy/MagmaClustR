@@ -246,7 +246,8 @@ e_step_VEM = function(db,
 #' post = MagmaClustR:::e_step_VEM(db, m_k, i, i, hp_k, hp_i, old_hp_mixture ,0.001)
 #'
 #' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, i, i, m_k, FALSE, FALSE, 25) -> a
-#' paste("kernel =",i , "Common inputs across individuals & cluster and differents HPs across individuals & Cluster") %>% print()
+#' paste("kernel =",i ,
+#' "Common inputs across individuals & cluster and differents HPs across individuals & Cluster") %>% print()
 #' print(a)
 #' print(" ")
 #'
@@ -263,7 +264,8 @@ e_step_VEM = function(db,
 #' post = MagmaClustR:::e_step_VEM(db, m_k, i, i, hp_k, hp_i, old_hp_mixture ,0.001)
 #'
 #' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, i, i, m_k, TRUE, TRUE, 0.1) -> b
-#' paste("kernels =", i, "Different inputs across individuals & cluster and common HPs") %>% print()
+#' paste("kernels =", i,
+#' "Different inputs across individuals & cluster and common HPs") %>% print()
 #' print(b)
 #' print(" ")
 #'

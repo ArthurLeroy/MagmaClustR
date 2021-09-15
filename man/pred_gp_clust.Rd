@@ -4,10 +4,20 @@
 \alias{pred_gp_clust}
 \title{Prediction Gaussian Process on the clustering}
 \usage{
-pred_gp_clust(db, timestamps = NULL, list_mu, kern, hp)
+pred_gp_clust(
+  data,
+  timestamps = NULL,
+  list_mu = NULL,
+  kern = "SE",
+  hp_new_indiv = NULL,
+  nb_cluster = NULL,
+  ini_hp_k = NULL,
+  ini_hp_i = NULL,
+  trained_magmaclust = NULL
+)
 }
 \arguments{
-\item{db}{A tibble or data frame. Required columns: 'Input',
+\item{data}{A tibble or data frame. Required columns: 'Input',
 'Output'. Additional columns for covariates can be specified.
 The 'Input' column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
@@ -44,10 +54,31 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{hp}{A named vector, tibble or data frame of hyper-parameters
-associated with \code{kern}. The columns/elements should be named
-according to the hyper-parameters that are used in \code{kern}.
-List containing hyper-parameters and hp_k_mixture for the new individual}
+\item{hp_new_indiv}{A tibble of the Trainied results of a variation of the EM algorithm used for training
+in MagmaClust. Containing columns 'theta_new' and 'hp_k_mixture'.
+'theta_new' being a new set of hyperparameters with 1 individual.
+'hp_k_mixture' the probability of being in the clusters.
+Can be compute with the function \code{train_new_gp_EM}.
+train_new_gp_EM(simu_db(M=1))}
+
+\item{nb_cluster}{The number of clusters wanted.}
+
+\item{ini_hp_k}{named vector, tibble or data frame of hyper-parameters
+associated with \code{kern}, the mean process' kernel. The
+columns/elements should be named according to the hyper-parameters
+that are used in \code{kern_k}.}
+
+\item{ini_hp_i}{A tibble or data frame of hyper-parameters
+associated with \code{kern}, the individual processes' kernel.
+Required column : \code{ID}. The \code{ID} column contains the unique
+names/codes used to identify each individual/task. The other columns
+should be named according to the hyper-parameters that are used in
+\code{kern_i}.}
+
+\item{trained_magmaclust}{A tibble of the Trainied results of a variation of the EM algorithm used for training
+in MagmaClust. Can be compute with the fonction \code{train_magma_VEM}.
+db <- simu_db()
+trained_magmaclust <- train_magma_VEM(db)}
 }
 \value{
 pamameters of the gaussian density predicted at timestamps
@@ -56,25 +87,9 @@ pamameters of the gaussian density predicted at timestamps
 Prediction Gaussian Process on the clustering
 }
 \examples{
-
-k = seq_len(2)
-m_k <- c("K1" = 0, "K2" = 0)
-
-db <- simu_db(N = 2, common_input = FALSE)
-hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
-hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
-
-training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
-
-timestamps = seq(0.01, 10, 0.01)
-mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
-
-
-list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
-
-new_indiv <- train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
-
-pred_gp_clust(simu_db(M=1, covariate = FALSE), timestamps, mu_k, kern = se_kernel, new_indiv)
+\donttest{
+db <- simu_db()
+training_test = train_magma_VEM(db)
+pred_gp_clust(simu_db(M=1), trained_magmaclust = training_test)
+}
 }

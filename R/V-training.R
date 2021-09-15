@@ -1,6 +1,6 @@
 #' Training Magma with a Variation of the EM algorithm
 #'
-#' The hyper-parameters and the hyper-posterior distribution involved in Magma
+#' The hyper-parameters and the hyper-posterior distribution involved in MagmaClust
 #' can be learned thanks to an EM algorithm implemented in \code{train_magma_VEM}.
 #' By providing a dataset, the model hypotheses (hyper-prior mean parameter and
 #' covariance kernels) and initialisation values for the hyper-parameters, the
@@ -63,14 +63,14 @@
 #'    ( (LL_n - LL_n-1) / |LL_n| ).
 #' @param nb_cluster The number of clusters wanted.
 #'
-#' @return A list, containing the results of the EM algorithm used for training
+#' @return A list, containing the results of a variation of the EM algorithm used for training
 #'    in MagmaClust. The elements of the list are:
 #'    - hp_k: A tibble containing the trained hyper-parameters for the mean
 #'    process' kernel.
 #'    - hp_i: A tibble containing all the trained hyper-parameters for the
 #'    individual processes' kernels.
-#'    - prop_mixture_k :
-#'
+#'    - prop_mixture_k : A tibble containing the hyper-parameters associated with each individual,
+#'    indicating in which cluster it belongs.
 #'    - param : A list 3 containing  The mean, the cov and the hp_mixture.
 #'        -> mean : A tibble containing the values of hyper-posterior's mean
 #'           parameter (\code{Output}) evaluated at each training reference
@@ -89,6 +89,7 @@
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' k = seq_len(3)
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 #'
@@ -97,12 +98,14 @@
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' train_magma_VEM(db, length(k), m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
+#' train_magma_VEM(db, length(k), m_k, hp_k, hp_i,
+#' "SE", "SE", old_hp_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
 #'
 #' ###############################
 #'
 #' db <- simu_db()
 #' train_magma_VEM(db)
+#' }
 train_magma_VEM = function(data,
                            nb_cluster = NULL,
                            prior_mean_k = NULL,
@@ -465,14 +468,20 @@ train_magma_VEM = function(data,
 
 }
 
-#' Update hp_mixture k star EM
+#' Update by cluster the hp_mixture star
 #'
-#' @param db data
-#' @param hp hp
-#' @param prop_mixture_k prop_mixture
+#' @param db data A tibble or data frame. Columns required: \code{ID}, \code{Input}
+#'    , \code{Output}.
+#'    Additional columns for covariates can be specified.
+#' @param hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern_k}, the mean process' kernel. The
+#'    columns/elements should be named according to the hyper-parameters
+#'    that are used in \code{kern_k}.
+#' @param prop_mixture_k A tibble containing the hyper-parameters associated with each individual,
+#'    indicating in which cluster it belongs.
 #' @param mean_k mean
 #' @param cov_k cov
-#' @param kern kernel
+#' @param kern kernel A kernel function, defining the covariance structure of the GP.
 #'
 #' @return update hp_mixture star
 #' @export
@@ -590,6 +599,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    - hp_k_mixture :
 #' @export
 #' @examples
+#' \donttest{
 #' k = seq_len(2)
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 #'
@@ -605,7 +615,8 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' timestamps = seq(0.01, 10, 0.01)
 #' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 #'
-#' train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = training_test$hp_i)
+#' train_new_gp_EM(simu_db(M=1), param_mu_k = mu_k, ini_hp_i = ini_hp_i,
+#' kern_i = "SE", trained_magmaclust = training_test)
 #'
 #' ###########################
 #' db <- simu_db()
@@ -614,6 +625,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'
 #' ##########################
 #' train_new_gp_EM(simu_db(M=1))
+#' }
 train_new_gp_EM = function(data,
                            timestamps = NULL,
                            nb_cluster = NULL,

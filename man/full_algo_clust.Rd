@@ -5,8 +5,8 @@
 \title{Full algorithm MAGMACLUST}
 \usage{
 full_algo_clust(
-  db,
-  new_db,
+  data,
+  new_data,
   timestamps,
   kern_i,
   ini_hp_mixture = NULL,
@@ -22,7 +22,19 @@ full_algo_clust(
 )
 }
 \arguments{
-\item{new_db}{Database containing data for a new individual we want a prediction on.}
+\item{data}{A tibble or data frame. Required columns: \code{ID}, \code{Input}
+, \code{Output}. Additional columns for covariates can be specified.
+The \code{ID} column contains the unique names/codes used to identify each
+individual/task (or batch of data).
+The \code{Input} column should define the variable that is used as
+reference for the observations (e.g. time for longitudinal data). The
+\code{Output} column specifies the observed values (the response
+variable). The data frame can also provide as many covariates as desired,
+with no constraints on the column names. These covariates are additional
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
+
+\item{new_data}{Database containing data for a new individual we want a prediction on.}
 
 \item{timestamps}{Timestamps we want to predict at.}
 
@@ -73,18 +85,6 @@ should be named according to the hyper-parameters that are used in
 \code{kern_i}.#' @param hp_new_i Hyper-pameters for the new individual to predict. Optional, computed if NULL.}
 
 \item{hp_new_i}{Hyper-pameters for the new individual to predict. Optional, computed if NULL.}
-
-\item{data}{A tibble or data frame. Required columns: \code{ID}, \code{Input}
-, \code{Output}. Additional columns for covariates can be specified.
-The \code{ID} column contains the unique names/codes used to identify each
-individual/task (or batch of data).
-The \code{Input} column should define the variable that is used as
-reference for the observations (e.g. time for longitudinal data). The
-\code{Output} column specifies the observed values (the response
-variable). The data frame can also provide as many covariates as desired,
-with no constraints on the column names. These covariates are additional
-inputs (explanatory variables) of the models that are also observed at
-each reference \code{Input}.}
 }
 \value{
 predicted GP parameters | posterior mean process | all trained hyperparameters

@@ -4,16 +4,7 @@
 \alias{e_step_VEM}
 \title{Variation of the E-Step of the EM algorithm}
 \usage{
-e_step_VEM(
-  db,
-  m_k,
-  kern_0,
-  kern_i,
-  hp_k,
-  hp_i,
-  old_hp_mixture,
-  pen_diag = NULL
-)
+e_step_VEM(db, m_k, kern_k, kern_i, hp_k, hp_i, old_hp_mixture, pen_diag)
 }
 \arguments{
 \item{db}{A tibble or data frame. Columns required: ID, Input, Output.
@@ -21,12 +12,12 @@ Additional columns for covariates can be specified.}
 
 \item{m_k}{prior means of the mu_k processes.}
 
-\item{kern_0}{A kernel function, associated with the mean GP.}
+\item{kern_k}{A kernel function, associated with the mean GP.}
 
 \item{kern_i}{A kernel function, associated with the individual GPs.}
 
 \item{hp_k}{A named vector, tibble or data frame of hyper-parameters
-associated with \code{kern_0}.}
+associated with \code{kern_k}.}
 
 \item{hp_i}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_i}.}
@@ -39,11 +30,8 @@ numerical issues when inverting nearly singular matrices.}
 \value{
 A named list, containing the elements \code{mean}, a tibble
 containing the Input and associated Output of the hyper-posterior mean
-parameter, and \code{cov}, the hyper-posterior covariance matrix.
-
-A named list, containing the elements \code{mean}, a tibble
-containing the Input and associated Output of the hyper-posterior mean
-parameter, and \code{cov}, the hyper-posterior covariance matrix.
+parameter, \code{cov}, the hyper-posterior covariance matrix,
+and \code{hp_mixture}, the probability to belong to a cluster for an individual.
 }
 \description{
 Expectation step of the variation of the EM algorithm to compute the parameters of the

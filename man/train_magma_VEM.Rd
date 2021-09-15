@@ -6,15 +6,18 @@
 \usage{
 train_magma_VEM(
   data,
-  prior_mean_k,
-  ini_hp_k,
-  ini_hp_i,
-  kern_0,
-  kern_i,
+  nb_cluster = NULL,
+  prior_mean_k = NULL,
+  ini_hp_k = NULL,
+  ini_hp_i = NULL,
+  kern_k = "SE",
+  kern_i = "SE",
   ini_hp_mixture = NULL,
   common_hp_k = F,
   common_hp_i = F,
-  pen_diag
+  n_iter_max = 25,
+  pen_diag = 0.01,
+  cv_threshold = 0.001
 )
 }
 \arguments{
@@ -31,12 +34,14 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at each
 reference \code{Input}.}
 
+\item{nb_cluster}{The number of clusters wanted.}
+
 \item{prior_mean_k}{prior mean parameter of the K mean GPs (mu_k)}
 
 \item{ini_hp_k}{named vector, tibble or data frame of hyper-parameters
-associated with \code{kern_0}, the mean process' kernel. The
+associated with \code{kern_k}, the mean process' kernel. The
 columns/elements should be named according to the hyper-parameters
-that are used in \code{kern_0}.}
+that are used in \code{kern_k}.}
 
 \item{ini_hp_i}{A tibble or data frame of hyper-parameters
 associated with \code{kern_i}, the individual processes' kernel.
@@ -45,7 +50,7 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 \code{kern_i}.}
 
-\item{kern_0}{A kernel function, associated with the mean GP.
+\item{kern_k}{A kernel function, associated with the mean GP.
 Several popular kernels
 (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 Cookbook}) are already implemented and can be selected within the
@@ -73,26 +78,45 @@ operator '*' shall always be used before the '+' operators (e.g.
 
 \item{common_hp_i}{A boolean indicating whether hp are common among individual GPs (for each y_i).}
 
+\item{n_iter_max}{A number, indicating the maximum number of iterations of
+the EM algorithm to proceed while not reaching convergence.}
+
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
+
+\item{cv_threshold}{A number, indicating the threshold of the likelihood gain
+under which the EM algorithm will stop. The convergence condition is
+defined as the difference of likelihoods between two consecutive steps,
+divided by the absolute value of the last one
+( (LL_n - LL_n-1) / |LL_n| ).}
 }
 \value{
-A list, containing the results of the EM algorithm used for training
+A list, containing the results of a variation of the EM algorithm used for training
 in MagmaClust. The elements of the list are:
 \itemize{
 \item hp_k: A tibble containing the trained hyper-parameters for the mean
 process' kernel.
 \item hp_i: A tibble containing all the trained hyper-parameters for the
 individual processes' kernels.
-\item prop_mixture_k :
-\item param :
-\item Converance: A logical value indicated whether the EM algorithm converged
+\item prop_mixture_k : A tibble containing the hyper-parameters associated with each individual,
+indicating in which cluster it belongs.
+\item param : A list 3 containing  The mean, the cov and the hp_mixture.
+-> mean : A tibble containing the values of hyper-posterior's mean
+parameter (\code{Output}) evaluated at each training reference
+-> cov : A matrix, covariance parameter of the hyper-posterior
+distribution of the mean process.
+-> hp_mixture : the probability to belong to a cluster for an individual.
+\code{Input}.
+\item ini_args: A list containing the initial values for the hyper-prior mean,
+the hyper-parameters, and the kernels that have been defined and used
+during the learning procedure.
+\item Convergence: A logical value indicated whether the EM algorithm converged
 or not.
 \item Training_time: Total running time of the complete training.
 }
 }
 \description{
-The hyper-parameters and the hyper-posterior distribution involved in Magma
+The hyper-parameters and the hyper-posterior distribution involved in MagmaClust
 can be learned thanks to an EM algorithm implemented in \code{train_magma_VEM}.
 By providing a dataset, the model hypotheses (hyper-prior mean parameter and
 covariance kernels) and initialisation values for the hyper-parameters, the
@@ -101,6 +125,7 @@ mean and covariance parameters of the Gaussian hyper-posterior distribution
 of the mean process.
 }
 \examples{
+\donttest{
 k = seq_len(3)
 m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
@@ -109,5 +134,12 @@ hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 
-train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
+train_magma_VEM(db, length(k), m_k, hp_k, hp_i,
+"SE", "SE", old_hp_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
+
+###############################
+
+db <- simu_db()
+train_magma_VEM(db)
+}
 }

@@ -2,28 +2,34 @@
 % Please edit documentation in R/V-training.R
 \name{update_hp_k_mixture_star_EM}
 \alias{update_hp_k_mixture_star_EM}
-\title{Update hp_mixture k star EM}
+\title{Update by cluster the hp_mixture star}
 \usage{
 update_hp_k_mixture_star_EM(db, mean_k, cov_k, kern, hp, prop_mixture_k)
 }
 \arguments{
-\item{db}{data}
+\item{db}{data A tibble or data frame. Columns required: \code{ID}, \code{Input}
+, \code{Output}.
+Additional columns for covariates can be specified.}
 
 \item{mean_k}{mean}
 
 \item{cov_k}{cov}
 
-\item{kern}{kernel}
+\item{kern}{kernel A kernel function, defining the covariance structure of the GP.}
 
-\item{hp}{hp}
+\item{hp}{A named vector, tibble or data frame of hyper-parameters
+associated with \code{kern_k}, the mean process' kernel. The
+columns/elements should be named according to the hyper-parameters
+that are used in \code{kern_k}.}
 
-\item{prop_mixture_k}{prop_mixture}
+\item{prop_mixture_k}{A tibble containing the hyper-parameters associated with each individual,
+indicating in which cluster it belongs.}
 }
 \value{
 update hp_mixture star
 }
 \description{
-Update hp_mixture k star EM
+Update by cluster the hp_mixture star
 }
 \examples{
 TRUE

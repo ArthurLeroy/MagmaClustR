@@ -2,25 +2,45 @@
 % Please edit documentation in R/V-training.R
 \name{train_new_gp_EM}
 \alias{train_new_gp_EM}
-\title{Training new GP with the EM algorithm}
+\title{Learning hyper-parameters of a Gaussian Process}
 \usage{
-train_new_gp_EM(data, param_mu_k, ini_hp_i, kern_i, hp_i = NULL)
+train_new_gp_EM(
+  data,
+  timestamps = NULL,
+  nb_cluster = NULL,
+  param_mu_k = NULL,
+  ini_hp_k = NULL,
+  ini_hp_i = NULL,
+  kern_i = "SE",
+  trained_magmaclust = NULL,
+  n_iter_max = 25,
+  cv_threshold = 0.001
+)
 }
 \arguments{
-\item{data}{A tibble or data frame. Columns required: \code{ID}, \code{Input}
-, \code{Output}.
-Additional columns for covariates can be specified.
-The \code{ID} column contains the unique names/codes used to identify each
-individual/task (or batch of data).
+\item{data}{A tibble or data frame. Required columns: \code{Input},
+\code{Output}. Additional columns for covariates can be specified.
 The \code{Input} column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
 \code{Output} column specifies the observed values (the response
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
-inputs (explanatory variables) of the models that are also observed at each
-reference \code{Input}.}
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
+
+\item{timestamps}{A vector, indicating the timestamp of additional reference
+inputs on which the mean process' hyper-posterior should be evaluated.}
+
+\item{nb_cluster}{The number of cluster wanted.}
 
 \item{param_mu_k}{list of parameters for the K mean Gaussian processes}
+
+\item{ini_hp_k}{A tibble or data frame of hyper-parameters
+associated with \code{kern_k}, the cluster processes' kernel.
+Required column : \code{ID}. The \code{ID} column contains the unique
+names/codes used to identify each individual/task. The other columns
+should be named according to the hyper-parameters that are used in
+\code{kern_i}.}
 
 \item{ini_hp_i}{A tibble or data frame of hyper-parameters
 associated with \code{kern_i}, the individual processes' kernel.
@@ -29,11 +49,35 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 \code{kern_i}.}
 
-\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
-"PERIO" and "RQ" are also available here).}
+\item{kern_i}{A kernel function, defining the covariance structure of the GP.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+}}
 
-\item{hp_i}{A named vector, tibble or data frame of hyper-parameters
-associated with \code{kern_i}.}
+\item{trained_magmaclust}{A tibble of list containing "hp_i". hp_i being a named vector, tibble or data frame of hyper-parameters
+associated with \code{kern_i}. Can be compute with the fonction \code{train_magma_VEM}.
+db <- simu_db()
+trained_magmaclust <- train_magma_VEM(db)}
+
+\item{n_iter_max}{A number, indicating the maximum number of iterations of
+the EM algorithm to proceed while not reaching convergence.}
+
+\item{cv_threshold}{A number, indicating the threshold of the likelihood gain
+under which the EM algorithm will stop.}
 }
 \value{
 A list, containing the results of the EM algorithm used for training
@@ -44,25 +88,37 @@ in MagmaClust. The elements of the list are:
 }
 }
 \description{
-Training new GP with the EM algorithm
+Learning hyper-parameters of any new individual/task in \code{magmaclust} is
+required in the prediction procedure. When using within \code{magma},
+by providing data for the new individual/task, the trained model
+(hyper-posterior mean and  covariance parameters) and
+initialization values for the hyper-parameters, the function computes
+maximum likelihood estimates of the hyper-parameters.
 }
 \examples{
+\donttest{
 k = seq_len(2)
-m_k <- c("K1" = 0, "K2" = 0)
+m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-db <- simu_db(N = 2, common_input = FALSE)
+db <- simu_db()
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 
-training_test = train_magma_VEM(db, m_k, hp_k, ini_hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
+training_test = train_magma_VEM(db)
 
 timestamps = seq(0.01, 10, 0.01)
 mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
 
+train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", trained_magmaclust = training_test)
 
-list_hp <- train_magma_VEM(db, m_k, hp_k, hp_i, "SE", "SE", old_hp_mixture, FALSE, FALSE, 0.1)
+###########################
+db <- simu_db()
+training_test = train_magma_VEM(db)
+train_new_gp_EM(simu_db(M=1), trained_magmaclust = training_test)
 
-train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", hp_i = list_hp$hp_i)
+##########################
+train_new_gp_EM(simu_db(M=1))
+}
 }
