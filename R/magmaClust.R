@@ -54,6 +54,10 @@
 #' @export
 #'
 #' @examples
+#' data_train <- simu_db()
+#' data_obs <- simu_db(M=1)
+#' training_test <- train_magma_VEM(data_train)
+#' full_algo_clust(data_train, data_obs, list_hp = training_test)
 full_algo_clust = function(data,
                            new_data,
                            timestamps = NULL,
@@ -91,12 +95,12 @@ full_algo_clust = function(data,
                               cv_threshold = cv_threshold)
   }
 
+  if(timestamps %>% is.null()){timestamps = seq(min(data$Input), max(data$Input), length.out = 500)}
   t_pred = timestamps %>%
     dplyr::union(unique(data$Input)) %>%
     dplyr::union(unique(new_data$Input)) %>%
     sort()
-  t_pred <- seq(0.01, 10, 0.01)
-
+  #t_pred <- seq(0.01, 10, 0.01)
 
   if(prior_mean %>% is.null()){prior_mean <- list_hp$prop_mixture_k}
   if(is.null(mu_k)){mu_k = posterior_mu_k(data, t_pred, prior_mean, kern_k, kern_i, list_hp)}

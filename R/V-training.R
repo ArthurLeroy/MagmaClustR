@@ -512,8 +512,9 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
     c_k = c_k + 1
 
     round_mean <- mean_k[[k]] %>% round(digits = 5)
+    unique_mean <- round_mean %>% dplyr::distinct(.data$Input, .keep_all = TRUE)
 
-    mean = round_mean %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
+    mean = unique_mean %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
 
     cov =  (kern_to_cov(db_1, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] )
     inv = tryCatch(cov %>% chol() %>% chol2inv(),
@@ -637,6 +638,7 @@ train_new_gp_EM = function(data,
                            n_iter_max = 25,
                            cv_threshold = 1e-3)
 {
+  #browser()
   ## Initialise the individual process' hp according to user's values
   if (kern_i %>% is.function()) {
     if (ini_hp_i %>% is.null()) {
@@ -670,7 +672,11 @@ train_new_gp_EM = function(data,
   if(param_mu_k %>% is.null()){
     ## Define a default prediction grid
     db_train <- simu_db()
-    if(is.null(timestamps)){timestamps = seq(0.01, 10, 0.01)}
+    if(is.null(timestamps)){timestamps = seq(min(data$Input), max(data$Input), length.out = 500)}
+    timestamps <- timestamps %>%
+                  dplyr::union(unique(db_train$Input)) %>%
+                  dplyr::union(unique(data$Input)) %>%
+                  sort()
     if(trained_magmaclust %>% is.null()
        | trained_magmaclust$prop_mixture_k %>% is.null()
        | trained_magmaclust$ini_args %>% is.null()){

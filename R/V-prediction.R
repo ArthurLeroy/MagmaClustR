@@ -46,13 +46,13 @@ posterior_mu_k = function(db, timestamps, m_k, kern_0, kern_i, list_hp)
       new_inv[common_times, common_times] = new_inv[common_times, common_times] +
         as.double(hp_mixture[k][x,]) * inv_i[common_times, common_times]
     }
-    tryCatch(solve(new_inv), error = function(e){
-      s_inv<- MASS::ginv(new_inv)
-      colnames(s_inv) <- colnames(new_inv)
-      rownames(s_inv) <- rownames(new_inv)
-      s_inv
-      }) %>%
-      return()
+    s_inv <- tryCatch(new_inv %>% chol() %>% chol2inv(),
+                      error = function(e){MASS::ginv(new_inv)})
+
+    colnames(s_inv) <- colnames(new_inv)
+    rownames(s_inv) <- rownames(new_inv)
+
+    s_inv %>% return()
   }
   cov_k = sapply(hp_k$ID, floop, simplify = FALSE, USE.NAMES = TRUE)
 
@@ -155,8 +155,6 @@ pred_gp_clust = function(data,
                          ini_hp_i = NULL,
                          trained_magmaclust = NULL)
 {
-  #browser()
-
   ## Define a default prediction grid
   db_train <- simu_db()
   ## Initialize the individual process' hp according to user's values
@@ -211,7 +209,11 @@ pred_gp_clust = function(data,
   ## Extract the observed Output
   yn = data %>% dplyr::pull(.data$Output)
   ## Define the target inputs to predict
-  if(is.null(timestamps)){timestamps = seq(0.01, 10, 0.01) %>% round(digits = 5)}
+  if(is.null(timestamps)){timestamps = seq(min(data$Input), max(data$Input), length.out = 500)}
+  t_pred <- timestamps %>%
+    dplyr::union(unique(db_train$Input)) %>%
+    dplyr::union(unique(data$Input)) %>%
+    sort()
   ## Extract the values of the hyper-posterior mean and covariance parameter at reference Input
   if(list_mu %>% is.null()){
     if(trained_magmaclust %>% is.null()
@@ -230,24 +232,25 @@ pred_gp_clust = function(data,
                                            ini_hp_i = ini_hp_i)
     }
     list_mu <- posterior_mu_k(db_train,
-                                 timestamps,
-                                 trained_magmaclust$prop_mixture_k,
-                                 trained_magmaclust$ini_args$kern_k,
-                                 trained_magmaclust$ini_args$kern_i,
-                                 trained_magmaclust)
+                              t_pred,
+                              trained_magmaclust$prop_mixture_k,
+                              trained_magmaclust$ini_args$kern_k,
+                              trained_magmaclust$ini_args$kern_i,
+                              trained_magmaclust)
   }
 
 
 
   floop = function(k)
   {
-    mean <- list_mu$mean[[k]] %>% round(digits = 5)
+    mean <- list_mu$mean[[k]] %>% round(digits = 5) %>% dplyr::distinct(.data$Input, .keep_all = TRUE)
     mean_mu_obs = mean %>% dplyr::filter(.data$Input %in% input_round) %>% dplyr::pull(.data$Output)
-    mean_mu_pred = mean %>% dplyr::filter(.data$Input %in% timestamps) %>% dplyr::pull(.data$Output)
+    timestamps_round <- timestamps %>% round(digits = 5)
+    mean_mu_pred = mean %>% dplyr::filter(.data$Input %in% timestamps_round) %>% dplyr::pull(.data$Output)
     cov_mu = list_mu$cov[[k]]
 
     cov_tn_tn = (kern_to_cov(input_obs, kern, hp_new) + cov_mu[as.character(input_obs), as.character(input_obs)])
-    inv_mat = tryCatch(solve(cov_tn_tn), error = function(e){MASS::ginv(cov_tn_tn)})
+    inv_mat = tryCatch(cov_tn_tn%>% chol() %>% chol2inv(), error = function(e){MASS::ginv(cov_tn_tn)})
     cov_tn_t = kern_to_cov(input_obs, kern, hp_new, input_2 = timestamps) + cov_mu[as.character(input_obs), as.character(timestamps)]
     cov_t_t = kern_to_cov(timestamps, kern, hp_new) + cov_mu[as.character(timestamps), as.character(timestamps)]
 
