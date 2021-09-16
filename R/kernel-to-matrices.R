@@ -427,7 +427,7 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
       dplyr::filter(.data$ID == i) %>%
       dplyr::select(-.data$ID)
 
-    kern_to_cov(db_i, "SE", hp_i, deriv = deriv) %>%
+    kern_to_cov(db_i, kern, hp_i, deriv = deriv) %>%
       return()
   }
   sapply(unique(data$ID), floop, simplify = F, USE.NAMES = T) %>%
@@ -457,7 +457,7 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
 #' db <- simu_db(M = 3)
 #' hp <- tibble::tibble(ID = unique(db$ID), MagmaClustR:::hp())
 #' MagmaClustR:::list_kern_to_inv(db, "SE", hp, 0)
-list_kern_to_inv <- function(db, kern, hp, pen_diag = 0, deriv = NULL) {
+list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
   floop <- function(i) {
     db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
