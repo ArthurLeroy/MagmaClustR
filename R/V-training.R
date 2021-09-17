@@ -593,6 +593,8 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    the EM algorithm to proceed while not reaching convergence.
 #' @param cv_threshold A number, indicating the threshold of the likelihood gain
 #'    under which the EM algorithm will stop.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
 #'
 #' @return A list, containing the results of the EM algorithm used for training
 #'    in MagmaClust. The elements of the list are:
@@ -614,7 +616,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' training_test = train_magma_VEM(db)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
-#' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
+#' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
 #'
 #' train_new_gp_EM(simu_db(M=1), param_mu_k = mu_k, ini_hp_i = ini_hp_i,
 #' kern_i = "SE", trained_magmaclust = training_test)
@@ -628,7 +630,8 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' train_new_gp_EM(simu_db(M=1))
 #' }
 train_new_gp_EM = function(data,
-                           timestamps = NULL,
+                           db_train = NULL,
+                           grid_inputs = NULL,
                            nb_cluster = NULL,
                            param_mu_k = NULL,
                            ini_hp_k = NULL,
@@ -636,9 +639,89 @@ train_new_gp_EM = function(data,
                            kern_i = "SE",
                            trained_magmaclust = NULL,
                            n_iter_max = 25,
-                           cv_threshold = 1e-3)
+                           cv_threshold = 1e-3,
+                           pen_diag = 0.01)
 {
   #browser()
+  ## Extract the observed Output (data points)
+  data_obs <- data %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::pull(.data$Output)
+
+  ## Extract the observed (reference) Input
+  input_obs <- data %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::pull(.data$Input)
+  ## Extract the observed inputs (reference Input + covariates)
+  inputs_obs <- data %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::select(-.data$Output)
+  ## Remove the 'ID' column if present
+  if ("ID" %in% names(data)) {
+    inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
+  }
+
+
+  ## Define the target inputs to predict
+  if (grid_inputs %>% is.null()) {
+    ## Test whether 'data' only provide the Input column and no covariates
+    if (inputs_obs %>% names() %>% length() == 1) {
+      input_pred <- seq(min(data$Input), max(data$Input), length.out = 500)
+      inputs_pred <- tibble::tibble("Input" = input_pred)
+    } else if (inputs_obs %>% names() %>% length() == 2) {
+      ## Define a default grid for 'Input'
+      input_pred <- rep(
+        seq(min(data$Input), max(data$Input), length.out = 20),
+        each = 20)
+      inputs_pred <- tibble::tibble("Input" = input_pred)
+      ## Add a grid for the covariate
+      name_cova = inputs_obs %>% dplyr::select(-.data$Input) %>% names()
+      cova = inputs_obs[name_cova]
+      inputs_pred[name_cova] <- rep(
+        seq(min(cova), max(cova), length.out = 20),
+        times = 20)
+    } else {
+      stop(
+        "The 'grid_inputs' argument should be a either a numerical vector ",
+        "or a data frame depending on the context. Please read ?pred_gp()."
+      )
+    }
+  } else if (grid_inputs %>% is.vector()) {
+    ## Test whether 'data' only provide the Input column and no covariates
+    if (inputs_obs %>% names() %>% length() == 1) {
+      input_pred <- grid_inputs %>% sort()
+      inputs_pred <- tibble::tibble("Input" = input_pred)
+    } else {
+      stop(
+        "The 'grid_inputs' argument should be a either a numerical vector ",
+        "or a data frame depending on the context. Please read ?pred_gp()."
+      )
+    }
+  } else if (grid_inputs %>% is.data.frame()) {
+    ## Test whether 'data' has the same columns as grid_inputs
+    if (all(names(inputs_obs) %in% names(grid_inputs))) {
+      input_pred <- grid_inputs %>%
+        dplyr::arrange(.data$Input) %>%
+        dplyr::pull(.data$Input)
+
+      inputs_pred <- grid_inputs %>%
+        dplyr::arrange(.data$Input) %>%
+        dplyr::select(names(inputs_obs))
+    }
+    else {
+      stop(
+        "The 'grid_inputs' argument should provide a column 'Input', and ",
+        "the same additional covariate columns as contained in 'data'."
+      )
+    }
+  } else {
+    stop(
+      "The 'grid_inputs' argument should be a either a numerical vector ",
+      "or a data frame depending on the context. Please read ?pred_gp()."
+    )
+  }
+  ## Define the union of all distinct reference Input
+  all_input <- union(input_obs, input_pred) %>% sort()
   ## Initialise the individual process' hp according to user's values
   if (kern_i %>% is.function()) {
     if (ini_hp_i %>% is.null()) {
@@ -665,18 +748,16 @@ train_new_gp_EM = function(data,
 
   ## Extract the names of hyper-parameters
   list_hp_new <- hp %>% names()
-  ## Extract the reference Input in the data
-  all_input = unique(data$Input) %>% sort()
   ## Extract the values of the hyper-posterior mean and covariance parameter at reference Input
   trained_hp_i <- trained_magmaclust$hp_i
+  ## Define a training database
+  if(db_train %>% is.null()){db_train <- simu_db()}
+  ## Define a default prediction grid
+  t_pred <- input_pred %>%
+    dplyr::union(unique(db_train$Input)) %>%
+    dplyr::union(unique(data$Input)) %>%
+    sort()
   if(param_mu_k %>% is.null()){
-    ## Define a default prediction grid
-    db_train <- simu_db()
-    if(is.null(timestamps)){timestamps = seq(min(data$Input), max(data$Input), length.out = 500)}
-    timestamps <- timestamps %>%
-                  dplyr::union(unique(db_train$Input)) %>%
-                  dplyr::union(unique(data$Input)) %>%
-                  sort()
     if(trained_magmaclust %>% is.null()
        | trained_magmaclust$prop_mixture_k %>% is.null()
        | trained_magmaclust$ini_args %>% is.null()){
@@ -693,11 +774,12 @@ train_new_gp_EM = function(data,
                                            ini_hp_i = ini_hp_i)
     }
     param_mu_k <- posterior_mu_k(db_train,
-                                 timestamps,
+                                 grid_inputs = t_pred,
                                  trained_magmaclust$prop_mixture_k,
                                  trained_magmaclust$ini_args$kern_k,
                                  trained_magmaclust$ini_args$kern_i,
-                                 trained_magmaclust)
+                                 trained_magmaclust,
+                                 pen_diag = pen_diag)
   }
   mean_mu_k = param_mu_k$mean
   cov_mu_k = param_mu_k$cov
@@ -707,6 +789,8 @@ train_new_gp_EM = function(data,
   ## Initialize the monitoring information
   cv <- FALSE
   prop_mixture_k = lapply(hp_1, function(x) Reduce("+", x)/ length(x))
+  ## Extract the reference Input in the data
+  all_input = unique(data$Input) %>% sort()
 
   if(is.null(trained_hp_i))
   {

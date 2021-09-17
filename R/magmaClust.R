@@ -12,7 +12,7 @@
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
 #' @param new_data Database containing data for a new individual we want a prediction on.
-#' @param timestamps Timestamps we want to predict at.
+#' @param grid_inputs Timestamps we want to predict at.
 #' @param prior_mean Prior arbitrary value for the mean process. Optional, not needed if 'mu' is given.
 #' @param kern_k A kernel function, associated with the mean GP.
 #'    Several popular kernels
@@ -60,7 +60,7 @@
 #' full_algo_clust(data_train, data_obs, list_hp = training_test)
 full_algo_clust = function(data,
                            new_data,
-                           timestamps = NULL,
+                           grid_inputs = NULL,
                            kern_i = "SE",
                            kern_k = "SE",
                            ini_hp_mixture = NULL,
@@ -77,7 +77,6 @@ full_algo_clust = function(data,
                            pen_diag = 0.01,
                            cv_threshold = 1e-3)
 {
-  #browser()
   if(is.null(list_hp))
   {
     list_hp = train_magma_VEM(data,
@@ -95,21 +94,14 @@ full_algo_clust = function(data,
                               cv_threshold = cv_threshold)
   }
 
-  if(timestamps %>% is.null()){timestamps = seq(min(data$Input), max(data$Input), length.out = 500)}
-  t_pred = timestamps %>%
-    dplyr::union(unique(data$Input)) %>%
-    dplyr::union(unique(new_data$Input)) %>%
-    sort()
-  #t_pred <- seq(0.01, 10, 0.01)
-
   if(prior_mean %>% is.null()){prior_mean <- list_hp$prop_mixture_k}
-  if(is.null(mu_k)){mu_k = posterior_mu_k(data, t_pred, prior_mean, kern_k, kern_i, list_hp)}
   if(is.null(hp_new_i))
   {
     if(common_hp_i)
     {
       hp_new_i = train_new_gp_EM(new_data,
-                                 timestamps = t_pred,
+                                 db_train = data,
+                                 grid_inputs = grid_inputs,
                                  nb_cluster = nb_cluster,
                                  param_mu_k = mu_k,
                                  ini_hp_k = ini_hp_k,
@@ -118,22 +110,26 @@ full_algo_clust = function(data,
                                  trained_magmaclust = list_hp,
                                  n_iter_max = n_iter_max,
                                  cv_threshold = cv_threshold)
+
     }
-    else{hp_new_i = train_new_gp_EM(new_data,
-                                    timestamps = t_pred,
-                                    nb_cluster = nb_cluster,
-                                    param_mu_k = mu_k,
-                                    ini_hp_k = ini_hp_k,
-                                    ini_hp_i = ini_hp_i,
-                                    kern_i = kern_i,
-                                    trained_magmaclust = NULL,
-                                    n_iter_max = n_iter_max,
-                                    cv_threshold = cv_threshold)}
+    else{
+      hp_new_i = train_new_gp_EM(new_data,
+                                 db_train = data,
+                                 grid_inputs = grid_inputs,
+                                 nb_cluster = nb_cluster,
+                                 param_mu_k = mu_k,
+                                 ini_hp_k = ini_hp_k,
+                                 ini_hp_i = ini_hp_i,
+                                 kern_i = kern_i,
+                                 trained_magmaclust = NULL,
+                                 n_iter_max = n_iter_max,
+                                 cv_threshold = cv_threshold)}
   }
 
   #browser()
   pred = pred_gp_clust(new_data,
-                       timestamps = timestamps,
+                       db_train = data,
+                       grid_inputs = grid_inputs,
                        list_mu = mu_k,
                        kern = kern_i,
                        hp_new_indiv = hp_new_i,
