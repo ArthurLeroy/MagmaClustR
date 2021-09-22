@@ -75,7 +75,7 @@ plot_animate_clust = function(pred_gp, ygrid, data = NULL, data_train = NULL, me
 #' @export
 #'
 #' @examples
-#' magmaclust <- full_algo_clust(simu_db(), simu_db(M=1,covariate = F))
+#' magmaclust <- full_algo_clust(simu_db(), simu_db(M=1,covariate = FALSE))
 #' plot_magma_clust(magmaclust$Prediction)
 #' ############
 #'
@@ -86,10 +86,10 @@ plot_animate_clust = function(pred_gp, ygrid, data = NULL, data_train = NULL, me
 #'
 #'
 #' ############
-#' data_train <- simu_db(covariate = FALSE)
+#' data_train <- simu_db(covariate = FALSE, common_input = FALSE)
+#' training_test <- train_magma_VEM(data_train)
 #' data_obs <- simu_db(M=1, covariate = FALSE)
 #' grid_inputs = c(seq(min(data_obs$Input), max(data_obs$Input), length.out = 500), data_obs$Input) %>% unique
-#' training_test <- train_magma_VEM(data_train)
 #' magmaclust<- full_algo_clust(data_train, data_obs, list_hp = training_test, grid_inputs = grid_inputs, plot = FALSE)
 #' plot_magma_clust(magmaclust$Prediction, data = data_obs, data_train = data_train)
 #'

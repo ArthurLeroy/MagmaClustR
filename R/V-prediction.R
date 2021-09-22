@@ -183,6 +183,7 @@ pred_magma_clust = function(data_obs,
                          trained_magmaclust = NULL,
                          pen_diag = 0.01)
 {
+  #browser()
   ## Extract the observed Output (data_obs points)
   db_obs <- data_obs %>%
     dplyr::arrange(.data$Input) %>%
@@ -261,8 +262,7 @@ pred_magma_clust = function(data_obs,
   }
   ## Define the union of all distinct reference Input
   all_input <- union(input_obs, input_pred) %>% sort()
-  ## Define a training database
-  if(data_train %>% is.null()){data_train <- simu_db()}
+
   ## Initialize the individual process' hp according to user's values
   if(hp_new_indiv %>% is.null()){
     cat(
@@ -270,20 +270,30 @@ pred_magma_clust = function(data_obs,
       "hyper-parameters are used as initialisation.\n \n"
     )
     if(trained_magmaclust %>% is.null()){
-    trained_magmaclust <- train_magma_VEM(data_train,
+      if(data_train %>% is.null()){
+        stop("trained_magmaclust or data_train need to be specified.")
+      }
+      else{
+         trained_magmaclust <- train_magma_VEM(data_train,
                                kern_i = kern,
                                kern_k = kern,
                                nb_cluster = nb_cluster,
                                ini_hp_k = ini_hp_k,
                                ini_hp_i = ini_hp_i)
-  }
+      }
+
+    }
+    else{
+      if(data_train %>% is.null()){data_train <- training_test$ini_args$data}
+    }
 
     hp <- train_new_gp_EM(data_obs, kern_i = kern, trained_magmaclust = trained_magmaclust, grid_inputs = grid_inputs)
   }
   else{
     names_a <- hp(kern) %>% names
-    names_b <- hp_new_indiv$theta_new %>% names()
-    if(names_a %in% names_b %>% sum == length(names_a) ||
+    names_b <- hp_new_indiv$theta_new %>%
+      names()
+    if(names_a %in% names_b %>% sum != length(names_a) ||
        hp_new_indiv$hp_k_mixture %>% sum() != 1){
       cat(
         "The 'hp_new_indiv' argument has not been specified correctly.",
@@ -292,16 +302,26 @@ pred_magma_clust = function(data_obs,
         "Random values of hyper-parameters are used as initialisation.\n \n"
       )
       if(trained_magmaclust %>% is.null()){
-      trained_magmaclust <- train_magma_VEM(data_train,
+        if(data_train %>% is.null()){
+          stop("trained_magmaclust or data_train need to be specified.")
+        }
+        else{
+          trained_magmaclust <- train_magma_VEM(data_train,
                                             kern_i = kern,
                                             kern_k = kern,
                                             nb_cluster = nb_cluster,
                                             ini_hp_k = ini_hp_k,
                                             ini_hp_i = ini_hp_i)
+        }
+
+      }
+      else{
+        if(data_train %>% is.null()){data_train <- training_test$ini_args$data}
       }
 
       hp <- train_new_gp_EM(data_obs, kern_i = kern, trained_magmaclust = trained_magmaclust)
     }
+    else{hp <- hp_new_indiv}
   }
   hp_new = hp$theta_new
   hp_k_mixture = hp$hp_k_mixture

@@ -252,25 +252,6 @@ e_step_VEM = function(db,
 #' print(" ")
 #'
 #'
-#' ## Different inputs across individuals & cluster and common HPs
-#' db <- simu_db(N = 10, common_input = FALSE)
-#' hp_k <- MagmaClustR:::hp(i, list_ID = names(m_k), common_hp = TRUE)
-#' hp_i <- MagmaClustR:::hp(i, list_ID = unique(db$ID), common_hp = TRUE)
-#'
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
-#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
-#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
-#'
-#' post = MagmaClustR:::e_step_VEM(db, m_k, i, i, hp_k, hp_i, old_hp_mixture ,0.001)
-#'
-#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, i, i, m_k, TRUE, TRUE, 0.1) -> b
-#' paste("kernels =", i,
-#' "Different inputs across individuals & cluster and common HPs") %>% print()
-#' print(b)
-#' print(" ")
-#'
-#' }
-#'
 #' ## if Error in svd(X) appear, increase the pen_diag
 #'
 #'}

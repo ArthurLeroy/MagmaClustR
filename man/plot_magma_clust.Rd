@@ -53,7 +53,7 @@ Plot of the predicted curve of the GP with the 0.95 confidence interval (optiona
 Plot MagmaClust or GP predictions
 }
 \examples{
-magmaclust <- full_algo_clust(simu_db(), simu_db(M=1,covariate = F))
+magmaclust <- full_algo_clust(simu_db(), simu_db(M=1,covariate = FALSE))
 plot_magma_clust(magmaclust$Prediction)
 ############
 

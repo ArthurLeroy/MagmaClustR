@@ -670,12 +670,12 @@ train_new_gp_EM = function(data,
   if (grid_inputs %>% is.null()) {
     ## Test whether 'data' only provide the Input column and no covariates
     if (inputs_obs %>% names() %>% length() == 1) {
-      input_pred <- seq(min(data$Input), max(data$Input), length.out = 500)
+      input_pred <- c(seq(min(data$Input), max(data$Input), length.out = 500), data$Input) %>% unique
       inputs_pred <- tibble::tibble("Input" = input_pred)
     } else if (inputs_obs %>% names() %>% length() == 2) {
       ## Define a default grid for 'Input'
       input_pred <- rep(
-        seq(min(data$Input), max(data$Input), length.out = 20),
+        c(seq(min(data$Input), max(data$Input), length.out = 20), data$Input) %>% unique,
         each = 20)
       inputs_pred <- tibble::tibble("Input" = input_pred)
       ## Add a grid for the covariate
