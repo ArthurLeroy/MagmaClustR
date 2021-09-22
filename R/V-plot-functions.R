@@ -13,8 +13,8 @@ V_plot_db = function(db, cluster = F, legend = F)
 {
   if(cluster)
   {
-    ggplot2::ggplot(db) + ggplot2::geom_smooth(ggplot2::aes(.data$Input, .data$Output, group = .data$ID, color = Cluster)) +
-      ggplot2::geom_point(ggplot2::aes(.data$Input, .data$Output, group = .data$ID, color = Cluster)) + ggplot2::guides(col = legend)
+    ggplot2::ggplot(db) + ggplot2::geom_smooth(ggplot2::aes(.data$Input, .data$Output, group = .data$ID, color = cluster)) +
+      ggplot2::geom_point(ggplot2::aes(.data$Input, .data$Output, group = .data$ID, color = cluster)) + ggplot2::guides(col = legend)
   }
   else
   {
@@ -51,48 +51,56 @@ plot_animate_clust = function(pred_gp, ygrid, data = NULL, data_train = NULL, me
 #' Plot MagmaClust or GP predictions
 #'
 #' @param pred A tibble or data frame, typically coming from
-#'    \code{\link{full_algo_clust}} or \code{\link{pred_gp_clust}} functions. Required
+#'    \code{\link{full_algo_clust}} or \code{\link{pred_magma_clust}} functions. Required
 #'    columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
 #'    present in case of multi-dimensional inputs.
 #' @param cluster A string indicating the cluster to plot from or 'all' for the full GPs mixture.
 #' @param data tibble of observational data, columns required : 'Input', 'Output'
 #' @param data_train tibble of training dataset, columns required : 'Input', 'Output'
-#' @param mean_k A boolean indicating whether we shall plot the mean processes or not.
 #' @param col_clust A boolean indicating whether we color according to clusters or individuals.
-#' @param legend
-#' @param prob_CI
+#' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
+#'    level of the Credible Interval associated with the posterior mean curve.
+#' @param x_input A vector of character strings, indicating which input should
+#'    be displayed. If NULL(default) the 'Input' column is used for the x-axis.
+#'    If providing a 2-dimensional vector, the corresponding columns are used
+#'    for the x-axis and y-axis.
+#' @param y_grid A vector, indicating the grid of values on the y-axis for which
+#'    probabilities should be computed for heatmaps of 1-dimensional
+#'    predictions.
+#' @param heatmap A logical value indicating whether the GP prediction should be
+#'    represented as a heatmap of probabilities for 1-dimensional inputs. If
+#'    FALSE (default), the mean curve and associated 95%CI are displayed.
 #'
 #' @return Plot of the predicted curve of the GP with the 0.95 confidence interval (optional : data points)
 #' @export
 #'
 #' @examples
 #' magmaclust <- full_algo_clust(simu_db(), simu_db(M=1,covariate = F))
-#' plot_gp_clust(magmaclust$Prediction)
+#' plot_magma_clust(magmaclust$Prediction)
 #' ############
 #'
-#' data <- simu_db(M=1,covariate = F)
+#' data <- simu_db(M=1,covariate = FALSE)
 #' data %>%
-#' pred_gp_clust %>%
-#' plot_gp_clust(data=data)
+#' pred_magma_clust %>%
+#' plot_magma_clust(data=data)
 #'
 #'
 #' ############
-#' data_train <- simu_db(covariate = F, grid = seq(0,20,0.05))
-#' data_obs <- simu_db(M=1, covariate = F, grid = seq(0,20,0.05))
+#' data_train <- simu_db(covariate = FALSE)
+#' data_obs <- simu_db(M=1, covariate = FALSE)
+#' grid_inputs = c(seq(min(data_obs$Input), max(data_obs$Input), length.out = 500), data_obs$Input) %>% unique
 #' training_test <- train_magma_VEM(data_train)
-#' magmaclust<- full_algo_clust(data_train, data_obs, list_hp = training_test)
-#' plot_gp_clust(magmaclust$Prediction, data = data_obs, data_train = data_train, legend = ggplot2::theme_classic())
+#' magmaclust<- full_algo_clust(data_train, data_obs, list_hp = training_test, grid_inputs = grid_inputs, plot = FALSE)
+#' plot_magma_clust(magmaclust$Prediction, data = data_obs, data_train = data_train)
 #'
-plot_gp_clust = function(pred,
+plot_magma_clust = function(pred,
                          x_input = NULL,
                          cluster = 'all',
                          data = NULL,
                          data_train = NULL,
-                         mean_k = NULL,
                          col_clust = F,
                          y_grid = NULL,
                          heatmap = F,
-                         legend = F,
                          prob_CI = 0.95)
 {
   ## Compute the quantile of the desired Credible Interval
@@ -107,8 +115,8 @@ plot_gp_clust = function(pred,
   } else {
     stop(
       "The 'pred_gp' argument should either be a list containing the 'pred' ",
-      "element or a data frame. Please read ?plot_gp_clust(), and use ",
-      "pred_gp_clust() or full_algo_clust() for making predictions under a correct format."
+      "element or a data frame. Please read ?plot_magma_clust(), and use ",
+      "pred_magma_clust() or full_algo_clust() for making predictions under a correct format."
     )
   }
 

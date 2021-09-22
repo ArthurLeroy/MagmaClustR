@@ -114,8 +114,8 @@ train_magma_VEM = function(data,
                            kern_k = "SE",
                            kern_i = "SE",
                            ini_hp_mixture = NULL,
-                           common_hp_k = F,
-                           common_hp_i = F,
+                           common_hp_k = T,
+                           common_hp_i = T,
                            n_iter_max = 25,
                            pen_diag = 0.01,
                            cv_threshold = 1e-3)
@@ -238,7 +238,7 @@ train_magma_VEM = function(data,
     }
   } else {
     if (ini_hp_k %>% is.null()) {
-      hp_k <- hp(kern_k, list_ID = ID_k, common_hp = common_hp_k, noise = TRUE)
+      hp_k <- hp(kern_k, list_ID = ID_k, common_hp = common_hp_k, noise = F)
       cat(
         "The 'ini_hp_k' argument has not been specified. Random values of",
         "hyper-parameters for the individal processes are used as",
@@ -261,17 +261,6 @@ train_magma_VEM = function(data,
       hp_k <- ini_hp_k
     }
   }
-
-  ## Add a 'noise' hyper-parameter if absent
-  if(!('noise' %in% names(hp_k))){
-    if(common_hp_k){
-      hp_k = hp_k %>% dplyr::mutate('noise' = hp(NULL, noise = T))
-    } else{
-      hp_k = hp_k %>%
-        dplyr::left_join(hp(NULL, list_ID = hp_k$ID, noise = T), by = 'ID')
-    }
-  }
-
 
   ## Initialise m_k according to the value provided by the user
   if (prior_mean_k %>% is.null()) {
@@ -553,8 +542,23 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
-#' @param timestamps A vector, indicating the timestamp of additional reference
-#'    inputs on which the mean process' hyper-posterior should be evaluated.
+#' @param db_train  A tibble or data frame on wich we want the training Required columns: \code{Input},
+#'    \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param grid_inputs The grid of inputs (reference Input and covariates) values
+#'    on which the GP should be evaluated. Ideally, this argument should be a
+#'    tibble or a data frame, providing the same columns as \code{data}, except
+#'    'Output'. Nonetheless, in cases where \code{data} provides only one
+#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+#'    vector. This vector would be used as reference input for prediction and if
+#'    NULL, a vector of length 500 is defined, ranging between the min and max
+#'    Input values of \code{data}.
 #' @param nb_cluster The number of cluster wanted.
 #' @param param_mu_k list of parameters for the K mean Gaussian processes
 #' @param ini_hp_k A tibble or data frame of hyper-parameters

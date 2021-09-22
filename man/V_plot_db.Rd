@@ -14,8 +14,11 @@ V_plot_db(db, cluster = F, legend = F)
 \item{legend}{boolean indicating whether want legend or not}
 }
 \value{
-TRUE
+Graph of smoothed curves of raw data.
 }
 \description{
 Plot smoothed raw data
+}
+\examples{
+TRUE
 }

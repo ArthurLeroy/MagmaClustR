@@ -1,6 +1,6 @@
 #' Full algorithm MAGMACLUST
 #'
-#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+#' @param data_train A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
 #'    The \code{ID} column contains the unique names/codes used to identify each
 #'    individual/task (or batch of data).
@@ -11,8 +11,15 @@
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
-#' @param new_data Database containing data for a new individual we want a prediction on.
-#' @param grid_inputs Timestamps we want to predict at.
+#' @param data_obs Database containing data for a new individual we want a prediction on.
+#' @param grid_inputs The grid of inputs (reference Input and covariates) values
+#'    on which the GP should be evaluated. Ideally, this argument should be a
+#'    tibble or a data frame, providing the same columns as \code{data}, except
+#'    'Output'. Nonetheless, in cases where \code{data} provides only one
+#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+#'    vector. This vector would be used as reference input for prediction and if
+#'    NULL, a vector of length 500 is defined, ranging between the min and max
+#'    Input values of \code{data}.
 #' @param prior_mean Prior arbitrary value for the mean process. Optional, not needed if 'mu' is given.
 #' @param kern_k A kernel function, associated with the mean GP.
 #'    Several popular kernels
@@ -48,6 +55,19 @@
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}.#' @param hp_new_i Hyper-pameters for the new individual to predict. Optional, computed if NULL.
 #' @param hp_new_i Hyper-pameters for the new individual to predict. Optional, computed if NULL.
+#' @param nb_cluster The number of clusters wanted.
+#' @param n_iter_max A number, indicating the maximum number of iterations of
+#'    the EM algorithm to proceed while not reaching convergence.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#' @param cv_threshold A number, indicating the threshold of the likelihood gain
+#'    under which the EM algorithm will stop. The convergence condition is
+#'    defined as the difference of likelihoods between two consecutive steps,
+#'    divided by the absolute value of the last one
+#'    ( (LL_n - LL_n-1) / |LL_n| ).
+#' @param plot A logical value, indicating whether a plot of the results is
+#'    automatically displayed.
+#' @param prior_mean Prior mean parameter of the K mean GPs (mu_k).
 #'
 #' @return predicted GP parameters | posterior mean process | all trained hyperparameters
 #' @return
@@ -58,8 +78,8 @@
 #' data_obs <- simu_db(M=1)
 #' training_test <- train_magma_VEM(data_train)
 #' full_algo_clust(data_train, data_obs, list_hp = training_test)
-full_algo_clust = function(data,
-                           new_data,
+full_algo_clust = function(data_train,
+                           data_obs,
                            grid_inputs = NULL,
                            kern_i = "SE",
                            kern_k = "SE",
@@ -75,11 +95,12 @@ full_algo_clust = function(data,
                            nb_cluster = NULL,
                            n_iter_max = 25,
                            pen_diag = 0.01,
-                           cv_threshold = 1e-3)
+                           cv_threshold = 1e-3,
+                           plot = TRUE)
 {
   if(is.null(list_hp))
   {
-    list_hp = train_magma_VEM(data,
+    list_hp = train_magma_VEM(data_train,
                               nb_cluster = nb_cluster,
                               prior_mean_k = prior_mean,
                               ini_hp_k = ini_hp_k,
@@ -99,8 +120,8 @@ full_algo_clust = function(data,
   {
     if(common_hp_i)
     {
-      hp_new_i = train_new_gp_EM(new_data,
-                                 db_train = data,
+      hp_new_i = train_new_gp_EM(data_obs,
+                                 db_train = data_train,
                                  grid_inputs = grid_inputs,
                                  nb_cluster = nb_cluster,
                                  param_mu_k = mu_k,
@@ -113,8 +134,8 @@ full_algo_clust = function(data,
 
     }
     else{
-      hp_new_i = train_new_gp_EM(new_data,
-                                 db_train = data,
+      hp_new_i = train_new_gp_EM(data_obs,
+                                 db_train = data_train,
                                  grid_inputs = grid_inputs,
                                  nb_cluster = nb_cluster,
                                  param_mu_k = mu_k,
@@ -127,8 +148,8 @@ full_algo_clust = function(data,
   }
 
   #browser()
-  pred = pred_gp_clust(new_data,
-                       db_train = data,
+  pred = pred_magma_clust(data_obs,
+                       data_train = data_train,
                        grid_inputs = grid_inputs,
                        list_mu = mu_k,
                        kern = kern_i,
@@ -138,11 +159,15 @@ full_algo_clust = function(data,
                        ini_hp_i = ini_hp_i,
                        trained_magmaclust = list_hp)
 
+  ## Display the graph of the prediction if expected
+  if(plot){plot_magma_clust(pred,
+                         data = data_obs,
+                         data_train = data_train) %>%
+      print()
 
-  # if(plot)
-  # {
-  #   (pred %>% plot_gp(data = rbind(new_data, data)) + geom_point(mu, aes(Timestamp, Output, col = ID))) %>% print()
-  # }
+    }
+
+
 
   list('Prediction' = pred, 'Mean_processes' = mu_k,
        'Hyperparameters' = list('other_i' = list_hp, 'new_i' = hp_new_i)) %>%

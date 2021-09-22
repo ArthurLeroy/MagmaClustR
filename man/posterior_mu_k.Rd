@@ -4,7 +4,7 @@
 \alias{posterior_mu_k}
 \title{Posterior mu of the cluster}
 \usage{
-posterior_mu_k(db, timestamps, m_k, kern_0, kern_i, list_hp)
+posterior_mu_k(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_diag)
 }
 \arguments{
 \item{db}{data A tibble or data frame. Required columns: \code{ID}, \code{Input}
@@ -19,7 +19,14 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference \code{Input}.}
 
-\item{timestamps}{timestamps on which we want a prediction}
+\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as \code{db}, except
+'Output'. Nonetheless, in cases where \code{db} provides only one
+'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of \code{db}.}
 
 \item{m_k}{prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(db)}
 
@@ -28,6 +35,9 @@ each reference \code{Input}.}
 \item{kern_i}{kernel used to compute the covariance matrix of individuals GP at corresponding timestamps (Psi_i).}
 
 \item{list_hp}{list of your hyperparameters}
+
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 }
 \value{
 Pamameters of the mean GP at timestamps chosen.

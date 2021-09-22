@@ -13,8 +13,8 @@ train_magma_VEM(
   kern_k = "SE",
   kern_i = "SE",
   ini_hp_mixture = NULL,
-  common_hp_k = F,
-  common_hp_i = F,
+  common_hp_k = T,
+  common_hp_i = T,
   n_iter_max = 25,
   pen_diag = 0.01,
   cv_threshold = 0.001

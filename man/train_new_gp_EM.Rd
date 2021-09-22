@@ -6,7 +6,8 @@
 \usage{
 train_new_gp_EM(
   data,
-  timestamps = NULL,
+  db_train = NULL,
+  grid_inputs = NULL,
   nb_cluster = NULL,
   param_mu_k = NULL,
   ini_hp_k = NULL,
@@ -14,7 +15,8 @@ train_new_gp_EM(
   kern_i = "SE",
   trained_magmaclust = NULL,
   n_iter_max = 25,
-  cv_threshold = 0.001
+  cv_threshold = 0.001,
+  pen_diag = 0.01
 )
 }
 \arguments{
@@ -28,8 +30,24 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference \code{Input}.}
 
-\item{timestamps}{A vector, indicating the timestamp of additional reference
-inputs on which the mean process' hyper-posterior should be evaluated.}
+\item{db_train}{A tibble or data frame on wich we want the training Required columns: \code{Input},
+\code{Output}. Additional columns for covariates can be specified.
+The \code{Input} column should define the variable that is used as
+reference for the observations (e.g. time for longitudinal data). The
+\code{Output} column specifies the observed values (the response
+variable). The data frame can also provide as many covariates as desired,
+with no constraints on the column names. These covariates are additional
+inputs (explanatory variables) of the models that are also observed at
+each reference \code{Input}.}
+
+\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as \code{data}, except
+'Output'. Nonetheless, in cases where \code{data} provides only one
+'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of \code{data}.}
 
 \item{nb_cluster}{The number of cluster wanted.}
 
@@ -78,6 +96,9 @@ the EM algorithm to proceed while not reaching convergence.}
 
 \item{cv_threshold}{A number, indicating the threshold of the likelihood gain
 under which the EM algorithm will stop.}
+
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 }
 \value{
 A list, containing the results of the EM algorithm used for training
@@ -109,9 +130,10 @@ old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 5
 training_test = train_magma_VEM(db)
 
 timestamps = seq(0.01, 10, 0.01)
-mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test)
+mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
 
-train_new_gp_EM(simu_db(M=1, covariate = FALSE), mu_k, ini_hp_i, "SE", trained_magmaclust = training_test)
+train_new_gp_EM(simu_db(M=1), param_mu_k = mu_k, ini_hp_i = ini_hp_i,
+kern_i = "SE", trained_magmaclust = training_test)
 
 ###########################
 db <- simu_db()

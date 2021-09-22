@@ -285,7 +285,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k
 
   list_hp_k <- old_hp_k %>%
     dplyr::select(-.data$ID) %>%
-    dplyr::select(-prop_mixture) %>%
+    dplyr::select(-.data$prop_mixture) %>%
     names()
 
   ## Detect whether the kernel_0 provides derivatives for its hyper-parameters
@@ -368,7 +368,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k
     par_k <- old_hp_k %>%
       dplyr::select(-.data$ID) %>%
       dplyr::slice(1) %>%
-      dplyr::select(-prop_mixture)
+      dplyr::select(-.data$prop_mixture)
 
     ## Optimise hyper-parameters of the processes of each cluster
     new_theta_k <- optimr::opm(
@@ -398,7 +398,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k
       par_k <- old_hp_k %>%
         dplyr::filter(.data$ID == k) %>%
         dplyr::select(-.data$ID) %>%
-        dplyr::select(-prop_mixture)
+        dplyr::select(-.data$prop_mixture)
       ## Extract the data associated with the k-th cluster
       db_k <- list_mu_param$mean[[k]]
       ## Extract the mean values associated with the k-th specific inputs
