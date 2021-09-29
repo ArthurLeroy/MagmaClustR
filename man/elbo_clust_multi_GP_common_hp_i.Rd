@@ -14,14 +14,19 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{mu_k_param}{List of parameters for the K mean Gaussian processes.}
 
-\item{kern}{A kernel function used to compute the covariance matrix at corresponding timestamps.}
+\item{kern}{A kernel function used to compute the covariance matrix at
+corresponding timestamps.}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-The value of the modified Gaussian log-likelihood for for the sum of all indiv with same HPs.
+The value of the modified Gaussian log-likelihood for
+the sum of all indiv with same HPs.
 }
 \description{
 Modified Gaussian log-likelihood for for the sum of all indiv with same HPs
+}
+\examples{
+TRUE
 }

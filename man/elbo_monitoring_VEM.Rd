@@ -7,27 +7,36 @@
 elbo_monitoring_VEM(hp_k, hp_i, db, kern_i, kern_0, mu_k_param, m_k, pen_diag)
 }
 \arguments{
-\item{hp_k}{A tibble, data frame or name vector of hyper-parameters at corresponding clusters.}
+\item{hp_k}{A tibble, data frame or name vector of hyper-parameters
+at corresponding clusters.}
 
-\item{hp_i}{A tibble, data frame or name vector of hyper-parameters at corresponding individuals.}
+\item{hp_i}{A tibble, data frame or name vector of hyper-parameters
+at corresponding individuals.}
 
 \item{db}{A tibble containing values we want to compute elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{kern_i}{Kernel used to compute the covariance matrix of individuals GP at corresponding inputs (Psi_i).}
+\item{kern_i}{Kernel used to compute the covariance matrix of individuals GP
+at corresponding inputs (Psi_i).}
 
-\item{kern_0}{Kernel used to compute the covariance matrix of the mean GP at corresponding inputs (K_0).}
+\item{kern_0}{Kernel used to compute the covariance matrix of the mean GP
+at corresponding inputs (K_0).}
 
 \item{mu_k_param}{parameters of the variational distributions of mean GPs (mu_k).}
 
-\item{m_k}{prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(db).}
+\item{m_k}{prior value of the mean parameter of the mean GPs (mu_k).
+Length = 1 or nrow(db).}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-Value of expectation of joint log-likelihood of the model. The function to be maximised in step M.
+Value of expectation of joint log-likelihood of the model.
+The function to be maximised in step M.
 }
 \description{
 Expectation of joint log-likelihood of the model
+}
+\examples{
+TRUE
 }

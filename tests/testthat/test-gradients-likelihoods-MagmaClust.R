@@ -4,14 +4,14 @@ test_that("gradient of gr_clust_multi_GP() works for the Squared Exponential ker
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+  # db <- simu_db(N = 10, common_input = TRUE)
+  # hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+  # hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'se_variance' = 1, 'se_lengthscale' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'se_variance' = 1, 'se_lengthscale' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'se_variance' = 1, 'se_lengthscale' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'se_variance' = 1, 'se_lengthscale' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -42,14 +42,14 @@ test_that("gradient of gr_clust_multi_GP() works for the Linear kernel", {
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("LIN", list_ID = unique(db$ID))
+  # db <- simu_db(N = 10, common_input = TRUE)
+  # hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
+  # hp_i <- MagmaClustR:::hp("LIN", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'lin_slope' = 1, 'lin_offset' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'lin_slope' = 1, 'lin_offset' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'lin_slope' = 1, 'lin_offset' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'lin_slope' = 1, 'lin_offset' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -80,14 +80,14 @@ test_that("gradient of gr_clust_multi_GP() works for the Periodic kernel", {
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("PERIO", list_ID = unique(db$ID))
+  #db <- simu_db(N = 10, common_input = TRUE)
+  #hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
+  #hp_i <- MagmaClustR:::hp("PERIO", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -126,14 +126,14 @@ test_that("gradient of gr_clust_multi_GP() works for the Rational Quadratic kern
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("RQ", list_ID = unique(db$ID))
+  # db <- simu_db(N = 10, common_input = TRUE)
+  # hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))
+  # hp_i <- MagmaClustR:::hp("RQ", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -218,14 +218,14 @@ test_that("gradient of gr_GP_mod_common_hp_k() works for the Linear kernel", {
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("LIN", list_ID = unique(db$ID))
+  # db <- simu_db(N = 10, common_input = TRUE)
+  # hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
+  # hp_i <- MagmaClustR:::hp("LIN", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'lin_slope' = 1, 'lin_offset' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'lin_slope' = 1, 'lin_offset' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'lin_slope' = 1, 'lin_offset' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'lin_slope' = 1, 'lin_offset' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -257,14 +257,14 @@ test_that("gradient of gr_GP_mod_common_hp_k() works for the Periodic  kernel", 
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("PERIO", list_ID = unique(db$ID))
+  # db <- simu_db(N = 10, common_input = TRUE)
+  # hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
+  # hp_i <- MagmaClustR:::hp("PERIO", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'lin_slope' = 1, 'lin_offset' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'lin_slope' = 1, 'lin_offset' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -301,14 +301,14 @@ test_that("gradient of gr_GP_mod_common_hp_k() works for the  Rational Quadratic
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("RQ", list_ID = unique(db$ID))
+  #db <- simu_db(N = 10, common_input = TRUE)
+  #hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))
+  #hp_i <- MagmaClustR:::hp("RQ", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'lin_slope' = 1, 'lin_offset' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'lin_slope' = 1, 'lin_offset' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -347,14 +347,14 @@ test_that("gradient of gr_clust_multi_GP_common_hp_i() works for the Squared Exp
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+  #db <- simu_db(N = 10, common_input = TRUE)
+  #hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+  #hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'se_variance' = 1, 'se_lengthscale' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'se_variance' = 1, 'se_lengthscale' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'se_variance' = 1, 'se_lengthscale' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'se_variance' = 1, 'se_lengthscale' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -387,14 +387,14 @@ test_that("gradient of gr_clust_multi_GP_common_hp_i() works for the Linear kern
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("LIN", list_ID = unique(db$ID))
+  #db <- simu_db(N = 10, common_input = TRUE)
+  #hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
+  #hp_i <- MagmaClustR:::hp("LIN", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'lin_slope' = 1, 'lin_offset' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'lin_slope' = 1, 'lin_offset' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'lin_slope' = 1, 'lin_offset' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'lin_slope' = 1, 'lin_offset' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -427,14 +427,14 @@ test_that("gradient of gr_clust_multi_GP_common_hp_i() works for the Linear kern
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("PERIO", list_ID = unique(db$ID))
+  #db <- simu_db(N = 10, common_input = TRUE)
+  #hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
+  #hp_i <- MagmaClustR:::hp("PERIO", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period ' = 1)
+  db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'perio_variance' = 1, 'perio_lengthscale' = 1, 'period' = 1)
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
@@ -471,14 +471,15 @@ test_that("gradient of gr_clust_multi_GP_common_hp_i() works for the Rational Qu
   k = seq_len(3)
   m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
-  db <- simu_db(N = 10, common_input = TRUE)
-  hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))
-  hp_i <- MagmaClustR:::hp("RQ", list_ID = unique(db$ID))
+  # db <- simu_db(N = 10, common_input = TRUE)
+  # hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))
+  # hp_i <- MagmaClustR:::hp("RQ", list_ID = unique(db$ID))
 
 
-  #db <- tibble::tibble('ID' = 1:5,Input= 1:5, Output= 2:6, Covariates = 3:7)
-  #hp_k <- tibble::tibble('ID' = names(m_k), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
-  #hp_i <- tibble::tibble('ID' = unique(db$ID), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale ' = 1)
+  db <- tibble::tibble('ID' = 1:5, Input= 1:5, Output= 2:6, Covariates = 3:7)
+  hp_k <- tibble::tibble('ID' = names(m_k), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
+  hp_i <- tibble::tibble('ID' = unique(db$ID), 'rq_variance' = 1, 'rq_lengthscale' = 1, 'rq_scale' = 1)
+
 
   old_hp_mixture = ini_hp_mixture(db = db, k = length(k), nstart = 50)
   prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)

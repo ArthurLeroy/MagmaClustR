@@ -19,3 +19,6 @@ ini_hp_mixture
 \description{
 ini_hp_mixture
 }
+\examples{
+TRUE
+}

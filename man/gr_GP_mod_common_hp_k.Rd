@@ -16,14 +16,19 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{kern}{A kernel function}
 
-\item{post_cov}{list of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term)}
+\item{post_cov}{list of the k posterior covariance of the mean GP (mu_k).
+Used to compute correction term (cor_term)}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-The value of the modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs.
+The value of the modified Gaussian log-likelihood for
+the sum of the k mean GPs with same HPs.
 }
 \description{
 Modified common Gaussian Process for each cluster
+}
+\examples{
+TRUE
 }

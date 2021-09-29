@@ -25,3 +25,6 @@ The gradient of multi gaussian processes for clustering
 \description{
 Gradient multi-Gaussian Process
 }
+\examples{
+TRUE
+}

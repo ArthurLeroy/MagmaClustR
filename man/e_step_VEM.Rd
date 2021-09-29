@@ -34,8 +34,9 @@ parameter, \code{cov}, the hyper-posterior covariance matrix,
 and \code{hp_mixture}, the probability to belong to a cluster for an individual.
 }
 \description{
-Expectation step of the variation of the EM algorithm to compute the parameters of the
-hyper-posterior Gaussian distribution of the mean process in Magma.
+Expectation step of the variation of the EM algorithm to compute
+the parameters of the hyper-posterior Gaussian distribution
+of the mean process in Magma.
 }
 \examples{
 \donttest{
@@ -48,7 +49,8 @@ hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 prop_mixture_1 <- old_hp_mixture \%>\% dplyr::select(-.data$ID)
-hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x \%>\% unlist() \%>\% mean() )
+hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x \%>\%
+  unlist() \%>\% mean() )
 
 MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
 

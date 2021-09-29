@@ -48,9 +48,12 @@
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are also available here)
-#' @param ini_hp_mixture initial values of probabiliy to belong to each cluster for each individuals.
-#' @param common_hp_k A boolean indicating whether hp are common among mean GPs (for each mu_k).
-#' @param common_hp_i A boolean indicating whether hp are common among individual GPs (for each y_i).
+#' @param ini_hp_mixture initial values of probabiliy to belong to each cluster
+#' for each individuals.
+#' @param common_hp_k A boolean indicating whether hp are common among mean GPs
+#' (for each mu_k).
+#' @param common_hp_i A boolean indicating whether hp are common among
+#' individual GPs (for each y_i).
 #' @param prior_mean_k prior mean parameter of the K mean GPs (mu_k)
 #' @param n_iter_max A number, indicating the maximum number of iterations of
 #'    the EM algorithm to proceed while not reaching convergence.
@@ -63,14 +66,14 @@
 #'    ( (LL_n - LL_n-1) / |LL_n| ).
 #' @param nb_cluster The number of clusters wanted.
 #'
-#' @return A list, containing the results of a variation of the EM algorithm used for training
-#'    in MagmaClust. The elements of the list are:
+#' @return A list, containing the results of a variation of the EM algorithm
+#'    used for training in MagmaClust. The elements of the list are:
 #'    - hp_k: A tibble containing the trained hyper-parameters for the mean
 #'    process' kernel.
 #'    - hp_i: A tibble containing all the trained hyper-parameters for the
 #'    individual processes' kernels.
-#'    - prop_mixture_k : A tibble containing the hyper-parameters associated with each individual,
-#'    indicating in which cluster it belongs.
+#'    - prop_mixture_k : A tibble containing the hyper-parameters associated
+#'    with each individual, indicating in which cluster it belongs.
 #'    - param : A list 3 containing  The mean, the cov and the hp_mixture.
 #'        -> mean : A tibble containing the values of hyper-posterior's mean
 #'           parameter (\code{Output}) evaluated at each training reference
@@ -329,7 +332,9 @@ train_magma_VEM = function(data,
   cv <- FALSE
   elbo_monitoring = - Inf
 
-  if(is.null(ini_hp_mixture)){ini_hp_mixture = ini_hp_mixture(data, k = length(ID_k), nstart = 50)}
+  if(is.null(ini_hp_mixture)){ini_hp_mixture = ini_hp_mixture(data,
+                                                              k = length(ID_k),
+                                                              nstart = 50)}
   hp_mixture = ini_hp_mixture
 
   hp_1 <- hp_mixture %>% dplyr::select(-.data$ID)
@@ -382,7 +387,8 @@ train_magma_VEM = function(data,
     if(new_hp %>% anyNA(recursive = T))
     {
       print(paste0('The M-step encountered an error at iteration : ', i))
-      print('Training has stopped and the function returns values from the last valid iteration')
+      print('Training has stopped and the function returns values
+            from the last valid iteration')
       break
     }
 
@@ -466,14 +472,13 @@ train_magma_VEM = function(data,
 #'    associated with \code{kern_k}, the mean process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters
 #'    that are used in \code{kern_k}.
-#' @param prop_mixture_k A tibble containing the hyper-parameters associated with each individual,
-#'    indicating in which cluster it belongs.
+#' @param prop_mixture_k A tibble containing the hyper-parameters associated
+#' with each individual, indicating in which cluster it belongs.
 #' @param mean_k mean
 #' @param cov_k cov
 #' @param kern kernel A kernel function, defining the covariance structure of the GP.
 #'
 #' @return update hp_mixture star
-#' @export
 #'
 #' @examples
 #' TRUE
@@ -503,9 +508,11 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
     round_mean <- mean_k[[k]] %>% round(digits = 5)
     unique_mean <- round_mean %>% dplyr::distinct(.data$Input, .keep_all = TRUE)
 
-    mean = unique_mean %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
+    mean = unique_mean %>% dplyr::filter(.data$Input %in% input_i) %>%
+      dplyr::pull(.data$Output)
 
-    cov =  (kern_to_cov(db_1, kern, hp) + cov_k[[k]][as.character(input_i), as.character(input_i)] )
+    cov =  (kern_to_cov(db_1, kern, hp) +
+              cov_k[[k]][as.character(input_i), as.character(input_i)] )
     inv = tryCatch(cov %>% chol() %>% chol2inv(),
                    error = function(e){MASS::ginv(cov)}) %>%
       `rownames<-`(input_i) %>%
@@ -516,10 +523,15 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
     ## Classic gaussian loglikelihood
     mat_elbo[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T)
   }
-  ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
+  ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x))
+  ## to remain numerically stable
   mat_L = exp(mat_elbo - max(mat_elbo))
 
-  ((prop_mixture * mat_L)/ sum(prop_mixture * mat_L)) %>% as.vector %>% split(names_k) %>% tibble::as_tibble() %>% return()
+  ((prop_mixture * mat_L)/ sum(prop_mixture * mat_L)) %>%
+    as.vector %>%
+    split(names_k) %>%
+    tibble::as_tibble() %>%
+    return()
 
 }
 
@@ -542,8 +554,9 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
-#' @param db_train  A tibble or data frame on wich we want the training Required columns: \code{Input},
-#'    \code{Output}. Additional columns for covariates can be specified.
+#' @param db_train  A tibble or data frame on wich we want the training.
+#'    Required columns: \code{Input}, \code{Output}.
+#'    Additional columns for covariates can be specified.
 #'    The \code{Input} column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
 #'    \code{Output} column specifies the observed values (the response
@@ -589,8 +602,10 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param trained_magmaclust A tibble of list containing "hp_i". hp_i being a named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}. Can be compute with the fonction \code{train_magma_VEM}.
+#' @param trained_magmaclust A tibble of list containing "hp_i".
+#'    hp_i being a named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}.
+#'    Can be compute with the fonction \code{train_magma_VEM}.
 #'    db <- simu_db()
 #'    trained_magmaclust <- train_magma_VEM(db)
 #' @param n_iter_max A number, indicating the maximum number of iterations of
@@ -620,7 +635,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' training_test = train_magma_VEM(db)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
-#' mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
+#' mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
 #'
 #' train_new_gp_EM(simu_db(M=1), param_mu_k = mu_k, ini_hp_i = ini_hp_i,
 #' kern_i = "SE", trained_magmaclust = training_test)
@@ -670,19 +685,27 @@ train_new_gp_EM = function(data,
   if (grid_inputs %>% is.null()) {
     ## Test whether 'data' only provide the Input column and no covariates
     if (inputs_obs %>% names() %>% length() == 1) {
-      input_pred <- c(seq(min(data$Input), max(data$Input), length.out = 500), data$Input) %>% unique
+      input_pred <- c(seq(min(data$Input),
+                          max(data$Input),
+                          length.out = 500),
+                      data$Input) %>%
+        unique
       inputs_pred <- tibble::tibble("Input" = input_pred)
     } else if (inputs_obs %>% names() %>% length() == 2) {
       ## Define a default grid for 'Input'
       input_pred <- rep(
-        c(seq(min(data$Input), max(data$Input), length.out = 20), data$Input) %>% unique,
+        c(seq(min(data$Input),
+              max(data$Input),
+              length.out = 20),
+          data$Input) %>%
+          unique,
         each = 20)
       inputs_pred <- tibble::tibble("Input" = input_pred)
       ## Add a grid for the covariate
       name_cova = inputs_obs %>% dplyr::select(-.data$Input) %>% names()
       cova = inputs_obs[name_cova]
       inputs_pred[name_cova] <- rep(
-        seq(min(cova), max(cova), length.out = 20),
+        c(seq(min(cova), max(cova), length.out = 20), data$Covariate) %>% unique,
         times = 20)
     } else {
       stop(
@@ -766,7 +789,8 @@ train_new_gp_EM = function(data,
        | trained_magmaclust$prop_mixture_k %>% is.null()
        | trained_magmaclust$ini_args %>% is.null()){
       cat(
-        "Neither the 'param_mu_k' nor 'trained_magmaclust' argument has been specified. The 'train_magma_VEM()' function",
+        "Neither the 'param_mu_k' nor 'trained_magmaclust' argument
+        has been specified. The 'train_magma_VEM()' function",
         "(with random initialisation) has been used to learn ML estimators",
         "for the hyper-parameters associated with the 'kern' argument.\n \n"
       )
@@ -777,7 +801,7 @@ train_new_gp_EM = function(data,
                                            ini_hp_k = ini_hp_k,
                                            ini_hp_i = ini_hp_i)
     }
-    param_mu_k <- posterior_mu_k(db_train,
+    param_mu_k <- hyperposterior_clust(db_train,
                                  grid_inputs = t_pred,
                                  trained_magmaclust$prop_mixture_k,
                                  trained_magmaclust$ini_args$kern_k,
@@ -805,18 +829,26 @@ train_new_gp_EM = function(data,
       t_i_1 <- Sys.time()
 
       ## E step
-      hp_k_mixture <- update_hp_k_mixture_star_EM(data, mean_mu_k, cov_mu_k, kern_i, hp, prop_mixture_k)
+      hp_k_mixture <- update_hp_k_mixture_star_EM(data,
+                                                  mean_mu_k,
+                                                  cov_mu_k,
+                                                  kern_i,
+                                                  hp,
+                                                  prop_mixture_k)
 
       ## M step
       LL_GP<- function(hp, data, kern_i)
       {
-        inputs <- data %>% dplyr::pull(.data$Input) %>% unique %>% round(digits = 10)
+        inputs <- data %>% dplyr::pull(.data$Input) %>%
+          unique %>%
+          round(digits = 10)
 
         floop = function(k)
         {
           round_mean <- mean_mu_k[[k]] %>% round(digits = 10)
 
-          mean = round_mean %>% dplyr::filter(.data$Input %in% inputs) %>% dplyr::pull(.data$Output)
+          mean = round_mean %>% dplyr::filter(.data$Input %in% inputs) %>%
+            dplyr::pull(.data$Output)
           cov = (kern_to_cov(data$Input, kern_i, hp) +
                    cov_mu_k[[k]][as.character(inputs), as.character(inputs)])
           inv = tryCatch(cov %>% chol() %>% chol2inv(),
@@ -850,7 +882,8 @@ train_new_gp_EM = function(data,
       if(new_hp %>% anyNA(recursive = T))
       {
         print(paste0('The M-step encountered an error at iteration : ', i))
-        print('Training has stopped and the function returns values from the last valid iteration')
+        print('Training has stopped and the function returns
+              values from the last valid iteration')
         break
       }
 
@@ -894,7 +927,12 @@ train_new_gp_EM = function(data,
   {
     new_hp = trained_hp_i %>% dplyr::slice(1)
 
-    hp_k_mixture <- update_hp_k_mixture_star_EM(data, mean_mu_k, cov_mu_k, kern_i, new_hp, prop_mixture_k)
+    hp_k_mixture <- update_hp_k_mixture_star_EM(data,
+                                                mean_mu_k,
+                                                cov_mu_k,
+                                                kern_i,
+                                                new_hp,
+                                                prop_mixture_k)
 
   }
 

@@ -15,3 +15,6 @@ Prediction of the maximum of cluster
 \description{
 Prediction of the maximum of cluster
 }
+\examples{
+TRUE
+}

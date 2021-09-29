@@ -24,21 +24,27 @@ Additional columns for covariates can be specified.}
 \item{old_hp_k}{A named vector, tibble or data frame, containing the hyper-parameters
 from the previous M-step (or initialisation) associated with the clusters.}
 
-\item{old_hp_i}{A named vector, tibble or data frame, containing the hyper-parameters
-from the previous M-step (or initialisation) associated with the
+\item{old_hp_i}{A named vector, tibble or data frame,
+containing the hyper-parameters from the previous
+M-step (or initialisation) associated with the
 individual GPs.}
 
 \item{list_mu_param}{List of parameters of the K mean GPs.}
 
-\item{kern_k}{kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0)}
+\item{kern_k}{kernel used to compute the covariance matrix of the mean GP
+at corresponding timestamps (K_0)}
 
-\item{kern_i}{kernel used to compute the covariance matrix of individuals GP at corresponding timestamps (Psi_i)}
+\item{kern_i}{kernel used to compute the covariance matrix of individuals GP
+at corresponding timestamps (Psi_i)}
 
-\item{m_k}{prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(unique(db$Input))}
+\item{m_k}{prior value of the mean parameter of the mean GPs (mu_k).
+Length = 1 or nrow(unique(db$Input))}
 
-\item{common_hp_k}{boolean indicating whether hp are common among mean GPs (for each mu_k)}
+\item{common_hp_k}{boolean indicating whether hp are common among
+mean GPs (for each mu_k)}
 
-\item{common_hp_i}{boolean indicating whether hp are common among individual GPs (for each y_i)}
+\item{common_hp_i}{boolean indicating whether hp are common among
+individual GPs (for each y_i)}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
@@ -52,6 +58,48 @@ a tibble containing the hyper-parameters associated with each individual,
 indicating in which cluster it belongs.
 }
 \description{
-Maximization step of the variation of the EM algorithm to compute hyper-parameters of all the
-kernels involved in Magma.
+Maximization step of the variation of the EM algorithm to compute
+hyper-parameters of all the kernels involved in Magma.
+}
+\examples{
+\donttest{
+
+## Common inputs across individuals & cluster and differents HPs
+## across individuals & Cluster
+k = seq_len(2)
+m_k <- c("K1" = 0, "K2" = 0)
+
+db <- simu_db(N = 10, common_input = FALSE)
+hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
+hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+
+old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+prop_mixture_1 <- old_hp_mixture \%>\% dplyr::select(-.data$ID)
+hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x \%>\%
+  unlist() \%>\% mean() )
+
+post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
+
+MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 2)
+
+
+## Different inputs across individuals & cluster and common HPs
+k = seq_len(4)
+m_k <- c("K1" = 0, "K2" = 0, "K3" = 0, "K4" = 0)
+db <- simu_db(N = 10, common_input = FALSE)
+hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k), common_hp = TRUE)
+hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID), common_hp = TRUE)
+
+old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+prop_mixture_1 <- old_hp_mixture \%>\% dplyr::select(-.data$ID)
+hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x \%>\%
+  unlist() \%>\% mean() )
+
+post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
+
+MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
+
+
+
+}
 }

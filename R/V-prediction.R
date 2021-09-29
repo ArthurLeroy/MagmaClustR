@@ -1,4 +1,4 @@
-#' Posterior mu of the cluster
+#' Compute the hyper-posterior distribution by cluster in MagmaClust
 #'
 #' @param db data A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
@@ -11,9 +11,12 @@
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
-#' @param kern_0 kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0).
-#' @param kern_i kernel used to compute the covariance matrix of individuals GP at corresponding timestamps (Psi_i).
-#' @param m_k prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(db)
+#' @param kern_0 kernel used to compute the covariance matrix of the mean GP at
+#' corresponding timestamps (K_0).
+#' @param kern_i kernel used to compute the covariance matrix of individuals GP at
+#' corresponding timestamps (Psi_i).
+#' @param m_k prior value of the mean parameter of the mean GPs (mu_k).
+#' Length = 1 or nrow(db)
 #' @param list_hp list of your hyperparameters
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
@@ -30,13 +33,15 @@
 #' @export
 #'
 #' @examples
-posterior_mu_k = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_diag)
+#' TRUE
+hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_diag)
 {
   #browser()
   hp_i = list_hp$hp_i
   hp_k = list_hp$hp_k
   hp_mixture = list_hp$param$hp_mixture
-  t_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(grid_inputs)) , 'Input' = rep(grid_inputs, length(hp_k$ID)))
+  t_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(grid_inputs)) ,
+                           'Input' = rep(grid_inputs, length(hp_k$ID)))
   inv_k = list_kern_to_inv(t_clust, kern_0, hp_k, pen_diag = pen_diag)
   list_inv_i = list_kern_to_inv(db, kern_i, hp_i, pen_diag = pen_diag)
   value_i = base::split(db$Output, list(db$ID))
@@ -76,7 +81,8 @@ posterior_mu_k = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_dia
       #row.names(weithed_i) = row.names(list_inv_i[[j]])
 
       common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
-      weighted_mean[common_times,] = weighted_mean[common_times,] + weighted_i[common_times,]
+      weighted_mean[common_times,] = weighted_mean[common_times,] +
+        weighted_i[common_times,]
     }
 
     new_mean = cov_k[[k]] %*% weighted_mean %>% as.vector()
@@ -90,8 +96,9 @@ posterior_mu_k = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_dia
 
 #' Prediction Gaussian Process on the clustering
 #'
-#' @param data_obs A tibble or data frame wich we want our prediction on. Required columns: 'Input',
-#'    'Output'. Additional columns for covariates can be specified.
+#' @param data_obs A tibble or data frame wich we want our prediction on.
+#'    Required columns: 'Input', 'Output'.
+#'    Additional columns for covariates can be specified.
 #'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
 #'    'Output' column specifies the observed values (the response
@@ -99,8 +106,8 @@ posterior_mu_k = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_dia
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference 'Input'.
-#' @param data_train A tibble or data frame wich we want our training on. Columns required: \code{ID}, \code{Input}
-#'    , \code{Output}.
+#' @param data_train A tibble or data frame wich we want our training on.
+#' Columns required: \code{ID}, \code{Input}, \code{Output}.
 #'    Additional columns for covariates can be specified.
 #'    The \code{ID} column contains the unique names/codes used to identify each
 #'    individual/task (or batch of data).
@@ -111,8 +118,9 @@ posterior_mu_k = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_dia
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at each
 #'    reference \code{Input}.
-#' @param hp_new_indiv A tibble of the Trainied results of a variation of the EM algorithm used for training
-#'    in MagmaClust. Containing columns 'theta_new' and 'hp_k_mixture'.
+#' @param hp_new_indiv A tibble of the Trainied results of a variation
+#'    of the EM algorithm used for training in MagmaClust.
+#'    Containing columns 'theta_new' and 'hp_k_mixture'.
 #'    'theta_new' being a new set of hyperparameters with 1 individual.
 #'    'hp_k_mixture' the probability of being in the clusters.
 #'    Can be compute with the function \code{train_new_gp_EM}.
@@ -134,8 +142,10 @@ posterior_mu_k = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_dia
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param list_mu List containing mean and cov of the K mean GPs.
-#' - mean   : value of mean GP at timestamps (obs + pred) (matrix dim: timestamps x 1, with Input rownames)
-#' - cov_mu : covariance of mean GP at timestamps (obs + pred) (square matrix, with Input row/colnames)
+#' - mean   : value of mean GP at timestamps (obs + pred)
+#'           (matrix dim: timestamps x 1, with Input rownames)
+#' - cov_mu : covariance of mean GP at timestamps (obs + pred)
+#'            (square matrix, with Input row/colnames)
 #' @param nb_cluster The number of clusters wanted.
 #' @param ini_hp_k named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}, the mean process' kernel. The
@@ -147,8 +157,9 @@ posterior_mu_k = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_dia
 #'    names/codes used to identify each individual/task. The other columns
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}.
-#' @param trained_magmaclust A tibble of the Trainied results of a variation of the EM algorithm used for training
-#'    in MagmaClust. Can be compute with the fonction \code{train_magma_VEM}.
+#' @param trained_magmaclust A tibble of the Trained results of a variation of
+#'    the EM algorithm used for training in MagmaClust.
+#'    Can be compute with the fonction \code{train_magma_VEM}.
 #'    db <- simu_db()
 #'    trained_magmaclust <- train_magma_VEM(db)
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
@@ -158,10 +169,11 @@ posterior_mu_k = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_dia
 #'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
 #'    vector. This vector would be used as reference input for prediction and if
 #'    NULL, a vector of length 500 is defined, ranging between the min and max
-#'    Input values of \code{data}.#' @param pen_diag
+#'    Input values of \code{data}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
-#'
+#' @param plot A logical value, indicating whether a plot of the results is
+#'    automatically displayed.
 #' @return pamameters of the gaussian density predicted at timestamps
 #' @export
 #'
@@ -181,9 +193,9 @@ pred_magma_clust = function(data_obs,
                          ini_hp_k = NULL,
                          ini_hp_i = NULL,
                          trained_magmaclust = NULL,
+                         plot = TRUE,
                          pen_diag = 0.01)
 {
-  #browser()
   ## Extract the observed Output (data_obs points)
   db_obs <- data_obs %>%
     dplyr::arrange(.data$Input) %>%
@@ -284,10 +296,13 @@ pred_magma_clust = function(data_obs,
 
     }
     else{
-      if(data_train %>% is.null()){data_train <- training_test$ini_args$data}
+      if(data_train %>% is.null()){data_train <- trained_magmaclust$ini_args$data}
     }
 
-    hp <- train_new_gp_EM(data_obs, kern_i = kern, trained_magmaclust = trained_magmaclust, grid_inputs = grid_inputs)
+    hp <- train_new_gp_EM(data_obs,
+                          kern_i = kern,
+                          trained_magmaclust = trained_magmaclust,
+                          grid_inputs = grid_inputs)
   }
   else{
     names_a <- hp(kern) %>% names
@@ -298,7 +313,8 @@ pred_magma_clust = function(data_obs,
       cat(
         "The 'hp_new_indiv' argument has not been specified correctly.",
         " 'hp_new_indiv' must have 'theta_new' arguments related to your kernel",
-        " 'hp_new_indiv' must have 'hp_k_mixture' arguments with the sum equal to 1 (probability by cluster)",
+        " 'hp_new_indiv' must have 'hp_k_mixture' arguments with the sum equal
+        to 1 (probability by cluster)",
         "Random values of hyper-parameters are used as initialisation.\n \n"
       )
       if(trained_magmaclust %>% is.null()){
@@ -316,10 +332,12 @@ pred_magma_clust = function(data_obs,
 
       }
       else{
-        if(data_train %>% is.null()){data_train <- training_test$ini_args$data}
+        if(data_train %>% is.null()){data_train <- trained_magmaclust$ini_args$data}
       }
 
-      hp <- train_new_gp_EM(data_obs, kern_i = kern, trained_magmaclust = trained_magmaclust)
+      hp <- train_new_gp_EM(data_obs,
+                            kern_i = kern,
+                            trained_magmaclust = trained_magmaclust)
     }
     else{hp <- hp_new_indiv}
   }
@@ -341,7 +359,8 @@ pred_magma_clust = function(data_obs,
        | trained_magmaclust$prop_mixture_k %>% is.null()
        | trained_magmaclust$ini_args %>% is.null()){
       cat(
-        "Neither the 'list_mu' nor 'trained_magmaclust' argument has been specified. The 'train_magma_VEM()' function",
+        "Neither the 'list_mu' nor 'trained_magmaclust'
+        argument has been specified. The 'train_magma_VEM()' function",
         "(with random initialisation) has been used to learn ML estimators",
         "for the hyper-parameters associated with the 'kern' argument.\n \n"
       )
@@ -352,7 +371,7 @@ pred_magma_clust = function(data_obs,
                                            ini_hp_k = ini_hp_k,
                                            ini_hp_i = ini_hp_i)
     }
-    list_mu <- posterior_mu_k(data_train,
+    list_mu <- hyperposterior_clust(data_train,
                               grid_inputs = t_pred,
                               trained_magmaclust$prop_mixture_k,
                               trained_magmaclust$ini_args$kern_k,
@@ -377,129 +396,46 @@ pred_magma_clust = function(data_obs,
 
   floop = function(k)
   {
-    mean <- list_mu$mean[[k]] %>% round(digits = 10) %>% dplyr::distinct(.data$Input, .keep_all = TRUE)
-    mean_mu_obs = mean %>% dplyr::filter(.data$Input %in% input_round) %>% dplyr::pull(.data$Output)
+    mean <- list_mu$mean[[k]] %>% round(digits = 10) %>%
+      dplyr::distinct(.data$Input, .keep_all = TRUE)
+    mean_mu_obs = mean %>% dplyr::filter(.data$Input %in% input_round) %>%
+      dplyr::pull(.data$Output)
     input_pred_round <- input_pred %>% round(digits = 10)
-    mean_mu_pred = mean %>% dplyr::filter(.data$Input %in% input_pred_round) %>% dplyr::pull(.data$Output)
+    mean_mu_pred = mean %>% dplyr::filter(.data$Input %in% input_pred_round) %>%
+      dplyr::pull(.data$Output)
     cov_mu = list_mu$cov[[k]]
 
     ## Compute the required sub-matrix for prediction
-    cov_obs = (kern_to_cov(inputs_obs, kern, hp_new) + cov_mu[as.character(input_obs), as.character(input_obs)])
+    cov_obs = (kern_to_cov(inputs_obs, kern, hp_new) +
+                 cov_mu[as.character(input_obs), as.character(input_obs)])
     diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
-    inv_mat = tryCatch((cov_obs + diag) %>% chol() %>% chol2inv(), error = function(e){MASS::ginv(cov_obs + diag)})
-    cov_crossed = kern_to_cov(inputs_obs, kern, hp_rm_noi, input_2 = inputs_pred) + cov_mu[as.character(input_obs), as.character(input_pred)]
-    cov_pred = kern_to_cov(inputs_pred, kern, hp_rm_noi) + cov_mu[as.character(input_pred), as.character(input_pred)]
+    inv_mat = tryCatch((cov_obs + diag) %>% chol() %>% chol2inv(),
+                       error = function(e){MASS::ginv(cov_obs + diag)})
+    cov_crossed = kern_to_cov(inputs_obs, kern, hp_rm_noi, input_2 = inputs_pred) +
+      cov_mu[as.character(input_obs), as.character(input_pred)]
+    cov_pred = kern_to_cov(inputs_pred, kern, hp_rm_noi) +
+      cov_mu[as.character(input_pred), as.character(input_pred)]
 
     tibble::tibble(inputs_pred,
-           'Mean' = (mean_mu_pred + t(cov_crossed) %*% inv_mat %*% (yn - mean_mu_obs)) %>% as.vector(),
-           'Var' =  (cov_pred - t(cov_crossed) %*% inv_mat %*% cov_crossed) %>% diag %>% as.vector + noise,
-           'hp_k_mixture' = hp_k_mixture[[k]]) %>% return()
+           'Mean' = (mean_mu_pred + t(cov_crossed) %*% inv_mat %*%
+                       (yn - mean_mu_obs)) %>% as.vector(),
+           'Var' =  (cov_pred - t(cov_crossed) %*% inv_mat %*%
+                       cov_crossed) %>% diag %>% as.vector + noise,
+           'hp_k_mixture' = hp_k_mixture[[k]]) %>%
+      return()
   }
-  pred = sapply(names(list_mu$mean), floop, simplify = FALSE, USE.NAMES = TRUE) %>% tibble::as_tibble()
+  pred = sapply(names(list_mu$mean), floop, simplify = FALSE, USE.NAMES = TRUE) %>%
+    tibble::as_tibble()
+
+  ## Display the graph of the prediction if expected
+  if(plot){plot_magma_clust(pred,
+                            data = data_obs,
+                            data_train =  trained_magmaclust$ini_args$data) %>%
+      print()
+
+  }
 
   return(pred)
-}
-
-
-#' Prediction animate of the Gaussian Process on the clustering
-#'
-#' @param data A tibble or data frame. Required columns: 'Input',
-#'    'Output'. Additional columns for covariates can be specified.
-#'    The 'Input' column should define the variable that is used as
-#'    reference for the observations (e.g. time for longitudinal data). The
-#'    'Output' column specifies the observed values (the response
-#'    variable). The data frame can also provide as many covariates as desired,
-#'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'.
-#' @param timestamps timestamps on which we want a prediction
-#' @param hp_new_indiv A tibble of the Trainied results of a variation of the EM algorithm used for training
-#'    in MagmaClust. Containing columns 'theta_new' and 'hp_k_mixture'.
-#'    'theta_new' being a new set of hyperparameters with 1 individual.
-#'    'hp_k_mixture' the probability of being in the clusters.
-#'    Can be compute with the function \code{train_new_gp_EM}.
-#'    train_new_gp_EM(simu_db(M=1))
-#' @param kern A kernel function, defining the covariance structure of the GP.
-#'    Several popular kernels
-#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
-#'    Cookbook}) are already implemented and can be selected within the
-#'    following list:
-#'    - "SE": (default value) the Squared Exponential Kernel (also called
-#'        Radial Basis Function or Gaussian kernel),
-#'    - "LIN": the Linear kernel,
-#'    - "PERIO": the Periodic kernel,
-#'    - "RQ": the Rational Quadratic kernel.
-#'    Compound kernels can be created as sums or products of the above kernels.
-#'    For combining kernels, simply provide a formula as a character string
-#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
-#'    elements are treated sequentially from the left to the right, the product
-#'    operator '*' shall always be used before the '+' operators (e.g.
-#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param list_mu List containing mean and cov of the K mean GPs.
-#' - mean   : value of mean GP at timestamps (obs + pred) (matrix dim: timestamps x 1, with Input rownames)
-#' - cov_mu : covariance of mean GP at timestamps (obs + pred) (square matrix, with Input row/colnames)
-#' @param nb_cluster The number of clusters wanted.
-#' @param ini_hp_k named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern}, the mean process' kernel. The
-#'    columns/elements should be named according to the hyper-parameters
-#'    that are used in \code{kern_k}.
-#' @param ini_hp_i A tibble or data frame of hyper-parameters
-#'    associated with \code{kern}, the individual processes' kernel.
-#'    Required column : \code{ID}. The \code{ID} column contains the unique
-#'    names/codes used to identify each individual/task. The other columns
-#'    should be named according to the hyper-parameters that are used in
-#'    \code{kern_i}.
-#' @param trained_magmaclust A tibble of the Trainied results of a variation of the EM algorithm used for training
-#'    in MagmaClust. Can be compute with the fonction \code{train_magma_VEM}.
-#'    db <- simu_db()
-#'    trained_magmaclust <- train_magma_VEM(db)
-#'
-#' @return tibble of classic GP predictions but with an inscreasing number of data points considered as 'observed'
-#' @export
-#'
-#' @examples
-#' \donttest{
-#' db <- simu_db()
-#' training_test = train_magma_VEM(db)
-#' pred_magma_clust_animate(simu_db(M=1), trained_magmaclust = training_test)
-#' }
-pred_magma_clust_animate = function(data,
-                                 timestamps = NULL,
-                                 list_mu = NULL,
-                                 kern = "SE",
-                                 hp_new_indiv = NULL,
-                                 nb_cluster = NULL,
-                                 ini_hp_k = NULL,
-                                 ini_hp_i = NULL,
-                                 trained_magmaclust = NULL)
-{
-  #browser()
-  data <- data %>% dplyr::arrange(.data$Input)
-  all_pred = tibble::tibble()
-
-  for(j in 1:nrow(data))
-  {
-    pred_j = pred_magma_clust(data[1:j,],
-                            timestamps,
-                            list_mu,
-                            kern,
-                            hp_new_indiv,
-                            nb_cluster,
-                            ini_hp_k,
-                            ini_hp_i,
-                            trained_magmaclust)
-
-    for(k in pred_j %>% names)
-    {
-      pred_j[[k]] = pred_j[[k]] %>% dplyr::mutate(Nb_data = j, Cluster = k)
-    }
-    #browser()
-    #pred_j_all = pred_j %>% dplyr::bind_rows
-    pred_j_all = dplyr::bind_rows(pred_j,pred_j)
-
-    all_pred = all_pred %>% rbind(pred_j_all)
-  }
-  return(all_pred)
 }
 
 #' Prediction of the maximum of cluster
@@ -507,10 +443,11 @@ pred_magma_clust_animate = function(data,
 #' @param hp_mixture hp_mixture
 #'
 #' @return Prediction of the maximum of cluster
-#' @export
 #'
 #' @examples
+#' TRUE
 pred_max_cluster = function(hp_mixture)
 {
-  hp_mixture %>% tibble::as_tibble %>% tidyr::unnest %>% apply(1, which.max) %>% return()
+  hp_mixture %>% tibble::as_tibble %>% tidyr::unnest %>% apply(1, which.max) %>%
+    return()
 }

@@ -30,8 +30,9 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference \code{Input}.}
 
-\item{db_train}{A tibble or data frame on wich we want the training Required columns: \code{Input},
-\code{Output}. Additional columns for covariates can be specified.
+\item{db_train}{A tibble or data frame on wich we want the training.
+Required columns: \code{Input}, \code{Output}.
+Additional columns for covariates can be specified.
 The \code{Input} column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
 \code{Output} column specifies the observed values (the response
@@ -86,8 +87,10 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{trained_magmaclust}{A tibble of list containing "hp_i". hp_i being a named vector, tibble or data frame of hyper-parameters
-associated with \code{kern_i}. Can be compute with the fonction \code{train_magma_VEM}.
+\item{trained_magmaclust}{A tibble of list containing "hp_i".
+hp_i being a named vector, tibble or data frame of hyper-parameters
+associated with \code{kern_i}.
+Can be compute with the fonction \code{train_magma_VEM}.
 db <- simu_db()
 trained_magmaclust <- train_magma_VEM(db)}
 
@@ -130,7 +133,7 @@ old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 5
 training_test = train_magma_VEM(db)
 
 timestamps = seq(0.01, 10, 0.01)
-mu_k <- posterior_mu_k(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
+mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
 
 train_new_gp_EM(simu_db(M=1), param_mu_k = mu_k, ini_hp_i = ini_hp_i,
 kern_i = "SE", trained_magmaclust = training_test)

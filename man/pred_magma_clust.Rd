@@ -15,12 +15,14 @@ pred_magma_clust(
   ini_hp_k = NULL,
   ini_hp_i = NULL,
   trained_magmaclust = NULL,
+  plot = TRUE,
   pen_diag = 0.01
 )
 }
 \arguments{
-\item{data_obs}{A tibble or data frame wich we want our prediction on. Required columns: 'Input',
-'Output'. Additional columns for covariates can be specified.
+\item{data_obs}{A tibble or data frame wich we want our prediction on.
+Required columns: 'Input', 'Output'.
+Additional columns for covariates can be specified.
 The 'Input' column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
 'Output' column specifies the observed values (the response
@@ -29,8 +31,8 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference 'Input'.}
 
-\item{data_train}{A tibble or data frame wich we want our training on. Columns required: \code{ID}, \code{Input}
-, \code{Output}.
+\item{data_train}{A tibble or data frame wich we want our training on.
+Columns required: \code{ID}, \code{Input}, \code{Output}.
 Additional columns for covariates can be specified.
 The \code{ID} column contains the unique names/codes used to identify each
 individual/task (or batch of data).
@@ -49,12 +51,14 @@ tibble or a data frame, providing the same columns as \code{data}, except
 'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
 vector. This vector would be used as reference input for prediction and if
 NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{data}.#' @param pen_diag}
+Input values of \code{data}.}
 
 \item{list_mu}{List containing mean and cov of the K mean GPs.
 \itemize{
-\item mean   : value of mean GP at timestamps (obs + pred) (matrix dim: timestamps x 1, with Input rownames)
-\item cov_mu : covariance of mean GP at timestamps (obs + pred) (square matrix, with Input row/colnames)
+\item mean   : value of mean GP at timestamps (obs + pred)
+(matrix dim: timestamps x 1, with Input rownames)
+\item cov_mu : covariance of mean GP at timestamps (obs + pred)
+(square matrix, with Input row/colnames)
 }}
 
 \item{kern}{A kernel function, defining the covariance structure of the GP.
@@ -76,8 +80,9 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{hp_new_indiv}{A tibble of the Trainied results of a variation of the EM algorithm used for training
-in MagmaClust. Containing columns 'theta_new' and 'hp_k_mixture'.
+\item{hp_new_indiv}{A tibble of the Trainied results of a variation
+of the EM algorithm used for training in MagmaClust.
+Containing columns 'theta_new' and 'hp_k_mixture'.
 'theta_new' being a new set of hyperparameters with 1 individual.
 'hp_k_mixture' the probability of being in the clusters.
 Can be compute with the function \code{train_new_gp_EM}.
@@ -97,10 +102,14 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 \code{kern_i}.}
 
-\item{trained_magmaclust}{A tibble of the Trainied results of a variation of the EM algorithm used for training
-in MagmaClust. Can be compute with the fonction \code{train_magma_VEM}.
+\item{trained_magmaclust}{A tibble of the Trained results of a variation of
+the EM algorithm used for training in MagmaClust.
+Can be compute with the fonction \code{train_magma_VEM}.
 db <- simu_db()
 trained_magmaclust <- train_magma_VEM(db)}
+
+\item{plot}{A logical value, indicating whether a plot of the results is
+automatically displayed.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}

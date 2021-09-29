@@ -72,11 +72,14 @@ operator '*' shall always be used before the '+' operators (e.g.
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
 "PERIO" and "RQ" are also available here)}
 
-\item{ini_hp_mixture}{initial values of probabiliy to belong to each cluster for each individuals.}
+\item{ini_hp_mixture}{initial values of probabiliy to belong to each cluster
+for each individuals.}
 
-\item{common_hp_k}{A boolean indicating whether hp are common among mean GPs (for each mu_k).}
+\item{common_hp_k}{A boolean indicating whether hp are common among mean GPs
+(for each mu_k).}
 
-\item{common_hp_i}{A boolean indicating whether hp are common among individual GPs (for each y_i).}
+\item{common_hp_i}{A boolean indicating whether hp are common among
+individual GPs (for each y_i).}
 
 \item{n_iter_max}{A number, indicating the maximum number of iterations of
 the EM algorithm to proceed while not reaching convergence.}
@@ -91,15 +94,15 @@ divided by the absolute value of the last one
 ( (LL_n - LL_n-1) / |LL_n| ).}
 }
 \value{
-A list, containing the results of a variation of the EM algorithm used for training
-in MagmaClust. The elements of the list are:
+A list, containing the results of a variation of the EM algorithm
+used for training in MagmaClust. The elements of the list are:
 \itemize{
 \item hp_k: A tibble containing the trained hyper-parameters for the mean
 process' kernel.
 \item hp_i: A tibble containing all the trained hyper-parameters for the
 individual processes' kernels.
-\item prop_mixture_k : A tibble containing the hyper-parameters associated with each individual,
-indicating in which cluster it belongs.
+\item prop_mixture_k : A tibble containing the hyper-parameters associated
+with each individual, indicating in which cluster it belongs.
 \item param : A list 3 containing  The mean, the cov and the hp_mixture.
 -> mean : A tibble containing the values of hyper-posterior's mean
 parameter (\code{Output}) evaluated at each training reference

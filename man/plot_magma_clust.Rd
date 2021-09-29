@@ -18,8 +18,8 @@ plot_magma_clust(
 }
 \arguments{
 \item{pred}{A tibble or data frame, typically coming from
-\code{\link{full_algo_clust}} or \code{\link{pred_magma_clust}} functions. Required
-columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
+\code{\link{pred_magma_clust}} function.
+Required columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
 present in case of multi-dimensional inputs.}
 
 \item{x_input}{A vector of character strings, indicating which input should
@@ -27,13 +27,15 @@ be displayed. If NULL(default) the 'Input' column is used for the x-axis.
 If providing a 2-dimensional vector, the corresponding columns are used
 for the x-axis and y-axis.}
 
-\item{cluster}{A string indicating the cluster to plot from or 'all' for the full GPs mixture.}
+\item{cluster}{A string indicating the cluster to plot from or
+'all' for the full GPs mixture.}
 
 \item{data}{tibble of observational data, columns required : 'Input', 'Output'}
 
 \item{data_train}{tibble of training dataset, columns required : 'Input', 'Output'}
 
-\item{col_clust}{A boolean indicating whether we color according to clusters or individuals.}
+\item{col_clust}{A boolean indicating whether we color according to
+clusters or individuals.}
 
 \item{y_grid}{A vector, indicating the grid of values on the y-axis for which
 probabilities should be computed for heatmaps of 1-dimensional
@@ -47,28 +49,22 @@ FALSE (default), the mean curve and associated 95\%CI are displayed.}
 level of the Credible Interval associated with the posterior mean curve.}
 }
 \value{
-Plot of the predicted curve of the GP with the 0.95 confidence interval (optional : data points)
+Plot of the predicted curve of the GP with the 0.95 confidence interval
 }
 \description{
 Plot MagmaClust or GP predictions
 }
 \examples{
-magmaclust <- full_algo_clust(simu_db(), simu_db(M=1,covariate = FALSE))
-plot_magma_clust(magmaclust$Prediction)
-############
-
-data <- simu_db(M=1,covariate = FALSE)
-data \%>\%
-pred_magma_clust \%>\%
-plot_magma_clust(data=data)
-
-
-############
-data_train <- simu_db(covariate = FALSE)
-data_obs <- simu_db(M=1, covariate = FALSE)
-grid_inputs = c(seq(min(data_obs$Input), max(data_obs$Input), length.out = 500), data_obs$Input) \%>\% unique
+data_train <- simu_db(covariate = FALSE, common_input = FALSE)
 training_test <- train_magma_VEM(data_train)
-magmaclust<- full_algo_clust(data_train, data_obs, list_hp = training_test, grid_inputs = grid_inputs, plot = FALSE)
-plot_magma_clust(magmaclust$Prediction, data = data_obs, data_train = data_train)
+
+data_obs <- simu_db(M=1, covariate = FALSE)
+grid_inputs = c(seq(min(data_obs$Input), max(data_obs$Input), length.out = 500),
+  data_obs$Input) \%>\% unique
+pred <- pred_magma_clust(data_obs, data_train, trained_magmaclust = training_test,
+  grid_inputs = grid_inputs)
+
+plot_magma_clust(pred, data = data_obs, data_train = data_train)
+
 
 }

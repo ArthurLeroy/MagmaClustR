@@ -15,8 +15,6 @@
 #'
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
-#' @export
-#'
 #' @examples
 #' MagmaClustR:::se_kernel(
 #'   c(1, 0), c(0, 1),
@@ -194,8 +192,6 @@ rq_kernel <- function(x, y, hp, deriv = NULL, vectorized = FALSE) {
 #'    If FALSE, the \code{x} and \code{y} arguments are simply two inputs.
 #'
 #' @return A scalar, corresponding to the evaluation of the kernel.
-#'
-#' @export
 #'
 #' @examples
 #' MagmaClustR:::lin_kernel(

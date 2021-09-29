@@ -5,7 +5,6 @@
 #' @param legend boolean indicating whether want legend or not
 #'
 #' @return Graph of smoothed curves of raw data.
-#' @export
 #'
 #' @examples
 #' TRUE
@@ -13,51 +12,34 @@ V_plot_db = function(db, cluster = F, legend = F)
 {
   if(cluster)
   {
-    ggplot2::ggplot(db) + ggplot2::geom_smooth(ggplot2::aes(.data$Input, .data$Output, group = .data$ID, color = cluster)) +
-      ggplot2::geom_point(ggplot2::aes(.data$Input, .data$Output, group = .data$ID, color = cluster)) + ggplot2::guides(col = legend)
+    ggplot2::ggplot(db) + ggplot2::geom_smooth(ggplot2::aes(
+      .data$Input, .data$Output, group = .data$ID, color = cluster)) +
+      ggplot2::geom_point(ggplot2::aes(
+        .data$Input, .data$Output, group = .data$ID, color = cluster)) +
+      ggplot2::guides(col = legend)
   }
   else
   {
-    ggplot2::ggplot(db) + ggplot2::geom_smooth(ggplot2::aes(.data$Input, .data$Output, color = .data$ID)) +
-      ggplot2::geom_point(ggplot2::aes(.data$Input, .data$Output, color = .data$ID)) + ggplot2::guides(col = legend)
+    ggplot2::ggplot(db) + ggplot2::geom_smooth(ggplot2::aes(
+      .data$Input, .data$Output, color = .data$ID)) +
+      ggplot2::geom_point(ggplot2::aes(
+        .data$Input, .data$Output, color = .data$ID)) +
+      ggplot2::guides(col = legend)
   }
-}
-
-#' plot_animate_clust
-#'
-#' @param pred_gp pred_gp
-#' @param ygrid ygrid
-#' @param data data
-#' @param data_train data_train
-#' @param mean_k mean_k
-#' @param file file
-#'
-#' @return
-#' TRUE
-#' @export
-#'
-#' @examples
-plot_animate_clust = function(pred_gp, ygrid, data = NULL, data_train = NULL, mean_k = NULL, file = "gganim.gif")
-{ ## pred_gp : tibble coming out of the pred_gp_animate() function, columns required : 'Timestamp', 'Mean', 'Var'
-  ## data : tibble of observational data, columns required : 'Timestamp', 'Output' (Optional)
-  ####
-  ## return : plot the animated curves of the GP with the 0.95 confidence interval (optional display raw data)
-
-  # gg = plot_heat_clust(pred_gp, ygrid, data, data_train, mean_k, col_clust = F, animate = T) +
-  #   transition_states(Nb_data, transition_length = 2, state_length = 1)
-  # animate(gg, renderer = gifski_renderer(file)) %>% return()
 }
 
 #' Plot MagmaClust or GP predictions
 #'
 #' @param pred A tibble or data frame, typically coming from
-#'    \code{\link{full_algo_clust}} or \code{\link{pred_magma_clust}} functions. Required
-#'    columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
+#' \code{\link{pred_magma_clust}} function.
+#'    Required columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
 #'    present in case of multi-dimensional inputs.
-#' @param cluster A string indicating the cluster to plot from or 'all' for the full GPs mixture.
+#' @param cluster A string indicating the cluster to plot from or
+#' 'all' for the full GPs mixture.
 #' @param data tibble of observational data, columns required : 'Input', 'Output'
 #' @param data_train tibble of training dataset, columns required : 'Input', 'Output'
-#' @param col_clust A boolean indicating whether we color according to clusters or individuals.
+#' @param col_clust A boolean indicating whether we color according to
+#' clusters or individuals.
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
 #' @param x_input A vector of character strings, indicating which input should
@@ -71,27 +53,21 @@ plot_animate_clust = function(pred_gp, ygrid, data = NULL, data_train = NULL, me
 #'    represented as a heatmap of probabilities for 1-dimensional inputs. If
 #'    FALSE (default), the mean curve and associated 95%CI are displayed.
 #'
-#' @return Plot of the predicted curve of the GP with the 0.95 confidence interval (optional : data points)
+#' @return Plot of the predicted curve of the GP with the 0.95 confidence interval
 #' @export
 #'
 #' @examples
-#' magmaclust <- full_algo_clust(simu_db(), simu_db(M=1,covariate = FALSE))
-#' plot_magma_clust(magmaclust$Prediction)
-#' ############
-#'
-#' data <- simu_db(M=1,covariate = FALSE)
-#' data %>%
-#' pred_magma_clust %>%
-#' plot_magma_clust(data=data)
-#'
-#'
-#' ############
 #' data_train <- simu_db(covariate = FALSE, common_input = FALSE)
 #' training_test <- train_magma_VEM(data_train)
+#'
 #' data_obs <- simu_db(M=1, covariate = FALSE)
-#' grid_inputs = c(seq(min(data_obs$Input), max(data_obs$Input), length.out = 500), data_obs$Input) %>% unique
-#' magmaclust<- full_algo_clust(data_train, data_obs, list_hp = training_test, grid_inputs = grid_inputs, plot = FALSE)
-#' plot_magma_clust(magmaclust$Prediction, data = data_obs, data_train = data_train)
+#' grid_inputs = c(seq(min(data_obs$Input), max(data_obs$Input), length.out = 500),
+#'   data_obs$Input) %>% unique
+#' pred <- pred_magma_clust(data_obs, data_train, trained_magmaclust = training_test,
+#'   grid_inputs = grid_inputs)
+#'
+#' plot_magma_clust(pred, data = data_obs, data_train = data_train)
+#'
 #'
 plot_magma_clust = function(pred,
                          x_input = NULL,
@@ -116,7 +92,7 @@ plot_magma_clust = function(pred,
     stop(
       "The 'pred_gp' argument should either be a list containing the 'pred' ",
       "element or a data frame. Please read ?plot_magma_clust(), and use ",
-      "pred_magma_clust() or full_algo_clust() for making predictions under a correct format."
+      "pred_magma_clust() for making predictions under a correct format."
     )
   }
 

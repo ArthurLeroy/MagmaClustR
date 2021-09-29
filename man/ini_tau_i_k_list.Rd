@@ -19,3 +19,6 @@ ini_tau_i_k
 \description{
 ini_tau_i_k list test
 }
+\examples{
+TRUE
+}

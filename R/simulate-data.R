@@ -197,6 +197,7 @@ simu_db <- function(M = 10,
 #' @export
 #'
 #' @examples
+#' TRUE
 ini_kmeans = function(db, k, nstart = 50, summary = F)
 {
   if( !identical(unique(db$Input), db %>% dplyr::filter(.data$ID == unique(db$ID)[[1]]) %>% dplyr::pull(.data$Input)) )
@@ -237,9 +238,9 @@ ini_kmeans = function(db, k, nstart = 50, summary = F)
 #' @param nstart nstart
 #'
 #' @return ini_tau_i_k
-#' @export
 #'
 #' @examples
+#' TRUE
 ini_tau_i_k_list = function(db, k, nstart = 50)
 {
   ini_kmeans(db, k, nstart) %>% dplyr::mutate(value = 1) %>%
@@ -257,9 +258,9 @@ ini_tau_i_k_list = function(db, k, nstart = 50)
 #' @param nstart nstart
 #'
 #' @return ini_hp_mixture
-#' @export
 #'
 #' @examples
+#' TRUE
 ini_hp_mixture = function(db, k, nstart = 50)
 {
   ini_kmeans(db, k, nstart) %>% dplyr::mutate(value = 1) %>%

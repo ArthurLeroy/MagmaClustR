@@ -22,8 +22,8 @@ associated with \code{kern_k}, the mean process' kernel. The
 columns/elements should be named according to the hyper-parameters
 that are used in \code{kern_k}.}
 
-\item{prop_mixture_k}{A tibble containing the hyper-parameters associated with each individual,
-indicating in which cluster it belongs.}
+\item{prop_mixture_k}{A tibble containing the hyper-parameters associated
+with each individual, indicating in which cluster it belongs.}
 }
 \value{
 update hp_mixture star

@@ -21,3 +21,6 @@ Tibble of ID, true clusters, and found clusters with kmeans
 \description{
 ini_kmeans
 }
+\examples{
+TRUE
+}

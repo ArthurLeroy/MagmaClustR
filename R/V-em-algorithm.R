@@ -1,7 +1,8 @@
 #' Variation of the E-Step of the EM algorithm
 #'
-#' Expectation step of the variation of the EM algorithm to compute the parameters of the
-#' hyper-posterior Gaussian distribution of the mean process in Magma.
+#' Expectation step of the variation of the EM algorithm to compute
+#' the parameters of the hyper-posterior Gaussian distribution
+#' of the mean process in Magma.
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
@@ -20,7 +21,6 @@
 #' containing the Input and associated Output of the hyper-posterior mean
 #' parameter, \code{cov}, the hyper-posterior covariance matrix,
 #' and \code{hp_mixture}, the probability to belong to a cluster for an individual.
-#' @export
 #'
 #' @examples
 #' \donttest{
@@ -33,7 +33,8 @@
 #'
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
-#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
+#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
+#'   unlist() %>% mean() )
 #'
 #' MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
 #'
@@ -141,7 +142,8 @@ e_step_VEM = function(db,
   c_k = 0
   }
 
-  ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x)) to remain numerically stable
+  ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x))
+  ## to remain numerically stable
   mat_L = mat_elbo %>% apply(2,function(x) exp(x - max(x)))
 
   hp_mixture <- (prop_mixture_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
@@ -162,19 +164,25 @@ e_step_VEM = function(db,
 
 #' Variation of the M-Step of the EM algorithm
 #'
-#' Maximization step of the variation of the EM algorithm to compute hyper-parameters of all the
-#' kernels involved in Magma.
+#' Maximization step of the variation of the EM algorithm to compute
+#' hyper-parameters of all the kernels involved in Magma.
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
 #' @param list_mu_param List of parameters of the K mean GPs.
-#' @param kern_k kernel used to compute the covariance matrix of the mean GP at corresponding timestamps (K_0)
-#' @param kern_i kernel used to compute the covariance matrix of individuals GP at corresponding timestamps (Psi_i)
-#' @param m_k prior value of the mean parameter of the mean GPs (mu_k). Length = 1 or nrow(unique(db$Input))
-#' @param common_hp_k boolean indicating whether hp are common among mean GPs (for each mu_k)
-#' @param common_hp_i boolean indicating whether hp are common among individual GPs (for each y_i)
-#' @param old_hp_i A named vector, tibble or data frame, containing the hyper-parameters
-#'    from the previous M-step (or initialisation) associated with the
+#' @param kern_k kernel used to compute the covariance matrix of the mean GP
+#' at corresponding timestamps (K_0)
+#' @param kern_i kernel used to compute the covariance matrix of individuals GP
+#' at corresponding timestamps (Psi_i)
+#' @param m_k prior value of the mean parameter of the mean GPs (mu_k).
+#' Length = 1 or nrow(unique(db$Input))
+#' @param common_hp_k boolean indicating whether hp are common among
+#' mean GPs (for each mu_k)
+#' @param common_hp_i boolean indicating whether hp are common among
+#' individual GPs (for each y_i)
+#' @param old_hp_i A named vector, tibble or data frame,
+#'    containing the hyper-parameters from the previous
+#'    M-step (or initialisation) associated with the
 #'    individual GPs.
 #' @param old_hp_k A named vector, tibble or data frame, containing the hyper-parameters
 #'    from the previous M-step (or initialisation) associated with the clusters.
@@ -188,12 +196,12 @@ e_step_VEM = function(db,
 #'    a tibble containing the hyper-parameters associated with each individual,
 #'    indicating in which cluster it belongs.
 #'
-#' @export
 #'
 #' @examples
 #' \donttest{
 #'
-#' ## Common inputs across individuals & cluster and differents HPs across individuals & Cluster
+#' ## Common inputs across individuals & cluster and differents HPs
+#' ## across individuals & Cluster
 #' k = seq_len(2)
 #' m_k <- c("K1" = 0, "K2" = 0)
 #'
@@ -203,7 +211,8 @@ e_step_VEM = function(db,
 #'
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
-#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
+#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
+#'   unlist() %>% mean() )
 #'
 #' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
 #'
@@ -219,43 +228,26 @@ e_step_VEM = function(db,
 #'
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
-#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
+#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
+#'   unlist() %>% mean() )
 #'
 #' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
 #'
 #' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
 #'
 #'
-#' ## Different kernels
-#' kernels <- c("SE", "LIN", "PERIO", "SE + PERIO", "SE * LIN + PERIO" )
-#' k = seq_len(2)
-#' m_k <- c("K1" = 0, "K2" = 0)
-#'
-#' for(i in kernels) {
-#'
-#' ## Common inputs across individuals & cluster and differents HPs across individuals & Cluster
-#'
-#' db <- simu_db(N = 10, common_input = TRUE)
-#' hp_k <- MagmaClustR:::hp(i, list_ID = names(m_k))
-#' hp_i <- MagmaClustR:::hp(i, list_ID = unique(db$ID))
-#'
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
-#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
-#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>% unlist() %>% mean() )
-#'
-#' post = MagmaClustR:::e_step_VEM(db, m_k, i, i, hp_k, hp_i, old_hp_mixture ,0.001)
-#'
-#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, i, i, m_k, FALSE, FALSE, 25) -> a
-#' paste("kernel =",i ,
-#' "Common inputs across individuals & cluster and differents HPs across individuals & Cluster") %>% print()
-#' print(a)
-#' print(" ")
-#'
-#'
-#' ## if Error in svd(X) appear, increase the pen_diag
 #'
 #'}
-m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k, common_hp_k, common_hp_i, pen_diag)
+m_step_VEM = function(db,
+                      old_hp_k,
+                      old_hp_i,
+                      list_mu_param,
+                      kern_k,
+                      kern_i,
+                      m_k,
+                      common_hp_k,
+                      common_hp_i,
+                      pen_diag)
 {
   list_ID_k = names(m_k)
   list_ID_i = unique(db$ID)
@@ -342,6 +334,13 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k
       tidyr::unnest(cols = .data$value)
   }
 
+  #compute the prop mixture of each cluster
+  prop_mixture_k_1 <- list_mu_param$hp_mixture %>% dplyr::select(-.data$ID)
+
+  prop_mixture_k = sapply( prop_mixture_k_1, function(x) x %>% unlist() %>% mean() ) %>%
+    t %>%
+    tibble::as_tibble()
+
   ## Check whether hyper-parameters are common to all cluster
   if(common_hp_k)
   {
@@ -368,7 +367,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k
         tibble::as_tibble() %>%
         tidyr::uncount(weights = length(list_ID_k)) %>%
         dplyr::mutate('ID' = list_ID_k, .before = 1) %>%
-        dplyr::mutate("prop_mixture" = pen_diag)
+        dplyr::mutate("prop_mixture" = t(prop_mixture_k) %>% as.vector)
 
 
   }
@@ -388,7 +387,7 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k
       post_cov_k <- list_mu_param$cov[[k]]
 
       ## Optimise hyper-parameters of the processes of each cluster
-      c(optimr::opm(
+      optimr::opm(
         par = par_k,
         logL_GP_mod,
         gr = gr_GP_mod,
@@ -401,24 +400,17 @@ m_step_VEM = function(db, old_hp_k, old_hp_i, list_mu_param, kern_k, kern_i, m_k
         control = list(kkt = FALSE)
       ) %>%
         dplyr::select(list_hp_k) %>%
-        tibble::as_tibble(),
-        pen_diag) %>%
+        tibble::as_tibble() %>%
         return()
     }
 
     new_theta_k = sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest_auto(.data$value) %>%
-      dplyr::rename_at(dplyr::vars(names(.) %>%
-      utils::tail(1)),dplyr::funs(paste('prop_mixture')) )
+      dplyr::mutate("prop_mixture" = t(prop_mixture_k) %>% as.vector )
 
   }
 
-  prop_mixture_k_1 <- list_mu_param$hp_mixture %>% dplyr::select(-.data$ID)
-
-  prop_mixture_k = sapply( prop_mixture_k_1, function(x) x %>% unlist() %>% mean() ) %>%
-    t %>%
-    tibble::as_tibble()
 
   list(
     "hp_k" = new_theta_k,

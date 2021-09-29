@@ -9,9 +9,9 @@
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
 #' @return The gradient of multi gaussian processes for clustering
-#' @export
 #'
 #' @examples
+#' TRUE
 gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 {
   #browser()
@@ -30,14 +30,18 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   for(k in (names_k) )
   {
     hp_mixture = mu_k_param$hp_mixture[k][i,]
-    mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>% dplyr::pull(.data$Output)
+    mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>%
+      dplyr::pull(.data$Output)
     corr1 = corr1 + as.double(hp_mixture) * mean_mu_k
-    corr2 = corr2 + as.double(hp_mixture) * ( mean_mu_k %*% t(mean_mu_k) + mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
+    corr2 = corr2 + as.double(hp_mixture) *
+      ( mean_mu_k %*% t(mean_mu_k) +
+          mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
   inv = kern_to_inv(t_i, kern, hp, pen_diag)
   prod_inv = inv %*% y_i
-  common_term = (prod_inv - 2 * inv %*% corr1) %*% t(prod_inv)  + inv %*% ( corr2 %*% inv - diag(1, length(t_i)) )
+  common_term = (prod_inv - 2 * inv %*% corr1) %*% t(prod_inv)  +
+    inv %*% ( corr2 %*% inv - diag(1, length(t_i)) )
 
   ## Loop over the derivatives of hyper-parameters for computing the gradient
   floop = function(deriv){
@@ -59,14 +63,16 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param kern A kernel function
 #' @param mean A list of the k means of the GP at union of observed timestamps.
-#' @param post_cov list of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term)
+#' @param post_cov list of the k posterior covariance of the mean GP (mu_k).
+#' Used to compute correction term (cor_term)
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return The value of the modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs.
-#' @export
+#' @return The value of the modified Gaussian log-likelihood for
+#' the sum of the k mean GPs with same HPs.
 #'
 #' @examples
+#' TRUE
 gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 {
   #browser()
@@ -76,7 +82,6 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 
   list_ID_k = names(db)
   list_hp <- names(hp)
-  #if(list_hp %>% utils::tail(1) == "prop_mixture"){list_hp = list_hp[list_hp != "prop_mixture"]}
 
   ## Extract the i-th specific reference Input
   input_k <- db[[1]] %>%
@@ -102,10 +107,9 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
     ## Extract the covariance values associated with the i-th specific inputs
     post_cov_k = post_cov[[k]]
 
-    #inv =  kern_to_inv(inputs_k, kern, hp, pen_diag)
-
     prod_inv = inv %*% (output_k - mean_k)
-    common_term = prod_inv %*% t(prod_inv) + inv %*% ( post_cov_k %*% inv - diag(1, length(input_k)) )
+    common_term = prod_inv %*% t(prod_inv) +
+      inv %*% ( post_cov_k %*% inv - diag(1, length(input_k)) )
 
     floop = function(deriv){
       (- 1/2 * (common_term %*% kern_to_cov(inputs_k, kern, hp, deriv))) %>%
@@ -129,15 +133,17 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 #' @param hp A tibble, data frame or name vector of hyper-parameters.
 #' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param kern A kernel function used to compute the covariance matrix at corresponding timestamps.
+#' @param kern A kernel function used to compute the covariance matrix at
+#' corresponding timestamps.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
 #'
-#' @return The value of the modified Gaussian log-likelihood for one GP as it appears in the model.
-#' @export
+#' @return The value of the modified Gaussian log-likelihood for
+#' one GP as it appears in the model.
 #'
 #' @examples
+#' TRUE
 gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NULL)
 {
   list_hp <- names(hp)
@@ -169,9 +175,11 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NU
       post_cov_i = mu_k_param$cov[[k]][as.character(input_i), as.character(input_i)]
 
       hp_mixture = mu_k_param$hp_mixture[k][i,]
-      mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>% dplyr::pull(.data$Output)
+      mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>%
+        dplyr::pull(.data$Output)
       corr1 = corr1 + as.double(hp_mixture) * mean_mu_k
-      corr2 = corr2 + as.double(hp_mixture) * ( mean_mu_k %*% t(mean_mu_k) + post_cov_i )
+      corr2 = corr2 + as.double(hp_mixture) *
+        ( mean_mu_k %*% t(mean_mu_k) + post_cov_i )
     }
 
     inv = kern_to_inv(inputs_i, kern, hp, pen_diag)

@@ -14,16 +14,22 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 
 \item{mean}{list of the k means of the GP at union of observed timestamps}
 
-\item{kern}{A kernel function used to compute the covariance matrix at corresponding timestamps.}
+\item{kern}{A kernel function used to compute the covariance matrix at
+corresponding timestamps.}
 
-\item{post_cov}{A List of the k posterior covariance of the mean GP (mu_k). Used to compute correction term (cor_term).}
+\item{post_cov}{A List of the k posterior covariance of the mean GP (mu_k).
+Used to compute correction term (cor_term).}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-value of the modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs
+value of the modified Gaussian log-likelihood for
+the sum of the k mean GPs with same HPs
 }
 \description{
 Modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs
+}
+\examples{
+TRUE
 }
