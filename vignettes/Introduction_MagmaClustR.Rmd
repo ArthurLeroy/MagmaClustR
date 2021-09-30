@@ -70,55 +70,71 @@ hp("RQ")
 
 We see above the format needed for the Squared Exponential Kernel, the Linear Kernel or the Rational Quadratic kernel. See the helper of the function *hp* ( `help(hp)`)to see the defaults kernel and the formats needed. 
 
-##MAGMA Algorithm
+## MAGMA Algorithm
 
 The algorithm can basically be done in two part, the training and the prediction. 
 
+```{r, include = FALSE}
+set.seed(5) # for exact reproducibility
+```
+
 ```{r}
-data_train <- simu_db(covariate = FALSE)
+data_train_1D <- simu_db(covariate = FALSE)
 
-training <- train_magma(data = data_train)
-
+training_1D <- train_magma(data = data_train_1D)
 ```
 
 ```{r}
 data_pred_1D <- simu_db(M=1, covariate = FALSE)
 
-pred <- pred_magma(data = data_pred_1D, trained_model = training)
+pred <- pred_magma(data = data_pred_1D, trained_model = training_1D)
 ```
 
 A plot of the prediction is on by default but can be removed when *plot* is set to **FALSE**. We can also have a heatmap to replace the curve when we are in 2D. Futhermore, once the training done, you can make more prediction with the same training. 
 
 ```{r}
+data_train_2D <- simu_db(covariate = TRUE)
+
+training_2D <- train_magma(data = data_train_2D)
+```
+
+```{r}
 data_pred_2D <- simu_db(M=1, covariate = TRUE)
 
-pred <- pred_magma(data = data_pred_2D, trained_model = training)
+pred <- pred_magma(data = data_pred_2D, trained_model = training_2D)
 ```
 
 See `help(train_magma)`, `help(pred_magma)` and `help(hyperposterior)` to understand and change all the parameters. 
 
 You can plot a gif of your prediction with magma with the function *plot_gif*. 
 ```{r}
-prediction_gif <- pred_gif(data_pred_1D, trained_model = training)
+prediction_gif <- pred_gif(data_pred_1D, trained_model = training_1D)
 plot_gif(prediction_gif)
 ```
 
-##MAGMAClust Algorithm
+## MAGMAClust Algorithm
 
 The algorithm can also basically be done in two part, the training and the prediction. 
 
 ```{r, warning=FALSE}
-training_clust <- train_magma_VEM(data = data_train)
+training_clust_1D <- train_magma_VEM(data = data_train_1D)
 ```
 
 ```{r}
-pred_clust_1D <- pred_magma_clust(data_obs = data_pred_1D, trained_magmaclust = training_clust)
+pred_clust_1D <- pred_magma_clust(data_obs = data_pred_1D, trained_magmaclust = training_clust_1D)
 ```
 
 A plot of the prediction is on by default but can be removed when *plot* is set to **FALSE**. We can also have a heatmap to replace the curve when we are in 2D. 
+```{r, include = FALSE}
+set.seed(5) # for exact reproducibility
+```
+
+```{r, warning=FALSE}
+training_clust_2D <- train_magma_VEM(data = data_train_2D)
+```
 
 ```{r}
-pred_clust_2D <- pred_magma(data = data_pred_2D, trained_model = training_clust)
+pred_clust_2D <- pred_magma_clust(data_obs = data_pred_2D, trained_magmaclust = training_clust_2D)
 ```
 
 See `help(train_magma_VEM)` and `help(pred_magma_clust)` to understand and change all the parameters. 
