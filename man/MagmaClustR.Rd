@@ -3,19 +3,24 @@
 \docType{package}
 \name{MagmaClustR}
 \alias{MagmaClustR}
-\title{foo: A package for computating the notorious bar statistic}
+\title{MagmaClustR : A package for Modeling, predicting and clustering}
 \description{
-The foo package provides three categories of important functions:
-foo, bar and baz.
+The MagmaClustR package provides two categories of important functions:
+training and prediction. Each part divide in whether or not we want to
+do a clustering.
 }
 \section{Details}{
 
-The foo functions ...
+For a quick introduction to \pkg{MagmaClustR} see the vignette
+\href{../doc/Introduction_MagmaClustR.html}{Introduction of MagmaClustR}. \cr
+Or run the vignette with the code : \cr
+\code{vignette("Introduction_MagmaClustR", package = "MagmaClustR")} \cr
 }
 
 \section{Author(s)}{
 
-The foo functions ...
+Arthur Leroy, Pierre Latouche and Pierre Pathe \cr
+Maintainer: Arthur Leroy \email{arthur.leroy.pro@gmail.com}
 }
 
 \section{References}{
@@ -31,8 +36,10 @@ PREPRINT arXiv:2011.07866 \link{cs, LG}, Nov. 2020
 
 \section{Examples}{
 
+set.seed(5) \cr
+
 #Simulation of datasets to be trained and predict to. \cr
-data_train <- simu_db(covariate = FALSE, common_input = FALSE) \cr
+data_train <- simu_db(covariate = FALSE) \cr
 data_pred <- simu_db(M=1, covariate = FALSE) \cr
 
 #Predictive distribution in Magma \cr
