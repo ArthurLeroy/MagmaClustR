@@ -10,6 +10,10 @@
 #' Or run the vignette with the code : \cr
 #' \code{vignette("Introduction_MagmaClustR", package = "MagmaClustR")} \cr
 #'
+#' For a deepening to the functions using by \pkg{MagmaClustR} see the vignette
+#' \href{../doc/Details.html}{Introduction of MagmaClustR}. \cr
+#' Or run the vignette with the code : \cr
+#' \code{vignette("Details", package = "MagmaClustR")} \cr
 #'
 #'@section Author(s):
 #' Arthur Leroy, Pierre Latouche and Pierre Pathe \cr

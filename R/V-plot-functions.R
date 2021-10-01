@@ -52,6 +52,8 @@ V_plot_db = function(db, cluster = F, legend = F)
 #' @param heatmap A logical value indicating whether the GP prediction should be
 #'    represented as a heatmap of probabilities for 1-dimensional inputs. If
 #'    FALSE (default), the mean curve and associated 95%CI are displayed.
+#' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
+#'    and associated 'Output' prior mean parameter of the GP prediction.
 #'
 #' @return Plot of the predicted curve of the GP with the 0.95 confidence interval
 #' @export
@@ -74,9 +76,10 @@ plot_magma_clust = function(pred,
                          cluster = 'all',
                          data = NULL,
                          data_train = NULL,
-                         col_clust = F,
+                         col_clust = FALSE,
                          y_grid = NULL,
-                         heatmap = F,
+                         prior_mean = NULL,
+                         heatmap = FALSE,
                          prob_CI = 0.95)
 {
   ## Compute the quantile of the desired Credible Interval
@@ -284,9 +287,31 @@ plot_magma_clust = function(pred,
         shape = 20
       )
     }
+  ## Display the (hyper-)prior mean process if provided
+    if (!is.null(prior_mean)) {
+      colori <- 1
+      for(k in prior_mean %>% names()){
+        if (names(inputs)[1] %in% names(prior_mean[[k]])) {
+          gg <- gg +
+            ggplot2::geom_line(
+              data = prior_mean[[k]],
+              ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
+              linetype = "dashed",
+              color = colori
+              )
+          } else {
+            warning(
+              "The ", names(inputs)[1], " column does not exist in the ",
+              "'prior_mean' argument. The mean function cannot be displayed."
+        )
+          }
+        colori <- colori + 1
+      }
+
+    }
   }
 
-  (gg + ggplot2::theme_classic()) %>%
+  (gg +  ggplot2::theme_classic()) %>%
     return()
 }
 

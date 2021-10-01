@@ -1,0 +1,92 @@
+---
+title: "Details"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Details}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<div style="text-align: justify"> 
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(MagmaClustR)
+set.seed(5)
+
+```
+
+## Kernel to Matrix 
+
+To choose a kernel function you have three choice. 
+
+* Use one of the four already implemented by writing their associated names.
+  + "SE": (default value) the Squared Exponential Kernel (also called Radial Basis Function or Gaussian kernel).
+  + "LIN": the Linear kernel.
+  + "PERIO": the Periodic kernel.
+  + "RQ": the Rational Quadratic kernel.
+
+* Use a compounding kernels base on the four above.  For combining kernels, simply provide a formula as a character string where elements are separated by whitespaces (e.g. "SE + PERIO"). As the elements are treated sequentially from the left to the right, the product operator '\*' shall always be used before the '+' operators (e.g. 'SE \* LIN + RQ' is valid whereas 'RQ + SE * LIN' is not).
+
+* use an object of type *function*. 
+
+Functions *kern_to_cov()* and *kern_to_inv()* are ones of the basic functions needed for the algorithm. They create respectively a covariance matrix and the inverse of a covariance matrix between input values (that could be either scalars or vectors) evaluated within a kernel function, which is characterised by specified hyper-parameters. This matrix is a finite-dimensional evaluation of the infinite-dimensional covariance structure of a GP, defined thanks to this kernel.
+
+
+```{r setup}
+kernel <- "SE"
+hyperparameters <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
+input <- rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3))
+input
+```
+
+```{r}
+kern_to_cov(input = input, kern = kernel, hp = hyperparameters)
+```
+
+```{r}
+kern_to_inv(input = input, kern = kernel, hp = hyperparameters)
+```
+
+The *kern_to_inv* function is basically equal to the inverse of what return *kern_to_cov* and has been created for a better optimization. In cases of nearly singular matrices, a jitter term (parameter *pen_diag*) can be added to the covariance matrix to avoid numerical issues when inverting, 
+
+
+```{r}
+kern_to_cov(input = input, kern = kernel, hp = hyperparameters) %>% solve %>% round(digits = 10) == 
+  kern_to_inv(input = input, kern = kernel, hp = hyperparameters) %>% round(digits = 10)
+```
+
+In case of input with multiple individuals, the function *list_kern_to_cov* and *list_kern_to_inv* are using as substitute to compute the covariance and inverse of the covariance matrix of each individuals.
+
+```{r}
+db <- simu_db(M = 3, N = 5)
+hp <- tibble::tibble(ID = unique(db$ID), MagmaClustR:::hp())
+db
+hp
+```
+
+```{r}
+MagmaClustR:::list_kern_to_cov(db, kernel, hp)
+```
+
+```{r}
+MagmaClustR:::list_kern_to_inv(db, kernel, hp, pen_diag = 0)
+```
+
+
+## Hyperposterior
+
+The hyperposterior functions are used with the prediction in **MAGMA** and **MAGMAClust**. The function *hyperposterior()* compute the parameters of the hyper-posterior Gaussian distribution of the mean process in Magma (similarly to the expectation step of the EM algorithm used for learning). This hyper-posterior distribution, evaluated on a grid of inputs provided through the *grid_inputs* argument, is a key component for making prediction in Magma, and is required in the function *pred_magma*. This function return a named list, containing the elements mean, a tibble containing the 'Input' and associated 'Output' of the hyper-posterior's mean parameter (and a column 'Var' for displaying uncertainty in visualisations), and cov, the hyper-posterior's covariance matrix.
+
+```{r}
+db <- simu_db(N = 10, common_input = TRUE)
+hp_0 <- hp()
+hp_i <- hp("SE", list_ID = unique(db$ID))
+grid_inputs <- seq(0, 10, 0.1)
+hyperpost <- hyperposterior(db, hp_0, hp_i, "SE", "SE", grid_inputs = grid_inputs)
+hyperpost$mean
+```

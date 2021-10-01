@@ -430,7 +430,8 @@ pred_magma_clust = function(data_obs,
   ## Display the graph of the prediction if expected
   if(plot){plot_magma_clust(pred,
                             data = data_obs,
-                            data_train =  trained_magmaclust$ini_args$data) %>%
+                            data_train =  trained_magmaclust$ini_args$data,
+                            prior_mean = list_mu$mean) %>%
       print()
 
   }
