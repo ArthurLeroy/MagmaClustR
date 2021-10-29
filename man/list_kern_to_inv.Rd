@@ -4,7 +4,7 @@
 \alias{list_kern_to_inv}
 \title{Compute an inverse covariance matrix for multiple individuals}
 \usage{
-list_kern_to_inv(db, kern, hp, pen_diag = 0, deriv = NULL)
+list_kern_to_inv(db, kern, hp, pen_diag, deriv = NULL)
 }
 \arguments{
 \item{db}{A tibble or data frame of input data. Required column: 'ID'.
