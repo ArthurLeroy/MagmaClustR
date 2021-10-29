@@ -56,6 +56,12 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
   if (input_2 %>% is.null()) {
     input_2 <- input
   }
+  ## Test whether some input values are duplicated
+  if(!(unique(input) %>% identical(input))){
+    warning("Some inputs are duplicated. This will result in a singular ",
+        "matrix and an unexpected behaviour of the algorithm.")
+  }
+
   ## Process the character string defining the covariance structure
   if (is.character(kern)) {
     kernel <- function(deriv = deriv, vectorized = TRUE, ...) {
