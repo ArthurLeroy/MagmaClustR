@@ -10,9 +10,10 @@ plot_magma_clust(
   cluster = "all",
   data = NULL,
   data_train = NULL,
-  col_clust = F,
+  col_clust = FALSE,
   y_grid = NULL,
-  heatmap = F,
+  prior_mean = NULL,
+  heatmap = FALSE,
   prob_CI = 0.95
 )
 }
@@ -40,6 +41,9 @@ clusters or individuals.}
 \item{y_grid}{A vector, indicating the grid of values on the y-axis for which
 probabilities should be computed for heatmaps of 1-dimensional
 predictions.}
+
+\item{prior_mean}{(Optional) A tibble or a data frame, containing the 'Input'
+and associated 'Output' prior mean parameter of the GP prediction.}
 
 \item{heatmap}{A logical value indicating whether the GP prediction should be
 represented as a heatmap of probabilities for 1-dimensional inputs. If
