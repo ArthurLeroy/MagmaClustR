@@ -33,7 +33,8 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
       kern_to_cov(
         input,
         kern,
-        tibble::tibble(se_variance = v, se_lengthscale = l)) +
+        tibble::tibble(se_variance = v, se_lengthscale = l)
+      ) +
         diag(sigma, length(input), length(input))
     ) %>% as.vector(),
     "Input" = input,
@@ -56,21 +57,22 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
 #'
 #' @examples
 #' MagmaClustR:::draw(c(1, 2))
-draw <- function(int){
+draw <- function(int) {
   stats::runif(1, int[1], int[2]) %>%
     round(2) %>%
     return()
 }
 
-#' Simulate a complete training dataset
+#' Simulate a dataset tailored for MagmaClustR
 #'
 #' Simulate a complete training dataset, which may be coherent in many different
-#' settings. The various flexible arguments allow to adjust the number of
+#' settings. The various flexible arguments allow adjustment of the number of
 #' individuals, of observed input, and the values of many parameters
 #' controlling the data generation.
 #'
 #' @param M An integer. The number of individual.
 #' @param N An integer. The number of observations per individual.
+#' @param K An integer. The number of underlying clusters.
 #' @param covariate A logical value indicating whether the dataset should
 #'    include an additional covariate named 'Covariate'.
 #' @param grid A vector of numbers defining a grid of observations
@@ -113,11 +115,13 @@ draw <- function(int){
 #' }
 simu_db <- function(M = 10,
                     N = 10,
+                    K = 1,
                     covariate = T,
                     grid = seq(0, 10, 0.05),
                     common_input = T,
                     common_hp = T,
                     add_hp = F,
+                    add_clust = F,
                     kern_0 = "SE",
                     kern_i = "SE",
                     int_mu_v = c(0, 2),
@@ -125,65 +129,80 @@ simu_db <- function(M = 10,
                     int_i_v = c(0, 2),
                     int_i_l = c(0, 2),
                     int_i_sigma = c(0, 1),
-                    m0_slope =  c(-2, 2),
-                    m0_intercept = c(0, 10),
+                    m0_slope = c(-5, 5),
+                    m0_intercept = c(-10, 10),
                     int_covariate = c(-5, 5)) {
-  m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
-  mu_v <- draw(int_mu_v)
-  mu_l <- draw(int_mu_l)
+  floop_k <- function(k) {
+    m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
+    mu_v <- draw(int_mu_v)
+    mu_l <- draw(int_mu_l)
 
-  db_0 <- simu_indiv_se(
-    ID = "0", input = grid, covariate = 0, mean = m_0,
-    kern = kern_0, v = mu_v, l = mu_l, sigma = 0
-  )
-  if (common_input) {
-    t_i <- sample(grid, N, replace = F) %>% sort()
-  }
-  if (common_hp) {
-    i_v <- draw(int_i_v)
-    i_l <- draw(int_i_l)
-    i_sigma <- draw(int_i_sigma)
-  }
-
-  floop <- function(i) {
-    if (!common_input) {
+    db_0 <- simu_indiv_se(
+      ID = "0", input = grid, covariate = 0, mean = m_0,
+      kern = kern_0, v = mu_v, l = mu_l, sigma = 0
+    )
+    if (common_input) {
       t_i <- sample(grid, N, replace = F) %>% sort()
     }
-    if (!common_hp) {
+    if (common_hp) {
       i_v <- draw(int_i_v)
       i_l <- draw(int_i_l)
       i_sigma <- draw(int_i_sigma)
     }
-    mean_i <- db_0 %>%
-      dplyr::filter(.data$Input %in% t_i) %>%
-      dplyr::pull(.data$Output)
 
-    covariate_i <- stats::runif(N, int_covariate[1], int_covariate[2]) %>%
-      round(2)
+    floop_i <- function(i, k) {
+      if (!common_input) {
+        t_i <- sample(grid, N, replace = F) %>% sort()
+      }
+      if (!common_hp) {
+        i_v <- draw(int_i_v)
+        i_l <- draw(int_i_l)
+        i_sigma <- draw(int_i_sigma)
+      }
+      mean_i <- db_0 %>%
+        dplyr::filter(.data$Input %in% t_i) %>%
+        dplyr::pull(.data$Output)
 
-    simu_indiv_se(
-      as.character(i),
-      t_i,
-      covariate_i,
-      mean_i,
-      kern_i,
-      i_v,
-      i_l,
-      i_sigma
-    ) %>%
-      return()
+      covariate_i <- stats::runif(N, int_covariate[1], int_covariate[2]) %>%
+        round(2)
+
+      if(K > 1){
+        ID = paste0('ID', i, '-Clust', k)
+      } else{
+        ID = as.character(i)
+      }
+
+      simu_indiv_se(
+        ID,
+        t_i,
+        covariate_i,
+        mean_i,
+        kern_i,
+        i_v,
+        i_l,
+        i_sigma
+      ) %>%
+        return()
+    }
+    db <- sapply(seq_len(M), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
+      dplyr::bind_rows()
+    if (!add_hp) {
+      db <- db %>% dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
+    }
+
+    if (!covariate) {
+      db <- db %>% dplyr::select(-.data$Covariate)
+    }
+
+    if (add_clust) {
+      db <- db %>% dplyr::mutate('Cluster' = k)
+    }
+    return(db)
   }
-  db = sapply(seq_len(M), floop, simplify = F, USE.NAMES = T) %>%
-    dplyr::bind_rows()
-  if(!add_hp){
-    db = db %>% dplyr::select(- c('se_variance', 'se_lengthscale', 'noise'))
-  }
 
-  if(!covariate){
-    db = db %>% dplyr::select(- .data$Covariate)
-  }
-
-  return(db)
+  lapply(seq_len(K), floop_k) %>%
+    dplyr::bind_rows() %>%
+    return()
 }
 
 #' ini_kmeans
@@ -198,36 +217,42 @@ simu_db <- function(M = 10,
 #'
 #' @examples
 #' TRUE
-ini_kmeans = function(db, k, nstart = 50, summary = F)
-{
-  if( !identical(unique(db$Input), db %>% dplyr::filter(.data$ID == unique(db$ID)[[1]]) %>% dplyr::pull(.data$Input)) )
-  {
-    floop = function(i)
-    {
-      obs_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Output)
-      tibble::tibble('ID' = i,
-             'Input' = seq_len(3) ,
-             'Output' = c(min(obs_i), mean(obs_i) , max(obs_i)) ) %>%
+ini_kmeans <- function(db, k, nstart = 50, summary = F) {
+  if (!identical(unique(db$Input), db %>% dplyr::filter(.data$ID == unique(db$ID)[[1]]) %>% dplyr::pull(.data$Input))) {
+    floop <- function(i) {
+      obs_i <- db %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::pull(.data$Output)
+      tibble::tibble(
+        "ID" = i,
+        "Input" = seq_len(3),
+        "Output" = c(min(obs_i), mean(obs_i), max(obs_i))
+      ) %>%
         return()
     }
-    db_regular = unique(db$ID) %>% lapply(floop) %>% dplyr::bind_rows() %>%
+    db_regular <- unique(db$ID) %>%
+      lapply(floop) %>%
+      dplyr::bind_rows() %>%
       dplyr::select(c(.data$ID, .data$Input, .data$Output))
-
   }
-  else{db_regular = db %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))}
+  else {
+    db_regular <- db %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
+  }
 
-  res = db_regular %>%
-    tidyr::spread(key =  .data$Input, value = .data$Output) %>%
+  res <- db_regular %>%
+    tidyr::spread(key = .data$Input, value = .data$Output) %>%
     dplyr::select(-.data$ID) %>%
     stats::kmeans(centers = k, nstart = nstart)
 
-  if(summary){res %>% print}
+  if (summary) {
+    res %>% print()
+  }
 
-  #browser()
-  broom::augment(res, db_regular %>% tidyr::spread(key =  .data$Input, value = .data$Output)) %>%
+  # browser()
+  broom::augment(res, db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)) %>%
     dplyr::select(c(.data$ID, .data$.cluster)) %>%
     dplyr::rename(Cluster_ini = .data$.cluster) %>%
-    dplyr::mutate(Cluster_ini = paste0('K', .data$Cluster_ini)) %>%
+    dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
     return()
 }
 
@@ -241,9 +266,9 @@ ini_kmeans = function(db, k, nstart = 50, summary = F)
 #'
 #' @examples
 #' TRUE
-ini_tau_i_k_list = function(db, k, nstart = 50)
-{
-  ini_kmeans(db, k, nstart) %>% dplyr::mutate(value = 1) %>%
+ini_tau_i_k_list <- function(db, k, nstart = 50) {
+  ini_kmeans(db, k, nstart) %>%
+    dplyr::mutate(value = 1) %>%
     tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
     dplyr::arrange(as.integer(.data$ID)) %>%
     tibble::column_to_rownames(var = "ID") %>%
@@ -261,12 +286,10 @@ ini_tau_i_k_list = function(db, k, nstart = 50)
 #'
 #' @examples
 #' TRUE
-ini_hp_mixture = function(db, k, nstart = 50)
-{
-  ini_kmeans(db, k, nstart) %>% dplyr::mutate(value = 1) %>%
+ini_hp_mixture <- function(db, k, nstart = 50) {
+  ini_kmeans(db, k, nstart) %>%
+    dplyr::mutate(value = 1) %>%
     tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
     dplyr::arrange(as.integer(.data$ID)) %>%
     return()
 }
-
-
