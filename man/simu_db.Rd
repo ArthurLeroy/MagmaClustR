@@ -2,16 +2,18 @@
 % Please edit documentation in R/simulate-data.R
 \name{simu_db}
 \alias{simu_db}
-\title{Simulate a complete training dataset}
+\title{Simulate a dataset tailored for MagmaClustR}
 \usage{
 simu_db(
   M = 10,
   N = 10,
+  K = 1,
   covariate = T,
   grid = seq(0, 10, 0.05),
   common_input = T,
   common_hp = T,
   add_hp = F,
+  add_clust = F,
   kern_0 = "SE",
   kern_i = "SE",
   int_mu_v = c(0, 2),
@@ -19,8 +21,8 @@ simu_db(
   int_i_v = c(0, 2),
   int_i_l = c(0, 2),
   int_i_sigma = c(0, 1),
-  m0_slope = c(-2, 2),
-  m0_intercept = c(0, 10),
+  m0_slope = c(-5, 5),
+  m0_intercept = c(-10, 10),
   int_covariate = c(-5, 5)
 )
 }
@@ -28,6 +30,8 @@ simu_db(
 \item{M}{An integer. The number of individual.}
 
 \item{N}{An integer. The number of observations per individual.}
+
+\item{K}{An integer. The number of underlying clusters.}
 
 \item{covariate}{A logical value indicating whether the dataset should
 include an additional covariate named 'Covariate'.}
@@ -42,7 +46,10 @@ are common to all individual.}
 common to all individual.}
 
 \item{add_hp}{A logical value indicating whether the values of
-hyper-parameters should be added as columns of the dataset.}
+hyper-parameters should be added as columns in the dataset.}
+
+\item{add_clust}{A logical value indicating whether the name of the
+clusters should be added as a column in the dataset.}
 
 \item{kern_0}{A kernel function, associated with the mean process.}
 
@@ -78,7 +85,7 @@ A full dataset of simulated training data.
 }
 \description{
 Simulate a complete training dataset, which may be coherent in many different
-settings. The various flexible arguments allow to adjust the number of
+settings. The various flexible arguments allow adjustment of the number of
 individuals, of observed input, and the values of many parameters
 controlling the data generation.
 }

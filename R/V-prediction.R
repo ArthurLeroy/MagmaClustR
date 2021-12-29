@@ -181,9 +181,9 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
 #' \donttest{
 #' db <- simu_db()
 #' training_test = train_magma_VEM(db)
-#' pred_magma_clust(simu_db(M=1), trained_magmaclust = training_test)
+#' pred_magmaclust(simu_db(M=1), trained_magmaclust = training_test)
 #'}
-pred_magma_clust = function(data_obs,
+pred_magmaclust = function(data_obs,
                          data_train = NULL,
                          grid_inputs = NULL,
                          list_mu = NULL,

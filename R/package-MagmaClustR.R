@@ -1,47 +1,61 @@
-#' MagmaClustR : A package for Modeling, predicting and clustering
+#' MagmaClustR : Clustering and Prediction using Multi-Task Gaussian Processes
 #'
-#' The MagmaClustR package provides two categories of important functions:
-#' training and prediction. Each part divide in whether or not we want to
-#' do a clustering.
+#' The \strong{MagmaClustR} package implements two main algorithms, called \emph{Magma}
+#'   and \emph{MagmaClust}, using a multi-task GPs model to perform
+#'   predictions for supervised learning problems. Theses approaches leverage
+#'   the learning of cluster-specific mean processes, which are common across
+#'   similar tasks, to provide enhanced prediction performances (even far from
+#'   data) at a linear computational cost (in the number of tasks).
+#'   \emph{MagmaClust} is a generalisation of \emph{Magma} where the tasks are
+#'   simultaneously clustered into groups, each being associated to a specific
+#'   mean process. User-oriented functions in the package are decomposed into
+#'   training, prediction and plotting functions. Some basic features of
+#'   standard GPs are also implemented.
 #'
 #' @section Details:
-#' For a quick introduction to \pkg{MagmaClustR} see the vignette
-#' \href{../doc/Introduction_MagmaClustR.html}{Introduction of MagmaClustR}. \cr
-#' Or run the vignette with the code : \cr
+#' For a quick introduction to \pkg{MagmaClustR}, please read the vignette
+#' \href{../doc/Introduction_MagmaClustR.html}{Introduction of MagmaClustR}. Or
+#' simply run the following code: \cr
 #' \code{vignette("Introduction_MagmaClustR", package = "MagmaClustR")} \cr
 #'
-#' For a deepening to the functions using by \pkg{MagmaClustR} see the vignette
-#' \href{../doc/Details.html}{Introduction of MagmaClustR}. \cr
-#' Or run the vignette with the code : \cr
+#' For a more advanced usage of \pkg{MagmaClustR}, please read the vignette
+#' \href{../doc/Details.html}{Introduction of MagmaClustR}. Or simply run the
+#' following code: \cr
 #' \code{vignette("Details", package = "MagmaClustR")} \cr
 #'
 #'@section Author(s):
-#' Arthur Leroy, Pierre Latouche and Pierre Pathe \cr
+#' Arthur Leroy, Pierre Pathe and Pierre Latouche \cr
 #' Maintainer: Arthur Leroy \email{arthur.leroy.pro@@gmail.com}
 #'
 #' @section References:
 #' Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey.
 #' MAGMA: Inference and Prediction with Multi-Task Gaussian Processes.
-#' PREPRINT arXiv:2007.10731 [cs, stat], July 2020
+#' PREPRINT, July 2020, \url{https://arxiv.org/abs/2007.10731}
 #'
 #' Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey.
 #' Cluster-Specific Predictions with Multi-Task Gaussian Processes.
-#' PREPRINT arXiv:2011.07866 [cs, LG], Nov. 2020
+#' PREPRINT, Nov. 2020, \url{https://arxiv.org/abs/2011.07866}
 #'
 #' @section Examples:
-#' set.seed(5) \cr
 #'
-#' #Simulation of datasets to be trained and predict to. \cr
-#' data_train <- simu_db(covariate = FALSE) \cr
-#' data_pred <- simu_db(M=1, covariate = FALSE) \cr
+#' ### Simulate a dataset, train and predict with Magma \cr
+#' set.seed(42) \cr
+#' data_magma <- simu_db(M = 11, N = 10, K = 1, covariate = FALSE) \cr
+#' magma_train <- data_magma %>% subset(ID %in% 1:10) \cr
+#' magma_test <- data_magma %>% subset(ID == 11) \cr
 #'
-#' #Predictive distribution in Magma \cr
-#' train <- train_magma(data_train) \cr
-#' pred_magma(data_pred, trained_model = train)
+#' magma_model <- train_magma(data = magma_train) \cr
+#' magma_pred  <- pred_magma(data = magma_test, trained_model = magma_model) \cr
 #'
-#' #Predictive distribution in Magma with cluster (MagmaClust) \cr
-#' training_test = train_magma_VEM(data_train) \cr
-#' pred_magma_clust(data_pred, trained_magmaclust = training_test)
+#' ### Simulate a dataset, train and predict with MagmaClust \cr
+#' set.seed(42) \cr
+#' data_magmaclust <- simu_db(M = 11, N = 10, K = 3, covariate = FALSE) \cr
+#' magmaclust_train <- data_magmaclust %>% subset(ID %in% 1:10) \cr
+#' magmaclust_test <- data_magmaclust %>% subset(ID == 11) \cr
+#'
+#' magmaclust_model <- train_magmaclust(data = magmaclust_train) \cr
+#' magmaclust_pred  <- pred_magmaclust(data = magmaclust_test, \cr
+#'   trained_model = magmaclust_model) \cr
 #'
 #' @docType package
 #' @name MagmaClustR

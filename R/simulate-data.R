@@ -82,7 +82,9 @@ draw <- function(int) {
 #' @param common_hp  A logical value indicating whether the hyper-parameters are
 #'   common to all individual.
 #' @param add_hp A logical value indicating whether the values of
-#'    hyper-parameters should be added as columns of the dataset.
+#'    hyper-parameters should be added as columns in the dataset.
+#' @param add_clust A logical value indicating whether the name of the
+#'    clusters should be added as a column in the dataset.
 #' @param kern_0 A kernel function, associated with the mean process.
 #' @param kern_i A kernel function, associated with the individual processes.
 #' @param int_mu_v A vector of 2 numbers, defining an interval of admissible

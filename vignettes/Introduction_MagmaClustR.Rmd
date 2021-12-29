@@ -130,11 +130,11 @@ set.seed(5) # for exact reproducibility
 ```
 
 ```{r, warning=FALSE}
-training_clust_2D <- train_magma_VEM(data = data_train_2D)
+training_clust_2D <- train_magmaclust(data = data_train_2D)
 ```
 
 ```{r}
-pred_clust_2D <- pred_magma_clust(data_obs = data_pred_2D, trained_magmaclust = training_clust_2D)
+pred_clust_2D <- pred_magmaclust(data_obs = data_pred_2D, trained_magmaclust = training_clust_2D)
 ```
 
 See `help(train_magma_VEM)` and `help(pred_magma_clust)` to understand and change all the parameters. 

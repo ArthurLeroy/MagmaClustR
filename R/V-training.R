@@ -107,9 +107,9 @@
 #' ###############################
 #'
 #' db <- simu_db()
-#' train_magma_VEM(db)
+#' train_magmaclust(db)
 #' }
-train_magma_VEM = function(data,
+train_magmaclust = function(data,
                            nb_cluster = NULL,
                            prior_mean_k = NULL,
                            ini_hp_k = NULL,
