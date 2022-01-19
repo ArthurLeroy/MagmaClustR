@@ -92,7 +92,7 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' the training. The log-Likelihood is defined as a simple Gaussian likelihood
 #' added with correction trace term.
 #'
-#' @param hp A tibble, data frame or name vector of hyper-parameters.
+#' @param hp A tibble, data frame or named vector of hyper-parameters.
 #' @param db A tibble containing values we want to compute logL on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.

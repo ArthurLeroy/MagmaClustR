@@ -1,6 +1,6 @@
-#' Elbo function for clusturing mutli-Gaussian Process
+#' Evidence Lower Bound for a mixture of GPs
 #'
-#' @param hp A tibble, data frame or name vector containing hyper-parameters.
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing the values we want to compute the elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
@@ -46,7 +46,7 @@ elbo_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 
 #' Modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs
 #'
-#' @param hp A tibble, data frame or name vector containing hyper-parameters.
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db  A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mean list of the k means of the GP at union of observed timestamps
@@ -86,7 +86,7 @@ elbo_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL
 
 #' Modified Gaussian log-likelihood for for the sum of all indiv with same HPs
 #'
-#' @param hp A tibble, data frame or name vector containing hyper-parameters.
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
@@ -156,9 +156,9 @@ elbo_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
 
 #' Expectation of joint log-likelihood of the model
 #'
-#' @param hp_k A tibble, data frame or name vector of hyper-parameters
+#' @param hp_k A tibble, data frame or named vector of hyper-parameters
 #' at corresponding clusters.
-#' @param hp_i A tibble, data frame or name vector of hyper-parameters
+#' @param hp_i A tibble, data frame or named vector of hyper-parameters
 #' at corresponding individuals.
 #' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.

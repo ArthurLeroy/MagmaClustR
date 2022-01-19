@@ -1,16 +1,15 @@
-#' Training Magma with a Variation of the EM algorithm
+#' Training MagmaClust with a Variational EM algorithm
 #'
-#' The hyper-parameters and the hyper-posterior distribution involved in MagmaClust
-#' can be learned thanks to an EM algorithm implemented in \code{train_magma_VEM}.
-#' By providing a dataset, the model hypotheses (hyper-prior mean parameter and
-#' covariance kernels) and initialisation values for the hyper-parameters, the
-#' function computes maximum likelihood estimates of the HPs as well as the
-#' mean and covariance parameters of the Gaussian hyper-posterior distribution
-#' of the mean process.
+#' The hyper-parameters and the hyper-posterior distribution involved in
+#' MagmaClust can be learned thanks to an vEM algorithm implemented in
+#' \code{train_magmaclust}. By providing a dataset, the model hypotheses
+#' (hyper-prior mean parameters and covariance kernels) and initialisation
+#' values for the hyper-parameters, the function computes maximum likelihood
+#' estimates of the HPs as well as the mean and covariance parameters of the
+#' Gaussian hyper-posterior distribution of the mean processes.
 #'
 #' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
-#'    , \code{Output}.
-#'    Additional columns for covariates can be specified.
+#'    , \code{Output}. Additional columns for covariates can be specified.
 #'    The \code{ID} column contains the unique names/codes used to identify each
 #'    individual/task (or batch of data).
 #'    The \code{Input} column should define the variable that is used as
@@ -18,9 +17,25 @@
 #'    \code{Output} column specifies the observed values (the response
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at each
-#'    reference \code{Input}.
-#' @param ini_hp_k named vector, tibble or data frame of hyper-parameters
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param nb_cluster A number, indicating the number of clusters/groups of
+#'    individuals/tasks that are assumed to exist among the dataset.
+#' @param prior_mean_k The set of hyper-prior mean parameters (m_k) of the mean
+#'    GPs, one value for each cluster.
+#'    cluster. This
+#'    argument can be specified under various formats, such as:
+#'    - NULL (default). All hyper-prior means would be set to 0 everywhere.
+#'    - A vector of the same length as the number of clusters. Each hyper-prior
+#'    mean would be a constant function equal to one element of the vector.
+#'    - A vector of the same length as all the distinct Input values in the
+#'     \code{data} argument. This vector would be considered as the evaluation
+#'     of all hyper-prior mean functions at the training Inputs.
+#'    - A function. This function is defined as the hyper_prior means.
+#'    - A tibble or data frame. Required columns: Input, Output. The Input
+#'     values should include at least the same values as in the \code{data}
+#'     argument.
+#' @param ini_hp_k A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_k}, the mean process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters
 #'    that are used in \code{kern_k}.
@@ -30,7 +45,7 @@
 #'    names/codes used to identify each individual/task. The other columns
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}.
-#' @param kern_k A kernel function, associated with the mean GP.
+#' @param kern_k A kernel function, associated with the mean GPs.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 #'    Cookbook}) are already implemented and can be selected within the
@@ -48,23 +63,21 @@
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are also available here)
-#' @param ini_hp_mixture initial values of probabiliy to belong to each cluster
-#' for each individuals.
+#' @param ini_hp_mixture Initial values of probability to belong to each cluster
+#' for each individual.
 #' @param common_hp_k A boolean indicating whether hp are common among mean GPs
-#' (for each mu_k).
+#' (for each \eqn{mu_k}).
 #' @param common_hp_i A boolean indicating whether hp are common among
-#' individual GPs (for each y_i).
-#' @param prior_mean_k prior mean parameter of the K mean GPs (mu_k)
+#' individual GPs (for each \eqn{y_i}).
 #' @param n_iter_max A number, indicating the maximum number of iterations of
 #'    the EM algorithm to proceed while not reaching convergence.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #' @param cv_threshold A number, indicating the threshold of the likelihood gain
-#'    under which the EM algorithm will stop. The convergence condition is
-#'    defined as the difference of likelihoods between two consecutive steps,
+#'    under which the VEM algorithm will stop. The convergence condition is
+#'    defined as the difference of elbo between two consecutive steps,
 #'    divided by the absolute value of the last one
-#'    ( (LL_n - LL_n-1) / |LL_n| ).
-#' @param nb_cluster The number of clusters wanted.
+#'    ( \eqn{(ELBO_n - ELBO_{n-1}) / \abs{ELBO_n}} ).
 #'
 #' @return A list, containing the results of a variation of the EM algorithm
 #'    used for training in MagmaClust. The elements of the list are:
@@ -101,7 +114,7 @@
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' train_magma_VEM(db, length(k), m_k, hp_k, hp_i,
+#' train_magmaclust(db, length(k), m_k, hp_k, hp_i,
 #' "SE", "SE", old_hp_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
 #'
 #' ###############################
@@ -125,7 +138,7 @@ train_magmaclust = function(data,
 {
   ## Create to return a list of the initial arguments of the function
   fct_args  = list('data' = data,
-                   'nb_cluster' = 'nb_cluster',
+                   'nb_cluster' = nb_cluster,
                    'prior_mean_k' = prior_mean_k,
                    'ini_hp_k' = ini_hp_k,
                    'ini_hp_i' = ini_hp_i,
@@ -280,7 +293,8 @@ train_magmaclust = function(data,
       m_k <- rep(prior_mean_k, length(hp_k$ID))
       cat(
         "The provided 'prior_mean' argument is of length 1. Thus, the",
-        "hyper_prior mean function has set to be constant everywhere.\n \n"
+        "hyper_prior mean function has been set to the same constant function",
+        "for each cluster.\n \n"
       )
     }
     else {
