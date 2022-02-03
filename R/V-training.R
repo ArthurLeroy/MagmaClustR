@@ -1,12 +1,12 @@
-#' Training Magma with a Variation of the EM algorithm
+#' Training MagmaClust with a Variational EM algorithm
 #'
-#' The hyper-parameters and the hyper-posterior distribution involved in MagmaClust
-#' can be learned thanks to an EM algorithm implemented in \code{train_magma_VEM}.
-#' By providing a dataset, the model hypotheses (hyper-prior mean parameter and
-#' covariance kernels) and initialisation values for the hyper-parameters, the
-#' function computes maximum likelihood estimates of the HPs as well as the
-#' mean and covariance parameters of the Gaussian hyper-posterior distribution
-#' of the mean process.
+#' The hyper-parameters and the hyper-posterior distribution involved in
+#' MagmaClust can be learned thanks to an vEM algorithm implemented in
+#' \code{train_magmaclust}. By providing a dataset, the model hypotheses
+#' (hyper-prior mean parameter and covariance kernels) and initialisation
+#' values for the hyper-parameters, the function computes maximum likelihood
+#' estimates of the HPs as well as the mean and covariance parameters of the
+#' Gaussian hyper-posterior distribution of the mean process.
 #'
 #' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
 #'    , \code{Output}.
