@@ -59,16 +59,6 @@ Plot of the predicted curve of the GP with the 0.95 confidence interval
 Plot MagmaClust or GP predictions
 }
 \examples{
-data_train <- simu_db(covariate = FALSE, common_input = FALSE)
-training_test <- train_magma_VEM(data_train)
-
-data_obs <- simu_db(M=1, covariate = FALSE)
-grid_inputs = c(seq(min(data_obs$Input), max(data_obs$Input), length.out = 500),
-  data_obs$Input) \%>\% unique
-pred <- pred_magmaclust(data_obs, data_train, trained_magmaclust = training_test,
-  grid_inputs = grid_inputs)
-
-plot_magmaclust(pred, data = data_obs, data_train = data_train)
-
+TRUE
 
 }

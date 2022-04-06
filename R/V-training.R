@@ -616,12 +616,9 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param trained_magmaclust A tibble of list containing "hp_i".
-#'    hp_i being a named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}.
-#'    Can be compute with the fonction \code{train_magma_VEM}.
-#'    db <- simu_db()
-#'    trained_magmaclust <- train_magma_VEM(db)
+#' @param trained_magmaclust A tibble of list containing 'hp_i',
+#'    a named vector, tibble or data frame of hyper-parameters associated with
+#'    \code{kern_i}.
 #' @param n_iter_max A number, indicating the maximum number of iterations of
 #'    the EM algorithm to proceed while not reaching convergence.
 #' @param cv_threshold A number, indicating the threshold of the likelihood gain
@@ -646,7 +643,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 #'
-#' training_test = train_magma_VEM(db)
+#' training_test = train_magmaclust(db)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
 #' mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
@@ -656,7 +653,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'
 #' ###########################
 #' db <- simu_db()
-#' training_test = train_magma_VEM(db)
+#' training_test = train_magmaclust(db)
 #' train_new_gp_EM(simu_db(M=1), trained_magmaclust = training_test)
 #'
 #' ##########################
@@ -804,11 +801,11 @@ train_new_gp_EM = function(data,
        | trained_magmaclust$ini_args %>% is.null()){
       cat(
         "Neither the 'param_mu_k' nor 'trained_magmaclust' argument
-        has been specified. The 'train_magma_VEM()' function",
+        has been specified. The 'train_magmaclust()' function",
         "(with random initialisation) has been used to learn ML estimators",
         "for the hyper-parameters associated with the 'kern' argument.\n \n"
       )
-      trained_magmaclust = train_magma_VEM(db_train,
+      trained_magmaclust = train_magmaclust(db_train,
                                            kern_i = kern_i,
                                            kern_k = kern_i,
                                            nb_cluster = nb_cluster,

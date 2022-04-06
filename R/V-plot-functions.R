@@ -59,17 +59,7 @@ V_plot_db = function(db, cluster = F, legend = F)
 #' @export
 #'
 #' @examples
-#' data_train <- simu_db(covariate = FALSE, common_input = FALSE)
-#' training_test <- train_magma_VEM(data_train)
-#'
-#' data_obs <- simu_db(M=1, covariate = FALSE)
-#' grid_inputs = c(seq(min(data_obs$Input), max(data_obs$Input), length.out = 500),
-#'   data_obs$Input) %>% unique
-#' pred <- pred_magmaclust(data_obs, data_train, trained_magmaclust = training_test,
-#'   grid_inputs = grid_inputs)
-#'
-#' plot_magmaclust(pred, data = data_obs, data_train = data_train)
-#'
+#'TRUE
 #'
 plot_magmaclust = function(pred,
                          x_input = NULL,
@@ -89,13 +79,13 @@ plot_magmaclust = function(pred,
   if (pred %>% is.data.frame()) {
     pred_gp <- pred
   } else if (is.list(pred) &
-             tryCatch(is.data.frame(pred$Prediction), error = function(e) FALSE)) {
+      tryCatch(is.data.frame(pred$Prediction), error = function(e) FALSE)) {
     pred_gp <- pred_gp$Prediction
   } else {
     stop(
       "The 'pred_gp' argument should either be a list containing the 'pred' ",
-      "element or a data frame. Please read ?plot_magma_clust(), and use ",
-      "pred_magma_clust() for making predictions under a correct format."
+      "element or a data frame. Please read ?plot_magmaclust(), and use ",
+      "pred_magmaclust() for making predictions under a correct format."
     )
   }
 

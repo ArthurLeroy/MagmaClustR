@@ -157,11 +157,8 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
 #'    names/codes used to identify each individual/task. The other columns
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}.
-#' @param trained_magmaclust A tibble of the Trained results of a variation of
-#'    the EM algorithm used for training in MagmaClust.
-#'    Can be compute with the fonction \code{train_magma_VEM}.
-#'    db <- simu_db()
-#'    trained_magmaclust <- train_magma_VEM(db)
+#' @param trained_magmaclust A list, gathering results coming from the use of
+#'    the \code{\link{train_magmaclust}} function.
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
 #'    tibble or a data frame, providing the same columns as \code{data}, except
@@ -180,7 +177,7 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
 #' @examples
 #' \donttest{
 #' db <- simu_db()
-#' training_test = train_magma_VEM(db)
+#' training_test = train_magmaclust(db)
 #' pred_magmaclust(simu_db(M=1), trained_magmaclust = training_test)
 #'}
 pred_magmaclust = function(data_obs,
@@ -286,7 +283,7 @@ pred_magmaclust = function(data_obs,
         stop("trained_magmaclust or data_train need to be specified.")
       }
       else{
-         trained_magmaclust <- train_magma_VEM(data_train,
+         trained_magmaclust <- train_magmaclust(data_train,
                                kern_i = kern,
                                kern_k = kern,
                                nb_cluster = nb_cluster,
@@ -322,7 +319,7 @@ pred_magmaclust = function(data_obs,
           stop("trained_magmaclust or data_train need to be specified.")
         }
         else{
-          trained_magmaclust <- train_magma_VEM(data_train,
+          trained_magmaclust <- train_magmaclust(data_train,
                                             kern_i = kern,
                                             kern_k = kern,
                                             nb_cluster = nb_cluster,
@@ -360,11 +357,11 @@ pred_magmaclust = function(data_obs,
        | trained_magmaclust$ini_args %>% is.null()){
       cat(
         "Neither the 'list_mu' nor 'trained_magmaclust'
-        argument has been specified. The 'train_magma_VEM()' function",
+        argument has been specified. The 'train_magmaclust()' function",
         "(with random initialisation) has been used to learn ML estimators",
         "for the hyper-parameters associated with the 'kern' argument.\n \n"
       )
-      trained_magmaclust = train_magma_VEM(data_train,
+      trained_magmaclust = train_magmaclust(data_train,
                                            kern_i = kern,
                                            kern_k = kern,
                                            nb_cluster = nb_cluster,
@@ -428,7 +425,7 @@ pred_magmaclust = function(data_obs,
     tibble::as_tibble()
 
   ## Display the graph of the prediction if expected
-  if(plot){plot_magma_clust(pred,
+  if(plot){plot_magmaclust(pred,
                             data = data_obs,
                             data_train =  trained_magmaclust$ini_args$data,
                             prior_mean = list_mu$mean) %>%

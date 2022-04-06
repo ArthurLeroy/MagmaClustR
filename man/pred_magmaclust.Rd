@@ -102,11 +102,8 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 \code{kern_i}.}
 
-\item{trained_magmaclust}{A tibble of the Trained results of a variation of
-the EM algorithm used for training in MagmaClust.
-Can be compute with the fonction \code{train_magma_VEM}.
-db <- simu_db()
-trained_magmaclust <- train_magma_VEM(db)}
+\item{trained_magmaclust}{A list, gathering results coming from the use of
+the \code{\link{train_magmaclust}} function.}
 
 \item{plot}{A logical value, indicating whether a plot of the results is
 automatically displayed.}
@@ -123,7 +120,7 @@ Prediction Gaussian Process on the clustering
 \examples{
 \donttest{
 db <- simu_db()
-training_test = train_magma_VEM(db)
+training_test = train_magmaclust(db)
 pred_magmaclust(simu_db(M=1), trained_magmaclust = training_test)
 }
 }

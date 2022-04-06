@@ -2,12 +2,12 @@
 % Please edit documentation in R/elbos.R
 \name{elbo_clust_multi_GP}
 \alias{elbo_clust_multi_GP}
-\title{Elbo function for clusturing mutli-Gaussian Process}
+\title{Evidence Lower Bound for a mixture of GPs}
 \usage{
 elbo_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag)
 }
 \arguments{
-\item{hp}{A tibble, data frame or name vector containing hyper-parameters.}
+\item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
 
 \item{db}{A tibble containing the values we want to compute the elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
@@ -25,7 +25,7 @@ The value of the modified Gaussian log-likelihood for one GP as it
 appears in the model.
 }
 \description{
-Elbo function for clusturing mutli-Gaussian Process
+Evidence Lower Bound for a mixture of GPs
 }
 \examples{
 TRUE

@@ -7,7 +7,7 @@
 elbo_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag = NULL)
 }
 \arguments{
-\item{hp}{A tibble, data frame or name vector containing hyper-parameters.}
+\item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
 
 \item{db}{A tibble containing values we want to compute elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}

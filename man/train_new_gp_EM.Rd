@@ -87,12 +87,9 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{trained_magmaclust}{A tibble of list containing "hp_i".
-hp_i being a named vector, tibble or data frame of hyper-parameters
-associated with \code{kern_i}.
-Can be compute with the fonction \code{train_magma_VEM}.
-db <- simu_db()
-trained_magmaclust <- train_magma_VEM(db)}
+\item{trained_magmaclust}{A tibble of list containing 'hp_i',
+a named vector, tibble or data frame of hyper-parameters associated with
+\code{kern_i}.}
 
 \item{n_iter_max}{A number, indicating the maximum number of iterations of
 the EM algorithm to proceed while not reaching convergence.}
@@ -130,7 +127,7 @@ hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
 
-training_test = train_magma_VEM(db)
+training_test = train_magmaclust(db)
 
 timestamps = seq(0.01, 10, 0.01)
 mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
@@ -140,7 +137,7 @@ kern_i = "SE", trained_magmaclust = training_test)
 
 ###########################
 db <- simu_db()
-training_test = train_magma_VEM(db)
+training_test = train_magmaclust(db)
 train_new_gp_EM(simu_db(M=1), trained_magmaclust = training_test)
 
 ##########################
