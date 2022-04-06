@@ -143,7 +143,7 @@ estimates of the HPs as well as the mean and covariance parameters of the
 Gaussian hyper-posterior distribution of the mean processes.
 }
 \examples{
-\donttest{
+\dontrun{
 k = seq_len(3)
 m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 

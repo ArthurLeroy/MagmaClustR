@@ -116,7 +116,7 @@ e_step <- function(db,
 #'    associated with the individual GPs.
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' ## Common inputs across individuals and different HPs
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' m_0 <- rep(0, 10)

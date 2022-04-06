@@ -175,7 +175,7 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' db <- simu_db()
 #' training_test = train_magmaclust(db)
 #' pred_magmaclust(simu_db(M=1), trained_magmaclust = training_test)

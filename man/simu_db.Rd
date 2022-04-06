@@ -90,7 +90,7 @@ individuals, of observed input, and the values of many parameters
 controlling the data generation.
 }
 \examples{
-\donttest{
+\dontrun{
 simu_db(M = 5, N = 3)
 simu_db(M = 5, N = 3, common_input = FALSE)
 simu_db(M = 5, N = 3, common_hp = FALSE, add_hp = TRUE)

@@ -39,7 +39,7 @@ the parameters of the hyper-posterior Gaussian distribution
 of the mean process in Magma.
 }
 \examples{
-\donttest{
+\dontrun{
 k = seq_len(3)
 m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 

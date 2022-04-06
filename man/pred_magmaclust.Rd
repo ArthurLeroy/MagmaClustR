@@ -118,7 +118,7 @@ pamameters of the gaussian density predicted at timestamps
 Prediction Gaussian Process on the clustering
 }
 \examples{
-\donttest{
+\dontrun{
 db <- simu_db()
 training_test = train_magmaclust(db)
 pred_magmaclust(simu_db(M=1), trained_magmaclust = training_test)

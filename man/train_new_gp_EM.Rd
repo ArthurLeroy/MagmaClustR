@@ -117,7 +117,7 @@ initialization values for the hyper-parameters, the function computes
 maximum likelihood estimates of the hyper-parameters.
 }
 \examples{
-\donttest{
+\dontrun{
 k = seq_len(2)
 m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 

@@ -105,7 +105,7 @@
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' k = seq_len(3)
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 #'
@@ -632,7 +632,7 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #'    - hp_k_mixture :
 #' @export
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' k = seq_len(2)
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 #'

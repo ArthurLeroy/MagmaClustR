@@ -75,7 +75,7 @@ inputs, the graph may be a mean curve + Credible Interval or a heatmap of
 probabilities.
 }
 \examples{
-\donttest{
+\dontrun{
 ## 1-dimensional example
 db <- simu_db(M = 1, covariate = FALSE)
 pred_gp(db) \%>\%

@@ -80,7 +80,7 @@ Create a GIF animation displaying how Magma or classic GP
 predictions evolve and improve when the number of data points increase.
 }
 \examples{
-\donttest{
+\dontrun{
 ## 2-dimensional example
 db <- simu_db(M = 1, covariate = FALSE)
 hp = train_gp(db)

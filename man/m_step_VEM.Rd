@@ -62,7 +62,7 @@ Maximization step of the variation of the EM algorithm to compute
 hyper-parameters of all the kernels involved in Magma.
 }
 \examples{
-\donttest{
+\dontrun{
 
 ## Common inputs across individuals & cluster and differents HPs
 ## across individuals & Cluster

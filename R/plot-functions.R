@@ -74,7 +74,7 @@ plot_db <- function(db) {
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' ## 1-dimensional example
 #' db <- simu_db(M = 1, covariate = FALSE)
 #' pred_gp(db) %>%
@@ -341,7 +341,7 @@ plot_gp <- function(pred_gp,
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' ## 1-dimensional example
 #' db <- simu_db(M = 1, covariate = FALSE)
 #' hp = train_gp(db)
@@ -565,7 +565,7 @@ sample_gp <- function(pred_gp,
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' ## 2-dimensional example
 #' db <- simu_db(M = 1, covariate = FALSE)
 #' hp = train_gp(db)

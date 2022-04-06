@@ -967,7 +967,7 @@ pred_magma <- function(data,
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' db = simu_db(M = 1)
 #' grid_inputs = tibble::tibble(Input = seq(0,10, 0.1),
 #'                              Covariate = seq(-5,5, 0.1))

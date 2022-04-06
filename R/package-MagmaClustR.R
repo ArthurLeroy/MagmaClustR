@@ -1,7 +1,7 @@
 #' MagmaClustR : Clustering and Prediction using Multi-Task Gaussian Processes
 #'
-#' The \strong{MagmaClustR} package implements two main algorithms, called \emph{Magma}
-#'   and \emph{MagmaClust}, using a multi-task GPs model to perform
+#' The \strong{MagmaClustR} package implements two main algorithms, called
+#'  \emph{Magma} and \emph{MagmaClust}, using a multi-task GPs model to perform
 #'   predictions for supervised learning problems. Theses approaches leverage
 #'   the learning of cluster-specific mean processes, which are common across
 #'   similar tasks, to provide enhanced prediction performances (even far from
@@ -19,8 +19,7 @@
 #' \code{vignette("Introduction_MagmaClustR", package = "MagmaClustR")} \cr
 #'
 #' For a more advanced usage of \pkg{MagmaClustR}, please read the vignette
-#' \href{../doc/Details.html}{Introduction of MagmaClustR}. Or simply run the
-#' following code: \cr
+#' \href{../doc/Details.html}{Details}. Or simply run the following code: \cr
 #' \code{vignette("Details", package = "MagmaClustR")} \cr
 #'
 #'@section Author(s):

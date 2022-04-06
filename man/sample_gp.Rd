@@ -47,7 +47,7 @@ According to the dimension of the inputs, the graph may be a curve or a
 heatmap.
 }
 \examples{
-\donttest{
+\dontrun{
 ## 1-dimensional example
 db <- simu_db(M = 1, covariate = FALSE)
 hp = train_gp(db)

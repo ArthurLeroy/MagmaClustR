@@ -23,7 +23,7 @@
 #' and \code{hp_mixture}, the probability to belong to a cluster for an individual.
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' k = seq_len(3)
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 #'
@@ -198,7 +198,7 @@ e_step_VEM = function(db,
 #'
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #'
 #' ## Common inputs across individuals & cluster and differents HPs
 #' ## across individuals & Cluster
