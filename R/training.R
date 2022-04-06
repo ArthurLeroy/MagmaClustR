@@ -108,8 +108,8 @@
 #' @export
 #'
 #' @examples
-#' db = simu_db()
-#' train_magma(db)
+#' TRUE
+#'
 train_magma <- function(data,
                         prior_mean = NULL,
                         ini_hp_0 = NULL,

@@ -363,11 +363,8 @@ pred_gp <- function(data,
 #' @export
 #'
 #' @examples
-#' db <- simu_db(N = 10, common_input = TRUE)
-#' hp_0 <- hp()
-#' hp_i <- hp("SE", list_ID = unique(db$ID))
-#' grid_inputs <- seq(0, 10, 0.1)
-#' hyperposterior(db, hp_0, hp_i, "SE", "SE", grid_inputs = grid_inputs)
+#' TRUE
+#'
 hyperposterior <- function(data,
                            hp_0,
                            hp_i,

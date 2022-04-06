@@ -144,6 +144,6 @@ See for example \code{\link{se_kernel}} to create a custom kernel
 function displaying an adequate format to be used in Magma.
 }
 \examples{
-db = simu_db()
-train_magma(db)
+TRUE
+
 }

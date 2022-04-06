@@ -19,16 +19,8 @@
 #' parameter, and \code{cov}, the hyper-posterior's covariance matrix.
 #'
 #' @examples
+#'TRUE
 #'
-#' db <- simu_db(N = 10, common_input = TRUE)
-#' m_0 <- rep(0, 10)
-#' hp_0 <- hp()
-#' hp_i <- hp("SE", list_ID = unique(db$ID))
-#' MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
-#'
-#' db_async <- simu_db(N = 10, common_input = FALSE)
-#' m_0_async <- rep(0, db_async$Input %>% unique() %>% length())
-#' MagmaClustR:::e_step(db_async, m_0_async, "SE", "SE", hp_0, hp_i, 0.001)
 e_step <- function(db,
                    m_0,
                    kern_0,
