@@ -39,7 +39,7 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
   #browser()
   hp_i = list_hp$hp_i
   hp_k = list_hp$hp_k
-  hp_mixture = list_hp$param$hp_mixture
+  mixture = list_hp$param$mixture
   t_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(grid_inputs)) ,
                            'Input' = rep(grid_inputs, length(hp_k$ID)))
   inv_k = list_kern_to_inv(t_clust, kern_0, hp_k, pen_diag = pen_diag)
@@ -55,7 +55,7 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
       inv_i = list_inv_i[[x]]
       common_times = intersect(row.names(inv_i), row.names(new_inv))
       new_inv[common_times, common_times] = new_inv[common_times, common_times] +
-        as.double(hp_mixture[k][x,]) * inv_i[common_times, common_times]
+        as.double(mixture[k][x,]) * inv_i[common_times, common_times]
     }
     s_inv <- tryCatch(new_inv %>% chol() %>% chol2inv(),
                       error = function(e){MASS::ginv(new_inv)})
@@ -77,7 +77,7 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
 
     for(i in list_inv_i %>% names())
     {
-      weighted_i = as.double(hp_mixture[k][i,]) * list_inv_i[[i]] %*% value_i[[i]]
+      weighted_i = as.double(mixture[k][i,]) * list_inv_i[[i]] %*% value_i[[i]]
       #row.names(weithed_i) = row.names(list_inv_i[[j]])
 
       common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
@@ -91,7 +91,7 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
   #browser()
   mean_k = sapply(hp_k$ID, floop2, simplify = FALSE, USE.NAMES = TRUE)
 
-  list('mean' = mean_k, 'cov' = cov_k, 'hp_mixture' = hp_mixture) %>% return()
+  list('mean' = mean_k, 'cov' = cov_k, 'mixture' = mixture) %>% return()
 }
 
 #' Prediction Gaussian Process on the clustering
@@ -118,7 +118,7 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at each
 #'    reference \code{Input}.
-#' @param hp_new_indiv A tibble of the Trainied results of a variation
+#' @param hp_new_indiv A tibble of the Trained results of a variation
 #'    of the EM algorithm used for training in MagmaClust.
 #'    Containing columns 'theta_new' and 'hp_k_mixture'.
 #'    'theta_new' being a new set of hyperparameters with 1 individual.
@@ -438,14 +438,17 @@ pred_magmaclust = function(data_obs,
 
 #' Prediction of the maximum of cluster
 #'
-#' @param hp_mixture hp_mixture
+#' @param mixture mixture
 #'
 #' @return Prediction of the maximum of cluster
 #'
 #' @examples
 #' TRUE
-pred_max_cluster = function(hp_mixture)
+pred_max_cluster = function(mixture)
 {
-  hp_mixture %>% tibble::as_tibble %>% tidyr::unnest %>% apply(1, which.max) %>%
+  mixture %>%
+    tibble::as_tibble %>%
+    tidyr::unnest %>%
+    apply(1, which.max) %>%
     return()
 }

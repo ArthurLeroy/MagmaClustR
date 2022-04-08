@@ -32,11 +32,13 @@ elbo_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   #floop = function(k){
   for(k in (names_k))
   {
-    hp_mixture = mu_k_param$hp_mixture[k][i,]
+    tau_i_k = tau_i_k = mu_k_param$mixture %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::pull(k)
     mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>%
       dplyr::pull(.data$Output)
-    corr1 = corr1 + as.double(hp_mixture) * mean_mu_k
-    corr2 = corr2 + as.double(hp_mixture) *
+    corr1 = corr1 + tau_i_k * mean_mu_k
+    corr2 = corr2 + tau_i_k *
       ( mean_mu_k %*% t(mean_mu_k) +
           mu_k_param$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
@@ -63,7 +65,7 @@ elbo_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
 #'
 #' @examples
 #' TRUE
-elbo_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
+elbo_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag=NULL)
 {
   list_ID_k = names(db)
   #t_k = db[[1]] %>% dplyr::pull(.data$Input)
@@ -133,13 +135,17 @@ elbo_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
     for(k in (names_k) )
     {
       ## Extract the covariance values associated with the i-th specific inputs
-      post_cov_i = mu_k_param$cov[[k]][as.character(input_i), as.character(input_i)]
+      post_cov_i = mu_k_param$cov[[k]][as.character(input_i),
+                                       as.character(input_i)]
 
-      hp_mixture = mu_k_param$hp_mixture[k][i,]
-      mean_mu_k = mu_k_param$mean[[k]] %>% dplyr::filter(.data$Input %in% input_i) %>%
+      tau_i_k = mu_k_param$mixture %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::pull(k)
+      mean_mu_k = mu_k_param$mean[[k]] %>%
+        dplyr::filter(.data$Input %in% input_i) %>%
         dplyr::pull(.data$Output)
-      corr1 = corr1 + as.double(hp_mixture) * mean_mu_k
-      corr2 = corr2 + as.double(hp_mixture) *
+      corr1 = corr1 + tau_i_k * mean_mu_k
+      corr2 = corr2 + tau_i_k *
         ( mean_mu_k %*% t(mean_mu_k) + post_cov_i)
     }
 
@@ -148,7 +154,7 @@ elbo_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
     ## classic gaussian centered log likelihood
     LL_norm = - dmnorm(output_i, rep(0, length(output_i)), inv, log = T)
 
-    sum_i = sum_i + LL_norm - output_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2)
+    sum_i = sum_i + LL_norm - output_i %*% inv %*% corr1 + 0.5*sum(inv * corr2)
 
   }
   return(sum_i)
@@ -166,7 +172,7 @@ elbo_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
 #' at corresponding inputs (Psi_i).
 #' @param kern_0 Kernel used to compute the covariance matrix of the mean GP
 #' at corresponding inputs (K_0).
-#' @param mu_k_param parameters of the variational distributions of mean GPs (mu_k).
+#' @param mu_k_param parameters of the variational distributions of mean GPs.
 #' @param m_k prior value of the mean parameter of the mean GPs (mu_k).
 #' Length = 1 or nrow(db).
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
@@ -181,26 +187,40 @@ elbo_monitoring_VEM = function(hp_k,
                                hp_i,
                                db,
                                kern_i,
-                               kern_0,
+                               kern_k,
                                mu_k_param,
                                m_k,
                                pen_diag)
 {
   floop = function(k)
   {
-    logL_GP_mod(hp_k[hp_k$ID == k,], db = mu_k_param$mean[[k]], mean = m_k[[k]],
-                kern_0, mu_k_param$cov[[k]], pen_diag) %>%
-      return()
+    logL_GP_mod(
+      hp_k[hp_k$ID == k,],
+      db = mu_k_param$mean[[k]],
+      mean = m_k[[k]],
+      kern_k,
+      mu_k_param$cov[[k]],
+      pen_diag
+    ) %>%
+    return()
   }
   sum_ll_k = sapply(names(m_k), floop) %>% sum()
 
   floop2 = function(i)
   {
     t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-    elbo_clust_multi_GP(hp_i[hp_i$ID == i,], db %>% dplyr::filter(.data$ID == i),
-                        mu_k_param, kern_0, pen_diag) %>% return()
+
+    elbo_clust_multi_GP(
+      hp_i[hp_i$ID == i,],
+      db %>% dplyr::filter(.data$ID == i),
+      mu_k_param,
+      kern_i,
+      pen_diag
+    ) %>%
+    return()
   }
   sum_ll_i = sapply(unique(db$ID), floop2) %>% sum()
+
   return(-sum_ll_k - sum_ll_i)
 }
 

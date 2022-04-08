@@ -12,7 +12,7 @@ NumericMatrix cpp_dist(NumericMatrix m1, NumericMatrix m2) {
     throw std::runtime_error("Incompatible number of dimensions");
   }
 
-  NumericMatrix out(nrow1, nrow2);
+NumericMatrix out(nrow1, nrow2);
 
   for (int r1 = 0; r1 < nrow1; r1++) {
     for (int r2 = 0; r2 < nrow2; r2++) {

@@ -2,23 +2,60 @@
 #'
 #' Display raw data under the Magma format as smoothed curves.
 #'
-#' @param db A data frame or tibble with format : ID, Input, Output
+#' @param db A data frame or tibble with format : ID, Input, Output.
+#' @param cluster A boolean indicating whether data should be coloured by
+#'   cluster. Requires a column named 'Cluster'.
+#' @param legend A boolean indicating whether the legend should be displayed.
 #'
 #' @return Graph of smoothed curves of raw data.
 #'
 #' @examples
 #' TRUE
-plot_db <- function(db) {
-  ggplot2::ggplot(db) +
-    ggplot2::geom_smooth(ggplot2::aes(.data$Input,
-      .data$Output,
-      color = .data$ID
-    ), se = F) +
-    ggplot2::geom_point(ggplot2::aes(.data$Input,
-      .data$Output,
-      color = .data$ID
-    )) +
-    ggplot2::theme_classic()
+plot_db <- function(data, cluster = F, legend = F) {
+  ## Convert Cluster into factors for a better display
+  data$ID = as.factor(data$ID)
+  if (cluster) {
+    ## Add a dummy column 'Cluster' if absent
+    if(!('Cluster' %in% names(data))){data$Cluster = 1}
+    ## Convert Cluster into factors for a better display
+    data$Cluster = as.factor(data$Cluster)
+
+    gg = ggplot2::ggplot(data) +
+      ggplot2::geom_smooth(ggplot2::aes(
+        x = .data$Input,
+        y = .data$Output,
+        group = .data$ID,
+        color = .data$Cluster
+      ),
+      se = F
+      ) +
+      ggplot2::geom_point(ggplot2::aes(
+        x = .data$Input,
+        y = .data$Output,
+        group = .data$ID,
+        color = .data$Cluster
+      )) +
+      ggplot2::theme_classic()
+  } else {
+    gg = ggplot2::ggplot(data) +
+      ggplot2::geom_smooth(ggplot2::aes(
+        x =.data$Input,
+        y = .data$Output,
+        color = .data$ID
+        ),
+        se = F
+        ) +
+      ggplot2::geom_point(ggplot2::aes(
+        x = .data$Input,
+        y = .data$Output,
+        color = .data$ID)) +
+      ggplot2::theme_classic()
+  }
+  if(!legend)
+  {
+    gg = gg + ggplot2::guides(col = 'none')
+  }
+  return(gg)
 }
 
 #' Plot Magma or GP predictions
@@ -78,12 +115,12 @@ plot_db <- function(db) {
 #' ## 1-dimensional example
 #' db <- simu_db(M = 1, covariate = FALSE)
 #' pred_gp(db) %>%
-#'  plot_gp(data = db)
+#'   plot_gp(data = db)
 #'
 #' ## 2-dimensional example
 #' db_2D <- simu_db(M = 1, covariate = TRUE)
 #' pred_gp(db_2D) %>%
-#'  plot_gp(data = db_2D)
+#'   plot_gp(data = db_2D)
 #' }
 plot_gp <- function(pred_gp,
                     x_input = NULL,
@@ -100,11 +137,26 @@ plot_gp <- function(pred_gp,
   if (pred_gp %>% is.data.frame()) {
     pred <- pred_gp
   } else if (is.list(pred_gp) &
-    tryCatch(is.data.frame(pred_gp$pred), error = function(e) FALSE)) {
+    tryCatch(
+      is.data.frame(pred_gp$pred),
+      error = function(e) {
+        FALSE
+      }
+    )) {
     pred <- pred_gp$pred
     ## Check whether the hyper-posterior distribution is provided and extract
-    if (tryCatch(is.list(pred_gp$hyperpost), error = function(e) FALSE) &
-      tryCatch(is.data.frame(pred_gp$hyperpost$mean), error = function(e) 0) &
+    if (tryCatch(
+      is.list(pred_gp$hyperpost),
+      error = function(e) {
+        FALSE
+      }
+    ) &
+      tryCatch(
+        is.data.frame(pred_gp$hyperpost$mean),
+        error = function(e) {
+          0
+        }
+      ) &
       is.null(prior_mean)) {
       prior_mean <- pred_gp$hyperpost$mean
     }
@@ -131,8 +183,7 @@ plot_gp <- function(pred_gp,
   ## Get the inputs that should be used
   if (x_input %>% is.null()) {
     inputs <- pred %>% dplyr::select(-c(.data$Mean, .data$Var))
-  }
-  else {
+  } else {
     inputs <- pred[x_input]
   }
 
@@ -164,7 +215,8 @@ plot_gp <- function(pred_gp,
 
     if (!is.null(data)) {
       ## Round the 'Output' values to reduce size of labels on the graph
-      data <- data %>% dplyr::mutate(Output = round(.data$Output, 1))
+      data <-
+        data %>% dplyr::mutate(Output = round(.data$Output, 1))
 
       gg <- gg + ggplot2::geom_label(
         data = data,
@@ -205,24 +257,19 @@ plot_gp <- function(pred_gp,
         )
       }
       ## Define the columns needed to compute a prediction for all y-axis values
-      col_to_nest = c(names(inputs)[1], "Mean", "Var")
+      col_to_nest <- c(names(inputs)[1], "Mean", "Var")
 
       ## Add the 'Index' column if the prediction comes from 'pred_gif()'
       if (!is.null(index)) {
         pred <- pred %>% dplyr::mutate("Index" = index)
-        col_to_nest = c(col_to_nest, 'Index')
+        col_to_nest <- c(col_to_nest, "Index")
       }
 
       db_heat <- pred %>%
-        tidyr::expand(
-          tidyr::nesting_(col_to_nest),
+        tidyr::expand(tidyr::nesting_(col_to_nest),
           "Ygrid" = y_grid
         ) %>%
-        dplyr::mutate(
-          "Proba" = 2 * (1 - stats::pnorm(
-            abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))
-          )
-        )
+        dplyr::mutate("Proba" = 2 * (1 - stats::pnorm(abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))))
 
       gg <- ggplot2::ggplot() +
         ggplot2::geom_raster(
@@ -236,14 +283,20 @@ plot_gp <- function(pred_gp,
         ) +
         ggplot2::scale_fill_gradientn(
           colours = c(
-            "white", "#FDE0DD", "#FCC5C0", "#FA9FB5", "#F768A1",
-            "#DD3497", "#AE017E", "#7A0177"
+            "white",
+            "#FDE0DD",
+            "#FCC5C0",
+            "#FA9FB5",
+            "#F768A1",
+            "#DD3497",
+            "#AE017E",
+            "#7A0177"
           )
         ) +
         ggplot2::labs(fill = "Proba CI") +
         ggplot2::ylab("Output")
-
-    } else { ## Display a classic curve otherwise
+    } else {
+      ## Display a classic curve otherwise
       ## Add the 'Index' column if the prediction comes from 'pred_gif()'
       if (!is.null(index)) {
         pred <- pred %>% dplyr::mutate("Index" = index)
@@ -263,7 +316,7 @@ plot_gp <- function(pred_gp,
             ymax = "CI_sup"
           ),
           alpha = 0.2,
-          fill = '#FA9FB5'
+          fill = "#FA9FB5"
         ) +
         ggplot2::ylab("Output")
     }
@@ -272,7 +325,11 @@ plot_gp <- function(pred_gp,
     if (!is.null(data_train)) {
       gg <- gg + ggplot2::geom_point(
         data = data_train,
-        ggplot2::aes_string(x = names(inputs)[1], y = "Output", col = "ID"),
+        ggplot2::aes_string(
+          x = names(inputs)[1],
+          y = "Output",
+          col = "ID"
+        ),
         size = 0.5,
         alpha = 0.5
       ) +
@@ -299,7 +356,9 @@ plot_gp <- function(pred_gp,
           )
       } else {
         warning(
-          "The ", names(inputs)[1], " column does not exist in the ",
+          "The ",
+          names(inputs)[1],
+          " column does not exist in the ",
           "'prior_mean' argument. The mean function cannot be displayed."
         )
       }
@@ -344,14 +403,14 @@ plot_gp <- function(pred_gp,
 #' \dontrun{
 #' ## 1-dimensional example
 #' db <- simu_db(M = 1, covariate = FALSE)
-#' hp = train_gp(db)
+#' hp <- train_gp(db)
 #' pred_gp(db, get_full_cov = TRUE, plot = TRUE) %>%
-#'  sample_gp(data = db)
+#'   sample_gp(data = db)
 #'
 #' ## 2-dimensional example
 #' db_2D <- simu_db(M = 1, covariate = TRUE)
 #' pred_gp(db_2D, get_full_cov = TRUE, plot = FALSE) %>%
-#' sample_gp(data = db_2D)
+#'   sample_gp(data = db_2D)
 #' }
 sample_gp <- function(pred_gp,
                       x_input = NULL,
@@ -368,8 +427,7 @@ sample_gp <- function(pred_gp,
   ## Get the inputs that should be used
   if (x_input %>% is.null()) {
     inputs <- pred_gp$pred %>% dplyr::select(-c(.data$Mean, .data$Var))
-  }
-  else {
+  } else {
     inputs <- pred_gp$pred[x_input]
   }
 
@@ -378,9 +436,8 @@ sample_gp <- function(pred_gp,
   mean <- pred_gp$pred %>% dplyr::pull(.data$Mean)
   cov <- pred_gp$cov
 
-  sample <- tibble::tibble(
-    "Output" = mvtnorm::rmvnorm(1, mean, cov) %>% as.vector()
-  ) %>%
+  sample <-
+    tibble::tibble("Output" = mvtnorm::rmvnorm(1, mean, cov) %>% as.vector()) %>%
     dplyr::bind_cols(inputs)
 
   ## Display a heatmap if inputs are 2D
@@ -399,7 +456,8 @@ sample_gp <- function(pred_gp,
 
     if (!is.null(data)) {
       ## Round the 'Output' values to reduce size of labels on the graph
-      data <- data %>% dplyr::mutate(Output = round(.data$Output, 1))
+      data <-
+        data %>% dplyr::mutate(Output = round(.data$Output, 1))
 
       gg <- gg + ggplot2::geom_label(
         data = data,
@@ -475,7 +533,11 @@ sample_gp <- function(pred_gp,
     if (!is.null(data_train)) {
       gg <- gg + ggplot2::geom_point(
         data = data_train,
-        ggplot2::aes(x = .data$Input, y = .data$Output, col = .data$ID),
+        ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          col = .data$ID
+        ),
         size = 0.5,
         alpha = 0.5
       ) +
@@ -502,7 +564,9 @@ sample_gp <- function(pred_gp,
           )
       } else {
         warning(
-          "The ", names(inputs)[1], " column does not exist in the ",
+          "The ",
+          names(inputs)[1],
+          " column does not exist in the ",
           "'prior_mean' argument. The mean function cannot be displayed."
         )
       }
@@ -568,15 +632,15 @@ sample_gp <- function(pred_gp,
 #' \dontrun{
 #' ## 2-dimensional example
 #' db <- simu_db(M = 1, covariate = FALSE)
-#' hp = train_gp(db)
+#' hp <- train_gp(db)
 #' pred_gif(db, hp = hp) %>%
-#'  plot_gif(data = db)
+#'   plot_gif(data = db)
 #'
 #' ## 2-dimensional example
 #' db_2D <- simu_db(M = 1, covariate = TRUE)
-#' hp_2D = train_gp(db_2D)
+#' hp_2D <- train_gp(db_2D)
 #' pred_gif(db_2D, hp = hp_2D) %>%
-#'  plot_gif(data = db_2D)
+#'   plot_gif(data = db_2D)
 #' }
 plot_gif <- function(pred_gp,
                      x_input = NULL,
@@ -593,8 +657,8 @@ plot_gif <- function(pred_gp,
   if (heatmap) {
     if (is.null(y_grid)) {
       y_grid <- seq(
-        min(pred_gp$Mean)-stats::qnorm((1 + prob_CI)/2)*sqrt(max(pred_gp$Var)),
-        max(pred_gp$Mean)+stats::qnorm((1 + prob_CI)/2)*sqrt(max(pred_gp$Var)),
+        min(pred_gp$Mean) - stats::qnorm((1 + prob_CI) / 2) * sqrt(max(pred_gp$Var)),
+        max(pred_gp$Mean) + stats::qnorm((1 + prob_CI) / 2) * sqrt(max(pred_gp$Var)),
         length.out = 50
       )
     }
@@ -625,7 +689,7 @@ plot_gif <- function(pred_gp,
   ) +
     gganimate::transition_states(.data$Index, ...)
 
-  if(export_gif){
+  if (export_gif) {
     gganimate::animate(gg, renderer = gganimate::gifski_renderer(path))
   }
 

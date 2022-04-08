@@ -63,7 +63,7 @@
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are also available here)
-#' @param ini_hp_mixture Initial values of probability to belong to each cluster
+#' @param ini_mixture Initial values of probability to belong to each cluster
 #' for each individual.
 #' @param common_hp_k A boolean indicating whether hp are common among mean GPs
 #' (for each \eqn{mu_k}).
@@ -87,19 +87,18 @@
 #'    individual processes' kernels.
 #'    - prop_mixture_k : A tibble containing the hyper-parameters associated
 #'    with each individual, indicating in which cluster it belongs.
-#'    - param : A list 3 containing  The mean, the cov and the hp_mixture.
-#'        -> mean : A tibble containing the values of hyper-posterior's mean
+#'    - param: A list 3 containing  The mean, the cov and the mixture.
+#'        -> mean: A tibble containing the values of hyper-posterior's mean
 #'           parameter (\code{Output}) evaluated at each training reference
-#'        -> cov : A matrix, covariance parameter of the hyper-posterior
+#'        -> cov: A matrix, covariance parameter of the hyper-posterior
 #'                 distribution of the mean process.
-#'        -> hp_mixture : the probability to belong to a cluster for an individual.
+#'        -> mixture: probability to belong to a cluster for an individual.
 #'    \code{Input}.
 #'    - ini_args: A list containing the initial values for the hyper-prior mean,
 #'    the hyper-parameters, and the kernels that have been defined and used
 #'    during the learning procedure.
 #'
-#'    - Convergence: A logical value indicated whether the EM algorithm converged
-#'    or not.
+#'    - Convergence: A logical value indicated whether the algorithm converged.
 #'    - Training_time: Total running time of the complete training.
 #'
 #' @export
@@ -112,10 +111,11 @@
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
+#'  nstart = 50)
 #'
 #' train_magmaclust(db, length(k), m_k, hp_k, hp_i,
-#' "SE", "SE", old_hp_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
+#' "SE", "SE", old_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
 #'
 #' ###############################
 #'
@@ -129,11 +129,11 @@ train_magmaclust = function(data,
                            ini_hp_i = NULL,
                            kern_k = "SE",
                            kern_i = "SE",
-                           ini_hp_mixture = NULL,
+                           ini_mixture = NULL,
                            common_hp_k = T,
                            common_hp_i = T,
                            n_iter_max = 25,
-                           pen_diag = 0.01,
+                           pen_diag = 0.00000001,
                            cv_threshold = 1e-3)
 {
   ## Create to return a list of the initial arguments of the function
@@ -144,14 +144,13 @@ train_magmaclust = function(data,
                    'ini_hp_i' = ini_hp_i,
                    'kern_k'= kern_k,
                    'kern_i' = kern_i,
-                   'ini_hp_mixture' = ini_hp_mixture,
+                   'ini_mixture' = ini_mixture,
                    'common_hp_k' = common_hp_k,
                    'common_hp_i' = common_hp_i,
                    'n_iter_max' = n_iter_max,
                    'pen_diag' = pen_diag,
                    'cv_threshold' = cv_threshold
                    )
-
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("ID", "Output", "Input") %in% names(data))) {
@@ -174,8 +173,8 @@ train_magmaclust = function(data,
         prior_mean_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
         ID_k = names(prior_mean_k)
         cat(
-          "The number of cluster argument has not been specified.
-          There will be 3 cluster by default, named K1, K2 and K3\n \n"
+          "The number of cluster argument has not been specified. There will",
+          "be 3 cluster by default, named K1, K2 and K3. \n \n"
         )
       }
       else{
@@ -193,7 +192,7 @@ train_magmaclust = function(data,
 
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
-  ## Extract the list of differnt IDs
+  ## Extract the list of different IDs
   list_ID = unique(data$ID)
 
   ## Initialise the individual process' hp according to user's values
@@ -208,7 +207,7 @@ train_magmaclust = function(data,
     }
   } else {
     if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp_i, noise = TRUE)
+      hp_i <- hp(kern_i, list_ID=list_ID, common_hp = common_hp_i, noise = TRUE)
       cat(
         "The 'ini_hp_i' argument has not been specified. Random values of",
         "hyper-parameters for the individal processes are used as",
@@ -346,29 +345,29 @@ train_magmaclust = function(data,
   cv <- FALSE
   elbo_monitoring = - Inf
 
-  if(is.null(ini_hp_mixture)){ini_hp_mixture = ini_hp_mixture(data,
-                                                              k = length(ID_k),
-                                                              nstart = 50)}
-  hp_mixture = ini_hp_mixture
+  if(is.null(ini_mixture)){
+    mixture = ini_mixture(data, k = length(ID_k), nstart = 50)
+  }
 
-  hp_1 <- hp_mixture %>% dplyr::select(-.data$ID)
-  hp_k[['prop_mixture']] = sapply( hp_1, function(x) x %>% unlist() %>% mean() )
+  hp_k[['prop_mixture']] = mixture %>%
+    dplyr::select(-.data$ID) %>%
+    colMeans() %>%
+    as.vector()
 
-
-  ## Iterate E-step and M-step until convergence
+  ## Iterate VE-step and VM-step until convergence
   for(i in 1:n_iter_max)
   {
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
-    ## E-Step of MagmaClust
-    param = e_step_VEM(data,
+    ## VE-Step of MagmaClust
+    param = ve_step(data,
                        m_k,
                        kern_k,
                        kern_i,
                        hp_k,
                        hp_i,
-                       hp_mixture,
+                       mixture,
                        pen_diag)
 
     ## Monitoring of the elbo
@@ -384,8 +383,8 @@ train_magmaclust = function(data,
 
     if(diff_moni < - 0.1){warning('Likelihood descreased')}
 
-    ## M-Step of MagmaClsut
-    new_hp = m_step_VEM(data,
+    ## VM-Step of MagmaClsut
+    new_hp = vm_step(data,
                         hp_k,
                         hp_i,
                         list_mu_param = param,
@@ -415,6 +414,7 @@ train_magmaclust = function(data,
                                    mu_k_param = param,
                                    m_k = m_k,
                                    pen_diag)
+
     eps = (elbo_new - elbo_monitoring_VEM(hp_k,
                                           hp_i,
                                           data,
@@ -428,9 +428,9 @@ train_magmaclust = function(data,
     ## Update HPs values and the elbo monitoring
     hp_i = new_hp$hp_i
     hp_k = new_hp$hp_k
-    prop_mixture_k = new_hp$prop_mixture_k
 
-    hp_mixture = param$hp_mixture
+    mixture = param$mixture
+
     elbo_monitoring = new_elbo_monitoring
 
     ## Provide monitoring information
@@ -467,37 +467,43 @@ train_magmaclust = function(data,
   ## Create and return the list of elements from the trained model
   list('hp_k' = hp_k,
        'hp_i' = hp_i,
-       'prop_mixture_k' = prop_mixture_k,
+       'param' = param,
        'convergence' = cv,
        "ini_args" = fct_args,
-       'param' = param,
        'Training_time' =  difftime(t2, t1, units = "secs")
        ) %>%
     return()
 
 }
 
-#' Update by cluster the hp_mixture star
+#' Update by cluster the mixture star
 #'
-#' @param db data A tibble or data frame. Columns required: \code{ID}, \code{Input}
-#'    , \code{Output}.
+#' @param db data A tibble or data frame. Columns required: \code{ID},
+#'    \code{Input}, \code{Output}.
 #'    Additional columns for covariates can be specified.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_k}, the mean process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters
 #'    that are used in \code{kern_k}.
 #' @param prop_mixture_k A tibble containing the hyper-parameters associated
-#' with each individual, indicating in which cluster it belongs.
+#'    with each individual, indicating in which cluster it belongs.
 #' @param mean_k mean
 #' @param cov_k cov
-#' @param kern kernel A kernel function, defining the covariance structure of the GP.
+#' @param kern kernel A kernel function, defining the covariance structure of
+#'    the GP.
 #'
-#' @return update hp_mixture star
+#' @return update mixture star
 #'
 #' @examples
 #' TRUE
-update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixture_k)
-{
+update_hp_k_mixture_star_EM <- function(
+  db,
+  mean_k,
+  cov_k,
+  kern,
+  hp,
+  prop_mixture_k
+  ){
   #browser()
   all_input = unique(db$Input) %>% sort()
   names_k = names(mean_k)
@@ -641,12 +647,14 @@ update_hp_k_mixture_star_EM <- function(db, mean_k, cov_k, kern, hp, prop_mixtur
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
 #' ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
+#'  nstart = 50)
 #'
 #' training_test = train_magmaclust(db)
 #'
 #' timestamps = seq(0.01, 10, 0.01)
-#' mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
+#' mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test,
+#'  pen_diag = 0.01)
 #'
 #' train_new_gp_EM(simu_db(M=1), param_mu_k = mu_k, ini_hp_i = ini_hp_i,
 #' kern_i = "SE", trained_magmaclust = training_test)
@@ -823,7 +831,7 @@ train_new_gp_EM = function(data,
   mean_mu_k = param_mu_k$mean
   cov_mu_k = param_mu_k$cov
   ## Remove the ID column
-  hp_1 <- param_mu_k$hp_mixture %>% dplyr::select(-.data$ID)
+  hp_1 <- param_mu_k$mixture %>% dplyr::select(-.data$ID)
 
   ## Initialize the monitoring information
   cv <- FALSE

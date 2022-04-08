@@ -27,14 +27,14 @@ simu_db(
 )
 }
 \arguments{
-\item{M}{An integer. The number of individual.}
+\item{M}{An integer. The number of individual per cluster.}
 
 \item{N}{An integer. The number of observations per individual.}
 
 \item{K}{An integer. The number of underlying clusters.}
 
 \item{covariate}{A logical value indicating whether the dataset should
-include an additional covariate named 'Covariate'.}
+include an additional input covariate named 'Covariate'.}
 
 \item{grid}{A vector of numbers defining a grid of observations
 (i.e. the reference inputs).}
@@ -84,9 +84,9 @@ admissible values for the covariate inputs.}
 A full dataset of simulated training data.
 }
 \description{
-Simulate a complete training dataset, which may be coherent in many different
-settings. The various flexible arguments allow adjustment of the number of
-individuals, of observed input, and the values of many parameters
+Simulate a complete training dataset, which may be representative of various
+applications. Several flexible arguments allow adjustment of the number of
+individuals, of observed inputs, and the values of many parameters
 controlling the data generation.
 }
 \examples{

@@ -65,16 +65,16 @@ draw <- function(int) {
 
 #' Simulate a dataset tailored for MagmaClustR
 #'
-#' Simulate a complete training dataset, which may be coherent in many different
-#' settings. The various flexible arguments allow adjustment of the number of
-#' individuals, of observed input, and the values of many parameters
+#' Simulate a complete training dataset, which may be representative of various
+#' applications. Several flexible arguments allow adjustment of the number of
+#' individuals, of observed inputs, and the values of many parameters
 #' controlling the data generation.
 #'
-#' @param M An integer. The number of individual.
+#' @param M An integer. The number of individual per cluster.
 #' @param N An integer. The number of observations per individual.
 #' @param K An integer. The number of underlying clusters.
 #' @param covariate A logical value indicating whether the dataset should
-#'    include an additional covariate named 'Covariate'.
+#'    include an additional input covariate named 'Covariate'.
 #' @param grid A vector of numbers defining a grid of observations
 #'    (i.e. the reference inputs).
 #' @param common_input A logical value indicating whether the reference inputs
@@ -209,20 +209,26 @@ simu_db <- function(M = 10,
 
 #' ini_kmeans
 #'
-#' @param db tibble containing common Input and associated Output values to cluster
-#' @param k number of clusters set in the kmeans
-#' @param nstart number of initialisations to try in the kmeans
-#' @param summary boolean
+#' @param data A tibble containing common Input and associated Output values
+#'   to cluster.
+#' @param k A number of clusters assumed for running the kmeans algorithm.
+#' @param nstart A number, indicating how many re-starts of kmeans are set.
+#' @param summary A boolean.
 #'
-#' @return Tibble of ID, true clusters, and found clusters with kmeans
+#' @return A tibble containing the initial clustering obtained through kmeans.
 #' @export
 #'
 #' @examples
 #' TRUE
-ini_kmeans <- function(db, k, nstart = 50, summary = F) {
-  if (!identical(unique(db$Input), db %>% dplyr::filter(.data$ID == unique(db$ID)[[1]]) %>% dplyr::pull(.data$Input))) {
+ini_kmeans <- function(data, k, nstart = 50, summary = F) {
+  if (!identical(
+    unique(data$Input),
+    data %>%
+      dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
+      dplyr::pull(.data$Input)
+    )) {
     floop <- function(i) {
-      obs_i <- db %>%
+      obs_i <- data %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(.data$Output)
       tibble::tibble(
@@ -232,13 +238,13 @@ ini_kmeans <- function(db, k, nstart = 50, summary = F) {
       ) %>%
         return()
     }
-    db_regular <- unique(db$ID) %>%
+    db_regular <- unique(data$ID) %>%
       lapply(floop) %>%
       dplyr::bind_rows() %>%
       dplyr::select(c(.data$ID, .data$Input, .data$Output))
   }
   else {
-    db_regular <- db %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
+    db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
   }
 
   res <- db_regular %>%
@@ -251,7 +257,10 @@ ini_kmeans <- function(db, k, nstart = 50, summary = F) {
   }
 
   # browser()
-  broom::augment(res, db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)) %>%
+  broom::augment(
+    res,
+    db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)
+    ) %>%
     dplyr::select(c(.data$ID, .data$.cluster)) %>%
     dplyr::rename(Cluster_ini = .data$.cluster) %>%
     dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
@@ -260,7 +269,7 @@ ini_kmeans <- function(db, k, nstart = 50, summary = F) {
 
 #' ini_tau_i_k list test
 #'
-#' @param db database
+#' @param data database
 #' @param k cluster
 #' @param nstart nstart
 #'
@@ -268,11 +277,10 @@ ini_kmeans <- function(db, k, nstart = 50, summary = F) {
 #'
 #' @examples
 #' TRUE
-ini_tau_i_k_list <- function(db, k, nstart = 50) {
-  ini_kmeans(db, k, nstart) %>%
+ini_tau_i_k_list <- function(data, k, nstart = 50) {
+  ini_kmeans(data, k, nstart) %>%
     dplyr::mutate(value = 1) %>%
     tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
-    dplyr::arrange(as.integer(.data$ID)) %>%
     tibble::column_to_rownames(var = "ID") %>%
     apply(2, as.list) %>%
     return()
@@ -280,7 +288,7 @@ ini_tau_i_k_list <- function(db, k, nstart = 50) {
 
 #' ini_hp_mixture
 #'
-#' @param db database
+#' @param data database
 #' @param k cluster
 #' @param nstart nstart
 #'
@@ -288,10 +296,9 @@ ini_tau_i_k_list <- function(db, k, nstart = 50) {
 #'
 #' @examples
 #' TRUE
-ini_hp_mixture <- function(db, k, nstart = 50) {
-  ini_kmeans(db, k, nstart) %>%
+ini_mixture <- function(data, k, nstart = 50) {
+  ini_kmeans(data, k, nstart) %>%
     dplyr::mutate(value = 1) %>%
     tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
-    dplyr::arrange(as.integer(.data$ID)) %>%
     return()
 }

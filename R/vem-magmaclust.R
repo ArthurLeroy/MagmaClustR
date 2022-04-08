@@ -1,8 +1,8 @@
-#' Variation of the E-Step of the EM algorithm
+#' E-Step of the VEM algorithm
 #'
-#' Expectation step of the variation of the EM algorithm to compute
-#' the parameters of the hyper-posterior Gaussian distribution
-#' of the mean process in Magma.
+#' Expectation step of the Variational EM algorithm used to compute
+#' the parameters of the hyper-posteriors distributions
+#' for the mean processes and mixtures variables involved in MagmaClust.
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
@@ -15,12 +15,13 @@
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #' @param m_k prior means of the mu_k processes.
-#' @param old_hp_mixture values au hp_mixture from previous iterations.
+#' @param old_mixture values au mixture from previous iterations.
 #'
 #' @return A named list, containing the elements \code{mean}, a tibble
-#' containing the Input and associated Output of the hyper-posterior mean
-#' parameter, \code{cov}, the hyper-posterior covariance matrix,
-#' and \code{hp_mixture}, the probability to belong to a cluster for an individual.
+#'    containing the Input and associated Output of the hyper-posterior mean
+#'    parameter, \code{cov}, the hyper-posterior covariance matrix,
+#'    and \code{mixture}, the probability to belong to a cluster for an
+#'    individual.
 #'
 #' @examples
 #' \dontrun{
@@ -31,28 +32,29 @@
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
-#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
+#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
+#'    nstart = 50)
+#' prop_mixture_1 <- old_mixture %>% dplyr::select(-.data$ID)
 #' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
 #'   unlist() %>% mean() )
 #'
-#' MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
+#' MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture ,0.001)
 #'
 #' }
 #'
-e_step_VEM = function(db,
-                      m_k,
-                      kern_k,
-                      kern_i,
-                      hp_k,
-                      hp_i,
-                      old_hp_mixture,
-                      pen_diag) {
-
+ve_step = function(db,
+                   m_k,
+                   kern_k,
+                   kern_i,
+                   hp_k,
+                   hp_i,
+                   old_mixture,
+                   pen_diag) {
   prop_mixture_k = hp_k$prop_mixture
   all_input = unique(db$Input) %>% sort()
-  t_clust = tibble::tibble('ID' = rep(names(m_k), each = length(all_input)),
-                           'Input' = rep(all_input, length(m_k)))
+  t_clust = tibble::tibble(
+    'ID' = rep(names(m_k),each = length(all_input)),
+    'Input' = rep(all_input, length(m_k)))
 
   ## Compute all the inverse covariance matrices
   list_inv_k = list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag)
@@ -65,15 +67,18 @@ e_step_VEM = function(db,
   floop = function(k)
   {
     new_inv = list_inv_k[[k]]
-    hp_mixture = old_hp_mixture[k]
-    for(x in list_inv_i %>% names())
+    tau_k = old_mixture %>% dplyr::select(.data$ID, k)
+    for(i in list_inv_i %>% names())
     {
-      inv_i = list_inv_i[[x]]
-      ## Collect the input's common indices between mean and individual processes
+      ## Extract the corresponding mixture probability
+      tau_i_k = tau_k %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(k)
+
+      inv_i = list_inv_i[[i]]
+      ## Collect input's common indices between mean and individual processes
       common_times = intersect(row.names(inv_i), row.names(new_inv))
       ## Sum the common inverse covariance's terms
-      new_inv[common_times, common_times] = new_inv[common_times, common_times] +
-        as.double(hp_mixture[x,]) * inv_i[common_times, common_times]
+      new_inv[common_times, common_times] = new_inv[common_times, common_times]+
+        tau_i_k * inv_i[common_times, common_times]
     }
 
     ## Fast or slow matrix inversion if nearly singular
@@ -91,17 +96,20 @@ e_step_VEM = function(db,
 
   floop2 = function(k)
   {
-    prior_mean = m_k[[k]]; prior_inv = list_inv_k[[k]]
-    hp_mixture <- old_hp_mixture[k]
+    prior_mean = m_k[[k]]
+    prior_inv = list_inv_k[[k]]
+    tau_k = old_mixture %>% dplyr::select(.data$ID, k)
 
     if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(prior_inv))}
     weighted_mean = prior_inv %*% prior_mean
 
     for(i in list_inv_i %>% names())
     {
+      ## Extract the corresponding mixture probability
+      tau_i_k = tau_k %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(k)
       ## Compute the weighted mean for the i-th individual
-      weighted_i = as.double(hp_mixture[i,]) * list_inv_i[[i]] %*% list_output_i[[i]]
-      ## Collect the input's common indices between mean and individual processes
+      weighted_i = tau_i_k * list_inv_i[[i]] %*% list_output_i[[i]]
+      ## Collect input's common indices between mean and individual processes
       common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
       ## Sum the common weighted mean's terms
       weighted_mean[common_times,] = weighted_mean[common_times,] +
@@ -114,58 +122,63 @@ e_step_VEM = function(db,
   }
   mean_k = sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
-  ## Update hp_mixture
+  ## Update mixture
   c_i = 0
   c_k = 0
-  mat_elbo = matrix(NA, nrow = length(names(m_k)), ncol = length(unique(db$ID)) )
+  mat_elbo = matrix(NA, nrow = length(names(m_k)), ncol = length(unique(db$ID)))
 
   for(i in unique(db$ID))
-  { c_i = c_i + 1
-  input_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-  for(k in names(m_k))
-  { c_k = c_k + 1
+  {
+    c_i = c_i + 1
+    input_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
+    for(k in names(m_k))
+    {
+      c_k = c_k + 1
 
-    ## Extract the i-th specific hyper-parameters.
-    hp_i_i = hp_i %>% dplyr::filter(.data$ID == i)
-    ## Extract the data associated with the i-th individual
-    db_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::select(-.data$ID)
-    ## Extract the mean values associated with the i-th specific inputs
-    mean_k_i = mean_k[[k]] %>%
-      dplyr::filter(.data$Input %in% input_i) %>%
-      dplyr::pull(.data$Output)
-    ## Extract the covariance values associated with the i-th specific inputs
-    cov_k_i = cov_k[[k]][as.character(input_i), as.character(input_i)]
+      ## Extract the i-th specific hyper-parameters.
+      hp_i_i = hp_i %>% dplyr::filter(.data$ID == i)
+      ## Extract the data associated with the i-th individual
+      db_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::select(-.data$ID)
+      ## Extract the mean values associated with the i-th specific inputs
+      mean_k_i = mean_k[[k]] %>%
+        dplyr::filter(.data$Input %in% input_i) %>%
+        dplyr::pull(.data$Output)
+      ## Extract the covariance values associated with the i-th specific inputs
+      cov_k_i = cov_k[[k]][as.character(input_i), as.character(input_i)]
 
-    mat_elbo[c_k,c_i] = - logL_GP_mod(hp_i_i, db_i, mean_k_i , kern_i, cov_k_i, pen_diag)
-    if(is.na(mat_elbo[c_k,c_i])){print(i)}
+      mat_elbo[c_k,c_i] = - logL_GP_mod(hp_i_i, db_i, mean_k_i , kern_i,
+                                        cov_k_i, pen_diag)
+
+      #if(is.na(mat_elbo[c_k,c_i])){print(i)} Detect the failing ID
+    }
+    c_k = 0
   }
-  c_k = 0
-  }
 
-  ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x))
+  ## We need to use the 'log-sum-exp' trick: exp(x - max(x))/sum exp(x - max(x))
   ## to remain numerically stable
   mat_L = mat_elbo %>% apply(2,function(x) exp(x - max(x)))
 
-  hp_mixture <- (prop_mixture_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
+  mixture <- (prop_mixture_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
     `rownames<-`(names(m_k)) %>%
     t %>%
+    round(5) %>%
     tibble::as_tibble()
 
-  hp_mixture <- tibble::tibble('ID' = unique(db$ID)) %>%
-    dplyr::mutate(hp_mixture)
+  mixture <- tibble::tibble('ID' = unique(db$ID)) %>%
+    dplyr::mutate(mixture)
 
   list('mean' = mean_k,
        'cov' = cov_k,
-       'hp_mixture' = hp_mixture) %>%
+       'mixture' = mixture) %>%
     return()
 
 }
 
 
-#' Variation of the M-Step of the EM algorithm
+#' V-Step of the VEM algorithm
 #'
-#' Maximization step of the variation of the EM algorithm to compute
-#' hyper-parameters of all the kernels involved in Magma.
+#' Maximization tep of the Variational EM algorithm used to compute
+#' hyper-parameters of all the kernels involved in MagmaClust.
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
@@ -184,8 +197,9 @@ e_step_VEM = function(db,
 #'    containing the hyper-parameters from the previous
 #'    M-step (or initialisation) associated with the
 #'    individual GPs.
-#' @param old_hp_k A named vector, tibble or data frame, containing the hyper-parameters
-#'    from the previous M-step (or initialisation) associated with the clusters.
+#' @param old_hp_k A named vector, tibble or data frame, containing the
+#'    hyper-parameters from the previous M-step (or initialisation) associated
+#'    with the clusters.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
 #'
@@ -209,14 +223,16 @@ e_step_VEM = function(db,
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
-#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
+#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
+#'   nstart = 50)
+#' prop_mixture_1 <- old_mixture %>% dplyr::select(-.data$ID)
 #' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
 #'   unlist() %>% mean() )
 #'
-#' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
+#' post = MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
+#'   0.001)
 #'
-#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 2)
+#' MagmaClustR:::vm_step(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 2)
 #'
 #'
 #' ## Different inputs across individuals & cluster and common HPs
@@ -226,28 +242,30 @@ e_step_VEM = function(db,
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k), common_hp = TRUE)
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID), common_hp = TRUE)
 #'
-#' old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
-#' prop_mixture_1 <- old_hp_mixture %>% dplyr::select(-.data$ID)
+#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
+#'    nstart = 50)
+#' prop_mixture_1 <- old_mixture %>% dplyr::select(-.data$ID)
 #' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
 #'   unlist() %>% mean() )
 #'
-#' post = MagmaClustR:::e_step_VEM(db, m_k, "SE", "SE", hp_k, hp_i, old_hp_mixture ,0.001)
+#' post = MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
+#'   0.001)
 #'
-#' MagmaClustR:::m_step_VEM(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
+#' MagmaClustR:::vm_step(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
 #'
 #'
 #'
 #'}
-m_step_VEM = function(db,
-                      old_hp_k,
-                      old_hp_i,
-                      list_mu_param,
-                      kern_k,
-                      kern_i,
-                      m_k,
-                      common_hp_k,
-                      common_hp_i,
-                      pen_diag)
+vm_step = function(db,
+                   old_hp_k,
+                   old_hp_i,
+                   list_mu_param,
+                   kern_k,
+                   kern_i,
+                   m_k,
+                   common_hp_k,
+                   common_hp_i,
+                   pen_diag)
 {
   list_ID_k = names(m_k)
   list_ID_i = unique(db$ID)
@@ -276,7 +294,6 @@ m_step_VEM = function(db,
       gr_clust_multi_GP <- NULL
     }
   }
-
 
   ## Check whether hyper-parameters are common to all individuals
   if(common_hp_i)
@@ -329,17 +346,16 @@ m_step_VEM = function(db,
         tibble::as_tibble() %>%
         return()
     }
-    new_theta_i = sapply(list_ID_i, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
+    new_theta_i = sapply(list_ID_i, loop2, simplify=FALSE, USE.NAMES=TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest(cols = .data$value)
   }
 
   #compute the prop mixture of each cluster
-  prop_mixture_k_1 <- list_mu_param$hp_mixture %>% dplyr::select(-.data$ID)
-
-  prop_mixture_k = sapply( prop_mixture_k_1, function(x) x %>% unlist() %>% mean() ) %>%
-    t %>%
-    tibble::as_tibble()
+  prop_mixture <- list_mu_param$mixture %>%
+    dplyr::select(-.data$ID) %>%
+    colMeans %>%
+    as.vector
 
   ## Check whether hyper-parameters are common to all cluster
   if(common_hp_k)
@@ -367,9 +383,7 @@ m_step_VEM = function(db,
         tibble::as_tibble() %>%
         tidyr::uncount(weights = length(list_ID_k)) %>%
         dplyr::mutate('ID' = list_ID_k, .before = 1) %>%
-        dplyr::mutate("prop_mixture" = t(prop_mixture_k) %>% as.vector)
-
-
+        dplyr::mutate("prop_mixture" = prop_mixture)
   }
   else
   {
@@ -404,18 +418,15 @@ m_step_VEM = function(db,
         return()
     }
 
-    new_theta_k = sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
+    new_theta_k = sapply(list_ID_k, loop, simplify=FALSE, USE.NAMES=TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest_auto(.data$value) %>%
-      dplyr::mutate("prop_mixture" = t(prop_mixture_k) %>% as.vector )
-
+      dplyr::mutate("prop_mixture" = prop_mixture)
   }
-
 
   list(
     "hp_k" = new_theta_k,
-    "hp_i" = new_theta_i,
-    'prop_mixture_k' = prop_mixture_k
+    "hp_i" = new_theta_i
   ) %>%
     return()
 }
