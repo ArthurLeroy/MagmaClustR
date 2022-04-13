@@ -1,12 +1,12 @@
 #' Training MagmaClust with a Variational EM algorithm
 #'
 #' The hyper-parameters and the hyper-posterior distribution involved in
-#' MagmaClust can be learned thanks to an vEM algorithm implemented in
+#' MagmaClust can be learned thanks to a VEM algorithm implemented in
 #' \code{train_magmaclust}. By providing a dataset, the model hypotheses
 #' (hyper-prior mean parameters and covariance kernels) and initialisation
 #' values for the hyper-parameters, the function computes maximum likelihood
 #' estimates of the HPs as well as the mean and covariance parameters of the
-#' Gaussian hyper-posterior distribution of the mean processes.
+#' Gaussian hyper-posterior distributions of the mean processes.
 #'
 #' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
@@ -23,8 +23,7 @@
 #'    individuals/tasks that are assumed to exist among the dataset.
 #' @param prior_mean_k The set of hyper-prior mean parameters (m_k) of the mean
 #'    GPs, one value for each cluster.
-#'    cluster. This
-#'    argument can be specified under various formats, such as:
+#'    cluster. This argument can be specified under various formats, such as:
 #'    - NULL (default). All hyper-prior means would be set to 0 everywhere.
 #'    - A vector of the same length as the number of clusters. Each hyper-prior
 #'    mean would be a constant function equal to one element of the vector.
@@ -133,7 +132,7 @@ train_magmaclust = function(data,
                            common_hp_k = T,
                            common_hp_i = T,
                            n_iter_max = 25,
-                           pen_diag = 0.00000001,
+                           pen_diag = 1e-8,
                            cv_threshold = 1e-3)
 {
   ## Create to return a list of the initial arguments of the function
@@ -210,7 +209,7 @@ train_magmaclust = function(data,
       hp_i <- hp(kern_i, list_ID=list_ID, common_hp = common_hp_i, noise = TRUE)
       cat(
         "The 'ini_hp_i' argument has not been specified. Random values of",
-        "hyper-parameters for the individal processes are used as",
+        "hyper-parameters for the individual processes are used as",
         "initialisation.\n \n"
       )
     } else if (!("ID" %in% names(ini_hp_i))) {
@@ -256,7 +255,7 @@ train_magmaclust = function(data,
       hp_k <- hp(kern_k, list_ID = ID_k, common_hp = common_hp_k, noise = F)
       cat(
         "The 'ini_hp_k' argument has not been specified. Random values of",
-        "hyper-parameters for the individal processes are used as",
+        "hyper-parameters for the mean processes are used as",
         "initialisation.\n \n"
       )
     } else if (!("ID" %in% names(ini_hp_k))) {
@@ -678,7 +677,7 @@ train_new_gp_EM = function(data,
                            trained_magmaclust = NULL,
                            n_iter_max = 25,
                            cv_threshold = 1e-3,
-                           pen_diag = 0.01)
+                           pen_diag = 1e-8)
 {
   #browser()
   ## Extract the observed Output (data points)

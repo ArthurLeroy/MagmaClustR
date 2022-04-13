@@ -8,7 +8,7 @@
 #' evaluated on any arbitrary inputs since a GP is an infinite-dimensional
 #' object.
 #'
-#' @param data  A tibble or data frame. Required columns: 'Input',
+#' @param data A tibble or data frame. Required columns: 'Input',
 #'    'Output'. Additional columns for covariates can be specified.
 #'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
@@ -36,7 +36,7 @@
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 #'    Cookbook}) are already implemented and can be selected within the
 #'    following list:
-#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'    - "SE": (default value) the Squared Expo    nential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
@@ -83,7 +83,7 @@ pred_gp <- function(data,
                     grid_inputs = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
-                    pen_diag = 0.01) {
+                    pen_diag = 1e-8) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -338,7 +338,7 @@ pred_gp <- function(data,
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
-#'    "PERIO" and "RQ" are aso available here)
+#'    "PERIO" and "RQ" are also available here)
 #' @param prior_mean Hyper-prior mean parameter of the mean GP. This argument,
 #'    can be specified under various formats, such as:
 #'    - NULL (default). The hyper-prior mean would be set to 0 everywhere.
@@ -372,7 +372,7 @@ hyperposterior <- function(data,
                            kern_i,
                            prior_mean = NULL,
                            grid_inputs = NULL,
-                           pen_diag = 0.01) {
+                           pen_diag = 1e-8) {
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
     all_input <- unique(data$Input) %>% sort()
@@ -506,7 +506,7 @@ hyperposterior <- function(data,
 #' Magma prediction
 #'
 #' Compute the posterior predictive distribution in Magma. Providing data of any
-#' new inividual/task, its trained hyper-parameters and a previously trained
+#' new individual/task, its trained hyper-parameters and a previously trained
 #' Magma model, the predictive distribution is evaluated on any arbitrary inputs
 #' that are specified through the 'grid_inputs' argument.
 #'
@@ -602,7 +602,7 @@ pred_magma <- function(data,
                        get_hyperpost = FALSE,
                        get_full_cov = FALSE,
                        plot = TRUE,
-                       pen_diag = 0.01) {
+                       pen_diag = 1e-8) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -889,7 +889,7 @@ pred_magma <- function(data,
   return(res)
 }
 
-#' Magma prediction for ploting GIFs
+#' Magma prediction for plotting GIFs
 #'
 #' Generate a Magma or classic GP prediction under a format that is compatible
 #' with a further GIF visualisation of the results. For a Magma prediction,
@@ -980,7 +980,7 @@ pred_gif <- function(data,
                      hp = NULL,
                      kern = "SE",
                      grid_inputs = NULL,
-                     pen_diag = 0.01) {
+                     pen_diag = 1e-8) {
   ## Extract the inputs (reference Input + covariates)
   inputs <- data %>% dplyr::select(-.data$Output)
   ## Remove the 'ID' column if present

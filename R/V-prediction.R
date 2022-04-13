@@ -1,6 +1,6 @@
 #' Compute the hyper-posterior distribution by cluster in MagmaClust
 #'
-#' @param db data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
 #'    The \code{ID} column contains the unique names/codes used to identify each
 #'    individual/task (or batch of data).
@@ -11,30 +11,50 @@
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
-#' @param kern_0 kernel used to compute the covariance matrix of the mean GP at
-#' corresponding timestamps (K_0).
-#' @param kern_i kernel used to compute the covariance matrix of individuals GP at
-#' corresponding timestamps (Psi_i).
+#' @param kern_k A kernel function, associated with the mean GPs.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
+#'    "LIN", PERIO" and "RQ" are also available here)
 #' @param m_k prior value of the mean parameter of the mean GPs (mu_k).
-#' Length = 1 or nrow(db)
+#'    Length = 1 or nrow(data)
 #' @param list_hp list of your hyperparameters
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
-#'    tibble or a data frame, providing the same columns as \code{db}, except
-#'    'Output'. Nonetheless, in cases where \code{db} provides only one
+#'    tibble or a data frame, providing the same columns as \code{data}, except
+#'    'Output'. Nonetheless, in cases where \code{data} provides only one
 #'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
 #'    vector. This vector would be used as reference input for prediction and if
 #'    NULL, a vector of length 500 is defined, ranging between the min and max
-#'    Input values of \code{db}.
+#'    Input values of \code{data}.export
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
-#' @return Pamameters of the mean GP at timestamps chosen.
-#' @export
+#' @return Parameters of the mean GP at timestamps chosen.
+#' @
 #'
 #' @examples
 #' TRUE
-hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_diag)
+hyperposterior_clust = function(data,
+                                grid_inputs,
+                                m_k,
+                                kern_k,
+                                kern_i,
+                                list_hp,
+                                pen_diag)
 {
   #browser()
   hp_i = list_hp$hp_i
@@ -42,9 +62,9 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
   mixture = list_hp$param$mixture
   t_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(grid_inputs)) ,
                            'Input' = rep(grid_inputs, length(hp_k$ID)))
-  inv_k = list_kern_to_inv(t_clust, kern_0, hp_k, pen_diag = pen_diag)
-  list_inv_i = list_kern_to_inv(db, kern_i, hp_i, pen_diag = pen_diag)
-  value_i = base::split(db$Output, list(db$ID))
+  inv_k = list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag = pen_diag)
+  list_inv_i = list_kern_to_inv(data, kern_i, hp_i, pen_diag = pen_diag)
+  value_i = base::split(data$Output, list(data$ID))
 
   ## Update each mu_k parameters
   floop = function(k)
@@ -171,7 +191,7 @@ hyperposterior_clust = function(db, grid_inputs, m_k, kern_0, kern_i, list_hp, p
 #'    numerical issues when inverting nearly singular matrices.
 #' @param plot A logical value, indicating whether a plot of the results is
 #'    automatically displayed.
-#' @return pamameters of the gaussian density predicted at timestamps
+#' @return parameters of the Gaussian density predicted at timestamps
 #' @export
 #'
 #' @examples
@@ -191,7 +211,7 @@ pred_magmaclust = function(data_obs,
                          ini_hp_i = NULL,
                          trained_magmaclust = NULL,
                          plot = TRUE,
-                         pen_diag = 0.01)
+                         pen_diag = 1e-8)
 {
   ## Extract the observed Output (data_obs points)
   db_obs <- data_obs %>%
@@ -232,7 +252,8 @@ pred_magmaclust = function(data_obs,
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_gp()."
+        "or a data frame depending on the context. Please read ",
+        "?pred_magmaclust()."
       )
     }
   } else if (grid_inputs %>% is.vector()) {
@@ -243,7 +264,8 @@ pred_magmaclust = function(data_obs,
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_gp()."
+        "or a data frame depending on the context. Please read  ",
+        "?pred_magmaclust()."
       )
     }
   } else if (grid_inputs %>% is.data.frame()) {
@@ -436,11 +458,11 @@ pred_magmaclust = function(data_obs,
   return(pred)
 }
 
-#' Prediction of the maximum of cluster
+#' Indicates the most probable cluster
 #'
-#' @param mixture mixture
+#' @param mixture A tibble or data frame containing the mixture's probabilities.
 #'
-#' @return Prediction of the maximum of cluster
+#' @return
 #'
 #' @examples
 #' TRUE

@@ -60,9 +60,9 @@
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
-#'    "PERIO" and "RQ" are aso available here)
+#'    "PERIO" and "RQ" are also available here).
 #' @param common_hp A logical value, indicating whether the set of
-#'    hyper-parameters is assumed to be common to all indiviuals.
+#'    hyper-parameters is assumed to be common to all individuals.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #' @param grid_inputs A vector, indicating the grid of additional reference
@@ -118,7 +118,7 @@ train_magma <- function(data,
                         kern_i = "SE",
                         common_hp = T,
                         grid_inputs = NULL,
-                        pen_diag = 0.01,
+                        pen_diag = 1e-8,
                         n_iter_max = 25,
                         cv_threshold = 1e-3) {
 
@@ -512,7 +512,7 @@ train_gp <- function(data,
                      kern = "SE",
                      post_mean = NULL,
                      post_cov = NULL,
-                     pen_diag = 0.01) {
+                     pen_diag = 1e-8) {
   ## Initialise the mean process' hp according to user's values
   if (kern %>% is.function()) {
     if (ini_hp %>% is.null()) {
