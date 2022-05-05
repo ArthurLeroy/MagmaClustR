@@ -435,16 +435,16 @@ train_magmaclust = function(data,
     ## Provide monitoring information
     t_i_2 <- Sys.time()
     paste0(
-      "EM algorithm on the training of MagmaClust, step ", i, ": ",
+      "VEM algorithm, step ", i, ": ",
       difftime(t_i_2, t_i_1, units = "secs") %>% round(2),
       " seconds \n \n"
     ) %>%
       cat()
 
     paste0("Value of the elbo: ",
-           elbo_monitoring,
+           elbo_monitoring %>% round(5),
            " --- Convergence ratio = ",
-           eps,
+           eps %>% round(5),
            "\n \n") %>%
       cat()
 

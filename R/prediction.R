@@ -8,7 +8,7 @@
 #' evaluated on any arbitrary inputs since a GP is an infinite-dimensional
 #' object.
 #'
-#' @param data A tibble or data frame. Required columns: 'Input',
+#' @param data  A tibble or data frame. Required columns: 'Input',
 #'    'Output'. Additional columns for covariates can be specified.
 #'    The 'Input' column should define the variable that is used as
 #'    reference for the observations (e.g. time for longitudinal data). The
@@ -36,7 +36,7 @@
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 #'    Cookbook}) are already implemented and can be selected within the
 #'    following list:
-#'    - "SE": (default value) the Squared Expo    nential Kernel (also called
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
@@ -83,7 +83,7 @@ pred_gp <- function(data,
                     grid_inputs = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
-                    pen_diag = 1e-8) {
+                    pen_diag = 0.01) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -202,7 +202,7 @@ pred_gp <- function(data,
         dplyr::pull(.data$Output)
 
       if ((length(mean_obs) != length(input_obs)) |
-        (length(mean_pred) != length(input_pred))) {
+          (length(mean_pred) != length(input_pred))) {
         stop(
           "Problem in the length of the mean parameter. The ",
           "'mean' argument should provide an Output value for each Input ",
@@ -236,11 +236,11 @@ pred_gp <- function(data,
     } else if (kern %>% is.character) {
       hp <- quiet(
         train_gp(data,
-          ini_hp = hp(kern, noise = T),
-          kern = kern,
-          post_mean = mean_obs,
-          post_cov = NULL,
-          pen_diag = pen_diag
+                 ini_hp = hp(kern, noise = T),
+                 kern = kern,
+                 post_mean = mean_obs,
+                 post_cov = NULL,
+                 pen_diag = pen_diag
         )
       )
 
@@ -273,7 +273,7 @@ pred_gp <- function(data,
 
   ## Compute the posterior mean
   pred_mean <- (mean_pred +
-    t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+                  t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
     as.vector()
 
   ## Compute the posterior covariance matrix
@@ -338,7 +338,7 @@ pred_gp <- function(data,
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
-#'    "PERIO" and "RQ" are also available here)
+#'    "PERIO" and "RQ" are aso available here)
 #' @param prior_mean Hyper-prior mean parameter of the mean GP. This argument,
 #'    can be specified under various formats, such as:
 #'    - NULL (default). The hyper-prior mean would be set to 0 everywhere.
@@ -363,8 +363,11 @@ pred_gp <- function(data,
 #' @export
 #'
 #' @examples
-#' TRUE
-#'
+#' db <- simu_db(N = 10, common_input = TRUE)
+#' hp_0 <- hp()
+#' hp_i <- hp("SE", list_ID = unique(db$ID))
+#' grid_inputs <- seq(0, 10, 0.1)
+#' hyperposterior(db, hp_0, hp_i, "SE", "SE", grid_inputs = grid_inputs)
 hyperposterior <- function(data,
                            hp_0,
                            hp_i,
@@ -372,7 +375,7 @@ hyperposterior <- function(data,
                            kern_i,
                            prior_mean = NULL,
                            grid_inputs = NULL,
-                           pen_diag = 1e-8) {
+                           pen_diag = 0.01) {
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
     all_input <- unique(data$Input) %>% sort()
@@ -506,7 +509,7 @@ hyperposterior <- function(data,
 #' Magma prediction
 #'
 #' Compute the posterior predictive distribution in Magma. Providing data of any
-#' new individual/task, its trained hyper-parameters and a previously trained
+#' new inividual/task, its trained hyper-parameters and a previously trained
 #' Magma model, the predictive distribution is evaluated on any arbitrary inputs
 #' that are specified through the 'grid_inputs' argument.
 #'
@@ -602,7 +605,7 @@ pred_magma <- function(data,
                        get_hyperpost = FALSE,
                        get_full_cov = FALSE,
                        plot = TRUE,
-                       pen_diag = 1e-8) {
+                       pen_diag = 0.01) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -706,7 +709,7 @@ pred_magma <- function(data,
   } else if (hyperpost %>% is.list()) {
     ## Check whether the inputs in 'hyperpost' are correct
     if (!all(all_input %in% hyperpost$mean$Input) |
-      !all(as.character(all_input) %in% colnames(hyperpost$cov))) {
+        !all(as.character(all_input) %in% colnames(hyperpost$cov))) {
       if (trained_model %>% is.null()) {
         stop(
           "The hyper-posterior distribution of the mean process provided in ",
@@ -808,11 +811,11 @@ pred_magma <- function(data,
     } else if (kern %>% is.character()) {
       hp <- quiet(
         train_gp(data,
-          ini_hp = hp(kern, noise = T),
-          kern = kern,
-          post_mean = mean_obs,
-          post_cov = post_cov_obs,
-          pen_diag = pen_diag
+                 ini_hp = hp(kern, noise = T),
+                 kern = kern,
+                 post_mean = mean_obs,
+                 post_cov = post_cov_obs,
+                 pen_diag = pen_diag
         )
       )
       cat(
@@ -833,9 +836,9 @@ pred_magma <- function(data,
   diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
 
   inv_obs <- tryCatch((cov_obs + diag) %>% chol() %>% chol2inv(),
-    error = function(e) {
-      MASS::ginv(cov_obs + diag)
-    }
+                      error = function(e) {
+                        MASS::ginv(cov_obs + diag)
+                      }
   ) %>%
     `rownames<-`(as.character(input_obs)) %>%
     `colnames<-`(as.character(input_obs))
@@ -856,7 +859,7 @@ pred_magma <- function(data,
 
   ## Compute the posterior mean of a GP
   pred_mean <- (mean_pred +
-    t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+                  t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
     as.vector()
 
   ## Compute the posterior covariance matrix of a GP
@@ -889,7 +892,7 @@ pred_magma <- function(data,
   return(res)
 }
 
-#' Magma prediction for plotting GIFs
+#' Magma prediction for ploting GIFs
 #'
 #' Generate a Magma or classic GP prediction under a format that is compatible
 #' with a further GIF visualisation of the results. For a Magma prediction,
@@ -967,7 +970,7 @@ pred_magma <- function(data,
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' db = simu_db(M = 1)
 #' grid_inputs = tibble::tibble(Input = seq(0,10, 0.1),
 #'                              Covariate = seq(-5,5, 0.1))
@@ -980,7 +983,7 @@ pred_gif <- function(data,
                      hp = NULL,
                      kern = "SE",
                      grid_inputs = NULL,
-                     pen_diag = 1e-8) {
+                     pen_diag = 0.01) {
   ## Extract the inputs (reference Input + covariates)
   inputs <- data %>% dplyr::select(-.data$Output)
   ## Remove the 'ID' column if present
@@ -996,12 +999,12 @@ pred_gif <- function(data,
     if (inputs %>% names() %>% length() == 1) {
       grid_inputs <- tibble::tibble(
         "Input" = seq(min_data, max_data, length.out = 500)
-        )
+      )
     } else if (inputs %>% names() %>% length() == 2) {
       ## Define a default grid for 'Input'
       grid_inputs <- tibble::tibble(
         "Input" = rep(seq(min_data, max_data, length.out = 20),each = 20)
-        )
+      )
       ## Add a grid for the covariate
       name_cova = inputs %>% dplyr::select(-.data$Input) %>% names()
       cova = inputs[name_cova]
@@ -1025,27 +1028,27 @@ pred_gif <- function(data,
     if (!is.null(trained_model) | !is.null(hyperpost)) {
       ## Compute Magma prediction for this sub-dataset
       all_pred <- quiet(pred_magma(data_j,
-        trained_model = trained_model,
-        hp = hp,
-        kern = kern,
-        grid_inputs = grid_inputs,
-        hyperpost = hyperpost,
-        get_hyperpost = FALSE,
-        get_full_cov = FALSE,
-        plot = FALSE,
-        pen_diag = pen_diag
+                                   trained_model = trained_model,
+                                   hp = hp,
+                                   kern = kern,
+                                   grid_inputs = grid_inputs,
+                                   hyperpost = hyperpost,
+                                   get_hyperpost = FALSE,
+                                   get_full_cov = FALSE,
+                                   plot = FALSE,
+                                   pen_diag = pen_diag
       )) %>%
         dplyr::mutate(Index = j) %>%
         dplyr::bind_rows(all_pred)
     } else {
       all_pred <- quiet(pred_gp(data_j,
-        mean = mean,
-        hp = hp,
-        kern = kern,
-        grid_inputs = grid_inputs,
-        get_full_cov = FALSE,
-        plot = FALSE,
-        pen_diag = pen_diag
+                                mean = mean,
+                                hp = hp,
+                                kern = kern,
+                                grid_inputs = grid_inputs,
+                                get_full_cov = FALSE,
+                                plot = FALSE,
+                                pen_diag = pen_diag
       )) %>%
         dplyr::mutate(Index = j) %>%
         dplyr::bind_rows(all_pred)

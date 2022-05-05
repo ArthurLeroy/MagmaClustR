@@ -363,9 +363,9 @@ train_magma <- function(data,
       cat()
 
     paste0("Value of the likelihood: ",
-           logL_monitoring,
+           logL_monitoring %>% round(5),
            " --- Convergence ratio = ",
-           eps,
+           eps %>% round(5),
            "\n \n") %>%
       cat()
 

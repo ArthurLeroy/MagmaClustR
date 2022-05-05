@@ -2,7 +2,7 @@
 #'
 #' Display raw data under the Magma format as smoothed curves.
 #'
-#' @param db A data frame or tibble with format : ID, Input, Output.
+#' @param data A data frame or tibble with format : ID, Input, Output.
 #' @param cluster A boolean indicating whether data should be coloured by
 #'   cluster. Requires a column named 'Cluster'.
 #' @param legend A boolean indicating whether the legend should be displayed.

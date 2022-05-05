@@ -1,4 +1,4 @@
-#' Gradient multi-Gaussian Process
+#' Gradient of the elbo for a mixture of GPs
 #'
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing the values we want to compute the elbo on.
@@ -8,7 +8,7 @@
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return The gradient of multi gaussian processes for clustering
+#' @return The gradient of the penalised Gaussian elbo for a mixture of GPs
 #'
 #' @examples
 #' TRUE
@@ -22,7 +22,6 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   y_i = db$Output
   #inputs = db %>% dplyr::select(-.data$Output)
   i = unique(db$ID)
-
 
   corr1 = 0
   corr2 = 0
@@ -52,26 +51,25 @@ gr_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
       sum() %>%
       return()
   }
-  #browser()
   sapply(list_hp, floop) %>%
     return()
 }
 
 
-#' Modified common Gaussian Process for each cluster
+#' Gradient of the penalised elbo for multiple mean GPs with common HPs
 #'
-#' @param hp A tibble, data frame or named vector containing hyper-parameters..
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing the values we want to compute the elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param kern A kernel function
-#' @param mean A list of the k means of the GP at union of observed timestamps.
-#' @param post_cov list of the k posterior covariance of the mean GP (mu_k).
-#' Used to compute correction term (cor_term)
+#' @param mean A list of the k means of the GPs at union of observed timestamps.
+#' @param post_cov A list of the k posterior covariance of the mean GP (mu_k).
+#'    Used to compute correction term (cor_term)
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return The value of the modified Gaussian log-likelihood for
-#' the sum of the k mean GPs with same HPs.
+#' @return The gradient of the penalised Gaussian elbo for
+#'    the sum of the k mean GPs with common HPs.
 #'
 #' @examples
 #' TRUE
@@ -85,28 +83,26 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
   list_ID_k = names(db)
   list_hp <- names(hp)
 
-  ## Extract the i-th specific reference Input
+  ## Extract the k-th specific reference Input
   input_k <- db[[1]] %>%
    dplyr::pull(.data$Input)
-  ## Extract the i-th specific inputs (reference + covariates)
+  ## Extract the k-th specific inputs (reference + covariates)
   inputs_k <- db[[1]] %>%
     dplyr::select(- .data$Output)
   if('ID' %in% names(db[[1]])){
     inputs_k <- inputs_k %>% dplyr::select(- .data$ID)
   }
 
-
-
   inv =  kern_to_inv(inputs_k, kern, hp, pen_diag)
 
-  ## Loop over individuals to compute the sum of log-Likelihoods
+  ## Loop over clusters to compute the sum of elbos
   funloop <- function(k) {
-    ## Extract the i-th specific Inputs and Output
+    ## Extract the k-th specific Inputs and Output
     output_k = db[[k]] %>%
       dplyr::pull(.data$Output)
-    ## Extract the mean values associated with the i-th specific inputs
+    ## Extract the mean values associated with the k-th specific inputs
     mean_k = mean[[k]]
-    ## Extract the covariance values associated with the i-th specific inputs
+    ## Extract the covariance values associated with the k-th specific inputs
     post_cov_k = post_cov[[k]]
 
     prod_inv = inv %*% (output_k - mean_k)
@@ -130,7 +126,7 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 }
 
 
-#' Modified common Gaussian Process for each variations.
+#' Gradient of the penalised elbo for multiple individual GPs with common HPs
 #'
 #' @param hp A tibble, data frame or name vector of hyper-parameters.
 #' @param db A tibble containing values we want to compute elbo on.
@@ -141,12 +137,13 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
 #'
-#' @return The value of the modified Gaussian log-likelihood for
-#' one GP as it appears in the model.
+#' @return The gradient of the penalised Gaussian elbo for
+#'    the sum of the M individual GPs with common HPs.
 #'
 #' @examples
 #' TRUE
-gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NULL)
+gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param,
+                                         kern, pen_diag = NULL)
 {
   list_hp <- names(hp)
   names_k = mu_k_param$mean %>% names()
@@ -174,7 +171,8 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NU
     {
       #browser()
       ## Extract the covariance values associated with the i-th specific inputs
-      post_cov_i = mu_k_param$cov[[k]][as.character(input_i), as.character(input_i)]
+      post_cov_i = mu_k_param$cov[[k]][as.character(input_i),
+                                       as.character(input_i)]
 
       tau_i_k = mu_k_param$mixture %>%
         dplyr::filter(.data$ID == i) %>%
@@ -207,5 +205,4 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag = NU
   sapply(unique(db$ID), funloop) %>%
     rowSums() %>%
     return()
-
 }

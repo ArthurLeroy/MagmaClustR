@@ -3,14 +3,13 @@
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing the values we want to compute the elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param mu_k_param List of parameters for the K mean Gaussian processes.
+#' @param mu_k_param List of parameters for the K mean GPs.
 #' @param kern A kernel function used to compute the covariance matrix at
 #' corresponding timestamps.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return The value of the modified Gaussian log-likelihood for one GP as it
-#' appears in the model.
+#' @return The value of the penalised Gaussian elbo for a mixture of GPs
 #'
 #' @examples
 #' TRUE
@@ -46,22 +45,22 @@ elbo_clust_multi_GP = function(hp, db, mu_k_param, kern, pen_diag)
   ( LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2) ) %>% return()
 }
 
-#' Modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs
+#' Penalised elbo for multiple mean GPs with common HPs
 #'
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db  A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param mean list of the k means of the GP at union of observed timestamps
+#' @param mean A list of the K mean GPs at union of observed timestamps.
 #' @param kern A kernel function used to compute the covariance matrix at
 #' corresponding timestamps.
-#' @param post_cov A List of the k posterior covariance of the mean GP (mu_k).
+#' @param post_cov A List of the K posterior covariance of the mean GP (mu_k).
 #' Used to compute correction term (cor_term).
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
 #'
-#' @return value of the modified Gaussian log-likelihood for
-#' the sum of the k mean GPs with same HPs
+#' @return The value of the penalised Gaussian elbo for
+#'    the sum of the k mean GPs with common HPs.
 #'
 #' @examples
 #' TRUE
@@ -86,19 +85,19 @@ elbo_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag=NULL)
   return(LL_norm + cor_term)
 }
 
-#' Modified Gaussian log-likelihood for for the sum of all indiv with same HPs
+#' Penalised elbo for multiple individual GPs with common HPs
 #'
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mu_k_param List of parameters for the K mean Gaussian processes.
 #' @param kern A kernel function used to compute the covariance matrix at
-#' corresponding timestamps.
+#'    corresponding timestamps.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return The value of the modified Gaussian log-likelihood for
-#' the sum of all indiv with same HPs.
+#' @return The value of the penalised Gaussian elbo for
+#'    the sum of the M individual GPs with common HPs.
 #'
 #' @examples
 #' TRUE
@@ -160,26 +159,27 @@ elbo_clust_multi_GP_common_hp_i = function(hp, db, mu_k_param, kern, pen_diag)
   return(sum_i)
 }
 
-#' Expectation of joint log-likelihood of the model
+#' Evidence Lower Bound maximised in MagmaClust
 #'
 #' @param hp_k A tibble, data frame or named vector of hyper-parameters
-#' at corresponding clusters.
+#'    for each clusters.
 #' @param hp_i A tibble, data frame or named vector of hyper-parameters
-#' at corresponding individuals.
+#'    for each individuals.
 #' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param kern_i Kernel used to compute the covariance matrix of individuals GP
-#' at corresponding inputs (Psi_i).
-#' @param kern_0 Kernel used to compute the covariance matrix of the mean GP
-#' at corresponding inputs (K_0).
-#' @param mu_k_param parameters of the variational distributions of mean GPs.
-#' @param m_k prior value of the mean parameter of the mean GPs (mu_k).
-#' Length = 1 or nrow(db).
+#' @param kern_i Kernel used to compute the covariance matrix of individuals GPs
+#'    at corresponding inputs.
+#' @param kern_k Kernel used to compute the covariance matrix of the mean GPs
+#'    at corresponding inputs.
+#' @param mu_k_param A list of parameters for the variational distributions
+#'    of the K mean GPs.
+#' @param m_k Prior value of the mean parameter of the mean GPs (mu_k).
+#'    Length = 1 or nrow(db).
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
-#' @return Value of expectation of joint log-likelihood of the model.
-#' The function to be maximised in step M.
+#' @return Value of the elbo that is maximised during the VEM algorithm used for
+#'    training in MagmaClust.
 #'
 #' @examples
 #' TRUE
