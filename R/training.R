@@ -98,9 +98,10 @@
 #'    - pred_post: A tibble, gathering mean and covariance parameters of the
 #'    mean process' hyper-posterior distribution under a format that allows
 #'    direct visualisation as a GP prediction.
-#'    - ini_args: A list containing the initial values for the hyper-prior mean,
-#'    the hyper-parameters, and the kernels that have been defined and used
-#'    during the learning procedure.
+#'    - ini_args: A list containing the initial function arguments and values
+#'    for the hyper-prior mean, the hyper-parameters. In particular, if
+#'    those arguments were set to NULL, \code{ini_args} allows us to retrieve
+#'    the (randomly chosen) initialisations used during training.
 #'    - Converged: A logical value indicated whether the EM algorithm converged
 #'    or not.
 #'    - Training_time: Total running time of the complete training.
@@ -273,6 +274,10 @@ train_magma <- function(data,
         dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = 'ID')
     }
   }
+
+  ## Keep an history of the (possibly random) initial values of hyper-parameters
+  hp_i_ini = hp_i
+  hp_0_ini = hp_0
   ## Initialise the monitoring information
   cv <- FALSE
   logL_monitoring <- -Inf
@@ -407,11 +412,11 @@ train_magma <- function(data,
     "Mean" = post$mean %>% dplyr::pull(.data$Output),
     "Var" = post$cov %>% diag()
   )
-  ## Create to return a list of the initial arguments of the function
+  ## Create an history list of the initial arguments of the function
   fct_args  = list('data' = data,
                   'prior_mean' = prior_mean,
-                  'ini_hp_0' = hp_0,
-                  'ini_hp_i' = hp_i,
+                  'ini_hp_0' = hp_0_ini,
+                  'ini_hp_i' = hp_i_ini,
                   'kern_0'= kern_0,
                   'kern_i' = kern_i,
                   'common_hp' = common_hp,

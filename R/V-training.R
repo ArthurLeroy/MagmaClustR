@@ -1,12 +1,13 @@
 #' Training MagmaClust with a Variational EM algorithm
 #'
-#' The hyper-parameters and the hyper-posterior distribution involved in
+#' The hyper-parameters and the hyper-posterior distributions involved in
 #' MagmaClust can be learned thanks to a VEM algorithm implemented in
 #' \code{train_magmaclust}. By providing a dataset, the model hypotheses
-#' (hyper-prior mean parameters and covariance kernels) and initialisation
-#' values for the hyper-parameters, the function computes maximum likelihood
-#' estimates of the HPs as well as the mean and covariance parameters of the
-#' Gaussian hyper-posterior distributions of the mean processes.
+#' (hyper-prior mean parameters, covariance kernels and number of clusters) and
+#' initialisation values for the hyper-parameters, the function computes
+#' maximum likelihood estimates of the HPs as well as the mean and covariance
+#' parameters of the Gaussian hyper-posterior distributions of the mean
+#' processes.
 #'
 #' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
@@ -19,10 +20,10 @@
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
-#' @param nb_cluster A number, indicating the number of clusters/groups of
+#' @param nb_cluster A number, indicating the number of clusters of
 #'    individuals/tasks that are assumed to exist among the dataset.
-#' @param prior_mean_k The set of hyper-prior mean parameters (m_k) of the mean
-#'    GPs, one value for each cluster.
+#' @param prior_mean_k The set of hyper-prior mean parameters (m_k) of the K
+#'    mean GPs, one value for each cluster.
 #'    cluster. This argument can be specified under various formats, such as:
 #'    - NULL (default). All hyper-prior means would be set to 0 everywhere.
 #'    - A vector of the same length as the number of clusters. Each hyper-prior
@@ -35,9 +36,11 @@
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
 #' @param ini_hp_k A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_k}, the mean process' kernel. The
-#'    columns/elements should be named according to the hyper-parameters
-#'    that are used in \code{kern_k}.
+#'    associated with \code{kern_k}, the mean process' kernel.
+#'    Required column : \code{ID}. The \code{ID} column contains the unique
+#'    names/codes used to identify each cluster. The other columns
+#'    should be named according to the hyper-parameters that are used in
+#'    \code{kern_k}.
 #' @param ini_hp_i A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}, the individual processes' kernel.
 #'    Required column : \code{ID}. The \code{ID} column contains the unique
@@ -60,61 +63,61 @@
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
-#'    "PERIO" and "RQ" are also available here)
-#' @param ini_mixture Initial values of probability to belong to each cluster
-#' for each individual.
-#' @param common_hp_k A boolean indicating whether hp are common among mean GPs
-#' (for each \eqn{mu_k}).
-#' @param common_hp_i A boolean indicating whether hp are common among
-#' individual GPs (for each \eqn{y_i}).
+#' @param kern_i A kernel function, associated with the individual GPs. (See
+#'    details above in \code{kern_k}).
+#' @param ini_mixture Initial values of the probability to belong to each
+#'    cluster for each individual (\code{\link{ini_mixture}} can be used for
+#'    a k-means initialisation. Used by default if NULL).
+#' @param common_hp_k A boolean indicating whether hyper-parameters are common
+#'    among the mean GPs.
+#' @param common_hp_i A boolean indicating whether hyper-parameters are common
+#'    among the individual GPs.
 #' @param n_iter_max A number, indicating the maximum number of iterations of
-#'    the EM algorithm to proceed while not reaching convergence.
+#'    the VEM algorithm to proceed while not reaching convergence.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #' @param cv_threshold A number, indicating the threshold of the likelihood gain
 #'    under which the VEM algorithm will stop. The convergence condition is
 #'    defined as the difference of elbo between two consecutive steps,
 #'    divided by the absolute value of the last one
-#'    ( \eqn{(ELBO_n - ELBO_{n-1}) / \abs{ELBO_n}} ).
+#'    ( \eqn{(ELBO_n - ELBO_{n-1}) / \abs{ELBO_n}} ). Default is \eqn{10^{-3}}.
 #'
-#' @return A list, containing the results of a variation of the EM algorithm
-#'    used for training in MagmaClust. The elements of the list are:
+#' @return A list, containing the results of the VEM algorithm used in the
+#'    training step of MagmaClust. The elements of the list are:
 #'    - hp_k: A tibble containing the trained hyper-parameters for the mean
-#'    process' kernel.
-#'    - hp_i: A tibble containing all the trained hyper-parameters for the
+#'    process' kernel and the mixture proportions for each cluster.
+#'    - hp_i: A tibble containing the trained hyper-parameters for the
 #'    individual processes' kernels.
-#'    - prop_mixture_k : A tibble containing the hyper-parameters associated
-#'    with each individual, indicating in which cluster it belongs.
-#'    - param: A list 3 containing  The mean, the cov and the mixture.
+#'    - param: A sub-list containing the parameters of the mean processes'
+#'    hyper-posterior distributions, namely:
 #'        -> mean: A tibble containing the values of hyper-posterior's mean
-#'           parameter (\code{Output}) evaluated at each training reference
+#'           parameters (\code{Output}) evaluated at each \code{Input} reference
 #'        -> cov: A matrix, covariance parameter of the hyper-posterior
-#'                 distribution of the mean process.
-#'        -> mixture: probability to belong to a cluster for an individual.
-#'    \code{Input}.
-#'    - ini_args: A list containing the initial values for the hyper-prior mean,
-#'    the hyper-parameters, and the kernels that have been defined and used
-#'    during the learning procedure.
-#'
-#'    - Convergence: A logical value indicated whether the algorithm converged.
+#'           distribution of the mean process.
+#'        -> mixture: A tibble, indicating the mixture probabilities in each
+#'           cluster for each individual.
+#'    - ini_args: A list containing the initial function arguments and values
+#'    for the hyper-prior means, the hyper-parameters. In particular, if
+#'    those arguments were set to NULL, \code{ini_args} allows us to retrieve
+#'    the (randomly chosen) initialisations used during training.
+#'    - Converged: A logical value indicated whether the algorithm converged.
 #'    - Training_time: Total running time of the complete training.
 #'
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' k = seq_len(3)
+#' set.seed(42)
+#' k = 3
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 #'
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
-#'  nstart = 50)
+#' ini_mixture = MagmaClustR:::ini_mixture(db = db, k = k, nstart = 50)
 #'
 #' train_magmaclust(db, length(k), m_k, hp_k, hp_i,
-#' "SE", "SE", old_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
+#' "SE", "SE", ini_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
 #'
 #' ###############################
 #'
@@ -135,21 +138,6 @@ train_magmaclust = function(data,
                            pen_diag = 1e-8,
                            cv_threshold = 1e-3)
 {
-  ## Create to return a list of the initial arguments of the function
-  fct_args  = list('data' = data,
-                   'nb_cluster' = nb_cluster,
-                   'prior_mean_k' = prior_mean_k,
-                   'ini_hp_k' = ini_hp_k,
-                   'ini_hp_i' = ini_hp_i,
-                   'kern_k'= kern_k,
-                   'kern_i' = kern_i,
-                   'ini_mixture' = ini_mixture,
-                   'common_hp_k' = common_hp_k,
-                   'common_hp_i' = common_hp_i,
-                   'n_iter_max' = n_iter_max,
-                   'pen_diag' = pen_diag,
-                   'cv_threshold' = cv_threshold
-                   )
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("ID", "Output", "Input") %in% names(data))) {
@@ -353,6 +341,10 @@ train_magmaclust = function(data,
     colMeans() %>%
     as.vector()
 
+  ## Keep an history of the (possibly random) initial values of hyper-parameters
+  hp_i_ini = hp_i
+  hp_k_ini = hp_k
+  mixture_ini = mixture
   ## Iterate VE-step and VM-step until convergence
   for(i in 1:n_iter_max)
   {
@@ -462,13 +454,27 @@ train_magmaclust = function(data,
     }
   }
 
+  ## Create an history list of the initial arguments of the function
+  fct_args  = list('data' = data,
+                   'nb_cluster' = nb_cluster,
+                   'prior_mean_k' = m_k,
+                   'ini_hp_k' = hp_k_ini,
+                   'ini_hp_i' = hp_i_ini,
+                   'kern_k'= kern_k,
+                   'kern_i' = kern_i,
+                   'ini_mixture' = mixture_ini,
+                   'common_hp_k' = common_hp_k,
+                   'common_hp_i' = common_hp_i,
+                   'n_iter_max' = n_iter_max,
+                   'pen_diag' = pen_diag,
+                   'cv_threshold' = cv_threshold)
   t2 = Sys.time()
   ## Create and return the list of elements from the trained model
   list('hp_k' = hp_k,
        'hp_i' = hp_i,
        'param' = param,
-       'convergence' = cv,
        "ini_args" = fct_args,
+       'Converged' = cv,
        'Training_time' =  difftime(t2, t1, units = "secs")
        ) %>%
     return()
@@ -540,9 +546,9 @@ update_hp_k_mixture_star_EM <- function(
       #`colnames<-`(all_input)
 
     ## Classic gaussian loglikelihood
-    mat_elbo[c_k] =  dmnorm(db %>% dplyr::pull(.data$Output) , mean, inv, log = T)
+    mat_elbo[c_k] = dmnorm(db %>% dplyr::pull(.data$Output), mean, inv, log = T)
   }
-  ## We need to use the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x))
+  ## We need the 'log-sum-exp' trick: exp(x - max(x)) / sum exp(x - max(x))
   ## to remain numerically stable
   mat_L = exp(mat_elbo - max(mat_elbo))
 
@@ -723,7 +729,7 @@ train_new_gp_EM = function(data,
       name_cova = inputs_obs %>% dplyr::select(-.data$Input) %>% names()
       cova = inputs_obs[name_cova]
       inputs_pred[name_cova] <- rep(
-        c(seq(min(cova), max(cova), length.out = 20), data$Covariate) %>% unique,
+        c(seq(min(cova),max(cova), length.out = 20), data$Covariate) %>% unique,
         times = 20)
     } else {
       stop(
@@ -793,7 +799,8 @@ train_new_gp_EM = function(data,
 
   ## Extract the names of hyper-parameters
   list_hp_new <- hp %>% names()
-  ## Extract the values of the hyper-posterior mean and covariance parameter at reference Input
+  ## Extract the values of the hyper-posterior mean and covariance parameters
+  ## at reference Input
   trained_hp_i <- trained_magmaclust$hp_i
   ## Define a training database
   if(db_train %>% is.null()){db_train <- simu_db()}
@@ -874,7 +881,8 @@ train_new_gp_EM = function(data,
                   `rownames<-`(all_input) %>%
                   `colnames<-`(all_input)
 
-          (data$Input - hp_k_mixture[[k]] * dmnorm(data$Output, mean, inv, log = T)) %>%
+          (data$Input - hp_k_mixture[[k]] *
+           dmnorm(data$Output, mean, inv, log = T)) %>%
             return()
         }
         sapply(names(mean_mu_k), floop) %>% sum() %>% return()
@@ -935,8 +943,9 @@ train_new_gp_EM = function(data,
       }
       ## Check for a prematurate ending of the EM algorithm
       if (!cv & (i == n_iter_max)) {
-        warning("The EM algorithm has reached the maximum number of iterations ",
-                "before convergence, training might be sub-optimal \n \n")
+        warning("The EM algorithm has reached the maximum number of ",
+                "iterations before convergence, the training might be ",
+                "sub-optimal. \n \n")
       }
       hp = new_hp
     }
