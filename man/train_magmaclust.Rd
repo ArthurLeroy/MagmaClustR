@@ -12,11 +12,11 @@ train_magmaclust(
   ini_hp_i = NULL,
   kern_k = "SE",
   kern_i = "SE",
-  ini_hp_mixture = NULL,
+  ini_mixture = NULL,
   common_hp_k = T,
   common_hp_i = T,
   n_iter_max = 25,
-  pen_diag = 0.01,
+  pen_diag = 1e-08,
   cv_threshold = 0.001
 )
 }
@@ -38,8 +38,7 @@ individuals/tasks that are assumed to exist among the dataset.}
 
 \item{prior_mean_k}{The set of hyper-prior mean parameters (m_k) of the mean
 GPs, one value for each cluster.
-cluster. This
-argument can be specified under various formats, such as:
+cluster. This argument can be specified under various formats, such as:
 \itemize{
 \item NULL (default). All hyper-prior means would be set to 0 everywhere.
 \item A vector of the same length as the number of clusters. Each hyper-prior
@@ -87,7 +86,7 @@ operator '*' shall always be used before the '+' operators (e.g.
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
 "PERIO" and "RQ" are also available here)}
 
-\item{ini_hp_mixture}{Initial values of probability to belong to each cluster
+\item{ini_mixture}{Initial values of probability to belong to each cluster
 for each individual.}
 
 \item{common_hp_k}{A boolean indicating whether hp are common among mean GPs
@@ -118,29 +117,28 @@ process' kernel.
 individual processes' kernels.
 \item prop_mixture_k : A tibble containing the hyper-parameters associated
 with each individual, indicating in which cluster it belongs.
-\item param : A list 3 containing  The mean, the cov and the hp_mixture.
--> mean : A tibble containing the values of hyper-posterior's mean
+\item param: A list 3 containing  The mean, the cov and the mixture.
+-> mean: A tibble containing the values of hyper-posterior's mean
 parameter (\code{Output}) evaluated at each training reference
--> cov : A matrix, covariance parameter of the hyper-posterior
+-> cov: A matrix, covariance parameter of the hyper-posterior
 distribution of the mean process.
--> hp_mixture : the probability to belong to a cluster for an individual.
+-> mixture: probability to belong to a cluster for an individual.
 \code{Input}.
 \item ini_args: A list containing the initial values for the hyper-prior mean,
 the hyper-parameters, and the kernels that have been defined and used
 during the learning procedure.
-\item Convergence: A logical value indicated whether the EM algorithm converged
-or not.
+\item Convergence: A logical value indicated whether the algorithm converged.
 \item Training_time: Total running time of the complete training.
 }
 }
 \description{
 The hyper-parameters and the hyper-posterior distribution involved in
-MagmaClust can be learned thanks to an vEM algorithm implemented in
+MagmaClust can be learned thanks to a VEM algorithm implemented in
 \code{train_magmaclust}. By providing a dataset, the model hypotheses
 (hyper-prior mean parameters and covariance kernels) and initialisation
 values for the hyper-parameters, the function computes maximum likelihood
 estimates of the HPs as well as the mean and covariance parameters of the
-Gaussian hyper-posterior distribution of the mean processes.
+Gaussian hyper-posterior distributions of the mean processes.
 }
 \examples{
 \dontrun{
@@ -150,10 +148,11 @@ m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 db <- simu_db(N = 10, common_input = TRUE)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
+ nstart = 50)
 
 train_magmaclust(db, length(k), m_k, hp_k, hp_i,
-"SE", "SE", old_hp_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
+"SE", "SE", old_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
 
 ###############################
 

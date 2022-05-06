@@ -10,7 +10,7 @@ train_gp(
   kern = "SE",
   post_mean = NULL,
   post_cov = NULL,
-  pen_diag = 0.01
+  pen_diag = 1e-08
 )
 }
 \arguments{

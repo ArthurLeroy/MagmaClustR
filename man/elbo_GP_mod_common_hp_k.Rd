@@ -2,7 +2,7 @@
 % Please edit documentation in R/elbos.R
 \name{elbo_GP_mod_common_hp_k}
 \alias{elbo_GP_mod_common_hp_k}
-\title{Modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs}
+\title{Penalised elbo for multiple mean GPs with common HPs}
 \usage{
 elbo_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag = NULL)
 }
@@ -12,23 +12,23 @@ elbo_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag = NULL)
 \item{db}{A tibble containing values we want to compute elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{mean}{list of the k means of the GP at union of observed timestamps}
+\item{mean}{A list of the K mean GPs at union of observed timestamps.}
 
 \item{kern}{A kernel function used to compute the covariance matrix at
 corresponding timestamps.}
 
-\item{post_cov}{A List of the k posterior covariance of the mean GP (mu_k).
+\item{post_cov}{A List of the K posterior covariance of the mean GP (mu_k).
 Used to compute correction term (cor_term).}
 
 \item{pen_diag}{A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-value of the modified Gaussian log-likelihood for
-the sum of the k mean GPs with same HPs
+The value of the penalised Gaussian elbo for
+the sum of the k mean GPs with common HPs.
 }
 \description{
-Modified Gaussian log-likelihood for the sum of the k mean GPs with same HPs
+Penalised elbo for multiple mean GPs with common HPs
 }
 \examples{
 TRUE

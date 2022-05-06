@@ -4,10 +4,10 @@
 \alias{ini_tau_i_k_list}
 \title{ini_tau_i_k list test}
 \usage{
-ini_tau_i_k_list(db, k, nstart = 50)
+ini_tau_i_k_list(data, k, nstart = 50)
 }
 \arguments{
-\item{db}{database}
+\item{data}{database}
 
 \item{k}{cluster}
 

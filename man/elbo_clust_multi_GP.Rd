@@ -12,7 +12,7 @@ elbo_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag)
 \item{db}{A tibble containing the values we want to compute the elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{mu_k_param}{List of parameters for the K mean Gaussian processes.}
+\item{mu_k_param}{List of parameters for the K mean GPs.}
 
 \item{kern}{A kernel function used to compute the covariance matrix at
 corresponding timestamps.}
@@ -21,8 +21,7 @@ corresponding timestamps.}
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-The value of the modified Gaussian log-likelihood for one GP as it
-appears in the model.
+The value of the penalised Gaussian elbo for a mixture of GPs
 }
 \description{
 Evidence Lower Bound for a mixture of GPs

@@ -2,7 +2,7 @@
 % Please edit documentation in R/elbos.R
 \name{elbo_clust_multi_GP_common_hp_i}
 \alias{elbo_clust_multi_GP_common_hp_i}
-\title{Modified Gaussian log-likelihood for for the sum of all indiv with same HPs}
+\title{Penalised elbo for multiple individual GPs with common HPs}
 \usage{
 elbo_clust_multi_GP_common_hp_i(hp, db, mu_k_param, kern, pen_diag)
 }
@@ -21,11 +21,11 @@ corresponding timestamps.}
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-The value of the modified Gaussian log-likelihood for
-the sum of all indiv with same HPs.
+The value of the penalised Gaussian elbo for
+the sum of the M individual GPs with common HPs.
 }
 \description{
-Modified Gaussian log-likelihood for for the sum of all indiv with same HPs
+Penalised elbo for multiple individual GPs with common HPs
 }
 \examples{
 TRUE

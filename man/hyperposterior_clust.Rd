@@ -4,10 +4,10 @@
 \alias{hyperposterior_clust}
 \title{Compute the hyper-posterior distribution by cluster in MagmaClust}
 \usage{
-hyperposterior_clust(db, grid_inputs, m_k, kern_0, kern_i, list_hp, pen_diag)
+hyperposterior_clust(data, grid_inputs, m_k, kern_k, kern_i, list_hp, pen_diag)
 }
 \arguments{
-\item{db}{data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+\item{data}{A tibble or data frame. Required columns: \code{ID}, \code{Input}
 , \code{Output}. Additional columns for covariates can be specified.
 The \code{ID} column contains the unique names/codes used to identify each
 individual/task (or batch of data).
@@ -21,21 +21,37 @@ each reference \code{Input}.}
 
 \item{grid_inputs}{The grid of inputs (reference Input and covariates) values
 on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as \code{db}, except
-'Output'. Nonetheless, in cases where \code{db} provides only one
+tibble or a data frame, providing the same columns as \code{data}, except
+'Output'. Nonetheless, in cases where \code{data} provides only one
 'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
 vector. This vector would be used as reference input for prediction and if
 NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{db}.}
+Input values of \code{data}.export}
 
 \item{m_k}{prior value of the mean parameter of the mean GPs (mu_k).
-Length = 1 or nrow(db)}
+Length = 1 or nrow(data)}
 
-\item{kern_0}{kernel used to compute the covariance matrix of the mean GP at
-corresponding timestamps (K_0).}
+\item{kern_k}{A kernel function, associated with the mean GPs.
+Several popular kernels
+(see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+Cookbook}) are already implemented and can be selected within the
+following list:
+\itemize{
+\item "SE": (default value) the Squared Exponential Kernel (also called
+Radial Basis Function or Gaussian kernel),
+\item "LIN": the Linear kernel,
+\item "PERIO": the Periodic kernel,
+\item "RQ": the Rational Quadratic kernel.
+Compound kernels can be created as sums or products of the above kernels.
+For combining kernels, simply provide a formula as a character string
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+elements are treated sequentially from the left to the right, the product
+operator '*' shall always be used before the '+' operators (e.g.
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+}}
 
-\item{kern_i}{kernel used to compute the covariance matrix of individuals GP at
-corresponding timestamps (Psi_i).}
+\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
+"LIN", PERIO" and "RQ" are also available here)}
 
 \item{list_hp}{list of your hyperparameters}
 
@@ -43,7 +59,7 @@ corresponding timestamps (Psi_i).}
 numerical issues when inverting nearly singular matrices.}
 }
 \value{
-Pamameters of the mean GP at timestamps chosen.
+Parameters of the mean GP at timestamps chosen.
 }
 \description{
 Compute the hyper-posterior distribution by cluster in MagmaClust

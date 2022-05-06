@@ -2,25 +2,26 @@
 #'
 #' Expectation step of the Variational EM algorithm used to compute
 #' the parameters of the hyper-posteriors distributions
-#' for the mean processes and mixtures variables involved in MagmaClust.
+#' for the mean processes and mixture variables involved in MagmaClust.
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
-#' @param kern_k A kernel function, associated with the mean GP.
-#' @param kern_i A kernel function, associated with the individual GPs.
+#' @param m_k A named list of vectors, corresponding to the prior mean
+#'    parameters of the K mean GPs.
+#' @param kern_k A kernel function, associated with the K mean GPs.
+#' @param kern_i A kernel function, associated with the M individual GPs.
 #' @param hp_k A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_k}.
 #' @param hp_i A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
-#' @param m_k prior means of the mu_k processes.
-#' @param old_mixture values au mixture from previous iterations.
+#' @param old_mixture A list of mixture values from the previous iteration.
 #'
 #' @return A named list, containing the elements \code{mean}, a tibble
 #'    containing the Input and associated Output of the hyper-posterior mean
-#'    parameter, \code{cov}, the hyper-posterior covariance matrix,
-#'    and \code{mixture}, the probability to belong to a cluster for an
+#'    parameters, \code{cov}, the hyper-posterior covariance matrices,
+#'    and \code{mixture}, the probabilities to belong to each cluster for each
 #'    individual.
 #'
 #' @examples
@@ -177,29 +178,28 @@ ve_step = function(db,
 
 #' V-Step of the VEM algorithm
 #'
-#' Maximization tep of the Variational EM algorithm used to compute
+#' Maximization step of the Variational EM algorithm used to compute
 #' hyper-parameters of all the kernels involved in MagmaClust.
 #'
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
 #' @param list_mu_param List of parameters of the K mean GPs.
-#' @param kern_k kernel used to compute the covariance matrix of the mean GP
-#' at corresponding timestamps (K_0)
-#' @param kern_i kernel used to compute the covariance matrix of individuals GP
-#' at corresponding timestamps (Psi_i)
-#' @param m_k prior value of the mean parameter of the mean GPs (mu_k).
-#' Length = 1 or nrow(unique(db$Input))
-#' @param common_hp_k boolean indicating whether hp are common among
-#' mean GPs (for each mu_k)
-#' @param common_hp_i boolean indicating whether hp are common among
-#' individual GPs (for each y_i)
-#' @param old_hp_i A named vector, tibble or data frame,
-#'    containing the hyper-parameters from the previous
-#'    M-step (or initialisation) associated with the
-#'    individual GPs.
+#' @param kern_k A kernel used to compute the covariance matrix of the mean GP
+#'    at corresponding timestamps.
+#' @param kern_i A kernel used to compute the covariance matrix of individuals
+#'    GP at corresponding timestamps.
+#' @param m_k A named list of prior mean parameters for the K mean GPs.
+#'    Length = 1 or nrow(unique(db$Input))
+#' @param common_hp_k A boolean indicating whether hp are common among
+#'    mean GPs (for each mu_k)
+#' @param common_hp_i A boolean indicating whether hp are common among
+#'    individual GPs (for each y_i)
+#' @param old_hp_i A named vector, tibble or data frame, containing the
+#'    hyper-parameters from the previous  M-step (or initialisation) associated
+#'    with the individual GPs.
 #' @param old_hp_k A named vector, tibble or data frame, containing the
 #'    hyper-parameters from the previous M-step (or initialisation) associated
-#'    with the clusters.
+#'    with the mean GPs.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
 #'
@@ -208,8 +208,7 @@ ve_step = function(db,
 #'    \code{hp_i}, a tibble containing the hyper-parameters
 #'    associated with the individual GPs, and \code{prop_mixture_k},
 #'    a tibble containing the hyper-parameters associated with each individual,
-#'    indicating in which cluster it belongs.
-#'
+#'    indicating the probabilities to belong to each cluster.
 #'
 #' @examples
 #' \dontrun{
@@ -252,9 +251,6 @@ ve_step = function(db,
 #'   0.001)
 #'
 #' MagmaClustR:::vm_step(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
-#'
-#'
-#'
 #'}
 vm_step = function(db,
                    old_hp_k,
@@ -279,7 +275,7 @@ vm_step = function(db,
     dplyr::select(-.data$prop_mixture) %>%
     names()
 
-  ## Detect whether the kernel_0 provides derivatives for its hyper-parameters
+  ## Detect whether kernel_k provides derivatives for its hyper-parameters
   if (kern_k %>% is.function()) {
     if (!("deriv" %in% methods::formalArgs(kern_k))) {
       gr_GP_mod <- NULL
@@ -287,7 +283,7 @@ vm_step = function(db,
     }
   }
 
-  ## Detect whether the kernel_i provides derivatives for its hyper-parameters
+  ## Detect whether kernel_i provides derivatives for its hyper-parameters
   if (kern_i %>% is.function()) {
     if (!("deriv" %in% methods::formalArgs(kern_i))) {
       gr_clust_multi_GP_common_hp_i <- NULL
@@ -351,7 +347,7 @@ vm_step = function(db,
       tidyr::unnest(cols = .data$value)
   }
 
-  #compute the prop mixture of each cluster
+  ## Compute the prop mixture of each cluster
   prop_mixture <- list_mu_param$mixture %>%
     dplyr::select(-.data$ID) %>%
     colMeans %>%
@@ -417,7 +413,6 @@ vm_step = function(db,
         tibble::as_tibble() %>%
         return()
     }
-
     new_theta_k = sapply(list_ID_k, loop, simplify=FALSE, USE.NAMES=TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest_auto(.data$value) %>%

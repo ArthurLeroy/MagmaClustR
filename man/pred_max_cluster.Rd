@@ -2,18 +2,18 @@
 % Please edit documentation in R/V-prediction.R
 \name{pred_max_cluster}
 \alias{pred_max_cluster}
-\title{Prediction of the maximum of cluster}
+\title{Indicates the most probable cluster}
 \usage{
-pred_max_cluster(hp_mixture)
+pred_max_cluster(mixture)
 }
 \arguments{
-\item{hp_mixture}{hp_mixture}
+\item{mixture}{A tibble or data frame containing the mixture's probabilities.}
 }
 \value{
-Prediction of the maximum of cluster
+A character, corresponding to the name of the most probable cluster.
 }
 \description{
-Prediction of the maximum of cluster
+Indicates the most probable cluster
 }
 \examples{
 TRUE

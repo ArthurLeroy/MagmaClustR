@@ -4,19 +4,20 @@
 \alias{ini_kmeans}
 \title{ini_kmeans}
 \usage{
-ini_kmeans(db, k, nstart = 50, summary = F)
+ini_kmeans(data, k, nstart = 50, summary = F)
 }
 \arguments{
-\item{db}{tibble containing common Input and associated Output values to cluster}
+\item{data}{A tibble containing common Input and associated Output values
+to cluster.}
 
-\item{k}{number of clusters set in the kmeans}
+\item{k}{A number of clusters assumed for running the kmeans algorithm.}
 
-\item{nstart}{number of initialisations to try in the kmeans}
+\item{nstart}{A number, indicating how many re-starts of kmeans are set.}
 
-\item{summary}{boolean}
+\item{summary}{A boolean.}
 }
 \value{
-Tibble of ID, true clusters, and found clusters with kmeans
+A tibble containing the initial clustering obtained through kmeans.
 }
 \description{
 ini_kmeans

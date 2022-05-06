@@ -13,7 +13,7 @@ train_magma(
   kern_i = "SE",
   common_hp = T,
   grid_inputs = NULL,
-  pen_diag = 0.01,
+  pen_diag = 1e-08,
   n_iter_max = 25,
   cv_threshold = 0.001
 )
@@ -80,10 +80,10 @@ operator '*' shall always be used before the '+' operators (e.g.
 }}
 
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
-"PERIO" and "RQ" are aso available here)}
+"PERIO" and "RQ" are also available here).}
 
 \item{common_hp}{A logical value, indicating whether the set of
-hyper-parameters is assumed to be common to all indiviuals.}
+hyper-parameters is assumed to be common to all individuals.}
 
 \item{grid_inputs}{A vector, indicating the grid of additional reference
 inputs on which the mean process' hyper-posterior should be evaluated.}

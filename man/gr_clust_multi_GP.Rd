@@ -2,7 +2,7 @@
 % Please edit documentation in R/gradients-elbos.R
 \name{gr_clust_multi_GP}
 \alias{gr_clust_multi_GP}
-\title{Gradient multi-Gaussian Process}
+\title{Gradient of the elbo for a mixture of GPs}
 \usage{
 gr_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag)
 }
@@ -20,10 +20,10 @@ Required columns: Input, Output. Additional covariate columns are allowed.}
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-The gradient of multi gaussian processes for clustering
+The gradient of the penalised Gaussian elbo for a mixture of GPs
 }
 \description{
-Gradient multi-Gaussian Process
+Gradient of the elbo for a mixture of GPs
 }
 \examples{
 TRUE

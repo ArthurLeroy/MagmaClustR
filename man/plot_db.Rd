@@ -4,10 +4,15 @@
 \alias{plot_db}
 \title{Plot smoothed curves of raw data}
 \usage{
-plot_db(db)
+plot_db(data, cluster = F, legend = F)
 }
 \arguments{
-\item{db}{A data frame or tibble with format : ID, Input, Output}
+\item{data}{A data frame or tibble with format : ID, Input, Output.}
+
+\item{cluster}{A boolean indicating whether data should be coloured by
+cluster. Requires a column named 'Cluster'.}
+
+\item{legend}{A boolean indicating whether the legend should be displayed.}
 }
 \value{
 Graph of smoothed curves of raw data.

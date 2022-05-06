@@ -16,7 +16,7 @@ train_new_gp_EM(
   trained_magmaclust = NULL,
   n_iter_max = 25,
   cv_threshold = 0.001,
-  pen_diag = 0.01
+  pen_diag = 1e-08
 )
 }
 \arguments{
@@ -125,12 +125,14 @@ db <- simu_db()
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_hp_mixture = MagmaClustR:::ini_hp_mixture(db = db, k = length(k), nstart = 50)
+old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
+ nstart = 50)
 
 training_test = train_magmaclust(db)
 
 timestamps = seq(0.01, 10, 0.01)
-mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test, pen_diag = 0.01)
+mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test,
+ pen_diag = 0.01)
 
 train_new_gp_EM(simu_db(M=1), param_mu_k = mu_k, ini_hp_i = ini_hp_i,
 kern_i = "SE", trained_magmaclust = training_test)

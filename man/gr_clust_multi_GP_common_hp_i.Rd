@@ -2,7 +2,7 @@
 % Please edit documentation in R/gradients-elbos.R
 \name{gr_clust_multi_GP_common_hp_i}
 \alias{gr_clust_multi_GP_common_hp_i}
-\title{Modified common Gaussian Process for each variations.}
+\title{Gradient of the penalised elbo for multiple individual GPs with common HPs}
 \usage{
 gr_clust_multi_GP_common_hp_i(hp, db, mu_k_param, kern, pen_diag = NULL)
 }
@@ -21,11 +21,11 @@ corresponding timestamps.}
 numerical issues when inverting, in cases of nearly singular matrices.}
 }
 \value{
-The value of the modified Gaussian log-likelihood for
-one GP as it appears in the model.
+The gradient of the penalised Gaussian elbo for
+the sum of the M individual GPs with common HPs.
 }
 \description{
-Modified common Gaussian Process for each variations.
+Gradient of the penalised elbo for multiple individual GPs with common HPs
 }
 \examples{
 TRUE

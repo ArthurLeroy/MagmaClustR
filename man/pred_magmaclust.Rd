@@ -16,7 +16,7 @@ pred_magmaclust(
   ini_hp_i = NULL,
   trained_magmaclust = NULL,
   plot = TRUE,
-  pen_diag = 0.01
+  pen_diag = 1e-08
 )
 }
 \arguments{
@@ -80,7 +80,7 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{hp_new_indiv}{A tibble of the Trainied results of a variation
+\item{hp_new_indiv}{A tibble of the Trained results of a variation
 of the EM algorithm used for training in MagmaClust.
 Containing columns 'theta_new' and 'hp_k_mixture'.
 'theta_new' being a new set of hyperparameters with 1 individual.
@@ -112,7 +112,7 @@ automatically displayed.}
 numerical issues when inverting nearly singular matrices.}
 }
 \value{
-pamameters of the gaussian density predicted at timestamps
+parameters of the Gaussian density predicted at timestamps
 }
 \description{
 Prediction Gaussian Process on the clustering
