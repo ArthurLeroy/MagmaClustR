@@ -1,4 +1,4 @@
-#' Compute the hyper-posterior distribution by cluster in MagmaClust
+#' Compute the hyper-posterior distribution for each cluster in MagmaClust
 #'
 #' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
@@ -11,6 +11,12 @@
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
+#' @param mixture A tibble or data frame, indicating the mixture probabilities
+#'     in each cluster for each individual. Required column: \code{ID}.
+#' @param hp_k A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_k}.
+#' @param hp_i A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}.
 #' @param kern_k A kernel function, associated with the mean GPs.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -29,89 +35,179 @@
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "LIN", PERIO" and "RQ" are also available here)
-#' @param m_k prior value of the mean parameter of the mean GPs (mu_k).
-#'    Length = 1 or nrow(data)
-#' @param list_hp list of your hyperparameters
-#' @param grid_inputs The grid of inputs (reference Input and covariates) values
-#'    on which the GP should be evaluated. Ideally, this argument should be a
-#'    tibble or a data frame, providing the same columns as \code{data}, except
-#'    'Output'. Nonetheless, in cases where \code{data} provides only one
-#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-#'    vector. This vector would be used as reference input for prediction and if
-#'    NULL, a vector of length 500 is defined, ranging between the min and max
-#'    Input values of \code{data}.export
+#' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
+#'    mean GPs, one value for each cluster.
+#'    cluster. This argument can be specified under various formats, such as:
+#'    - NULL (default). All hyper-prior means would be set to 0 everywhere.
+#'    - A numerical vector of the same length as the number of clusters.
+#'    Each number is associated with one cluster, and considered
+#'    to be the hyper-prior mean parameter of the cluster (i.e. a constant
+#'    function at all \code{Input}).
+#'    - A list of functions. Each function is associated with one cluster. These
+#'    functions are all evaluated at all \code{Input} values, to provide
+#'    specific hyper-prior mean vectors for each cluster.
+#' @param grid_inputs A vector, indicating the grid of additional reference
+#'    inputs on which the mean process' hyper-posterior should be evaluated.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
 #' @return Parameters of the mean GP at timestamps chosen.
 #'
+#' @export
 #'
 #' @examples
 #' TRUE
 hyperposterior_clust = function(data,
-                                grid_inputs,
-                                m_k,
+                                mixture,
+                                hp_k,
+                                hp_i,
                                 kern_k,
                                 kern_i,
-                                list_hp,
-                                pen_diag)
+                                prior_mean_k = NULL,
+                                grid_inputs = NULL,
+                                pen_diag = 1e-8)
 {
-  #browser()
-  hp_i = list_hp$hp_i
-  hp_k = list_hp$hp_k
-  mixture = list_hp$param$mixture
-  t_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(grid_inputs)) ,
-                           'Input' = rep(grid_inputs, length(hp_k$ID)))
-  inv_k = list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag = pen_diag)
+  ## Get the number of clusters
+  nb_cluster = hp_k %>%
+    dplyr::pull(.data$ID) %>%
+    length()
+  ## Get the name of clusters
+  ID_k = hp_k %>%
+    dplyr::pull(.data$ID)
+
+  if (grid_inputs %>% is.null()) {
+    ## Define the union of all reference Inputs in the dataset
+    all_input <- unique(data$Input) %>% sort()
+    cat(
+      "The argument 'grid_inputs' is NULL, the hyper-posterior distributions",
+      "will only be evaluated on observed Input from 'data'.\n \n"
+    )
+  }
+  else {
+    ## Define the union among all reference Inputs and the specified grid
+    all_input <- unique(data$Input) %>%
+      union(grid_inputs) %>%
+      sort()
+  }
+
+  ## Initialise m_k according to the value provided by the user
+  m_k <- list()
+  if (prior_mean_k %>% is.null()) {
+    ## Create a list named by cluster with evaluation of the mean at all Input
+    for (k in 1:nb_cluster) {
+      m_k[[ID_k[k]]] <- rep(0, length(all_input))
+    }
+    cat(
+      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+      "function is thus set to be 0 everywhere.\n \n"
+    )
+  } else if (prior_mean_k[[1]] %>% is.function()) {
+    ## Create a list named by cluster with evaluation of the mean at all Input
+    for (k in 1:nb_cluster) {
+      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_input)
+    }
+  } else if (prior_mean_k %>% is.vector()) {
+    if (length(prior_mean_k) == nb_cluster) {
+      ## Create a list named by cluster with evaluation of the mean at all Input
+      for (k in 1:nb_cluster) {
+        m_k[[ID_k[k]]] <- rep(prior_mean_k[[k]], length(all_input))
+      }
+    } else if (length(prior_mean_k) == 1) {
+      ## Create a list named by cluster with evaluation of the mean at all Input
+      for (k in 1:nb_cluster) {
+        m_k[[ID_k[k]]] <- rep(prior_mean_k, length(all_input))
+      }
+      cat(
+        "The provided 'prior_mean' argument is of length 1. Thus, the same",
+        "hyper-prior constant mean function has been set for each",
+        "cluster.\n \n "
+      )
+    } else {
+      stop(
+        "The 'prior_mean_k' argument is of length ", length(prior_mean_k),
+        ", whereas there are ", length(hp_k$ID), " clusters."
+      )
+    }
+  } else {
+    stop(
+      "Incorrect format for the 'prior_mean_k' argument. Please read ",
+      "?hyperposterior_clust() for details."
+    )
+  }
+  ## Create a dummy tibble for Input of the K mean processes
+  input_clust = tibble::tibble('ID' = rep(hp_k$ID, each = length(all_input)) ,
+                           'Input' = rep(all_input, length(hp_k$ID)))
+  ## Compute all the inverse covariance matrices
+  inv_k = list_kern_to_inv(input_clust, kern_k, hp_k, pen_diag = pen_diag)
   list_inv_i = list_kern_to_inv(data, kern_i, hp_i, pen_diag = pen_diag)
+  ## Create a named list of Output values for all individuals
   value_i = base::split(data$Output, list(data$ID))
 
-  ## Update each mu_k parameters
+  ## Update the posterior inverse covariances ##
   floop = function(k)
   {
-    new_inv = inv_k[[k]]
-    for(x in list_inv_i %>% names())
+    ## Get the inverse covariance matrice of the k-th cluster
+    post_inv = inv_k[[k]]
+    for(i in names(list_inv_i))
     {
-      inv_i = list_inv_i[[x]]
-      common_times = intersect(row.names(inv_i), row.names(new_inv))
-      new_inv[common_times, common_times] = new_inv[common_times, common_times] +
-        as.double(mixture[k][x,]) * inv_i[common_times, common_times]
+      ## Get the inverse covariance matrice of the i-th individual
+      inv_i = list_inv_i[[i]]
+      ## Collect the common inputs between mean and individual processes
+      co_input = intersect(row.names(inv_i), row.names(post_inv))
+      ## Get the probability of the i-th individual to be in the k-th cluster
+      tau_i_k = mixture %>%
+        dplyr::filter(ID == i) %>%
+        dplyr::pull(k)
+      ## Sum the common inverse covariance's terms
+      post_inv[co_input,co_input] <- post_inv[co_input, co_input] +
+             tau_i_k * inv_i[co_input, co_input]
     }
-    s_inv <- tryCatch(new_inv %>% chol() %>% chol2inv(),
-                      error = function(e){MASS::ginv(new_inv)})
-
-    colnames(s_inv) <- colnames(new_inv)
-    rownames(s_inv) <- rownames(new_inv)
-
-    s_inv %>% return()
+    ## Fast or slow matrix inversion if nearly singular
+    post_cov <- tryCatch(post_inv %>% chol() %>% chol2inv(), error=function(e) {
+      MASS::ginv(post_inv)
+    }) %>%
+      `rownames<-`(all_input) %>%
+      `colnames<-`(all_input) %>%
+      return()
   }
-  cov_k = sapply(hp_k$ID, floop, simplify = FALSE, USE.NAMES = TRUE)
+  cov_k = sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
+  ##############################################
 
-  #browser()
+  ## Update the posterior means ##
   floop2 = function(k)
   {
-    prior_mean <- m_k[[k]]
-    if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(inv_k[[k]]))}
-    weighted_mean = inv_k[[k]] %*% prior_mean
-    #row.names(weithed_mean) = row.names(inv_k[[k]])
+    ## Compute the weighted mean of the k-th cluster
+    weighted_k = inv_k[[k]] %*% m_k[[k]]
 
     for(i in list_inv_i %>% names())
     {
-      weighted_i = as.double(mixture[k][i,]) * list_inv_i[[i]] %*% value_i[[i]]
+      ## Get the probability of the i-th individual to be in the k-th cluster
+      tau_i_k = mixture %>%
+        dplyr::filter(ID == i) %>%
+        dplyr::pull(k)
+      ## Compute the weighted mean for the i-th individual
+      weighted_i = tau_i_k * list_inv_i[[i]] %*% value_i[[i]]
       #row.names(weithed_i) = row.names(list_inv_i[[j]])
-
-      common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
-      weighted_mean[common_times,] = weighted_mean[common_times,] +
-        weighted_i[common_times,]
+      ## Collect the common inputs between mean and individual processes
+      co_input = intersect(row.names(weighted_i), row.names(weighted_k))
+      ## Sum the common weighted mean terms
+      weighted_k[co_input,] = weighted_k[co_input,] + weighted_i[co_input,]
     }
+    ## Compute the updated mean parameter
+    post_mean = cov_k[[k]] %*% weighted_k %>% as.vector()
 
-    new_mean = cov_k[[k]] %*% weighted_mean %>% as.vector()
-    tibble::tibble('Input' = grid_inputs, 'Output' = new_mean) %>% return()
+    tibble::tibble(
+      'Input' = all_input,
+      'Output' = post_mean,
+      'Var' = cov_k[[k]] %>% diag() %>% as.vector()
+      ) %>%
+      return()
   }
-  #browser()
-  mean_k = sapply(hp_k$ID, floop2, simplify = FALSE, USE.NAMES = TRUE)
+  mean_k = sapply(ID_k, floop2, simplify = FALSE, USE.NAMES = TRUE)
+  ##############################################
 
-  list('mean' = mean_k, 'cov' = cov_k, 'mixture' = mixture) %>% return()
+  list('mean' = mean_k, 'cov' = cov_k, 'mixture' = mixture) %>%
+    return()
 }
 
 #' Prediction Gaussian Process on the clustering

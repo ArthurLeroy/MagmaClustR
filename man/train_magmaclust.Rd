@@ -37,7 +37,7 @@ each reference \code{Input}.}
 \item{nb_cluster}{A number, indicating the number of clusters of
 individuals/tasks that are assumed to exist among the dataset.}
 
-\item{prior_mean_k}{The set of hyper-prior mean parameters for the K
+\item{prior_mean_k}{The set of hyper-prior mean parameters (m_k) for the K
 mean GPs, one value for each cluster.
 cluster. This argument can be specified under various formats, such as:
 \itemize{

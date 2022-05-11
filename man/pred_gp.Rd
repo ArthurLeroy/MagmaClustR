@@ -12,7 +12,7 @@ pred_gp(
   grid_inputs = NULL,
   get_full_cov = FALSE,
   plot = TRUE,
-  pen_diag = 0.01
+  pen_diag = 1e-08
 )
 }
 \arguments{

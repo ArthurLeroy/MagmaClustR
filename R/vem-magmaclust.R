@@ -67,7 +67,7 @@ ve_step = function(db,
   ## Update each mu_k parameters for each cluster ##
   floop = function(k)
   {
-    new_inv = list_inv_k[[k]]
+    post_inv = list_inv_k[[k]]
     tau_k = old_mixture %>% dplyr::select(.data$ID, k)
     for(i in list_inv_i %>% names())
     {
@@ -76,15 +76,15 @@ ve_step = function(db,
 
       inv_i = list_inv_i[[i]]
       ## Collect input's common indices between mean and individual processes
-      common_times = intersect(row.names(inv_i), row.names(new_inv))
+      co_input = intersect(row.names(inv_i), row.names(post_inv))
       ## Sum the common inverse covariance's terms
-      new_inv[common_times, common_times] = new_inv[common_times, common_times]+
-        tau_i_k * inv_i[common_times, common_times]
+      post_inv[co_input, co_input] = post_inv[co_input, co_input]+
+        tau_i_k * inv_i[co_input, co_input]
     }
 
     ## Fast or slow matrix inversion if nearly singular
-    tryCatch(new_inv %>% chol() %>% chol2inv(),
-             error = function(e){MASS::ginv(new_inv)}) %>%
+    tryCatch(post_inv %>% chol() %>% chol2inv(),
+             error = function(e){MASS::ginv(post_inv)}) %>%
       `rownames<-`(all_input) %>%
       `colnames<-`(all_input) %>%
       return()
@@ -110,10 +110,10 @@ ve_step = function(db,
       ## Compute the weighted mean for the i-th individual
       weighted_i = tau_i_k * list_inv_i[[i]] %*% list_output_i[[i]]
       ## Collect input's common indices between mean and individual processes
-      common_times = intersect(row.names(weighted_i), row.names(weighted_mean))
+      co_input = intersect(row.names(weighted_i), row.names(weighted_mean))
       ## Sum the common weighted mean's terms
-      weighted_mean[common_times,] = weighted_mean[common_times,] +
-        weighted_i[common_times,]
+      weighted_mean[co_input,] = weighted_mean[co_input,] +
+        weighted_i[co_input,]
     }
 
     ## Compute the updated mean parameter

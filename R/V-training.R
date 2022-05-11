@@ -22,7 +22,7 @@
 #'    each reference \code{Input}.
 #' @param nb_cluster A number, indicating the number of clusters of
 #'    individuals/tasks that are assumed to exist among the dataset.
-#' @param prior_mean_k The set of hyper-prior mean parameters for the K
+#' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
 #'    mean GPs, one value for each cluster.
 #'    cluster. This argument can be specified under various formats, such as:
 #'    - NULL (default). All hyper-prior means would be set to 0 everywhere.
@@ -287,8 +287,8 @@ train_magmaclust <- function(data,
     }
   } else {
     stop(
-      "Incorrect format for the 'prior_mean' argument. Please read ",
-      "?hyperposterior() for details."
+      "Incorrect format for the 'prior_mean_k' argument. Please read ",
+      "?train_magmaclust() for details."
     )
   }
 
@@ -426,25 +426,27 @@ train_magmaclust <- function(data,
     cat("Start evaluating hyper-posterior distributions of the mean processes",
         "on the provided grid of inputs... \n \n")
 
-    post <- hyperposterior_clust(
+    hyperpost <- hyperposterior_clust(
       data = data,
+      post$mixture,
       hp_k = hp_k,
       hp_i = hp_i,
       kern_k = kern_k,
       kern_i = kern_i,
-      prior_mean_k = m_k,
+      prior_mean_k = prior_mean_k,
       grid_inputs = grid_inputs,
       pen_diag = pen_diag
     )
     cat("Done!\n \n")
   }
+  else{hyperpost = post}
 
   ## Create a variable for directly plotting the mean process' hyper-posterior
   floop_pred = function(k){
     tibble::tibble(
-      "Input" = post$mean[[k]] %>% dplyr::pull(.data$Input),
-      "Mean" = post$mean[[k]] %>% dplyr::pull(.data$Output),
-      "Var" = post$cov[[k]] %>% diag() %>% as.vector()
+      "Input" = hyperpost$mean[[k]] %>% dplyr::pull(.data$Input),
+      "Mean" = hyperpost$mean[[k]] %>% dplyr::pull(.data$Output),
+      "Var" = hyperpost$cov[[k]] %>% diag() %>% as.vector()
     ) %>%
       return()
   }

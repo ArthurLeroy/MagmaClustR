@@ -83,7 +83,7 @@ pred_gp <- function(data,
                     grid_inputs = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
-                    pen_diag = 0.01) {
+                    pen_diag = 1e-8) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -375,7 +375,7 @@ hyperposterior <- function(data,
                            kern_i,
                            prior_mean = NULL,
                            grid_inputs = NULL,
-                           pen_diag = 0.01) {
+                           pen_diag = 1e-8) {
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
     all_input <- unique(data$Input) %>% sort()
@@ -459,27 +459,25 @@ hyperposterior <- function(data,
   for (inv_i in list_inv_i)
   {
     ## Collect the input's common indices between mean and individual processes
-    common_times <- intersect(row.names(inv_i), row.names(post_inv))
+    co_input <- intersect(row.names(inv_i), row.names(post_inv))
     ## Sum the common inverse covariance's terms
-    post_inv[
-      common_times,
-      common_times
-    ] <- post_inv[common_times, common_times] +
-      inv_i[common_times, common_times]
+    post_inv[co_input,co_input] <- post_inv[co_input, co_input] +
+      inv_i[co_input, co_input]
   }
   ##############################################
 
   ## Update the posterior mean ##
   weighted_0 <- inv_0 %*% m_0
+
   for (i in names(list_inv_i))
   {
     ## Compute the weighted mean for the i-th individual
     weighted_i <- list_inv_i[[i]] %*% list_output_i[[i]]
     ## Collect the input's common indices between mean and individual processes
-    common_times <- intersect(row.names(weighted_i), row.names(weighted_0))
-    ## Sum the common weighted mean's terms
-    weighted_0[common_times, ] <- weighted_0[common_times, ] +
-      weighted_i[common_times, ]
+    co_input <- intersect(row.names(weighted_i), row.names(weighted_0))
+    ## Sum the common weighted mean terms
+    weighted_0[co_input, ] <- weighted_0[co_input, ] +
+      weighted_i[co_input, ]
   }
 
   ## Fast or slow matrix inversion if nearly singular
@@ -496,7 +494,7 @@ hyperposterior <- function(data,
   tib_mean = tibble::tibble(
     "Input" = all_input,
     "Output" = post_mean,
-    "Var" = post_cov %>% diag() %>% as.vector(),
+    "Var" = post_cov %>% diag() %>% as.vector()
   )
   list(
     "mean" = tib_mean,
@@ -605,7 +603,7 @@ pred_magma <- function(data,
                        get_hyperpost = FALSE,
                        get_full_cov = FALSE,
                        plot = TRUE,
-                       pen_diag = 0.01) {
+                       pen_diag = 1e-8) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -983,7 +981,7 @@ pred_gif <- function(data,
                      hp = NULL,
                      kern = "SE",
                      grid_inputs = NULL,
-                     pen_diag = 0.01) {
+                     pen_diag = 1e-8) {
   ## Extract the inputs (reference Input + covariates)
   inputs <- data %>% dplyr::select(-.data$Output)
   ## Remove the 'ID' column if present

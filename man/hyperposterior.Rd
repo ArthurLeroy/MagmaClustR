@@ -12,7 +12,7 @@ hyperposterior(
   kern_i,
   prior_mean = NULL,
   grid_inputs = NULL,
-  pen_diag = 0.01
+  pen_diag = 1e-08
 )
 }
 \arguments{
