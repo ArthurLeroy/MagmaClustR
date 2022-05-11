@@ -4,7 +4,7 @@
 \alias{elbo_clust_multi_GP}
 \title{Evidence Lower Bound for a mixture of GPs}
 \usage{
-elbo_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag)
+elbo_clust_multi_GP(hp, db, post_k, kern, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
@@ -12,7 +12,7 @@ elbo_clust_multi_GP(hp, db, mu_k_param, kern, pen_diag)
 \item{db}{A tibble containing the values we want to compute the elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{mu_k_param}{List of parameters for the K mean GPs.}
+\item{post_k}{List of parameters for the K mean GPs.}
 
 \item{kern}{A kernel function used to compute the covariance matrix at
 corresponding timestamps.}

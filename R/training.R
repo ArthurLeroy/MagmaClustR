@@ -110,7 +110,6 @@
 #'
 #' @examples
 #' TRUE
-#'
 train_magma <- function(data,
                         prior_mean = NULL,
                         ini_hp_0 = NULL,
@@ -325,10 +324,6 @@ train_magma <- function(data,
       break
     }
 
-    ## Compute the additional term in the complete logLikelihood
-    add_term = 0.5 * log(det(post$cov +
-               diag(pen_diag, ncol = ncol(post$cov), nrow = nrow(post$cov))))
-
     ## Monitoring the complete log-likelihood
     new_logL_monitoring <- logL_monitoring(
       hp_0 = new_hp_0,
@@ -339,8 +334,7 @@ train_magma <- function(data,
       kern_i = kern_i,
       post_mean = post$mean,
       post_cov = post$cov,
-      pen_diag = pen_diag
-      ) + add_term
+      pen_diag = pen_diag)
 
     diff_logL <- new_logL_monitoring - logL_monitoring
     if(diff_logL %>% is.nan()){diff_logL <- -Inf}
@@ -433,8 +427,8 @@ train_magma <- function(data,
     "post_mean" = post$mean,
     "post_cov" = post$cov,
     "pred_post" = pred_post,
+    "ini_args" = fct_args,
     "converged" = cv,
-    "fct_args" = fct_args,
     "training_time" = difftime(t_2, t_1, units = "secs")
   ) %>%
     return()

@@ -23,28 +23,27 @@ Additional columns for covariates can be specified.}
 
 \item{old_hp_k}{A named vector, tibble or data frame, containing the
 hyper-parameters from the previous M-step (or initialisation) associated
-with the clusters.}
+with the mean GPs.}
 
-\item{old_hp_i}{A named vector, tibble or data frame,
-containing the hyper-parameters from the previous
-M-step (or initialisation) associated with the
-individual GPs.}
+\item{old_hp_i}{A named vector, tibble or data frame, containing the
+hyper-parameters from the previous  M-step (or initialisation) associated
+with the individual GPs.}
 
 \item{list_mu_param}{List of parameters of the K mean GPs.}
 
-\item{kern_k}{kernel used to compute the covariance matrix of the mean GP
-at corresponding timestamps (K_0)}
+\item{kern_k}{A kernel used to compute the covariance matrix of the mean GP
+at corresponding timestamps.}
 
-\item{kern_i}{kernel used to compute the covariance matrix of individuals GP
-at corresponding timestamps (Psi_i)}
+\item{kern_i}{A kernel used to compute the covariance matrix of individuals
+GP at corresponding timestamps.}
 
-\item{m_k}{prior value of the mean parameter of the mean GPs (mu_k).
+\item{m_k}{A named list of prior mean parameters for the K mean GPs.
 Length = 1 or nrow(unique(db$Input))}
 
-\item{common_hp_k}{boolean indicating whether hp are common among
+\item{common_hp_k}{A boolean indicating whether hp are common among
 mean GPs (for each mu_k)}
 
-\item{common_hp_i}{boolean indicating whether hp are common among
+\item{common_hp_i}{A boolean indicating whether hp are common among
 individual GPs (for each y_i)}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
@@ -56,10 +55,10 @@ containing the hyper-parameters associated with each cluster,
 \code{hp_i}, a tibble containing the hyper-parameters
 associated with the individual GPs, and \code{prop_mixture_k},
 a tibble containing the hyper-parameters associated with each individual,
-indicating in which cluster it belongs.
+indicating the probabilities to belong to each cluster.
 }
 \description{
-Maximization tep of the Variational EM algorithm used to compute
+Maximization step of the Variational EM algorithm used to compute
 hyper-parameters of all the kernels involved in MagmaClust.
 }
 \examples{
@@ -103,8 +102,5 @@ post = MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
   0.001)
 
 MagmaClustR:::vm_step(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
-
-
-
 }
 }

@@ -54,7 +54,7 @@ ve_step = function(db,
   prop_mixture_k = hp_k$prop_mixture
   all_input = unique(db$Input) %>% sort()
   t_clust = tibble::tibble(
-    'ID' = rep(names(m_k),each = length(all_input)),
+    'ID' = rep(names(m_k), each = length(all_input)),
     'Input' = rep(all_input, length(m_k)))
 
   ## Compute all the inverse covariance matrices
@@ -101,7 +101,6 @@ ve_step = function(db,
     prior_inv = list_inv_k[[k]]
     tau_k = old_mixture %>% dplyr::select(.data$ID, k)
 
-    if(length(prior_mean) == 1){prior_mean = rep(prior_mean, ncol(prior_inv))}
     weighted_mean = prior_inv %*% prior_mean
 
     for(i in list_inv_i %>% names())
@@ -305,7 +304,7 @@ vm_step = function(db,
       fn = elbo_clust_multi_GP_common_hp_i,
       gr = gr_clust_multi_GP_common_hp_i,
       db = db,
-      mu_k_param = list_mu_param,
+      post_k = list_mu_param,
       kern = kern_i,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
@@ -333,7 +332,7 @@ vm_step = function(db,
         gr = gr_clust_multi_GP,
         db = db_i,
         pen_diag = pen_diag,
-        mu_k_param = list_mu_param,
+        post_k = list_mu_param,
         kern = kern_i,
         method = "L-BFGS-B",
         control = list(kkt = F)

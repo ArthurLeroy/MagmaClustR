@@ -4,17 +4,22 @@
 \alias{ini_mixture}
 \title{ini_hp_mixture}
 \usage{
-ini_mixture(data, k, nstart = 50)
+ini_mixture(data, k, name_clust = NULL, nstart = 50)
 }
 \arguments{
-\item{data}{database}
+\item{data}{A tibble or data frame. Required columns: \code{ID}, \code{Input}
+, \code{Output}.}
 
-\item{k}{cluster}
+\item{k}{A number, indicating the number of clusters.}
 
-\item{nstart}{nstart}
+\item{name_clust}{A vector of characters. Each element should correspond to
+the name of one cluster.}
+
+\item{nstart}{A number of restart used in the underlying kmeans algorithm}
 }
 \value{
-ini_hp_mixture
+A tibble indicating for each \code{ID} in which cluster it belongs
+after a kmeans initialisation.
 }
 \description{
 ini_hp_mixture

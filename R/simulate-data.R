@@ -80,7 +80,8 @@ draw <- function(int) {
 #' @param common_input A logical value indicating whether the reference inputs
 #'    are common to all individual.
 #' @param common_hp  A logical value indicating whether the hyper-parameters are
-#'   common to all individual.
+#'   common to all individual. If TRUE and K>1, the hyper-parameters remain
+#'   different between the clusters.
 #' @param add_hp A logical value indicating whether the values of
 #'    hyper-parameters should be added as columns in the dataset.
 #' @param add_clust A logical value indicating whether the name of the
@@ -118,7 +119,7 @@ draw <- function(int) {
 simu_db <- function(M = 10,
                     N = 10,
                     K = 1,
-                    covariate = T,
+                    covariate = F,
                     grid = seq(0, 10, 0.05),
                     common_input = T,
                     common_hp = T,
@@ -134,6 +135,11 @@ simu_db <- function(M = 10,
                     m0_slope = c(-5, 5),
                     m0_intercept = c(-10, 10),
                     int_covariate = c(-5, 5)) {
+
+  if (common_input) {
+    t_i <- sample(grid, N, replace = F) %>% sort()
+  }
+
   floop_k <- function(k) {
     m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
     mu_v <- draw(int_mu_v)
@@ -143,9 +149,6 @@ simu_db <- function(M = 10,
       ID = "0", input = grid, covariate = 0, mean = m_0,
       kern = kern_0, v = mu_v, l = mu_l, sigma = 0
     )
-    if (common_input) {
-      t_i <- sample(grid, N, replace = F) %>% sort()
-    }
     if (common_hp) {
       i_v <- draw(int_i_v)
       i_l <- draw(int_i_l)
@@ -267,38 +270,29 @@ ini_kmeans <- function(data, k, nstart = 50, summary = F) {
     return()
 }
 
-#' ini_tau_i_k list test
-#'
-#' @param data database
-#' @param k cluster
-#' @param nstart nstart
-#'
-#' @return ini_tau_i_k
-#'
-#' @examples
-#' TRUE
-ini_tau_i_k_list <- function(data, k, nstart = 50) {
-  ini_kmeans(data, k, nstart) %>%
-    dplyr::mutate(value = 1) %>%
-    tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
-    tibble::column_to_rownames(var = "ID") %>%
-    apply(2, as.list) %>%
-    return()
-}
 
 #' ini_hp_mixture
 #'
-#' @param data database
-#' @param k cluster
-#' @param nstart nstart
+#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+#'    , \code{Output}.
+#' @param k A number, indicating the number of clusters.
+#' @param name_clust A vector of characters. Each element should correspond to
+#'    the name of one cluster.
+#' @param nstart A number of restart used in the underlying kmeans algorithm
 #'
-#' @return ini_hp_mixture
+#' @return A tibble indicating for each \code{ID} in which cluster it belongs
+#'    after a kmeans initialisation.
 #'
 #' @examples
 #' TRUE
-ini_mixture <- function(data, k, nstart = 50) {
-  ini_kmeans(data, k, nstart) %>%
+ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
+  db_ini = ini_kmeans(data, k, nstart) %>%
     dplyr::mutate(value = 1) %>%
-    tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0) %>%
-    return()
+    tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0)
+
+  if(!is.null(name_clust)){
+    names(db_ini) = c('ID', name_clust)
+  }
+
+  return(db_ini)
 }

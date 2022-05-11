@@ -118,31 +118,37 @@ maximum likelihood estimates of the hyper-parameters.
 }
 \examples{
 \dontrun{
-k = seq_len(2)
+k <- seq_len(2)
 m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 
 db <- simu_db()
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
+
 ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
- nstart = 50)
+old_mixture <- MagmaClustR:::ini_mixture(
+  db = db, k = length(k),
+  nstart = 50
+)
 
-training_test = train_magmaclust(db)
+training_test <- train_magmaclust(db)
 
-timestamps = seq(0.01, 10, 0.01)
+timestamps <- seq(0.01, 10, 0.01)
 mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test,
- pen_diag = 0.01)
+  pen_diag = 0.01
+)
 
-train_new_gp_EM(simu_db(M=1), param_mu_k = mu_k, ini_hp_i = ini_hp_i,
-kern_i = "SE", trained_magmaclust = training_test)
+train_new_gp_EM(simu_db(M = 1),
+  param_mu_k = mu_k, ini_hp_i = ini_hp_i,
+  kern_i = "SE", trained_magmaclust = training_test
+)
 
 ###########################
 db <- simu_db()
-training_test = train_magmaclust(db)
-train_new_gp_EM(simu_db(M=1), trained_magmaclust = training_test)
+training_test <- train_magmaclust(db)
+train_new_gp_EM(simu_db(M = 1), trained_magmaclust = training_test)
 
 ##########################
-train_new_gp_EM(simu_db(M=1))
+train_new_gp_EM(simu_db(M = 1))
 }
 }

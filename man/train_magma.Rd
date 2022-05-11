@@ -116,9 +116,10 @@ distribution of the mean process.
 \item pred_post: A tibble, gathering mean and covariance parameters of the
 mean process' hyper-posterior distribution under a format that allows
 direct visualisation as a GP prediction.
-\item ini_args: A list containing the initial values for the hyper-prior mean,
-the hyper-parameters, and the kernels that have been defined and used
-during the learning procedure.
+\item ini_args: A list containing the initial function arguments and values
+for the hyper-prior mean, the hyper-parameters. In particular, if
+those arguments were set to NULL, \code{ini_args} allows us to retrieve
+the (randomly chosen) initialisations used during training.
 \item Converged: A logical value indicated whether the EM algorithm converged
 or not.
 \item Training_time: Total running time of the complete training.
@@ -145,5 +146,4 @@ function displaying an adequate format to be used in Magma.
 }
 \examples{
 TRUE
-
 }

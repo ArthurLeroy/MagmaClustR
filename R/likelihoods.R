@@ -214,8 +214,16 @@ logL_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' post_cov <- kern_to_cov(unique(db$Input), 'SE', hp_0)
 #' MagmaClustR:::logL_monitoring(hp_0, hp_i, db, m_0,
 #'  "SE", "SE", post_mean, post_cov, 0.001)
-logL_monitoring <- function(hp_0, hp_i, db, m_0, kern_0, kern_i,
-                            post_mean, post_cov, pen_diag) {
+logL_monitoring <- function(
+  hp_0,
+  hp_i,
+  db,
+  m_0,
+  kern_0,
+  kern_i,
+  post_mean,
+  post_cov,
+  pen_diag) {
   ## Compute the modified logL for the mean process
   ll_0 <- logL_GP_mod(hp_0, post_mean, m_0, kern_0, post_cov, pen_diag)
 
@@ -245,7 +253,12 @@ logL_monitoring <- function(hp_0, hp_i, db, m_0, kern_0, kern_i,
       return()
   }
   sum_ll_i <- sapply(unique(db$ID), funloop) %>% sum()
+
+  ## Compute the log-determinant term using Cholesky decomposition
+  ## log(det(A)) = 2*sum(log(diag(chol(A))))
+  det = post_cov %>% chol() %>% diag() %>% log() %>% sum()
+
   ## Since the logL_GP_* functions return negative likelihoods for minimisation
   ## in the M-step, we need to x(-1) once more to retrieve the correct logL
-  return(-ll_0 - sum_ll_i)
+  return(-ll_0 - sum_ll_i + det)
 }

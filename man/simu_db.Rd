@@ -8,7 +8,7 @@ simu_db(
   M = 10,
   N = 10,
   K = 1,
-  covariate = T,
+  covariate = F,
   grid = seq(0, 10, 0.05),
   common_input = T,
   common_hp = T,
@@ -43,7 +43,8 @@ include an additional input covariate named 'Covariate'.}
 are common to all individual.}
 
 \item{common_hp}{A logical value indicating whether the hyper-parameters are
-common to all individual.}
+common to all individual. If TRUE and K>1, the hyper-parameters remain
+different between the clusters.}
 
 \item{add_hp}{A logical value indicating whether the values of
 hyper-parameters should be added as columns in the dataset.}

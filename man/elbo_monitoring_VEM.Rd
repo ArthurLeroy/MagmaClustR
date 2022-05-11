@@ -4,7 +4,7 @@
 \alias{elbo_monitoring_VEM}
 \title{Evidence Lower Bound maximised in MagmaClust}
 \usage{
-elbo_monitoring_VEM(hp_k, hp_i, db, kern_i, kern_k, mu_k_param, m_k, pen_diag)
+elbo_monitoring_VEM(hp_k, hp_i, db, kern_i, kern_k, post_k, m_k, pen_diag)
 }
 \arguments{
 \item{hp_k}{A tibble, data frame or named vector of hyper-parameters
@@ -22,7 +22,7 @@ at corresponding inputs.}
 \item{kern_k}{Kernel used to compute the covariance matrix of the mean GPs
 at corresponding inputs.}
 
-\item{mu_k_param}{A list of parameters for the variational distributions
+\item{post_k}{A list of parameters for the variational distributions
 of the K mean GPs.}
 
 \item{m_k}{Prior value of the mean parameter of the mean GPs (mu_k).

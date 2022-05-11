@@ -556,7 +556,7 @@ hyperposterior <- function(data,
 #'    Input values of \code{data}.
 #' @param hyperpost A list, containing the elements 'mean' and 'cov', the
 #'    parameters of the hyper-posterior distribution of the mean process.
-#'    Typically, this argument should from a previous learning using
+#'    Typically, this argument should come from a previous learning using
 #'    \code{\link{train_magma}}, or a previous prediction with
 #'    \code{\link{pred_magma}}, with the argument \code{get_hyperpost} set to
 #'    TRUE. The 'mean' element should be a data frame with two columns 'Input'

@@ -10,11 +10,12 @@ ve_step(db, m_k, kern_k, kern_i, hp_k, hp_i, old_mixture, pen_diag)
 \item{db}{A tibble or data frame. Columns required: ID, Input, Output.
 Additional columns for covariates can be specified.}
 
-\item{m_k}{Prior means of the mu_k processes.}
+\item{m_k}{A named list of vectors, corresponding to the prior mean
+parameters of the K mean GPs.}
 
-\item{kern_k}{A kernel function, associated with the mean GP.}
+\item{kern_k}{A kernel function, associated with the K mean GPs.}
 
-\item{kern_i}{A kernel function, associated with the individual GPs.}
+\item{kern_i}{A kernel function, associated with the M individual GPs.}
 
 \item{hp_k}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_k}.}
@@ -22,7 +23,7 @@ associated with \code{kern_k}.}
 \item{hp_i}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern_i}.}
 
-\item{old_mixture}{values au mixture from previous iterations.}
+\item{old_mixture}{A list of mixture values from the previous iteration.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
@@ -37,7 +38,7 @@ individual.
 \description{
 Expectation step of the Variational EM algorithm used to compute
 the parameters of the hyper-posteriors distributions
-for the mean processes and mixtures variables involved in MagmaClust.
+for the mean processes and mixture variables involved in MagmaClust.
 }
 \examples{
 \dontrun{

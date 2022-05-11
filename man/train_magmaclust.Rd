@@ -15,8 +15,9 @@ train_magmaclust(
   ini_mixture = NULL,
   common_hp_k = T,
   common_hp_i = T,
-  n_iter_max = 25,
+  grid_inputs = NULL,
   pen_diag = 1e-08,
+  n_iter_max = 25,
   cv_threshold = 0.001
 )
 }
@@ -33,29 +34,29 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference \code{Input}.}
 
-\item{nb_cluster}{A number, indicating the number of clusters/groups of
+\item{nb_cluster}{A number, indicating the number of clusters of
 individuals/tasks that are assumed to exist among the dataset.}
 
-\item{prior_mean_k}{The set of hyper-prior mean parameters (m_k) of the mean
-GPs, one value for each cluster.
+\item{prior_mean_k}{The set of hyper-prior mean parameters for the K
+mean GPs, one value for each cluster.
 cluster. This argument can be specified under various formats, such as:
 \itemize{
 \item NULL (default). All hyper-prior means would be set to 0 everywhere.
-\item A vector of the same length as the number of clusters. Each hyper-prior
-mean would be a constant function equal to one element of the vector.
-\item A vector of the same length as all the distinct Input values in the
-\code{data} argument. This vector would be considered as the evaluation
-of all hyper-prior mean functions at the training Inputs.
-\item A function. This function is defined as the hyper_prior means.
-\item A tibble or data frame. Required columns: Input, Output. The Input
-values should include at least the same values as in the \code{data}
-argument.
+\item A numerical vector of the same length as the number of clusters.
+Each number is associated with one cluster, and considered
+to be the hyper-prior mean parameter of the cluster (i.e. a constant
+function at all \code{Input}).
+\item A list of functions. Each function is associated with one cluster. These
+functions are all evaluated at all \code{Input} values, to provide
+specific hyper-prior mean vectors for each cluster.
 }}
 
 \item{ini_hp_k}{A tibble or data frame of hyper-parameters
-associated with \code{kern_k}, the mean process' kernel. The
-columns/elements should be named according to the hyper-parameters
-that are used in \code{kern_k}.}
+associated with \code{kern_k}, the mean process' kernel.
+Required column : \code{ID}. The \code{ID} column contains the unique
+names/codes used to identify each cluster. The other columns
+should be named according to the hyper-parameters that are used in
+\code{kern_k}.}
 
 \item{ini_hp_i}{A tibble or data frame of hyper-parameters
 associated with \code{kern_i}, the individual processes' kernel.
@@ -83,80 +84,68 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
-"PERIO" and "RQ" are also available here)}
+\item{kern_i}{A kernel function, associated with the individual GPs. (See
+details above in \code{kern_k}).}
 
-\item{ini_mixture}{Initial values of probability to belong to each cluster
-for each individual.}
+\item{ini_mixture}{Initial values of the probability to belong to each
+cluster for each individual (\code{\link{ini_mixture}} can be used for
+a k-means initialisation. Used by default if NULL).}
 
-\item{common_hp_k}{A boolean indicating whether hp are common among mean GPs
-(for each \eqn{mu_k}).}
+\item{common_hp_k}{A boolean indicating whether hyper-parameters are common
+among the mean GPs.}
 
-\item{common_hp_i}{A boolean indicating whether hp are common among
-individual GPs (for each \eqn{y_i}).}
+\item{common_hp_i}{A boolean indicating whether hyper-parameters are common
+among the individual GPs.}
 
-\item{n_iter_max}{A number, indicating the maximum number of iterations of
-the EM algorithm to proceed while not reaching convergence.}
+\item{grid_inputs}{A vector, indicating the grid of additional reference
+inputs on which the mean processes' hyper-posteriors should be evaluated.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
+
+\item{n_iter_max}{A number, indicating the maximum number of iterations of
+the VEM algorithm to proceed while not reaching convergence.}
 
 \item{cv_threshold}{A number, indicating the threshold of the likelihood gain
 under which the VEM algorithm will stop. The convergence condition is
 defined as the difference of elbo between two consecutive steps,
 divided by the absolute value of the last one
-( \eqn{(ELBO_n - ELBO_{n-1}) / \abs{ELBO_n}} ).}
+( \eqn{(ELBO_n - ELBO_{n-1}) / \abs{ELBO_n}} ). Default is \eqn{10^{-3}}.}
 }
 \value{
-A list, containing the results of a variation of the EM algorithm
-used for training in MagmaClust. The elements of the list are:
+A list, containing the results of the VEM algorithm used in the
+training step of MagmaClust. The elements of the list are:
 \itemize{
 \item hp_k: A tibble containing the trained hyper-parameters for the mean
-process' kernel.
-\item hp_i: A tibble containing all the trained hyper-parameters for the
+process' kernel and the mixture proportions for each cluster.
+\item hp_i: A tibble containing the trained hyper-parameters for the
 individual processes' kernels.
-\item prop_mixture_k : A tibble containing the hyper-parameters associated
-with each individual, indicating in which cluster it belongs.
-\item param: A list 3 containing  The mean, the cov and the mixture.
+\item param: A sub-list containing the parameters of the mean processes'
+hyper-posterior distributions, namely:
 -> mean: A tibble containing the values of hyper-posterior's mean
-parameter (\code{Output}) evaluated at each training reference
+parameters (\code{Output}) evaluated at each \code{Input} reference
 -> cov: A matrix, covariance parameter of the hyper-posterior
 distribution of the mean process.
--> mixture: probability to belong to a cluster for an individual.
-\code{Input}.
-\item ini_args: A list containing the initial values for the hyper-prior mean,
-the hyper-parameters, and the kernels that have been defined and used
-during the learning procedure.
-\item Convergence: A logical value indicated whether the algorithm converged.
+-> mixture: A tibble, indicating the mixture probabilities in each
+cluster for each individual.
+\item ini_args: A list containing the initial function arguments and values
+for the hyper-prior means, the hyper-parameters. In particular, if
+those arguments were set to NULL, \code{ini_args} allows us to retrieve
+the (randomly chosen) initialisations used during training.
+\item Converged: A logical value indicated whether the algorithm converged.
 \item Training_time: Total running time of the complete training.
 }
 }
 \description{
-The hyper-parameters and the hyper-posterior distribution involved in
+The hyper-parameters and the hyper-posterior distributions involved in
 MagmaClust can be learned thanks to a VEM algorithm implemented in
 \code{train_magmaclust}. By providing a dataset, the model hypotheses
-(hyper-prior mean parameters and covariance kernels) and initialisation
-values for the hyper-parameters, the function computes maximum likelihood
-estimates of the HPs as well as the mean and covariance parameters of the
-Gaussian hyper-posterior distributions of the mean processes.
+(hyper-prior mean parameters, covariance kernels and number of clusters) and
+initialisation values for the hyper-parameters, the function computes
+maximum likelihood estimates of the HPs as well as the mean and covariance
+parameters of the Gaussian hyper-posterior distributions of the mean
+processes.
 }
 \examples{
-\dontrun{
-k = seq_len(3)
-m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
-
-db <- simu_db(N = 10, common_input = TRUE)
-hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
-hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
- nstart = 50)
-
-train_magmaclust(db, length(k), m_k, hp_k, hp_i,
-"SE", "SE", old_mixture, FALSE, FALSE, 25, 0.1, 1e-3)
-
-###############################
-
-db <- simu_db()
-train_magmaclust(db)
-}
+TRUE
 }
