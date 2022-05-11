@@ -3,7 +3,10 @@
 test_that("gradient of gr_clust_multi_GP() works for
           the Squared Exponential kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(
+    "K1" = rep(0, 5),
+    "K2" = rep(0, 5),
+    "K3" = rep(0, 5))
 
   # db <- simu_db(N = 10, common_input = TRUE)
   # hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
@@ -51,7 +54,7 @@ test_that("gradient of gr_clust_multi_GP() works for
 
 test_that("gradient of gr_clust_multi_GP() works for the Linear kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   # db <- simu_db(N = 10, common_input = TRUE)
   # hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
@@ -94,7 +97,7 @@ test_that("gradient of gr_clust_multi_GP() works for the Linear kernel", {
 
 test_that("gradient of gr_clust_multi_GP() works for the Periodic kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   #db <- simu_db(N = 10, common_input = TRUE)
   #hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
@@ -152,7 +155,7 @@ test_that("gradient of gr_clust_multi_GP() works for the Periodic kernel", {
 test_that("gradient of gr_clust_multi_GP() works
           for the Rational Quadratic kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   # db <- simu_db(N = 10, common_input = TRUE)
   # hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))
@@ -213,7 +216,7 @@ test_that("gradient of gr_GP_mod_common_hp_k()
           works for the Squared Exponential kernel", {
 
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   #db <- simu_db(N = 10, common_input = TRUE)
   #hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
@@ -264,7 +267,7 @@ test_that("gradient of gr_GP_mod_common_hp_k()
 
 test_that("gradient of gr_GP_mod_common_hp_k() works for the Linear kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   # db <- simu_db(N = 10, common_input = TRUE)
   # hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
@@ -309,7 +312,7 @@ test_that("gradient of gr_GP_mod_common_hp_k() works for the Linear kernel", {
 test_that("gradient of gr_GP_mod_common_hp_k()
           works for the Periodic  kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   # db <- simu_db(N = 10, common_input = TRUE)
   # hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
@@ -365,7 +368,7 @@ test_that("gradient of gr_GP_mod_common_hp_k()
 test_that("gradient of gr_GP_mod_common_hp_k()
           works for the  Rational Quadratic kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   #db <- simu_db(N = 10, common_input = TRUE)
   #hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))
@@ -423,7 +426,7 @@ test_that("gradient of gr_GP_mod_common_hp_k()
 test_that("gradient of gr_clust_multi_GP_common_hp_i()
           works for the Squared Exponential kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   #db <- simu_db(N = 10, common_input = TRUE)
   #hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
@@ -474,7 +477,7 @@ test_that("gradient of gr_clust_multi_GP_common_hp_i()
 test_that("gradient of gr_clust_multi_GP_common_hp_i()
           works for the Linear kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   #db <- simu_db(N = 10, common_input = TRUE)
   #hp_k <- MagmaClustR:::hp("LIN", list_ID = names(m_k))
@@ -523,7 +526,7 @@ test_that("gradient of gr_clust_multi_GP_common_hp_i()
 test_that("gradient of gr_clust_multi_GP_common_hp_i()
           works for the Linear kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   #db <- simu_db(N = 10, common_input = TRUE)
   #hp_k <- MagmaClustR:::hp("PERIO", list_ID = names(m_k))
@@ -582,7 +585,7 @@ elbo_clust_multi_GP_common_hp_i(hp_i_1, db_1, mu_k_param, 'PERIO', 1)) / 10^(-8)
 test_that("gradient of gr_clust_multi_GP_common_hp_i()
           works for the Rational Quadratic kernel", {
   k = seq_len(3)
-  m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
+  m_k <- list(     "K1" = rep(0, 5),     "K2" = rep(0, 5),     "K3" = rep(0, 5))
 
   # db <- simu_db(N = 10, common_input = TRUE)
   # hp_k <- MagmaClustR:::hp("RQ", list_ID = names(m_k))

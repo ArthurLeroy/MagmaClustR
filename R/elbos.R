@@ -226,13 +226,13 @@ elbo_monitoring_VEM = function(hp_k,
     det = 0
     ## Extract the proportion in the k-th cluster
     pi_k = hp_k %>%
-      dplyr::filter(ID == k) %>%
-      dplyr::pull(prop_mixture)
+      dplyr::filter(.data$ID == k) %>%
+      dplyr::pull(.data$prop_mixture)
 
     for(i in unique(db$ID)){
       ## Extract the probability of the i-th indiv to be in the k-th cluster
       tau_i_k = post_k$mixture %>%
-        dplyr::filter(ID == i) %>%
+        dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
       ## To avoid numerical issues if evaluating log(0/0)
       log_frac = ifelse((tau_i_k == 0|(pi_k == 0)), 0, log(pi_k/ tau_i_k))
