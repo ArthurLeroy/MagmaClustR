@@ -2,27 +2,25 @@
 % Please edit documentation in R/V-prediction.R
 \name{pred_magmaclust}
 \alias{pred_magmaclust}
-\title{Prediction Gaussian Process on the clustering}
+\title{MagmaClust prediction}
 \usage{
 pred_magmaclust(
-  data_obs,
-  data_train = NULL,
-  grid_inputs = NULL,
-  list_mu = NULL,
+  data,
+  trained_model = NULL,
+  mixture = NULL,
+  hp = NULL,
   kern = "SE",
-  hp_new_indiv = NULL,
-  nb_cluster = NULL,
-  ini_hp_k = NULL,
-  ini_hp_i = NULL,
-  trained_magmaclust = NULL,
+  grid_inputs = NULL,
+  hyperpost = NULL,
+  get_hyperpost = FALSE,
+  get_full_cov = FALSE,
   plot = TRUE,
   pen_diag = 1e-08
 )
 }
 \arguments{
-\item{data_obs}{A tibble or data frame wich we want our prediction on.
-Required columns: 'Input', 'Output'.
-Additional columns for covariates can be specified.
+\item{data}{A tibble or data frame. Required columns: 'Input',
+'Output'. Additional columns for covariates can be specified.
 The 'Input' column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
 'Output' column specifies the observed values (the response
@@ -31,35 +29,20 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference 'Input'.}
 
-\item{data_train}{A tibble or data frame wich we want our training on.
-Columns required: \code{ID}, \code{Input}, \code{Output}.
-Additional columns for covariates can be specified.
-The \code{ID} column contains the unique names/codes used to identify each
-individual/task (or batch of data).
-The \code{Input} column should define the variable that is used as
-reference for the observations (e.g. time for longitudinal data). The
-\code{Output} column specifies the observed values (the response
-variable). The data frame can also provide as many covariates as desired,
-with no constraints on the column names. These covariates are additional
-inputs (explanatory variables) of the models that are also observed at each
-reference \code{Input}.}
+\item{trained_model}{A list, containing  the information coming from a
+MagmaClust model, previously trained using the
+\code{\link{train_magmaclust}} function.}
 
-\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
-on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as \code{data}, except
-'Output'. Nonetheless, in cases where \code{data} provides only one
-'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-vector. This vector would be used as reference input for prediction and if
-NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{data}.}
+\item{mixture}{A tibble or data frame, indicating the mixture probabilities
+in each cluster for the new individual/task. Required column: \code{ID}.
+The \code{\link{train_gp_clust}} function can be used to compute these
+posterior probabilities according to \code{data}.}
 
-\item{list_mu}{List containing mean and cov of the K mean GPs.
-\itemize{
-\item mean   : value of mean GP at timestamps (obs + pred)
-(matrix dim: timestamps x 1, with Input rownames)
-\item cov_mu : covariance of mean GP at timestamps (obs + pred)
-(square matrix, with Input row/colnames)
-}}
+\item{hp}{A named vector, tibble or data frame of hyper-parameters
+associated with \code{kern}. The columns/elements should be named
+according to the hyper-parameters that are used in \code{kern}. The
+\code{\link{train_gp_clust}} function can be used to learn
+maximum-likelihood estimators of the hyper-parameters.}
 
 \item{kern}{A kernel function, defining the covariance structure of the GP.
 Several popular kernels
@@ -80,30 +63,23 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{hp_new_indiv}{A tibble of the Trained results of a variation
-of the EM algorithm used for training in MagmaClust.
-Containing columns 'theta_new' and 'hp_k_mixture'.
-'theta_new' being a new set of hyperparameters with 1 individual.
-'hp_k_mixture' the probability of being in the clusters.
-Can be compute with the function \code{train_new_gp_EM}.
-train_new_gp_EM(simu_db(M=1))}
+\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as \code{data}, except
+'Output'. Nonetheless, in cases where \code{data} provides only one
+'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of \code{data}.}
 
-\item{nb_cluster}{The number of clusters wanted.}
+\item{get_hyperpost}{A logical value, indicating whether the hyper-posterior
+distributions of the mean processes should be returned. This can be useful
+when planning to perform several predictions on the same grid of inputs,
+since recomputation of the hyper-posterior can be prohibitive for high
+dimensional grids.}
 
-\item{ini_hp_k}{named vector, tibble or data frame of hyper-parameters
-associated with \code{kern}, the mean process' kernel. The
-columns/elements should be named according to the hyper-parameters
-that are used in \code{kern_k}.}
-
-\item{ini_hp_i}{A tibble or data frame of hyper-parameters
-associated with \code{kern}, the individual processes' kernel.
-Required column : \code{ID}. The \code{ID} column contains the unique
-names/codes used to identify each individual/task. The other columns
-should be named according to the hyper-parameters that are used in
-\code{kern_i}.}
-
-\item{trained_magmaclust}{A list, gathering results coming from the use of
-the \code{\link{train_magmaclust}} function.}
+\item{get_full_cov}{A logical value, indicating whether the full posterior
+covariance matrices should be returned.}
 
 \item{plot}{A logical value, indicating whether a plot of the results is
 automatically displayed.}
@@ -112,15 +88,24 @@ automatically displayed.}
 numerical issues when inverting nearly singular matrices.}
 }
 \value{
-parameters of the Gaussian density predicted at timestamps
+\subsection{TO DO}{
+}
 }
 \description{
-Prediction Gaussian Process on the clustering
+Compute the posterior predictive distribution in MagmaClust.
+Providing data from any new individual/task, its trained hyper-parameters
+and a previously trained MagmaClust model, the multi-task posterior
+distribution is evaluated on any arbitrary inputs that are specified through
+the 'grid_inputs' argument. Due to the nature of the model, the prediction is
+defined as a mixture of Gaussian distributions. Therefore the present
+function computes the parameters of the predictive distribution
+associated with each cluster, as well as the posterior mixture probabilities
+for this new individual/task.
 }
 \examples{
 \dontrun{
 db <- simu_db()
 training_test = train_magmaclust(db)
-pred_magmaclust(simu_db(M=1), trained_magmaclust = training_test)
+pred_magmaclust(db \%>\% filter(ID == 1), trained_magmaclust = training_test)
 }
 }

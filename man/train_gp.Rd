@@ -67,7 +67,7 @@ argument.
 }}
 
 \item{post_cov}{A matrix, the hyper-posterior covariance parameter in
-\code{magma}}
+\code{magma}.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
@@ -80,11 +80,11 @@ the new individual/task.
 Learning hyper-parameters of any new individual/task in \code{magma} is
 required in the prediction procedure. This function can be used to learn the
 hyper-parameters of a simple GP (just ignore the \code{post_cov} argument
-and consider the \code{post_mean} argument as the  GP's mean parameter). When
-using within \code{magma}, by providing data for the new individual/task,
-the trained model (hyper-posterior mean and  covariance parameters) and
-initialisation values for the hyper-parameters, the function computes
-maximum likelihood estimates of the hyper-parameters.
+and consider the \code{post_mean} argument as GP's prior mean parameter).
+When using within \code{magma}, by providing data for the new
+individual/task, the trained model (hyper-posterior mean and  covariance
+parameters) and initialisation values for the hyper-parameters, the function
+computes maximum likelihood estimates of the hyper-parameters.
 }
 \examples{
 db = simu_db(M = 1, N = 10)

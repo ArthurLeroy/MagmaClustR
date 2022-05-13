@@ -36,7 +36,7 @@ function.}
 associated with \code{kern}. The columns/elements should be named
 according to the hyper-parameters that are used in \code{kern}. The
 function \code{\link{train_gp}} can be used to learn maximum-likelihood
-estimators of the hyper-parameters,}
+estimators of the hyper-parameters.}
 
 \item{kern}{A kernel function, defining the covariance structure of the GP.
 Several popular kernels
@@ -104,7 +104,7 @@ is defined as 'hyperpost'.
 }
 \description{
 Compute the posterior predictive distribution in Magma. Providing data of any
-new inividual/task, its trained hyper-parameters and a previously trained
+new individual/task, its trained hyper-parameters and a previously trained
 Magma model, the predictive distribution is evaluated on any arbitrary inputs
 that are specified through the 'grid_inputs' argument.
 }

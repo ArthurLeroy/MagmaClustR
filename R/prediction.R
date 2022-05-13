@@ -355,10 +355,15 @@ pred_gp <- function(data,
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
-#' @return A named list, containing the elements \code{mean}, a tibble
-#' containing the 'Input' and associated 'Output' of the hyper-posterior's mean
-#' parameter (and a column 'Var' for displaying uncertainty in visualisations),
-#' and \code{cov}, the hyper-posterior's covariance matrix.
+#' @return A list gathering the parameters of the mean processes'
+#'         hyper-posterior distributions, namely:
+#'           -> mean: A tibble, the hyper-posterior mean parameter
+#'              evaluated at each training \code{Input}.
+#'           -> cov: A matrix, the covariance parameter for the hyper-posterior
+#'              distribution of the mean process.
+#'           -> pred: A tibble, the predicted mean and variance at \code{Input}
+#'              for the mean process' hyper-posterior distribution under a
+#'              format that allows the direct visualisation as a GP prediction.
 #'
 #' @export
 #'
@@ -491,14 +496,21 @@ hyperposterior <- function(data,
   ##############################################
 
   ## Format the mean parameter of the hyper-posterior distribution
-  tib_mean = tibble::tibble(
+  mean = tibble::tibble(
     "Input" = all_input,
-    "Output" = post_mean,
+    "Output" = post_mean
+  )
+
+  ## Format the GP prediction of the hyper-posterior mean (for direct plot)
+  pred = tibble::tibble(
+    "Input" = all_input,
+    "Mean" = post_mean,
     "Var" = post_cov %>% diag() %>% as.vector()
   )
   list(
-    "mean" = tib_mean,
-    "cov" = post_cov
+    "mean" = mean,
+    "cov" = post_cov,
+    "pred" = pred
   ) %>%
     return()
 }
@@ -507,7 +519,7 @@ hyperposterior <- function(data,
 #' Magma prediction
 #'
 #' Compute the posterior predictive distribution in Magma. Providing data of any
-#' new inividual/task, its trained hyper-parameters and a previously trained
+#' new individual/task, its trained hyper-parameters and a previously trained
 #' Magma model, the predictive distribution is evaluated on any arbitrary inputs
 #' that are specified through the 'grid_inputs' argument.
 #'
@@ -527,7 +539,7 @@ hyperposterior <- function(data,
 #'    associated with \code{kern}. The columns/elements should be named
 #'    according to the hyper-parameters that are used in \code{kern}. The
 #'    function \code{\link{train_gp}} can be used to learn maximum-likelihood
-#'    estimators of the hyper-parameters,
+#'    estimators of the hyper-parameters.
 #' @param kern A kernel function, defining the covariance structure of the GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -613,10 +625,12 @@ pred_magma <- function(data,
   input_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Input)
+
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::select(-.data$Output)
+
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
     inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
@@ -644,7 +658,7 @@ pred_magma <- function(data,
     else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_gp()."
+        "or a data frame depending on the context. Please read ?pred_magma()."
       )
     }
   } else if (grid_inputs %>% is.vector()) {
@@ -655,12 +669,12 @@ pred_magma <- function(data,
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_gp()."
+        "or a data frame depending on the context. Please read ?pred_magma()."
       )
     }
   } else if (grid_inputs %>% is.data.frame()) {
     ## Test whether 'data' has the same columns as grid_inputs
-    if (all(names(inputs_obs) %in% names(grid_inputs))) {
+    if ( names(inputs_obs) %>% setequal(names(grid_inputs)) ) {
       input_pred <- grid_inputs %>%
         dplyr::arrange(.data$Input) %>%
         dplyr::pull(.data$Input)
@@ -684,6 +698,7 @@ pred_magma <- function(data,
 
   ## Define the union of all distinct reference Input
   all_input <- union(input_obs, input_pred) %>% sort()
+
   ## Check whether the hyper-posterior is provided and recompute if necessary
   if (hyperpost %>% is.null()) {
     if (trained_model %>% is.null()) {
@@ -692,51 +707,38 @@ pred_magma <- function(data,
         "should be provided, in order to extract or recompute mean process' ",
         "hyper-posterior distribution evaluated on the correct inputs."
       )
-    } else if (!all(all_input %in% trained_model$pred_post$Input)) {
+    } else{
+      ## Get the hyper-posterior distribution from the trained model
+      hyperpost = trained_model$hyperpost
+    }
+  }
+  ## Check hyperpost format
+  if ((hyperpost %>% is.list()) &
+      (!is.null(hyperpost$mean)) &
+      (!is.null(hyperpost$cov))
+      ) {
+    ## Check hyperpost format (in particular presence of all reference Input)
+    if (!all(all_input %in% hyperpost$mean$Input)) {
+      cat(
+        "The hyper-posterior distribution of the mean process provided in",
+        "'hyperpost' argument isn't evaluated on the expected inputs.\n \n",
+        "Start evaluating the hyper-posterior on the correct inputs...\n \n"
+      )
       hyperpost <- hyperposterior(
-        data = trained_model$fct_args$data,
-        kern_0 = trained_model$fct_args$kern_0,
-        kern_i = trained_model$fct_args$kern_i,
+        data = trained_model$ini_args$data,
+        kern_0 = trained_model$ini_args$kern_0,
+        kern_i = trained_model$ini_args$kern_i,
         hp_0 = trained_model$hp_0,
         hp_i = trained_model$hp_i,
-        prior_mean = trained_model$fct_args$prior_mean,
+        prior_mean = trained_model$ini_args$prior_mean,
         grid_inputs = all_input,
         pen_diag = pen_diag
-      )
-    }
-  } else if (hyperpost %>% is.list()) {
-    ## Check whether the inputs in 'hyperpost' are correct
-    if (!all(all_input %in% hyperpost$mean$Input) |
-        !all(as.character(all_input) %in% colnames(hyperpost$cov))) {
-      if (trained_model %>% is.null()) {
-        stop(
-          "The hyper-posterior distribution of the mean process provided in ",
-          "'hyperpost' argument isn't evaluated on the expected inputs. The ",
-          "'trained_model' argument is needed for an adequate re-conmputing."
         )
-      }
-      else {
-        cat(
-          "The hyper-posterior distribution of the mean process provided in",
-          "'hyperpost' argument isn't evaluated on the expected inputs.\n \n",
-          "Start evaluating the hyper-posterior on the correct inputs...\n \n"
-        )
-        hyperpost <- hyperposterior(
-          data = trained_model$fct_args$data,
-          kern_0 = trained_model$fct_args$kern_0,
-          kern_i = trained_model$fct_args$kern_i,
-          hp_0 = trained_model$hp_0,
-          hp_i = trained_model$hp_i,
-          prior_mean = trained_model$fct_args$prior_mean,
-          grid_inputs = all_input,
-          pen_diag = pen_diag
-        )
-        cat("Done!\n \n")
-      }
-    }
+     cat("Done!\n \n")
+   }
   } else {
     stop(
-      "The format of the 'hyperpost' argument is not as exepected. Please ",
+      "The format of the 'hyperpost' argument is not as expected. Please ",
       "read ?pred_magma() for details."
     )
   }
@@ -769,7 +771,7 @@ pred_magma <- function(data,
   if (hp %>% is.null()) {
     if(!is.null(trained_model)){
       ## Check whether hyper-parameters are common if we have 'trained_model'
-      if(tryCatch(trained_model$fct_args$common_hp, error = function(e) FALSE)){
+      if(tryCatch(trained_model$ini_args$common_hp, error = function(e) FALSE)){
         ## Extract the hyper-parameters common to all 'i'
         hp = trained_model$hp_i %>%
           dplyr::slice(1) %>%
@@ -780,7 +782,7 @@ pred_magma <- function(data,
           "mandatory, in order to provide the name of the hyper-parameters. ",
           "You can use the function 'hp()' to easily generate a tibble of ",
           "random hyper-parameters with the desired format, or use ",
-          "'train_gp()' to learn ML estimators for a better fit of data."
+          "'train_gp()' to learn ML estimators for a better fit."
         )
       } else if (kern %>% is.character()) {
         hp <- quiet(
@@ -829,7 +831,7 @@ pred_magma <- function(data,
     }
   }
 
-  ## Sum the covariance matrices on oberved inputs and compute the inverse
+  ## Sum the covariance matrices on observed inputs and compute the inverse
   cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
   diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
 
@@ -872,7 +874,8 @@ pred_magma <- function(data,
 
   ## Display the graph of the prediction if expected
   if (plot) {
-    plot_gp(pred_gp, data = data, prior_mean = hyperpost$mean) %>% print()
+    plot_gp(pred_gp, data = data, prior_mean = hyperpost$mean) %>%
+      print()
   }
 
   res <- pred_gp

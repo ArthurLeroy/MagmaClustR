@@ -84,20 +84,21 @@
 #'    See for example \code{\link{se_kernel}} to create a custom kernel
 #'    function displaying an adequate format to be used in Magma.
 #'
-#' @return A list, containing the results of the EM algorithm used for training
+#' @return A list, gathering the results of the EM algorithm used for training
 #'    in Magma. The elements of the list are:
-#'    - hp_0: A tibble containing the trained hyper-parameters for the mean
+#'    - hp_0: A tibble of the trained hyper-parameters for the mean
 #'    process' kernel.
-#'    - hp_i: A tibble containing all the trained hyper-parameters for the
+#'    - hp_i: A tibble of all the trained hyper-parameters for the
 #'    individual processes' kernels.
-#'    - post_mean: A tibble containing the values of hyper-posterior's mean
-#'    parameter (\code{Output}) evaluated at each training reference
-#'    \code{Input}.
-#'    - post_cov: A matrix, covariance parameter of the hyper-posterior
-#'    distribution of the mean process.
-#'    - pred_post: A tibble, gathering mean and covariance parameters of the
-#'    mean process' hyper-posterior distribution under a format that allows
-#'    direct visualisation as a GP prediction.
+#'    - hyperpost: A sub-list gathering the parameters of the mean processes'
+#'    hyper-posterior distributions, namely:
+#'        -> mean: A tibble, the hyper-posterior mean parameter
+#'           (\code{Output}) evaluated at each training reference \code{Input}.
+#'        -> cov: A matrix, the covariance parameter for the hyper-posterior
+#'           distribution of the mean process.
+#'        -> pred: A tibble, the predicted mean and variance at \code{Input} for
+#'           the mean process' hyper-posterior distribution under a format that
+#'           allows the direct visualisation as a GP prediction.
 #'    - ini_args: A list containing the initial function arguments and values
 #'    for the hyper-prior mean, the hyper-parameters. In particular, if
 #'    those arguments were set to NULL, \code{ini_args} allows us to retrieve
@@ -398,14 +399,15 @@ train_magma <- function(data,
         pen_diag = pen_diag
       )
       cat("Done!\n \n")
+  } else{
+    ## Create a variable for directly plotting the mean process' hyper-posterior
+    post$pred <- tibble::tibble(
+      "Input" = post$mean %>% dplyr::pull(.data$Input),
+      "Mean" = post$mean %>% dplyr::pull(.data$Output),
+      "Var" = post$cov %>% diag()
+    )
   }
 
-  ## Create a variable for directly plotting the mean process' hyper-posterior
-  pred_post <- tibble::tibble(
-    "Input" = post$mean %>% dplyr::pull(.data$Input),
-    "Mean" = post$mean %>% dplyr::pull(.data$Output),
-    "Var" = post$cov %>% diag()
-  )
   ## Create an history list of the initial arguments of the function
   fct_args  = list('data' = data,
                   'prior_mean' = prior_mean,
@@ -424,9 +426,7 @@ train_magma <- function(data,
   list(
     "hp_0" = hp_0,
     "hp_i" = hp_i,
-    "post_mean" = post$mean,
-    "post_cov" = post$cov,
-    "pred_post" = pred_post,
+    "hyperpost" = post,
     "ini_args" = fct_args,
     "converged" = cv,
     "training_time" = difftime(t_2, t_1, units = "secs")
@@ -439,11 +439,11 @@ train_magma <- function(data,
 #' Learning hyper-parameters of any new individual/task in \code{magma} is
 #' required in the prediction procedure. This function can be used to learn the
 #' hyper-parameters of a simple GP (just ignore the \code{post_cov} argument
-#' and consider the \code{post_mean} argument as the  GP's mean parameter). When
-#' using within \code{magma}, by providing data for the new individual/task,
-#' the trained model (hyper-posterior mean and  covariance parameters) and
-#' initialisation values for the hyper-parameters, the function computes
-#' maximum likelihood estimates of the hyper-parameters.
+#' and consider the \code{post_mean} argument as GP's prior mean parameter).
+#' When using within \code{magma}, by providing data for the new
+#' individual/task, the trained model (hyper-posterior mean and  covariance
+#' parameters) and initialisation values for the hyper-parameters, the function
+#' computes maximum likelihood estimates of the hyper-parameters.
 #'
 #' @param data A tibble or data frame. Required columns: \code{Input},
 #'    \code{Output}. Additional columns for covariates can be specified.
@@ -490,7 +490,7 @@ train_magma <- function(data,
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
 #' @param post_cov A matrix, the hyper-posterior covariance parameter in
-#'    \code{magma}
+#'    \code{magma}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'

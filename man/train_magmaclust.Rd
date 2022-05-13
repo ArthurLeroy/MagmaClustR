@@ -120,12 +120,12 @@ training step of MagmaClust. The elements of the list are:
 process' kernel and the mixture proportions for each cluster.
 \item hp_i: A tibble containing the trained hyper-parameters for the
 individual processes' kernels.
-\item param: A sub-list containing the parameters of the mean processes'
-hyper-posterior distributions, namely:
--> mean: A tibble containing the values of hyper-posterior's mean
-parameters (\code{Output}) evaluated at each \code{Input} reference
--> cov: A matrix, covariance parameter of the hyper-posterior
-distribution of the mean process.
+\item hyperpost: A sub-list containing the parameters of the mean processes'
+hyper-posterior distribution, namely:
+-> mean: A list of tibbles containing, for each cluster, the
+hyper-posterior mean parameters evaluated at each \code{Input}.
+-> cov: A list of matrices containing, for each cluster, the
+hyper-posterior covariance parameter of the mean process.
 -> mixture: A tibble, indicating the mixture probabilities in each
 cluster for each individual.
 \item ini_args: A list containing the initial function arguments and values

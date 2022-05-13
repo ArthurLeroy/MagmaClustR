@@ -101,21 +101,22 @@ divided by the absolute value of the last one
 ( (LL_n - LL_n-1) / |LL_n| ).}
 }
 \value{
-A list, containing the results of the EM algorithm used for training
+A list, gathering the results of the EM algorithm used for training
 in Magma. The elements of the list are:
 \itemize{
-\item hp_0: A tibble containing the trained hyper-parameters for the mean
+\item hp_0: A tibble of the trained hyper-parameters for the mean
 process' kernel.
-\item hp_i: A tibble containing all the trained hyper-parameters for the
+\item hp_i: A tibble of all the trained hyper-parameters for the
 individual processes' kernels.
-\item post_mean: A tibble containing the values of hyper-posterior's mean
-parameter (\code{Output}) evaluated at each training reference
-\code{Input}.
-\item post_cov: A matrix, covariance parameter of the hyper-posterior
+\item hyperpost: A sub-list gathering the parameters of the mean processes'
+hyper-posterior distributions, namely:
+-> mean: A tibble, the hyper-posterior mean parameter
+(\code{Output}) evaluated at each training reference \code{Input}.
+-> cov: A matrix, the covariance parameter for the hyper-posterior
 distribution of the mean process.
-\item pred_post: A tibble, gathering mean and covariance parameters of the
-mean process' hyper-posterior distribution under a format that allows
-direct visualisation as a GP prediction.
+-> pred: A tibble, the predicted mean and variance at \code{Input} for
+the mean process' hyper-posterior distribution under a format that
+allows the direct visualisation as a GP prediction.
 \item ini_args: A list containing the initial function arguments and values
 for the hyper-prior mean, the hyper-parameters. In particular, if
 those arguments were set to NULL, \code{ini_args} allows us to retrieve

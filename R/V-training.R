@@ -88,12 +88,12 @@
 #'    process' kernel and the mixture proportions for each cluster.
 #'    - hp_i: A tibble containing the trained hyper-parameters for the
 #'    individual processes' kernels.
-#'    - param: A sub-list containing the parameters of the mean processes'
-#'    hyper-posterior distributions, namely:
-#'        -> mean: A tibble containing the values of hyper-posterior's mean
-#'           parameters (\code{Output}) evaluated at each \code{Input} reference
-#'        -> cov: A matrix, covariance parameter of the hyper-posterior
-#'           distribution of the mean process.
+#'    - hyperpost: A sub-list containing the parameters of the mean processes'
+#'    hyper-posterior distribution, namely:
+#'        -> mean: A list of tibbles containing, for each cluster, the
+#'           hyper-posterior mean parameters evaluated at each \code{Input}.
+#'        -> cov: A list of matrices containing, for each cluster, the
+#'           hyper-posterior covariance parameter of the mean process.
 #'        -> mixture: A tibble, indicating the mixture probabilities in each
 #'           cluster for each individual.
 #'    - ini_args: A list containing the initial function arguments and values
@@ -426,7 +426,7 @@ train_magmaclust <- function(data,
     cat("Start evaluating hyper-posterior distributions of the mean processes",
         "on the provided grid of inputs... \n \n")
 
-    hyperpost <- hyperposterior_clust(
+    post <- hyperposterior_clust(
       data = data,
       post$mixture,
       hp_k = hp_k,
@@ -439,24 +439,25 @@ train_magmaclust <- function(data,
     )
     cat("Done!\n \n")
   }
-  else{hyperpost = post}
-
-  ## Create a variable for directly plotting the mean process' hyper-posterior
-  floop_pred = function(k){
-    tibble::tibble(
-      "Input" = hyperpost$mean[[k]] %>% dplyr::pull(.data$Input),
-      "Mean" = hyperpost$mean[[k]] %>% dplyr::pull(.data$Output),
-      "Var" = hyperpost$cov[[k]] %>% diag() %>% as.vector()
-    ) %>%
-      return()
+  else{
+    ## Create a variable for directly plotting the mean process' hyper-posterior
+    floop_pred = function(k){
+      tibble::tibble(
+        "Input" = post$mean[[k]] %>% dplyr::pull(.data$Input),
+        "Mean" = post$mean[[k]] %>% dplyr::pull(.data$Output),
+        "Var" = post$cov[[k]] %>% diag() %>% as.vector()
+      ) %>%
+        return()
+    }
+    post$pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
   }
-  post$pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
+
 
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
     "data" = data,
     "nb_cluster" = nb_cluster,
-    "prior_mean_k" = m_k,
+    "prior_mean_k" = prior_mean_k,
     "ini_hp_k" = hp_k_ini,
     "ini_hp_i" = hp_i_ini,
     "kern_k" = kern_k,
@@ -473,7 +474,7 @@ train_magmaclust <- function(data,
   list(
     "hp_k" = hp_k,
     "hp_i" = hp_i,
-    "post_param" = post,
+    "hyperpost" = post,
     "ini_args" = fct_args,
     "converged" = cv,
     "training_time" = difftime(t2, t1, units = "secs")
@@ -681,7 +682,7 @@ update_hp_k_mixture_star_EM <- function(db,
 #' ##########################
 #' train_new_gp_EM(simu_db(M = 1))
 #' }
-train_new_gp_EM <- function(data,
+train_gp_clust <- function(data,
                             db_train = NULL,
                             grid_inputs = NULL,
                             nb_cluster = NULL,
@@ -690,6 +691,7 @@ train_new_gp_EM <- function(data,
                             ini_hp_i = NULL,
                             kern_i = "SE",
                             trained_magmaclust = NULL,
+                            common_hp = T,
                             n_iter_max = 25,
                             cv_threshold = 1e-3,
                             pen_diag = 1e-8) {
@@ -1005,5 +1007,5 @@ train_new_gp_EM <- function(data,
     new_hp <- hp
   }
 
-  list("theta_new" = new_hp, "hp_k_mixture" = hp_k_mixture) %>% return()
+  list("hp" = new_hp, "mixture" = hp_k_mixture) %>% return()
 }
