@@ -98,7 +98,7 @@ the EM algorithm to proceed while not reaching convergence.}
 under which the EM algorithm will stop. The convergence condition is
 defined as the difference of likelihoods between two consecutive steps,
 divided by the absolute value of the last one
-( (LL_n - LL_n-1) / |LL_n| ).}
+( \eqn{(LL_n - LL_n-1) / |LL_n|} ).}
 }
 \value{
 A list, gathering the results of the EM algorithm used for training
@@ -110,13 +110,15 @@ process' kernel.
 individual processes' kernels.
 \item hyperpost: A sub-list gathering the parameters of the mean processes'
 hyper-posterior distributions, namely:
--> mean: A tibble, the hyper-posterior mean parameter
+\itemize{
+\item mean: A tibble, the hyper-posterior mean parameter
 (\code{Output}) evaluated at each training reference \code{Input}.
--> cov: A matrix, the covariance parameter for the hyper-posterior
+\item cov: A matrix, the covariance parameter for the hyper-posterior
 distribution of the mean process.
--> pred: A tibble, the predicted mean and variance at \code{Input} for
-the mean process' hyper-posterior distribution under a format that
-allows the direct visualisation as a GP prediction.
+\item pred: A tibble, the predicted mean and variance at \code{Input}
+for the mean process' hyper-posterior distribution under a format
+that allows the direct visualisation as a GP prediction.
+}
 \item ini_args: A list containing the initial function arguments and values
 for the hyper-prior mean, the hyper-parameters. In particular, if
 those arguments were set to NULL, \code{ini_args} allows us to retrieve
@@ -141,8 +143,8 @@ The user can specify custom kernel functions for the argument
 should have explicit names, and be contained within the \code{hp}
 argument. \code{hp} should typically be defined as a named vector or a
 data frame. Although it is not mandatory for the \code{train_magma}
-function to run, gradients can provided within kernel function definition.
-See for example \code{\link{se_kernel}} to create a custom kernel
+function to run, gradients can be provided within kernel function
+definition. See for example \code{\link{se_kernel}} to create a custom kernel
 function displaying an adequate format to be used in Magma.
 }
 \examples{

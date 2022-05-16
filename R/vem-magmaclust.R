@@ -51,7 +51,8 @@ ve_step = function(db,
                    hp_i,
                    old_mixture,
                    pen_diag) {
-  prop_mixture_k = hp_k$prop_mixture
+  prop_mixture_k = hp_k %>%
+    dplyr::pull(prop_mixture, name = .data$ID)
   all_input = unique(db$Input) %>% sort()
   t_clust = tibble::tibble(
     'ID' = rep(names(m_k), each = length(all_input)),
@@ -123,55 +124,19 @@ ve_step = function(db,
   mean_k = sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
   ## Update mixture
-  c_i = 0
-  c_k = 0
-  mat_elbo = matrix(NA, nrow = length(names(m_k)), ncol = length(unique(db$ID)))
-
-  for(i in unique(db$ID))
-  {
-    c_i = c_i + 1
-    input_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-    for(k in names(m_k))
-    {
-      c_k = c_k + 1
-
-      ## Extract the i-th specific hyper-parameters.
-      hp_i_i = hp_i %>% dplyr::filter(.data$ID == i)
-      ## Extract the data associated with the i-th individual
-      db_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::select(-.data$ID)
-      ## Extract the mean values associated with the i-th specific inputs
-      mean_k_i = mean_k[[k]] %>%
-        dplyr::filter(.data$Input %in% input_i) %>%
-        dplyr::pull(.data$Output)
-      ## Extract the covariance values associated with the i-th specific inputs
-      cov_k_i = cov_k[[k]][as.character(input_i), as.character(input_i)]
-
-      mat_elbo[c_k,c_i] = - logL_GP_mod(hp_i_i, db_i, mean_k_i , kern_i,
-                                        cov_k_i, pen_diag)
-
-      #if(is.na(mat_elbo[c_k,c_i])){print(i)} Detect the failing ID
-    }
-    c_k = 0
-  }
-
-  ## We need to use the 'log-sum-exp' trick: exp(x - max(x))/sum exp(x - max(x))
-  ## to remain numerically stable
-  mat_L = mat_elbo %>% apply(2,function(x) exp(x - max(x)))
-
-  mixture <- (prop_mixture_k * mat_L) %>% apply(2,function(x) x / sum(x)) %>%
-    `rownames<-`(names(m_k)) %>%
-    t %>%
-    round(5) %>%
-    tibble::as_tibble()
-
-  mixture <- tibble::tibble('ID' = unique(db$ID)) %>%
-    dplyr::mutate(mixture)
+  mixture <- update_mixture(
+    db,
+    mean_k,
+    cov_k,
+    hp_i,
+    kern_i,
+    prop_mixture_k,
+    pen_diag)
 
   list('mean' = mean_k,
        'cov' = cov_k,
        'mixture' = mixture) %>%
     return()
-
 }
 
 
@@ -350,7 +315,6 @@ vm_step = function(db,
   prop_mixture <- list_mu_param$mixture %>%
     dplyr::select(-.data$ID) %>%
     colMeans %>%
-    as.vector
 
   ## Check whether hyper-parameters are common to all cluster
   if(common_hp_k)
@@ -424,3 +388,103 @@ vm_step = function(db,
   ) %>%
     return()
 }
+
+#' Update the mixture probabilities for each individual and each cluster
+#'
+#' @param db A tibble or data frame. Columns required: \code{ID},
+#'    \code{Input}, \code{Output}. Additional columns for covariates can be specified.
+#' @param hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern}, the individual process' kernel. The
+#'    columns/elements should be named according to the hyper-parameters
+#'    that are used in \code{kern}.
+#' @param kern A kernel function, defining the covariance structure of
+#'    the individual GPs.
+#' @param mixture A tibble containing the hyper-parameters associated
+#'    with each individual, indicating in which cluster it belongs.
+#' @param mean_k A list of the K hyper-poserior mean parameters.
+#' @param cov_k A list of the K hyper-poserior covariance matrices.
+#'
+#' @return Compute the hyper-posterior multinomial distributions by updating
+#'    mixture probabilities.
+#'
+#' @examples
+#' TRUE
+update_mixture <- function(
+  db,
+  mean_k,
+  cov_k,
+  hp,
+  kern,
+  prop_mixture,
+  pen_diag) {
+  ## Check whether column 'ID' exists in 'db' or create if necessary
+  if (!("ID" %in% names(db)) ) {
+    db = db %>% dplyr::mutate('ID' = 'ID_pred', .before = 1)
+  }
+  ## Check whether column 'ID' exists in 'hp' or create if necessary
+  if (!("ID" %in% names(hp)) ) {
+    hp = hp %>% dplyr::mutate('ID' = 'ID_pred', .before = 1)
+  }
+
+  c_i = 0
+  c_k = 0
+  ID_i = unique(db$ID)
+  ID_k = names(mean_k)
+  mat_elbo = matrix(NA, nrow = length(ID_k), ncol = length(ID_i))
+  vec_prop = c()
+
+  for(i in ID_i)
+  {
+    c_i = c_i + 1
+    ## Extract the i-th specific Input
+    input_i = db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::pull(.data$Input)
+    ## Extract the i-th specific hyper-parameters
+    hp_i = hp %>%
+      dplyr::filter(.data$ID == i)
+    ## Extract the data associated with the i-th individual
+    db_i = db %>%
+      dplyr::filter(.data$ID == i) %>%
+      dplyr::select(-.data$ID)
+
+    for(k in ID_k)
+    {
+      c_k = c_k + 1
+
+      ## Create a vector of proportion with the clusters in adequate order
+      vec_prop[c_k] = prop_mixture[[k]]
+      ## Extract the mean values associated with the i-th specific inputs
+      mean_k_i = mean_k[[k]] %>%
+        dplyr::filter(.data$Input %in% input_i) %>%
+        dplyr::pull(.data$Output)
+      ## Extract the covariance values associated with the i-th specific inputs
+      cov_k_i = cov_k[[k]][as.character(input_i), as.character(input_i)]
+
+      mat_elbo[c_k,c_i] = - logL_GP_mod(
+        hp_i,
+        db_i,
+        mean_k_i,
+        kern,
+        cov_k_i,
+        pen_diag)
+
+      #if(is.na(mat_elbo[c_k,c_i])){print(i)} Detect the failing ID
+    }
+    c_k = 0
+  }
+
+  ## We need to use the 'log-sum-exp' trick: exp(x - max(x))/sum exp(x - max(x))
+  ## to remain numerically stable
+  mat_L = mat_elbo %>% apply(2,function(x) exp(x - max(x)))
+
+  (vec_prop * mat_L) %>%
+    apply(2,function(x) x / sum(x)) %>%
+    `rownames<-`(ID_k) %>%
+    t() %>%
+    round(5) %>%
+    tibble::as_tibble() %>%
+    dplyr::mutate('ID' = ID_i, .before = 1) %>%
+    return()
+}
+

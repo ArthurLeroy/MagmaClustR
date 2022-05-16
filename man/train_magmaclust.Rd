@@ -110,7 +110,7 @@ the VEM algorithm to proceed while not reaching convergence.}
 under which the VEM algorithm will stop. The convergence condition is
 defined as the difference of elbo between two consecutive steps,
 divided by the absolute value of the last one
-( \eqn{(ELBO_n - ELBO_{n-1}) / \abs{ELBO_n}} ). Default is \eqn{10^{-3}}.}
+( \eqn{(ELBO_n - ELBO_{n-1}) / |ELBO_n| } ).}
 }
 \value{
 A list, containing the results of the VEM algorithm used in the
@@ -122,12 +122,14 @@ process' kernel and the mixture proportions for each cluster.
 individual processes' kernels.
 \item hyperpost: A sub-list containing the parameters of the mean processes'
 hyper-posterior distribution, namely:
--> mean: A list of tibbles containing, for each cluster, the
+\itemize{
+\item mean: A list of tibbles containing, for each cluster, the
 hyper-posterior mean parameters evaluated at each \code{Input}.
--> cov: A list of matrices containing, for each cluster, the
+\item cov: A list of matrices containing, for each cluster, the
 hyper-posterior covariance parameter of the mean process.
--> mixture: A tibble, indicating the mixture probabilities in each
+\item mixture: A tibble, indicating the mixture probabilities in each
 cluster for each individual.
+}
 \item ini_args: A list containing the initial function arguments and values
 for the hyper-prior means, the hyper-parameters. In particular, if
 those arguments were set to NULL, \code{ini_args} allows us to retrieve
@@ -145,6 +147,17 @@ initialisation values for the hyper-parameters, the function computes
 maximum likelihood estimates of the HPs as well as the mean and covariance
 parameters of the Gaussian hyper-posterior distributions of the mean
 processes.
+}
+\details{
+The user can specify custom kernel functions for the argument
+\code{kern_k} and \code{kern_i}. The hyper-parameters used in the kernel
+should have explicit names, and be contained within the \code{hp}
+argument. \code{hp} should typically be defined as a named vector or a
+data frame. Although it is not mandatory for the \code{train_magmaclust}
+function to run, gradients be can provided within kernel function
+definition. See for example \code{\link{se_kernel}} to create a custom
+kernel function displaying an adequate format to be used in
+MagmaClust.
 }
 \examples{
 TRUE

@@ -97,9 +97,16 @@ pred_gp <- function(data,
   inputs_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::select(-.data$Output)
+
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
     inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
+    if(dplyr::n_distinct(data$ID) > 1){
+      stop(
+        "Problem in the 'ID' column: different values are not allowed. ",
+        "The prediction can only be performed for one individual/task."
+      )
+    }
   }
 
   ## Define the target inputs to predict
@@ -357,13 +364,16 @@ pred_gp <- function(data,
 #'
 #' @return A list gathering the parameters of the mean processes'
 #'         hyper-posterior distributions, namely:
-#'           -> mean: A tibble, the hyper-posterior mean parameter
-#'              evaluated at each training \code{Input}.
-#'           -> cov: A matrix, the covariance parameter for the hyper-posterior
-#'              distribution of the mean process.
-#'           -> pred: A tibble, the predicted mean and variance at \code{Input}
-#'              for the mean process' hyper-posterior distribution under a
-#'              format that allows the direct visualisation as a GP prediction.
+#'         \itemize{
+#'           \item mean: A tibble, the hyper-posterior mean parameter
+#'                 evaluated at each training \code{Input}.
+#'           \item cov: A matrix, the covariance parameter for the
+#'                 hyper-posterior distribution of the mean process.
+#'           \item pred: A tibble, the predicted mean and variance at
+#'                 \code{Input} for the mean process' hyper-posterior
+#'                 distribution under a format that allows the direct
+#'                 visualisation as a GP prediction.
+#'          }
 #'
 #' @export
 #'
@@ -634,6 +644,12 @@ pred_magma <- function(data,
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
     inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
+    if(dplyr::n_distinct(data$ID) > 1){
+      stop(
+        "Problem in the 'ID' column: different values are not allowed. ",
+        "The prediction can only be performed for one individual/task."
+      )
+    }
   }
 
   ## Define the target inputs to predict

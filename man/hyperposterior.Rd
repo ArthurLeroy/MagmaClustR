@@ -77,13 +77,16 @@ numerical issues when inverting nearly singular matrices.}
 \value{
 A list gathering the parameters of the mean processes'
 hyper-posterior distributions, namely:
--> mean: A tibble, the hyper-posterior mean parameter
+\itemize{
+\item mean: A tibble, the hyper-posterior mean parameter
 evaluated at each training \code{Input}.
--> cov: A matrix, the covariance parameter for the hyper-posterior
-distribution of the mean process.
--> pred: A tibble, the predicted mean and variance at \code{Input}
-for the mean process' hyper-posterior distribution under a
-format that allows the direct visualisation as a GP prediction.
+\item cov: A matrix, the covariance parameter for the
+hyper-posterior distribution of the mean process.
+\item pred: A tibble, the predicted mean and variance at
+\code{Input} for the mean process' hyper-posterior
+distribution under a format that allows the direct
+visualisation as a GP prediction.
+}
 }
 \description{
 Compute the parameters of the hyper-posterior Gaussian distribution of the

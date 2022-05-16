@@ -114,7 +114,8 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   #browser()
 
-  if(length(mean) == 1){mean = rep(mean, nrow(db))} ## mean is equal for all timestamps
+  if(length(mean) == 1){mean = rep(mean, nrow(db))}
+  ## mean is equal for all timestamps
 
   ## Extract the input variables (reference Input + Covariates)
   inputs <- db %>% dplyr::select(-.data$Output)
@@ -261,4 +262,64 @@ logL_monitoring <- function(
   ## Since the logL_GP_* functions return negative likelihoods for minimisation
   ## in the M-step, we need to x(-1) once more to retrieve the correct logL
   return(-ll_0 - sum_ll_i + det)
+}
+
+#' Compute sum of a mixture of Gaussian likelihoods
+#'
+#' During the prediction step of MagmaClust, an EM algorithm is used to compute
+#' the maximum likelihood estimator of the hyper-parameters along with
+#' mixture probabilities for the new individual/task. This function implements
+#' the likelihood that is maximised (i.e. a sum of Gaussian likelihoods,
+#' weighted by their mixture probabilities). It can also be used to monitor the
+#' EM algorithm when providing the 'prop_mixture' argument for proper
+#' penalisation.
+#'
+#' @param hp
+#' @param db
+#' @param mixture
+#' @param mean
+#' @param kern
+#' @param post_cov
+#' @param prop_mixture
+#' @param pen_diag
+#'
+#' @return
+#' @export
+#'
+#' @examples
+sum_logL_GP_clust <- function(
+  hp,
+  db,
+  mixture,
+  mean,
+  kern,
+  post_cov,
+  prop_mixture = NULL,
+  pen_diag) {
+
+  floop <- function(k) {
+    tau_k = mixture[[k]]
+    mean_k <- mean[[k]] %>%
+      dplyr::filter(.data$Input %in% input_obs) %>%
+      dplyr::pull(.data$Output)
+
+    cov_k <- post_cov[[k]][
+      as.character(input_obs),
+      as.character(input_obs)
+    ]
+    sum_LL = (tau_k * logL_GP(hp, db, mean_k, kern, cov_k, pen_diag))
+    ## If prop_mixture is provided, compute full likelihood for monitoring
+    if(!is.null(prop_mixture)){
+      pi_k = prop_mixture[[k]]
+      ## To avoid numerical issues if evaluating log(0/0)
+      log_frac = ifelse((tau_k == 0|(pi_k == 0)), 0, log(pi_k/tau_k))
+
+      sum_LL = - sum_LL + tau_k * log_frac
+    }
+
+    return(sum_LL)
+  }
+  sapply(names(mean), floop) %>%
+    sum() %>%
+    return()
 }

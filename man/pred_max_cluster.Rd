@@ -7,10 +7,14 @@
 pred_max_cluster(mixture)
 }
 \arguments{
-\item{mixture}{A tibble or data frame containing the mixture's probabilities.}
+\item{mixture}{A tibble or data frame containing mixture probabilities.}
 }
 \value{
-A character, corresponding to the name of the most probable cluster.
+A tibble, retaining only the most probable cluster. The column
+\code{Cluster} indicates the the cluster's name whereas \code{Proba}
+refers to its associated probability. If \code{ID} is initially
+a column of \code{mixture} (optional), the function returns the most
+probable cluster for all the different \code{ID} values.
 }
 \description{
 Indicates the most probable cluster

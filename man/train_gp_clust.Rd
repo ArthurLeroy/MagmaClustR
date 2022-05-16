@@ -2,22 +2,17 @@
 % Please edit documentation in R/V-training.R
 \name{train_gp_clust}
 \alias{train_gp_clust}
-\title{Learning hyper-parameters of a Gaussian Process}
+\title{Prediction in MagmaClust: learning new HPs and mixture probabilities}
 \usage{
 train_gp_clust(
   data,
-  db_train = NULL,
-  grid_inputs = NULL,
-  nb_cluster = NULL,
-  param_mu_k = NULL,
-  ini_hp_k = NULL,
-  ini_hp_i = NULL,
-  kern_i = "SE",
-  trained_magmaclust = NULL,
-  common_hp = T,
+  prop_mixture = NULL,
+  ini_hp = NULL,
+  kern = "SE",
+  hyperpost = NULL,
+  pen_diag = 1e-08,
   n_iter_max = 25,
-  cv_threshold = 0.001,
-  pen_diag = 1e-08
+  cv_threshold = 0.001
 )
 }
 \arguments{
@@ -31,45 +26,15 @@ with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference \code{Input}.}
 
-\item{db_train}{A tibble or data frame on wich we want the training.
-Required columns: \code{Input}, \code{Output}.
-Additional columns for covariates can be specified.
-The \code{Input} column should define the variable that is used as
-reference for the observations (e.g. time for longitudinal data). The
-\code{Output} column specifies the observed values (the response
-variable). The data frame can also provide as many covariates as desired,
-with no constraints on the column names. These covariates are additional
-inputs (explanatory variables) of the models that are also observed at
-each reference \code{Input}.}
+\item{prop_mixture}{A tibble or a named vector. Each name of column or
+element should refer to a cluster. The value associated with each cluster
+is a number between 0 and 1, corresponding to the mixture
+proportions.}
 
-\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
-on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as \code{data}, except
-'Output'. Nonetheless, in cases where \code{data} provides only one
-'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-vector. This vector would be used as reference input for prediction and if
-NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{data}.}
+\item{ini_hp}{A tibble or data frame of hyper-parameters
+associated with \code{kern}, the individual process kernel.}
 
-\item{nb_cluster}{The number of cluster wanted.}
-
-\item{param_mu_k}{list of parameters for the K mean Gaussian processes}
-
-\item{ini_hp_k}{A tibble or data frame of hyper-parameters
-associated with \code{kern_k}, the cluster processes' kernel.
-Required column : \code{ID}. The \code{ID} column contains the unique
-names/codes used to identify each individual/task. The other columns
-should be named according to the hyper-parameters that are used in
-\code{kern_i}.}
-
-\item{ini_hp_i}{A tibble or data frame of hyper-parameters
-associated with \code{kern_i}, the individual processes' kernel.
-Required column : \code{ID}. The \code{ID} column contains the unique
-names/codes used to identify each individual/task. The other columns
-should be named according to the hyper-parameters that are used in
-\code{kern_i}.}
-
-\item{kern_i}{A kernel function, defining the covariance structure of the GP.
+\item{kern}{A kernel function, defining the covariance structure of the GP.
 Several popular kernels
 (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 Cookbook}) are already implemented and can be selected within the
@@ -88,68 +53,39 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{trained_magmaclust}{A tibble of list containing 'hp_i',
-a named vector, tibble or data frame of hyper-parameters associated with
-\code{kern_i}.}
+\item{hyperpost}{A list, containing the elements \code{mean}, \code{cov} and
+\code{mixture} the parameters of the hyper-posterior distributions of the
+mean processes. Typically, this argument should come from a previous
+learning using \code{\link{train_magmaclust}}, or a previous prediction
+with \code{\link{pred_magmaclust}}, with the argument \code{get_hyperpost}
+set to TRUE.}
+
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 
 \item{n_iter_max}{A number, indicating the maximum number of iterations of
 the EM algorithm to proceed while not reaching convergence.}
 
 \item{cv_threshold}{A number, indicating the threshold of the likelihood gain
 under which the EM algorithm will stop.}
-
-\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
-numerical issues when inverting nearly singular matrices.}
 }
 \value{
-A list, containing the results of the EM algorithm used for training
-in MagmaClust. The elements of the list are:
+A list, containing the results of the EM algorithm used during the
+prediction step of MagmaClust. The elements of the list are:
 \itemize{
-\item theta_new :
-\item hp_k_mixture :
+\item hp: A tibble of optimal hyper-parameters for the new individual's GP.
+\item mixture: A tibble of mixture probabilities for the new individual.
 }
 }
 \description{
-Learning hyper-parameters of any new individual/task in \code{magmaclust} is
-required in the prediction procedure. When using within \code{magma},
-by providing data for the new individual/task, the trained model
-(hyper-posterior mean and  covariance parameters) and
-initialization values for the hyper-parameters, the function computes
-maximum likelihood estimates of the hyper-parameters.
+Learning hyper-parameters and mixture probabilities of any new
+individual/task is required in \code{MagmaClust} in the prediction procedure.
+By providing data for the new individual/task, the hyper-posterior mean and
+covariance parameters, the mixture proportions, and initialisation values for
+the hyper-parameters, \code{train_gp_clust} uses an EM algorithm to compute
+maximum likelihood estimates of the hyper-parameters and hyper-posterior
+mixture probabilities of the new individual/task.
 }
 \examples{
-\dontrun{
-k <- seq_len(2)
-m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
-
-db <- simu_db()
-hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
-hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-
-ini_hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-old_mixture <- MagmaClustR:::ini_mixture(
-  db = db, k = length(k),
-  nstart = 50
-)
-
-training_test <- train_magmaclust(db)
-
-timestamps <- seq(0.01, 10, 0.01)
-mu_k <- hyperposterior_clust(db, timestamps, m_k, "SE", "SE", training_test,
-  pen_diag = 0.01
-)
-
-train_new_gp_EM(simu_db(M = 1),
-  param_mu_k = mu_k, ini_hp_i = ini_hp_i,
-  kern_i = "SE", trained_magmaclust = training_test
-)
-
-###########################
-db <- simu_db()
-training_test <- train_magmaclust(db)
-train_new_gp_EM(simu_db(M = 1), trained_magmaclust = training_test)
-
-##########################
-train_new_gp_EM(simu_db(M = 1))
-}
+TRUE
 }

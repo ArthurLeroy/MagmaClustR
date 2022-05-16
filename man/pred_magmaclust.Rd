@@ -19,11 +19,11 @@ pred_magmaclust(
 )
 }
 \arguments{
-\item{data}{A tibble or data frame. Required columns: 'Input',
-'Output'. Additional columns for covariates can be specified.
-The 'Input' column should define the variable that is used as
+\item{data}{A tibble or data frame. Required columns: \code{Input},
+\code{Output}. Additional columns for covariates can be specified.
+The \code{Input} column should define the variable that is used as
 reference for the observations (e.g. time for longitudinal data). The
-'Output' column specifies the observed values (the response
+\code{Output} column specifies the observed values (the response
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
@@ -34,9 +34,9 @@ MagmaClust model, previously trained using the
 \code{\link{train_magmaclust}} function.}
 
 \item{mixture}{A tibble or data frame, indicating the mixture probabilities
-in each cluster for the new individual/task. Required column: \code{ID}.
-The \code{\link{train_gp_clust}} function can be used to compute these
-posterior probabilities according to \code{data}.}
+of each cluster for the new individual/task. Required column: \code{ID}.
+If NULL, the \code{\link{train_gp_clust}} function is used to compute
+these posterior probabilities according to \code{data}.}
 
 \item{hp}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern}. The columns/elements should be named
@@ -72,6 +72,13 @@ vector. This vector would be used as reference input for prediction and if
 NULL, a vector of length 500 is defined, ranging between the min and max
 Input values of \code{data}.}
 
+\item{hyperpost}{A list, containing the elements \code{mean}, \code{cov} and
+\code{mixture} the parameters of the hyper-posterior distributions of the
+mean processes. Typically, this argument should come from a previous
+learning using \code{\link{train_magmaclust}}, or a previous prediction
+with \code{\link{pred_magmaclust}}, with the argument \code{get_hyperpost}
+set to TRUE.}
+
 \item{get_hyperpost}{A logical value, indicating whether the hyper-posterior
 distributions of the mean processes should be returned. This can be useful
 when planning to perform several predictions on the same grid of inputs,
@@ -88,7 +95,24 @@ automatically displayed.}
 numerical issues when inverting nearly singular matrices.}
 }
 \value{
-\subsection{TO DO}{
+A list of GP prediction results composed of:
+\itemize{
+\item pred: As sub-list containing, for each cluster:
+\itemize{
+\item pred_gp: A tibble, representing the GP predictions as two
+column \code{Mean} and \code{Var}, evaluated on the
+\code{grid_inputs}. The column \code{Input} and additional
+covariates columns are associated with each predicted values.
+\item proba: A number, the posterior probability associated with
+this cluster.
+\item cov (if \code{get_full_cov} = TRUE): A matrix, the full
+posterior covariance matrix associated with this cluster.
+}
+\item mixture: A tibble, indicating the mixture probabilities
+of each cluster for the predicted individual/task.
+\item hyperpost (if \code{get_hyperpost} = TRUE): A list, containing
+the hyper-posterior distributions information usefull for
+visualisation purposes.
 }
 }
 \description{

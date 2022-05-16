@@ -30,7 +30,7 @@ inputs (explanatory variables) of the models that are also observed at
 each reference \code{Input}.}
 
 \item{mixture}{A tibble or data frame, indicating the mixture probabilities
-in each cluster for each individual. Required column: \code{ID}.}
+of each cluster for each individual. Required column: \code{ID}.}
 
 \item{hp_k}{A tibble or data frame of hyper-parameters
 associated with \code{kern_k}.}
@@ -83,15 +83,24 @@ numerical issues when inverting nearly singular matrices.}
 \value{
 A list containing the parameters of the mean processes'
 hyper-posterior distribution, namely:
--> mean: A list of tibbles containing, for each cluster, the
-hyper-posterior mean parameters evaluated at each \code{Input}.
--> cov: A list of matrices containing, for each cluster, the
+\itemize{
+\item mean: A list of tibbles containing, for each cluster, the
+hyper-posterior mean parameters evaluated at each
+\code{Input}.
+\item cov: A list of matrices containing, for each cluster, the
 hyper-posterior covariance parameter of the mean process.
--> mixture: A tibble, indicating the mixture probabilities in each
-cluster for each individual.
+\item mixture: A tibble, indicating the mixture probabilities in
+each cluster for each individual.
+}
 }
 \description{
-Compute the hyper-posterior distribution for each cluster in MagmaClust
+Recompute the E-step of the VEM algorithm in MagmaClust for a new set of
+reference \code{Input}. Once training is completed, it can be necessary to
+evaluate the hyper-posterior distributions of the mean processes at specific
+locations, for which we want to make predictions. This process is directly
+implemented in the \code{\link{pred_magmaclust}} function but for the user
+might want to use \code{hyperpost_clust} for a tailored control 'by hand' of
+the prediction procedure.
 }
 \examples{
 TRUE

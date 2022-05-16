@@ -1,5 +1,13 @@
 #' Compute the hyper-posterior distribution for each cluster in MagmaClust
 #'
+#' Recompute the E-step of the VEM algorithm in MagmaClust for a new set of
+#' reference \code{Input}. Once training is completed, it can be necessary to
+#' evaluate the hyper-posterior distributions of the mean processes at specific
+#' locations, for which we want to make predictions. This process is directly
+#' implemented in the \code{\link{pred_magmaclust}} function but for the user
+#' might want to use \code{hyperpost_clust} for a tailored control 'by hand' of
+#' the prediction procedure.
+#'
 #' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
 #'    The \code{ID} column contains the unique names/codes used to identify each
@@ -12,7 +20,7 @@
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference \code{Input}.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
-#'     in each cluster for each individual. Required column: \code{ID}.
+#'     of each cluster for each individual. Required column: \code{ID}.
 #' @param hp_k A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_k}.
 #' @param hp_i A tibble or data frame of hyper-parameters
@@ -53,12 +61,15 @@
 #'
 #' @return A list containing the parameters of the mean processes'
 #'         hyper-posterior distribution, namely:
-#'            -> mean: A list of tibbles containing, for each cluster, the
-#'               hyper-posterior mean parameters evaluated at each \code{Input}.
-#'            -> cov: A list of matrices containing, for each cluster, the
-#'               hyper-posterior covariance parameter of the mean process.
-#'            -> mixture: A tibble, indicating the mixture probabilities in each
-#'               cluster for each individual.
+#'         \itemize{
+#'            \item mean: A list of tibbles containing, for each cluster, the
+#'                  hyper-posterior mean parameters evaluated at each
+#'                  \code{Input}.
+#'            \item cov: A list of matrices containing, for each cluster, the
+#'                  hyper-posterior covariance parameter of the mean process.
+#'            \item mixture: A tibble, indicating the mixture probabilities in
+#'                  each cluster for each individual.
+#'          }
 #'
 #' @export
 #'
@@ -252,9 +263,9 @@ hyperposterior_clust = function(data,
 #'    MagmaClust model, previously trained using the
 #'    \code{\link{train_magmaclust}} function.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
-#'     in each cluster for the new individual/task. Required column: \code{ID}.
-#'     The \code{\link{train_gp_clust}} function can be used to compute these
-#'     posterior probabilities according to \code{data}.
+#'     of each cluster for the new individual/task. Required column: \code{ID}.
+#'     If NULL, the \code{\link{train_gp_clust}} function is used to compute
+#'     these posterior probabilities according to \code{data}.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}. The columns/elements should be named
 #'    according to the hyper-parameters that are used in \code{kern}. The
@@ -284,6 +295,12 @@ hyperposterior_clust = function(data,
 #'    vector. This vector would be used as reference input for prediction and if
 #'    NULL, a vector of length 500 is defined, ranging between the min and max
 #'    Input values of \code{data}.
+#' @param hyperpost A list, containing the elements \code{mean}, \code{cov} and
+#'   \code{mixture} the parameters of the hyper-posterior distributions of the
+#'    mean processes. Typically, this argument should come from a previous
+#'    learning using \code{\link{train_magmaclust}}, or a previous prediction
+#'    with \code{\link{pred_magmaclust}}, with the argument \code{get_hyperpost}
+#'    set to TRUE.
 #' @param get_hyperpost A logical value, indicating whether the hyper-posterior
 #'    distributions of the mean processes should be returned. This can be useful
 #'    when planning to perform several predictions on the same grid of inputs,
@@ -296,7 +313,25 @@ hyperposterior_clust = function(data,
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
-#' @return ### TO DO ###
+#' @return A list of GP prediction results composed of:
+#'         \itemize{
+#'           \item pred: As sub-list containing, for each cluster:
+#'             \itemize{
+#'              \item pred_gp: A tibble, representing the GP predictions as two
+#'                 column \code{Mean} and \code{Var}, evaluated on the
+#'                 \code{grid_inputs}. The column \code{Input} and additional
+#'                 covariates columns are associated with each predicted values.
+#'              \item proba: A number, the posterior probability associated with
+#'                 this cluster.
+#'              \item cov (if \code{get_full_cov} = TRUE): A matrix, the full
+#'                 posterior covariance matrix associated with this cluster.
+#'              }
+#'           \item mixture: A tibble, indicating the mixture probabilities
+#'              of each cluster for the predicted individual/task.
+#'           \item hyperpost (if \code{get_hyperpost} = TRUE): A list, containing
+#'              the hyper-posterior distributions information usefull for
+#'              visualisation purposes.
+#'          }
 #'
 #' @export
 #'
@@ -675,17 +710,28 @@ pred_magmaclust = function(data,
 
 #' Indicates the most probable cluster
 #'
-#' @param mixture A tibble or data frame containing the mixture's probabilities.
+#' @param mixture A tibble or data frame containing mixture probabilities.
 #'
-#' @return A character, corresponding to the name of the most probable cluster.
+#' @return A tibble, retaining only the most probable cluster. The column
+#'    \code{Cluster} indicates the the cluster's name whereas \code{Proba}
+#'    refers to its associated probability. If \code{ID} is initially
+#'    a column of \code{mixture} (optional), the function returns the most
+#'    probable cluster for all the different \code{ID} values.
 #'
 #' @examples
 #' TRUE
 pred_max_cluster = function(mixture)
 {
-  mixture %>%
-    tibble::as_tibble %>%
-    tidyr::unnest(cols = c()) %>%
-    apply(1, which.max) %>%
-    return()
+  if('ID' %in% names(mixture)){
+    mixture %>%
+      tidyr::pivot_longer(- .data$ID) %>%
+      dplyr::group_by(.data$ID) %>%
+      dplyr::filter(.data$value == max(.data$value)) %>%
+      dplyr::rename('Cluster' = .data$name, 'Proba' = .data$value)
+  } else {
+    mixture %>%
+      tidyr::pivot_longer(tidyselect::everything()) %>%
+      dplyr::filter(.data$value == max(.data$value)) %>%
+      dplyr::rename('Cluster' = .data$name, 'Proba' = .data$value)
+  }
 }
