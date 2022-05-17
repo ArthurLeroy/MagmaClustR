@@ -38,7 +38,7 @@
 #' @section Examples:
 #'
 #' ### Simulate a dataset, train and predict with Magma \cr
-#' set.seed(24) \cr
+#' set.seed(42) \cr
 #' data_magma <- simu_db(M = 11, N = 10, K = 1) \cr
 #' magma_train <- data_magma %>% subset(ID %in% 1:10) \cr
 #' magma_test <- data_magma %>% subset(ID == 11) %>% head(5) \cr
