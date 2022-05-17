@@ -62,15 +62,16 @@ grid_inputs = seq(0, 10, 0.01)) \cr
 
 \subsection{Simulate a dataset, train and predict with MagmaClust \cr}{
 
-set.seed(42) \cr
+set.seed(24) \cr
 data_magmaclust <- simu_db(M = 4, N = 10, K = 3) \cr
 list_ID = unique(data_magmaclust$ID) \cr
 magmaclust_train <- data_magmaclust \%>\% subset(ID \%in\% list_ID[1:11]) \cr
-magmaclust_test <- data_magmaclust \%>\% subset(ID == list_ID[12]) \%>\% head(5)\cr
+magmaclust_test <- data_magmaclust \%>\% subset(ID == list_ID[12]) \%>\%
+head(5)\cr
 
 magmaclust_model <- train_magmaclust(data = magmaclust_train) \cr
 magmaclust_pred  <- pred_magmaclust(data = magmaclust_test, \cr
-trained_model = magmaclust_model) \cr
+trained_model = magmaclust_model, grid_inputs = seq(0, 10, 0.01)) \cr
 }
 }
 

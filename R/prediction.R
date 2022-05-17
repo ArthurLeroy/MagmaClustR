@@ -243,10 +243,10 @@ pred_gp <- function(data,
     } else if (kern %>% is.character) {
       hp <- quiet(
         train_gp(data,
+                 prior_mean = mean_obs,
                  ini_hp = hp(kern, noise = T),
                  kern = kern,
-                 post_mean = mean_obs,
-                 post_cov = NULL,
+                 hyperpost = NULL,
                  pen_diag = pen_diag
         )
       )
@@ -803,10 +803,10 @@ pred_magma <- function(data,
       } else if (kern %>% is.character()) {
         hp <- quiet(
           train_gp(data,
+                   prior_mean = NULL,
                    ini_hp = hp(kern, noise = T),
                    kern = kern,
-                   post_mean = mean_obs,
-                   post_cov = post_cov_obs,
+                   hyperpost = hyperpost,
                    pen_diag = pen_diag
           )
         )
@@ -827,10 +827,10 @@ pred_magma <- function(data,
     } else if (kern %>% is.character()) {
       hp <- quiet(
         train_gp(data,
+                 prior_mean = NULL,
                  ini_hp = hp(kern, noise = T),
                  kern = kern,
-                 post_mean = mean_obs,
-                 post_cov = post_cov_obs,
+                 hyperpost = hyperpost,
                  pen_diag = pen_diag
         )
       )

@@ -8,7 +8,8 @@ update_mixture(db, mean_k, cov_k, hp, kern, prop_mixture, pen_diag)
 }
 \arguments{
 \item{db}{A tibble or data frame. Columns required: \code{ID},
-\code{Input}, \code{Output}. Additional columns for covariates can be specified.}
+\code{Input}, \code{Output}. Additional columns for covariates can be
+specified.}
 
 \item{mean_k}{A list of the K hyper-poserior mean parameters.}
 
@@ -22,8 +23,11 @@ that are used in \code{kern}.}
 \item{kern}{A kernel function, defining the covariance structure of
 the individual GPs.}
 
-\item{mixture}{A tibble containing the hyper-parameters associated
+\item{prop_mixture}{A tibble containing the hyper-parameters associated
 with each individual, indicating in which cluster it belongs.}
+
+\item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
+numerical issues when inverting nearly singular matrices.}
 }
 \value{
 Compute the hyper-posterior multinomial distributions by updating

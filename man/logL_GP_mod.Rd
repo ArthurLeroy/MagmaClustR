@@ -32,9 +32,5 @@ the training. The log-Likelihood is defined as a simple Gaussian likelihood
 added with correction trace term.
 }
 \examples{
-db <- tibble::tibble(Input = 1:5, Output = 2:6)
-mean <- rep(0, 5)
-hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-post_cov = kern_to_cov(1:5, 'SE', hp)
-MagmaClustR:::logL_GP_mod(hp, db, mean, "SE", post_cov, 0.001)
+TRUE
 }

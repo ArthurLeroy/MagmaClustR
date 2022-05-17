@@ -116,8 +116,8 @@ hyperposterior_clust = function(data,
       m_k[[ID_k[k]]] <- rep(0, length(all_input))
     }
     cat(
-      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
-      "function is thus set to be 0 everywhere.\n \n"
+      "The 'prior_mean_k' argument has not been specified. The hyper_prior ",
+      "mean functions are thus set to be 0 everywhere.\n \n"
     )
   } else if (prior_mean_k[[1]] %>% is.function()) {
     ## Create a list named by cluster with evaluation of the mean at all Input
@@ -136,7 +136,7 @@ hyperposterior_clust = function(data,
         m_k[[ID_k[k]]] <- rep(prior_mean_k, length(all_input))
       }
       cat(
-        "The provided 'prior_mean' argument is of length 1. Thus, the same",
+        "The provided 'prior_mean_k' argument is of length 1. Thus, the same",
         "hyper-prior constant mean function has been set for each",
         "cluster.\n \n "
       )
@@ -174,7 +174,7 @@ hyperposterior_clust = function(data,
       co_input = intersect(row.names(inv_i), row.names(post_inv))
       ## Get the probability of the i-th individual to be in the k-th cluster
       tau_i_k = mixture %>%
-        dplyr::filter(ID == i) %>%
+        dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
       ## Sum the common inverse covariance's terms
       post_inv[co_input,co_input] <- post_inv[co_input, co_input] +
@@ -201,7 +201,7 @@ hyperposterior_clust = function(data,
     {
       ## Get the probability of the i-th individual to be in the k-th cluster
       tau_i_k = mixture %>%
-        dplyr::filter(ID == i) %>%
+        dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
       ## Compute the weighted mean for the i-th individual
       weighted_i = tau_i_k * list_inv_i[[i]] %*% value_i[[i]]
@@ -261,9 +261,11 @@ hyperposterior_clust = function(data,
 #'    each reference 'Input'.
 #' @param trained_model A list, containing  the information coming from a
 #'    MagmaClust model, previously trained using the
-#'    \code{\link{train_magmaclust}} function.
+#'    \code{\link{train_magmaclust}} function. If \code{trained_model} is set to
+#'    NULL, the \code{hyperpost} and \code{prop_mixture} arguments are mandatory
+#'    to perform required re-computations for the prediction to succeed.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
-#'     of each cluster for the new individual/task. Required column: \code{ID}.
+#'     of each cluster for the new individual/task.
 #'     If NULL, the \code{\link{train_gp_clust}} function is used to compute
 #'     these posterior probabilities according to \code{data}.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
@@ -301,6 +303,12 @@ hyperposterior_clust = function(data,
 #'    learning using \code{\link{train_magmaclust}}, or a previous prediction
 #'    with \code{\link{pred_magmaclust}}, with the argument \code{get_hyperpost}
 #'    set to TRUE.
+#' @param prop_mixture A tibble or a named vector of the mixture proportions.
+#'    Each name of column or element should refer to a cluster. The value
+#'    associated with each cluster is a number between 0 and 1. If both
+#'    \code{mixture} and \code{trained_model} are set to NULL, this argument
+#'    allows to recompute mixture probabilities, thanks to the \code{hyperpost}
+#'    argument and the \code{\link{train_gp_clust}} function.
 #' @param get_hyperpost A logical value, indicating whether the hyper-posterior
 #'    distributions of the mean processes should be returned. This can be useful
 #'    when planning to perform several predictions on the same grid of inputs,
@@ -348,6 +356,7 @@ pred_magmaclust = function(data,
                            kern = "SE",
                            grid_inputs = NULL,
                            hyperpost = NULL,
+                           prop_mixture = NULL,
                            get_hyperpost = FALSE,
                            get_full_cov = FALSE,
                            plot = TRUE,
@@ -370,13 +379,20 @@ pred_magmaclust = function(data,
 
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
-    inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
     if(dplyr::n_distinct(data$ID) > 1){
       stop(
         "Problem in the 'ID' column: different values are not allowed. ",
         "The prediction can only be performed for one individual/task."
       )
     }
+    ## Collect all the Inputs
+    inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
+    ## Get 'ID' of the individual to predict
+    ID_data = unique(data$ID)
+  } else {
+    ## Set 'ID' of the individual to predict to 'ID_pred' if not provided
+    ID_data = 'ID_pred'
+    data = data %>% dplyr::mutate('ID' = 'ID_pred', .before = 1)
   }
 
   ## Define the target inputs to predict
@@ -447,39 +463,51 @@ pred_magmaclust = function(data,
     if (trained_model %>% is.null()) {
       stop(
         "If the 'hyperpost' argument is NULL, the 'trained_model' ",
-        "should be provided, in order to extract or recompute mean process' ",
-        "hyper-posterior distribution evaluated on the correct inputs."
+        "should be provided, in order to extract or recompute mean processes' ",
+        "hyper-posterior distributions evaluated at the correct inputs."
       )
     } else{
       ## Get the hyper-posterior distribution from the trained model
       hyperpost = trained_model$hyperpost
+
+      ## Check hyperpost format (in particular presence of all reference Input)
+      if (!all(all_input %in% hyperpost$mean[[1]]$Input)) {
+        cat(
+          "The hyper-posterior distribution of the mean process provided in",
+          "'hyperpost' argument isn't evaluated on the expected inputs.",
+          "Start evaluating the hyper-posterior on the correct inputs...\n \n"
+        )
+        hyperpost <- hyperposterior_clust(
+          data = trained_model$ini_args$data,
+          mixture = trained_model$hyperpost$mixture,
+          hp_k = trained_model$hp_k,
+          hp_i = trained_model$hp_i,
+          kern_k = trained_model$ini_args$kern_k,
+          kern_i = trained_model$ini_args$kern_i,
+          prior_mean_k = trained_model$ini_args$prior_mean_k,
+          grid_inputs = all_input,
+          pen_diag = pen_diag
+        )
+        cat("Done!\n \n")
+      }
     }
-  }
-  ## Check hyperpost format
-  if ((hyperpost %>% is.list()) &
-      (!is.null(hyperpost$mean)) &
-      (!is.null(hyperpost$cov))
-  ) {
-    ## Check hyperpost format (in particular presence of all reference Input)
-    if (!all(all_input %in% hyperpost$mean$Input)) {
-      cat(
-        "The hyper-posterior distribution of the mean process provided in",
-        "'hyperpost' argument isn't evaluated on the expected inputs.\n \n",
-        "Start evaluating the hyper-posterior on the correct inputs...\n \n"
-      )
-      hyperpost <- hyperposterior_clust(
-        data = trained_model$ini_args$data,
-        mixture = trained_model$hyperpost$mixture,
-        hp_k = trained_model$hp_k,
-        hp_i = trained_model$hp_i,
-        kern_k = trained_model$ini_args$kern_k,
-        kern_i = trained_model$ini_args$kern_i,
-        prior_mean = trained_model$ini_args$prior_mean_k,
-        grid_inputs = all_input,
-        pen_diag = pen_diag
-      )
-      cat("Done!\n \n")
-    }
+  } else if ( hyperpost %>% is.list() ) {
+      ## Check hyperpost format
+      if ( !is.null(hyperpost$mean) ){
+        ## Check hyperpost format (in particular presence of all reference Input)
+        if (!all(all_input %in% hyperpost$mean[[1]]$Input)) {
+          stop(
+            "The hyper-posterior distribution of the mean processes provided ",
+            "in the 'hyperpost' argument isn't evaluated on expected inputs. ",
+            "Please provide a 'trained_model' argument for re-computation. "
+          )
+        }
+      } else {
+        stop(
+          "The format of the 'hyperpost' argument is not as expected. Please ",
+          "read ?pred_magmaclust() for details."
+        )
+      }
   } else {
     stop(
       "The format of the 'hyperpost' argument is not as expected. Please ",
@@ -499,7 +527,20 @@ pred_magmaclust = function(data,
         ## Extract the hyper-parameters common to all 'i'
         hp = trained_model$hp_i %>%
           dplyr::slice(1) %>%
-          dplyr::select(- .data$ID)
+          dplyr::mutate('ID' = ID_data)
+        ## Extract and format the mixture proportions
+        prop_mixture = trained_model$hp_k %>%
+          dplyr::pull(.data$prop_mixture, name = .data$ID)
+
+        mixture = update_mixture(
+          data,
+          hyperpost$mean,
+          hyperpost$cov,
+          hp,
+          trained_model$ini_args$kern_i,
+          prop_mixture,
+          pen_diag)
+
       } else if (kern %>% is.function()) {
         stop(
           "When using a custom kernel function the 'hp' argument is ",
@@ -509,26 +550,27 @@ pred_magmaclust = function(data,
           "'train_gp_clust()' to learn ML estimators for a better fit."
         )
       } else if (kern %>% is.character()) {
-        hp_mix <- quiet(
-          train_gp_clust(
+        ## Extract the mixture proportions
+        prop_mixture = trained_model$hp_k %>%
+          dplyr::pull(.data$prop_mixture, name = .data$ID)
+
+        cat(
+          "The 'hp' argument has not been specified. The 'train_gp_clust()'",
+          "function (with random initialisation) will be used to learn ML",
+          "estimators for hyper-parameters and mixture probabilities... \n \n"
+        )
+        hp_mix <- train_gp_clust(
             data,
-            ini_hp = hp(kern, noise = T),
+            prop_mixture = prop_mixture,
+            ini_hp = hp(kern, noise = T, list_ID = ID_data),
             kern = kern,
             hyperpost = hyperpost,
             pen_diag = pen_diag
           )
-        )
 
         ## Extract values of hyper-parameters and mixture probabilities
         hp = hp_mix$hp
         mixture = hp_mix$mixture
-
-        cat(
-          "The 'hp' argument has not been specified. The 'train_gp_clust()'",
-          "function (with random initialisation) has been used to learn ML",
-          "estimators for the hyper-parameters associated with the 'kern'",
-          "argument.\n \n"
-        )
       }
     } else if (kern %>% is.function()) {
       stop(
@@ -539,24 +581,29 @@ pred_magmaclust = function(data,
         "to learn ML estimators for a better fit."
       )
     } else if (kern %>% is.character()) {
-      hp_mix <- quiet(
-        train_gp_clust(
+      cat(
+        "The 'hp' argument has not been specified. The 'train_gp_clust()'",
+        "function (with random initialisation) will be used to learn ML",
+        "estimators for hyper-parameters and mixture probabilities... \n \n"
+      )
+      ## If 'prop_mixture' has no name, use the ID_k to retrieve them
+      if(!('ID' %in% prop_mixture) & !is.null(prop_mixture)){
+        names(prop_mixture) = ID_k
+      }
+
+      hp_mix <- train_gp_clust(
           data,
-          ini_hp = hp(kern, noise = T),
+          prop_mixture = prop_mixture,
+          ini_hp = hp(kern, noise = T , list_ID = ID_data),
           kern = kern,
           hyperpost = hyperpost,
           pen_diag = pen_diag
         )
-      )
+
       ## Extract values of hyper-parameters and mixture probabilities
       hp = hp_mix$hp
       mixture = hp_mix$mixture
 
-      cat(
-        "The 'hp' argument has not been specified. The 'train_gp()' function",
-        "(with random initialisation) has been used to learn ML estimators",
-        "for the hyper-parameters associated with the 'kern' argument.\n \n"
-      )
     } else {
       stop(
         "Incorrect format for the 'kern' argument. Please read ?pred_gp() for ",
@@ -564,30 +611,6 @@ pred_magmaclust = function(data,
       )
     }
   }
-
-  ## Compute mixture probabilities if not specified
-  if (mixture %>% is.null()){
-    if (trained_model %>% is.null()) {
-      stop(
-        "If the 'mixture' argument is NULL, the 'trained_model' ",
-        "should be provided, in order to compute the posterior mixture ' ",
-        "probabilities for the individual/task we want to predict."
-      )
-    } else{
-      hp_mix = quiet(
-        train_gp_clust(
-          data,
-          ini_hp = hp(kern, noise = T),
-          kern_i = kern,
-          hyperpost = hyperpost,
-          common_hp_i = trained_model$ini_args$common_hp_i,
-          pen_diag = pen_diag
-        )
-      )
-      mixture = hp_mix$mixture
-    }
-  }
-
 
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if("noise" %in% names(hp)){
@@ -679,24 +702,24 @@ pred_magmaclust = function(data,
   }
   pred = sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
 
-  ## Display the graph of the prediction if expected
-  if(plot){
-    ## Check whether training data are available
-    if(trained_model %>% is.null()){
-      data_train = trained_model$ini_args$data
-    } else{
-      data_train = NULL
-    }
-
-    ## Plot the mixture-of-GPs prediction
-    plot_magmaclust(
-      pred,
-      data = data,
-      data_train = data_train,
-      prior_mean = hyperpost$mean
-    ) %>%
-      print()
-  }
+  # ## Display the graph of the prediction if expected
+  # if(plot){
+  #   ## Check whether training data are available
+  #   if(trained_model %>% is.null()){
+  #     data_train = trained_model$ini_args$data
+  #   } else{
+  #     data_train = NULL
+  #   }
+  #
+  #   ## Plot the mixture-of-GPs prediction
+  #   plot_magmaclust(
+  #     pred,
+  #     data = data,
+  #     data_train = data_train,
+  #     prior_mean = hyperpost$mean
+  #   ) %>%
+  #     print()
+  # }
 
   res <- list('pred' = pred, 'mixture' = mixture)
 

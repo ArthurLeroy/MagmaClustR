@@ -12,6 +12,7 @@ pred_magmaclust(
   kern = "SE",
   grid_inputs = NULL,
   hyperpost = NULL,
+  prop_mixture = NULL,
   get_hyperpost = FALSE,
   get_full_cov = FALSE,
   plot = TRUE,
@@ -31,10 +32,12 @@ each reference 'Input'.}
 
 \item{trained_model}{A list, containing  the information coming from a
 MagmaClust model, previously trained using the
-\code{\link{train_magmaclust}} function.}
+\code{\link{train_magmaclust}} function. If \code{trained_model} is set to
+NULL, the \code{hyperpost} and \code{prop_mixture} arguments are mandatory
+to perform required re-computations for the prediction to succeed.}
 
 \item{mixture}{A tibble or data frame, indicating the mixture probabilities
-of each cluster for the new individual/task. Required column: \code{ID}.
+of each cluster for the new individual/task.
 If NULL, the \code{\link{train_gp_clust}} function is used to compute
 these posterior probabilities according to \code{data}.}
 
@@ -78,6 +81,13 @@ mean processes. Typically, this argument should come from a previous
 learning using \code{\link{train_magmaclust}}, or a previous prediction
 with \code{\link{pred_magmaclust}}, with the argument \code{get_hyperpost}
 set to TRUE.}
+
+\item{prop_mixture}{A tibble or a named vector of the mixture proportions.
+Each name of column or element should refer to a cluster. The value
+associated with each cluster is a number between 0 and 1. If both
+\code{mixture} and \code{trained_model} are set to NULL, this argument
+allows to recompute mixture probabilities, thanks to the \code{hyperpost}
+argument and the \code{\link{train_gp_clust}} function.}
 
 \item{get_hyperpost}{A logical value, indicating whether the hyper-posterior
 distributions of the mean processes should be returned. This can be useful

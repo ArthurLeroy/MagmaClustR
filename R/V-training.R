@@ -570,17 +570,6 @@ train_gp_clust <- function(data,
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Input)
 
-  ## Remove the 'ID' column if present
-  if ("ID" %in% names(data)) {
-    if(dplyr::n_distinct(data$ID) > 1){
-      stop(
-        "Problem in the 'ID' column: different values are not allowed. ",
-        "The training can only be performed for one individual/task."
-      )
-    }
-    data = data %>% dplyr::select( - .data$ID)
-  }
-
   ## Initialise the individual process' hp according to user's values
   if (kern %>% is.function()) {
     if (ini_hp %>% is.null()) {
@@ -615,7 +604,8 @@ train_gp_clust <- function(data,
   } else{
     ## Remove the 'ID' column if present
     if ("ID" %in% names(prop_mixture)) {
-      data <- data %>% dplyr::select(-.data$ID)
+      prop_mixture <- prop_mixture %>%
+        dplyr::select(-.data$ID)
     }
     ## Check clusters' names
     if( !(names(prop_mixture) %>% setequal(names(hyperpost$mean))) ){
@@ -648,6 +638,39 @@ train_gp_clust <- function(data,
     )
   }
 
+  ## Check whether column 'ID' exists in 'data' and 'hp' or create if necessary
+  if ( ("ID" %in% names(data)) & ("ID" %in% names(hp)) ) {
+    if( dplyr::n_distinct(data$ID) > 1){
+      stop("The 'data' argument cannot have multiple 'ID' values.")
+    }
+    if( dplyr::n_distinct(hp$ID) > 1){
+      stop("The 'hp' argument cannot have multiple 'ID' values.")
+    }
+    if( unique(data$ID) != unique(hp$ID) ){
+      stop("The 'data' and 'hp' arguments have different 'ID' values.")
+    }
+  } else if ("ID" %in% names(data)){
+    if( dplyr::n_distinct(data$ID) > 1){
+      stop("The 'data' argument cannot have multiple 'ID' values.")
+    }
+    hp = hp %>% dplyr::mutate('ID' = unique(data$ID), .before = 1)
+  } else if ("ID" %in% names(hp)){
+    if( dplyr::n_distinct(hp$ID) > 1){
+      stop("The 'data' argument cannot have multiple 'ID' values.")
+    }
+    data = data %>% dplyr::mutate('ID' = unique(hp$ID), .before = 1)
+  } else{
+    data = data %>% dplyr::mutate('ID' = 'ID_pred', .before = 1)
+    hp = hp %>% dplyr::mutate('ID' = 'ID_pred', .before = 1)
+  }
+
+  ## Certify that IDs are of type 'character'
+  data$ID <- data$ID %>% as.character()
+  hp$ID <- hp$ID %>% as.character()
+  ## Collect hyper-parameters' names
+  list_hp <- hp %>% dplyr::select(-.data$ID) %>% names()
+  ID_hp <- hp$ID %>% unique()
+
   ## Initialise the monitoring information
   cv <- FALSE
   logL_monitoring <- -Inf
@@ -659,18 +682,14 @@ train_gp_clust <- function(data,
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
+    ## Format the hyper-parameters for optimisation with opm()
+    par = hp %>% dplyr::select(- .data$ID)
     ## We start with a M-step to take advantage of the initial 'prop_mixture'
     ## M step
-
-    ## Check and remove the 'ID' column
-    if ("ID" %in% names(hp)) {
-      hp <- hp %>% dplyr::select(-.data$ID)
-    }
-    list_hp <- hp %>% names()
-
     new_hp <- optimr::opm(
-      par = hp,
-      sum_logL_GP_clust,
+      par = par,
+      fn = sum_logL_GP_clust,
+      gr = gr_sum_logL_GP_clust,
       db = data,
       mixture = mixture,
       mean = hyperpost$mean,
@@ -681,7 +700,8 @@ train_gp_clust <- function(data,
       control = list(kkt = FALSE)
     ) %>%
       dplyr::select(list_hp) %>%
-      tibble::as_tibble()
+      tibble::as_tibble() %>%
+      dplyr::mutate('ID' = ID_hp, .before = 1)
 
     ## In case something went wrong during the optimization
     if (any(is.na(new_hp)) ) {

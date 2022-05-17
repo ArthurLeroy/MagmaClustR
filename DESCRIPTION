@@ -29,7 +29,8 @@ Imports:
     rlang,
     stats,
     tibble,
-    tidyr
+    tidyr, 
+    tidyselect
 Suggests: 
     rmarkdown,
     knitr,

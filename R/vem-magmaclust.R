@@ -52,7 +52,7 @@ ve_step = function(db,
                    old_mixture,
                    pen_diag) {
   prop_mixture_k = hp_k %>%
-    dplyr::pull(prop_mixture, name = .data$ID)
+    dplyr::pull(.data$prop_mixture, name = .data$ID)
   all_input = unique(db$Input) %>% sort()
   t_clust = tibble::tibble(
     'ID' = rep(names(m_k), each = length(all_input)),
@@ -264,7 +264,7 @@ vm_step = function(db,
       dplyr::slice(1)
 
     ## Optimise hyper-parameters of the individual processes
-    new_theta_i <- optimr::opm(
+    new_hp_i <- optimr::opm(
       par = par_i,
       fn = elbo_clust_multi_GP_common_hp_i,
       gr = gr_clust_multi_GP_common_hp_i,
@@ -306,7 +306,7 @@ vm_step = function(db,
         tibble::as_tibble() %>%
         return()
     }
-    new_theta_i = sapply(list_ID_i, loop2, simplify=FALSE, USE.NAMES=TRUE) %>%
+    new_hp_i = sapply(list_ID_i, loop2, simplify=FALSE, USE.NAMES=TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest(cols = .data$value)
   }
@@ -314,7 +314,7 @@ vm_step = function(db,
   ## Compute the prop mixture of each cluster
   prop_mixture <- list_mu_param$mixture %>%
     dplyr::select(-.data$ID) %>%
-    colMeans %>%
+    colMeans
 
   ## Check whether hyper-parameters are common to all cluster
   if(common_hp_k)
@@ -326,7 +326,7 @@ vm_step = function(db,
       dplyr::select(-.data$prop_mixture)
 
     ## Optimise hyper-parameters of the processes of each cluster
-    new_theta_k <- optimr::opm(
+    new_hp_k <- optimr::opm(
       par = par_k,
       fn = elbo_GP_mod_common_hp_k,
       gr = gr_GP_mod_common_hp_k,
@@ -376,15 +376,15 @@ vm_step = function(db,
         tibble::as_tibble() %>%
         return()
     }
-    new_theta_k = sapply(list_ID_k, loop, simplify=FALSE, USE.NAMES=TRUE) %>%
+    new_hp_k = sapply(list_ID_k, loop, simplify=FALSE, USE.NAMES=TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest_auto(.data$value) %>%
       dplyr::mutate("prop_mixture" = prop_mixture)
   }
 
   list(
-    "hp_k" = new_theta_k,
-    "hp_i" = new_theta_i
+    "hp_k" = new_hp_k,
+    "hp_i" = new_hp_i
   ) %>%
     return()
 }
@@ -392,17 +392,20 @@ vm_step = function(db,
 #' Update the mixture probabilities for each individual and each cluster
 #'
 #' @param db A tibble or data frame. Columns required: \code{ID},
-#'    \code{Input}, \code{Output}. Additional columns for covariates can be specified.
+#'    \code{Input}, \code{Output}. Additional columns for covariates can be
+#'    specified.
+#' @param mean_k A list of the K hyper-poserior mean parameters.
+#' @param cov_k A list of the K hyper-poserior covariance matrices.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}, the individual process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters
 #'    that are used in \code{kern}.
 #' @param kern A kernel function, defining the covariance structure of
 #'    the individual GPs.
-#' @param mixture A tibble containing the hyper-parameters associated
+#' @param prop_mixture A tibble containing the hyper-parameters associated
 #'    with each individual, indicating in which cluster it belongs.
-#' @param mean_k A list of the K hyper-poserior mean parameters.
-#' @param cov_k A list of the K hyper-poserior covariance matrices.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#' numerical issues when inverting nearly singular matrices.
 #'
 #' @return Compute the hyper-posterior multinomial distributions by updating
 #'    mixture probabilities.
@@ -417,14 +420,6 @@ update_mixture <- function(
   kern,
   prop_mixture,
   pen_diag) {
-  ## Check whether column 'ID' exists in 'db' or create if necessary
-  if (!("ID" %in% names(db)) ) {
-    db = db %>% dplyr::mutate('ID' = 'ID_pred', .before = 1)
-  }
-  ## Check whether column 'ID' exists in 'hp' or create if necessary
-  if (!("ID" %in% names(hp)) ) {
-    hp = hp %>% dplyr::mutate('ID' = 'ID_pred', .before = 1)
-  }
 
   c_i = 0
   c_k = 0
@@ -473,7 +468,6 @@ update_mixture <- function(
     }
     c_k = 0
   }
-
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x))/sum exp(x - max(x))
   ## to remain numerically stable
   mat_L = mat_elbo %>% apply(2,function(x) exp(x - max(x)))
