@@ -37,13 +37,14 @@ Maintainer: Arthur Leroy \email{arthur.leroy.pro@gmail.com}
 
 \section{References}{
 
-Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey.
+Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey. \cr
 MAGMA: Inference and Prediction with Multi-Task Gaussian Processes.
-PREPRINT, July 2020, \url{https://arxiv.org/abs/2007.10731}
+\emph{Machine Learning}, 2022,
+\url{https://link.springer.com/article/10.1007/s10994-022-06172-1}
 
-Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey.
+Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey. \cr
 Cluster-Specific Predictions with Multi-Task Gaussian Processes.
-PREPRINT, Nov. 2020, \url{https://arxiv.org/abs/2011.07866}
+\emph{PREPRINT}, Nov. 2020, \url{https://arxiv.org/abs/2011.07866}
 }
 
 \section{Examples}{
@@ -62,7 +63,7 @@ grid_inputs = seq(0, 10, 0.01)) \cr
 
 \subsection{Simulate a dataset, train and predict with MagmaClust \cr}{
 
-set.seed(24) \cr
+set.seed(42) \cr
 data_magmaclust <- simu_db(M = 4, N = 10, K = 3) \cr
 list_ID = unique(data_magmaclust$ID) \cr
 magmaclust_train <- data_magmaclust \%>\% subset(ID \%in\% list_ID[1:11]) \cr

@@ -24,16 +24,17 @@
 #'
 #'@section Author(s):
 #' Arthur Leroy, Pierre Pathe and Pierre Latouche \cr
-#' Maintainer: Arthur Leroy \email{arthur.leroy.pro@@gmail.com}
+#' Maintainer: Arthur Leroy - \email{arthur.leroy.pro@@gmail.com}
 #'
 #' @section References:
-#' Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey.
+#' Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey. \cr
 #' MAGMA: Inference and Prediction with Multi-Task Gaussian Processes.
-#' PREPRINT, July 2020, \url{https://arxiv.org/abs/2007.10731}
+#' *Machine Learning*, 2022,
+#' \url{https://link.springer.com/article/10.1007/s10994-022-06172-1}
 #'
-#' Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey.
+#' Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey. \cr
 #' Cluster-Specific Predictions with Multi-Task Gaussian Processes.
-#' PREPRINT, Nov. 2020, \url{https://arxiv.org/abs/2011.07866}
+#' *PREPRINT*, Nov. 2020, \url{https://arxiv.org/abs/2011.07866}
 #'
 #' @section Examples:
 #'
