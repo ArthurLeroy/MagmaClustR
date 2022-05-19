@@ -120,9 +120,9 @@ posterior covariance matrix associated with this cluster.
 }
 \item mixture: A tibble, indicating the mixture probabilities
 of each cluster for the predicted individual/task.
-\item hyperpost (if \code{get_hyperpost} = TRUE): A list, containing
-the hyper-posterior distributions information usefull for
-visualisation purposes.
+\item hyperpost (if \code{get_hyperpost} = TRUE): A list,
+containing the hyper-posterior distributions information useful
+for visualisation purposes.
 }
 }
 \description{

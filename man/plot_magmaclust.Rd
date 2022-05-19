@@ -2,12 +2,12 @@
 % Please edit documentation in R/V-plot-functions.R
 \name{plot_magmaclust}
 \alias{plot_magmaclust}
-\title{Plot MagmaClust or GP predictions}
+\title{Plot MagmaClust predictions}
 \usage{
 plot_magmaclust(
-  pred,
-  x_input = NULL,
+  pred_clust,
   cluster = "all",
+  x_input = NULL,
   data = NULL,
   data_train = NULL,
   col_clust = FALSE,
@@ -18,45 +18,82 @@ plot_magmaclust(
 )
 }
 \arguments{
-\item{pred}{A tibble or data frame, typically coming from
-\code{\link{pred_magmaclust}} function.
-Required columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
-present in case of multi-dimensional inputs.}
+\item{pred_clust}{A list of predictions, typically coming from
+\code{\link{pred_magmaclust}}. Required elements: \code{pred},
+\code{mixture}, \code{mixture_pred}.}
+
+\item{cluster}{A character string, indicating which cluster to plot from.
+If 'all' (default) the mixture of GPs prediction is displayed as a mean
+curve (1-D inputs) or a mean heatmap (2-D inputs). Alternatively, if the
+name of one cluster is provided, the classic mean curve + credible
+interval is displayed (1-D inputs), or a heatmap with colour gradient for
+the mean and transparency gradient for the Credible Interval (2-D inputs).}
 
 \item{x_input}{A vector of character strings, indicating which input should
-be displayed. If NULL(default) the 'Input' column is used for the x-axis.
+be displayed. If NULL (default) the 'Input' column is used for the x-axis.
 If providing a 2-dimensional vector, the corresponding columns are used
 for the x-axis and y-axis.}
 
-\item{cluster}{A string indicating the cluster to plot from or
-'all' for the full GPs mixture.}
+\item{data}{(Optional) A tibble or data frame. Required columns: \code{Input}
+, \code{Output}. Additional columns for covariates can be specified. This
+argument corresponds to the raw data on which the prediction has been
+performed.}
 
-\item{data}{tibble of observational data, columns required : 'Input', 'Output'}
+\item{data_train}{(Optional) A tibble or data frame, containing the training
+data of the MagmaClust model. The data set should have the same format as
+the \code{data} argument with an additional required column \code{ID} for
+identifying the different individuals/tasks. If provided, those data are
+displayed as backward colourful points (each colour corresponding to one
+individual or a cluster, see \code'{col_clust} below).}
 
-\item{data_train}{tibble of training dataset, columns required : 'Input', 'Output'}
-
-\item{col_clust}{A boolean indicating whether we color according to
-clusters or individuals.}
+\item{col_clust}{A boolean indicating whether backward points are coloured
+according to the individuals or to their predicted cluster. If one wants
+to colour by clusters, a column \code{Cluster} shall be present in
+\code{data_train} and its value should refer to the most probable cluster
+for each individual.}
 
 \item{y_grid}{A vector, indicating the grid of values on the y-axis for which
 probabilities should be computed for heatmaps of 1-dimensional
-predictions.}
+predictions. If NULL (default), a vector of length 50 is defined, ranging
+between the min and max 'Output' values contained in \code{pred}.}
 
-\item{prior_mean}{(Optional) A tibble or a data frame, containing the 'Input'
-and associated 'Output' prior mean parameter of the GP prediction.}
+\item{prior_mean}{(Optional) A list providing, for each cluster, a
+tibble containing prior mean parameters of the prediction. This argument
+typically comes as an outcome \code{hyperpost$mean}, available through
+the \code{\link{train_magmaclust}}, \code{\link{pred_magmaclust}}
+functions.}
 
 \item{heatmap}{A logical value indicating whether the GP prediction should be
 represented as a heatmap of probabilities for 1-dimensional inputs. If
-FALSE (default), the mean curve and associated 95\%CI are displayed.}
+FALSE (default), the mean curve (and associated Credible Interval if
+available) are displayed.}
 
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
 level of the Credible Interval associated with the posterior mean curve.}
 }
 \value{
-Plot of the predicted curve of the GP with the 0.95 confidence interval
+Visualisation of a MagmaClust prediction (optional: display data
+points, training data points and the prior mean functions). For 1-D
+inputs, the prediction is represented as a mean curve (and its associated
+95\% Credible Interval for cluster-specific predictions), or as a heatmap
+of probabilities if \code{heatmap} = TRUE. In the case of MagmaClust,
+the heatmap representation should be preferred for clarity, although the
+default display remains mean curve for quicker execution. For 2-D inputs,
+the prediction is represented as a heatmap, where each couple of inputs on
+the x-axis and y-axis are associated with a gradient of colours for the
+posterior mean values, whereas the uncertainty is indicated by the
+transparency (the narrower is the Credible Interval, the more opaque is
+the associated colour, and vice versa). As for 1-D inputs, Credible
+Interval information is only available for cluster-specific predictions.
 }
 \description{
-Plot MagmaClust or GP predictions
+Display MagmaClust predictions. According to the dimension of the
+inputs, the graph may be a mean curve (dim inputs = 1) or a heatmap
+(dim inputs = 2) of probabilities. Moreover, MagmaClust can provide credible
+intervals only by visualising cluster-specific predictions (e.g. for the most
+probable cluster). When visualising the full mixture-of-GPs prediction,
+which can be multimodal, the user should choose between the simple mean
+function or the full heatmap of probabilities (more informative but slower).
 }
 \examples{
 TRUE

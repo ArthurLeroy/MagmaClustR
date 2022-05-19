@@ -53,7 +53,7 @@ plot_db <- function(data, cluster = F, legend = F) {
   }
   if(!legend)
   {
-    gg = gg + ggplot2::guides(col = 'none')
+    gg = gg + ggplot2::guides(color = 'none')
   }
   return(gg)
 }
@@ -94,6 +94,7 @@ plot_db <- function(data, cluster = F, legend = F) {
 #'    displayed.
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
+#'    If this this argument is set to 1, the Credible Interval is not displayed.
 #'
 #' @return Visualisation of a Magma or GP prediction (optional: display data
 #'    points, training data points and the prior mean function). For 1-D
@@ -128,6 +129,10 @@ plot_gp <- function(pred_gp,
                     y_grid = NULL,
                     heatmap = F,
                     prob_CI = 0.95) {
+  if(prob_CI < 0 | prob_CI > 1)
+  {
+    stop("The 'prob_CI' argument should be a number between 0 and 1.")
+  }
   ## Compute the quantile of the desired Credible Interval
   quant_ci <- stats::qnorm((1 + prob_CI) / 2)
 
@@ -166,6 +171,11 @@ plot_gp <- function(pred_gp,
     )
   }
 
+  ## Remove 'ID' column is present
+  if ("ID" %in% names(pred)) {
+    pred <- pred %>% dplyr::select(- .data$ID)
+  }
+
   ## Remove the 'Index' column if the prediction comes from 'pred_gif()'
   if (any("Index" %in% names(pred))) {
     index <- pred %>% dplyr::pull(.data$Index)
@@ -182,7 +192,11 @@ plot_gp <- function(pred_gp,
   if (x_input %>% is.null()) {
     inputs <- pred %>% dplyr::select(-c(.data$Mean, .data$Var))
   } else {
-    inputs <- pred[x_input]
+    if( all(x_input %in% names(pred_gp)) ){
+      inputs <- pred[x_input]
+    } else {
+      stop("The names in the 'x_input' argument don't exist in 'pred_gp'.")
+    }
   }
 
   ## Format the tibble for displaying the Credible Intervals
@@ -190,6 +204,12 @@ plot_gp <- function(pred_gp,
     dplyr::mutate("CI_inf" = .data$Mean - quant_ci * sqrt(.data$Var)) %>%
     dplyr::mutate("CI_sup" = .data$Mean + quant_ci * sqrt(.data$Var)) %>%
     dplyr::mutate("CI_Width" = .data$CI_sup - .data$CI_inf)
+
+  ## If no CI (i.e. prob_CI = 1), then no transparency (i.e. alpha = 1)
+  if(prob_CI == 0){
+    pred$CI_width = 1
+  }
+
   ## Display a heatmap if inputs are 2D
   if (ncol(inputs) == 2) {
     ## Add the 'Index' column if the prediction comes from 'pred_gif()'
@@ -263,7 +283,7 @@ plot_gp <- function(pred_gp,
       }
 
       db_heat <- pred %>%
-        tidyr::expand(tidyr::nesting_(col_to_nest),
+        tidyr::expand(tidyr::nesting(!!!rlang::syms(col_to_nest)),
           "Ygrid" = y_grid
         ) %>%
         dplyr::mutate("Proba" = 2 *
@@ -330,8 +350,7 @@ plot_gp <- function(pred_gp,
         ),
         size = 0.5,
         alpha = 0.5
-      ) +
-        ggplot2::guides(color = FALSE)
+      ) + ggplot2::guides(color = 'none')
     }
     ## Display the observed data if provided
     if (!is.null(data)) {
@@ -497,7 +516,7 @@ sample_gp <- function(pred_gp,
         size = 0.5,
         alpha = 0.5
       ) +
-        ggplot2::guides(color = FALSE)
+        ggplot2::guides(color = 'none')
     }
     ## Display the observed data if provided
     if (!is.null(data)) {
@@ -539,7 +558,7 @@ sample_gp <- function(pred_gp,
         size = 0.5,
         alpha = 0.5
       ) +
-        ggplot2::guides(color = FALSE)
+        ggplot2::guides(color = 'none')
     }
     ## Display the observed data if provided
     if (!is.null(data)) {

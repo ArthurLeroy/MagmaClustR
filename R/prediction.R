@@ -760,12 +760,12 @@ pred_magma <- function(data,
   }
   ## Extract the mean parameter from the hyper-posterior
   mean_obs <- hyperpost$mean %>%
-    dplyr::filter(.data$Input %in% input_obs) %>%
+    dplyr::right_join(inputs_obs, by = 'Input') %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Output)
 
   mean_pred <- hyperpost$mean %>%
-    dplyr::filter(.data$Input %in% input_pred) %>%
+    dplyr::right_join(inputs_pred, by = 'Input') %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Output)
 

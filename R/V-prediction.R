@@ -336,9 +336,9 @@ hyperposterior_clust = function(data,
 #'              }
 #'           \item mixture: A tibble, indicating the mixture probabilities
 #'              of each cluster for the predicted individual/task.
-#'           \item hyperpost (if \code{get_hyperpost} = TRUE): A list, containing
-#'              the hyper-posterior distributions information usefull for
-#'              visualisation purposes.
+#'           \item hyperpost (if \code{get_hyperpost} = TRUE): A list,
+#'              containing the hyper-posterior distributions information useful
+#'              for visualisation purposes.
 #'          }
 #'
 #' @export
@@ -494,7 +494,7 @@ pred_magmaclust = function(data,
   } else if ( hyperpost %>% is.list() ) {
       ## Check hyperpost format
       if ( !is.null(hyperpost$mean) ){
-        ## Check hyperpost format (in particular presence of all reference Input)
+        ## Check hyperpost format (in particular presence of all reference Input
         if (!all(all_input %in% hyperpost$mean[[1]]$Input)) {
           stop(
             "The hyper-posterior distribution of the mean processes provided ",
@@ -623,17 +623,19 @@ pred_magmaclust = function(data,
 
   ## Initialisation if we want to recover full_cov
   full_cov = list()
+  ## Initialisation of the mixture prediction
+  mixture_mean = 0
 
   floop = function(k)
   {
     ## Extract the mean parameter from the hyper-posterior
     mean_obs <- hyperpost$mean[[k]] %>%
-      dplyr::filter(.data$Input %in% input_obs) %>%
+      dplyr::right_join(inputs_obs, by = 'Input') %>%
       dplyr::arrange(.data$Input) %>%
       dplyr::pull(.data$Output)
 
     mean_pred <- hyperpost$mean[[k]] %>%
-      dplyr::filter(.data$Input %in% input_pred) %>%
+      dplyr::right_join(inputs_pred, by = 'Input') %>%
       dplyr::arrange(.data$Input) %>%
       dplyr::pull(.data$Output)
 
@@ -687,6 +689,9 @@ pred_magmaclust = function(data,
       dplyr::filter(.data$ID == ID_data) %>%
       dplyr::pull(k)
 
+    ## Combine cluster-specific predictions into a mixture prediction
+    mixture_mean <<- mixture_mean + proba * pred_mean
+
     ## Create a tibble of values and associated uncertainty from a GP prediction
     pred_gp <- tibble::tibble(
       "ID" = ID_data,
@@ -699,26 +704,27 @@ pred_magmaclust = function(data,
   }
   pred = sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
 
-  # ## Display the graph of the prediction if expected
-  # if(plot){
-  #   ## Check whether training data are available
-  #   if(trained_model %>% is.null()){
-  #     data_train = trained_model$ini_args$data
-  #   } else{
-  #     data_train = NULL
-  #   }
-  #
-  #   ## Plot the mixture-of-GPs prediction
-  #   plot_magmaclust(
-  #     pred,
-  #     data = data,
-  #     data_train = data_train,
-  #     prior_mean = hyperpost$mean
-  #   ) %>%
-  #     print()
-  # }
+  ## Compute the mixture variance of predictions
+  mixture_var = 0
+  for(k in ID_k)
+  {
+    proba_k = mixture %>%
+      dplyr::filter(.data$ID == ID_data) %>%
+      dplyr::pull(k)
+    ## Cov(mixture) = Sum_k{ tau_k * (C_k + (m_k - m)(m_k - m)T) }
+    mixture_var <- mixture_var +
+      proba_k * (pred[[k]]$Var + (pred[[k]]$Mean - mixture_mean)^2)
+  }
 
-  res <- list('pred' = pred, 'mixture' = mixture)
+  ## Create a tibble of values for the mixture prediction
+  mixture_pred <- tibble::tibble(
+    "ID" = ID_data,
+    "Mean" = mixture_mean,
+    "Var" = mixture_var %>% as.vector()
+  ) %>%
+    dplyr::mutate(inputs_pred)
+
+  res <- list('pred' = pred, 'mixture' = mixture, 'mixture_pred' = mixture_pred)
 
   ## Check whether hyper-posterior should be returned
   if (get_hyperpost) {
@@ -727,6 +733,25 @@ pred_magmaclust = function(data,
   ## Check whether posterior covariance should be returned
   if (get_full_cov) {
     res[["full_cov"]] <- full_cov
+  }
+
+  ## Display the graph of the prediction if expected
+  if(plot){
+    ## Check whether training data are available
+    if(trained_model %>% is.null()){
+      data_train = trained_model$ini_args$data
+    } else{
+      data_train = NULL
+    }
+
+    ## Plot the mixture-of-GPs prediction
+    plot_magmaclust(
+      res,
+      data = data,
+      data_train = data_train,
+      prior_mean = hyperpost$mean
+    ) %>%
+      print()
   }
 
   return(res)
