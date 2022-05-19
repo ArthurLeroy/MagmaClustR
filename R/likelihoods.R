@@ -238,8 +238,7 @@ logL_monitoring <- function(
 
   ## Compute the log-determinant term using Cholesky decomposition
   ## log(det(A)) = 2*sum(log(diag(chol(A))))
-  pen = diag(pen_diag, ncol = ncol(post_cov), nrow = nrow(post_cov))
-  det = (post_cov + pen) %>% chol() %>% diag() %>% log() %>% sum()
+  det = post_cov %>% chol() %>% diag() %>% log() %>% sum()
 
   ## Since the logL_GP_* functions return negative likelihoods for minimisation
   ## in the M-step, we need to x(-1) once more to retrieve the correct logL

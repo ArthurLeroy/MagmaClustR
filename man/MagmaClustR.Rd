@@ -32,7 +32,7 @@ For a more advanced usage of \pkg{MagmaClustR}, please read the vignette
 \section{Author(s)}{
 
 Arthur Leroy, Pierre Pathe and Pierre Latouche \cr
-Maintainer: Arthur Leroy \email{arthur.leroy.pro@gmail.com}
+Maintainer: Arthur Leroy - \email{arthur.leroy.pro@gmail.com}
 }
 
 \section{References}{

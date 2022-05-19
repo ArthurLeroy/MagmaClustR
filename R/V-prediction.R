@@ -621,6 +621,9 @@ pred_magmaclust = function(data,
     noise = 0
   }
 
+  ## Initialisation if we want to recover full_cov
+  full_cov = list()
+
   floop = function(k)
   {
     ## Extract the mean parameter from the hyper-posterior
@@ -676,28 +679,22 @@ pred_magmaclust = function(data,
     ## Compute the posterior covariance matrix of a GP
     pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
 
+    ## Keep track of the full predicted covariances
+    full_cov[[k]] <<- pred_cov
+
+    ## Select the adequate individual/task if necessary
+    proba = mixture %>%
+      dplyr::filter(.data$ID == ID_data) %>%
+      dplyr::pull(k)
+
     ## Create a tibble of values and associated uncertainty from a GP prediction
     pred_gp <- tibble::tibble(
+      "ID" = ID_data,
+      "Proba" = proba,
       "Mean" = pred_mean,
       "Var" = (diag(pred_cov) + noise) %>% as.vector()
     ) %>%
-      dplyr::mutate(inputs_pred)
-
-    ## Select the adequate individual/task if necessary
-    if('ID' %in% names(mixture)){
-      if('ID' %in% names(data)){
-        proba = mixture %>%
-          dplyr::filter(.data$ID == unique(data$ID)) %>%
-          dplyr::pull(k)
-      }
-    }
-    res <- list("pred_gp" = pred_gp, 'proba' = proba)
-    ## Check whether posterior covariance should be returned
-    if (get_full_cov) {
-      res[['cov']] = pred_cov
-    }
-
-    res %>%
+      dplyr::mutate(inputs_pred) %>%
       return()
   }
   pred = sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
@@ -727,6 +724,10 @@ pred_magmaclust = function(data,
   if (get_hyperpost) {
     res[["hyperpost"]] <- hyperpost
   }
+  ## Check whether posterior covariance should be returned
+  if (get_full_cov) {
+    res[["full_cov"]] <- full_cov
+  }
 
   return(res)
 }
@@ -741,9 +742,11 @@ pred_magmaclust = function(data,
 #'    a column of \code{mixture} (optional), the function returns the most
 #'    probable cluster for all the different \code{ID} values.
 #'
+#' @export
+#'
 #' @examples
 #' TRUE
-pred_max_cluster = function(mixture)
+proba_max_cluster = function(mixture)
 {
   if('ID' %in% names(mixture)){
     mixture %>%

@@ -406,7 +406,7 @@ train_magma <- function(data,
     post$pred <- tibble::tibble(
       "Input" = post$mean %>% dplyr::pull(.data$Input),
       "Mean" = post$mean %>% dplyr::pull(.data$Output),
-      "Var" = post$cov %>% diag()
+      "Var" = post$cov %>% diag() %>% as.vector()
     )
   }
 

@@ -69,23 +69,18 @@ plot_db <- function(data, cluster = F, legend = F) {
 #'    columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
 #'    present in case of multi-dimensional inputs.
 #' @param x_input A vector of character strings, indicating which input should
-#'    be displayed. If NULL(default) the 'Input' column is used for the x-axis.
+#'    be displayed. If NULL (default) the 'Input' column is used for the x-axis.
 #'    If providing a 2-dimensional vector, the corresponding columns are used
 #'    for the x-axis and y-axis.
 #' @param data (Optional) A tibble or data frame. Required columns: 'Input',
-#'    'Output'. Additional columns for covariates can be specified.
-#'    The 'Input' column should define the variable that is used as
-#'    reference for the observations (e.g. time for longitudinal data). The
-#'    'Output' column specifies the observed values (the response
-#'    variable). The data frame can also provide as many covariates as desired,
-#'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'.
+#'    'Output'. Additional columns for covariates can be specified. This
+#'    argument corresponds to the raw data on which the prediction has been
+#'    performed.
 #' @param data_train (Optional) A tibble or data frame, containing the training
 #'    data of the Magma model. The data set should have the same format as the
-#'    \code{data} argument with an additional column 'ID' for identifying the
-#'    different individuals/tasks. If provided, those data are displayed as
-#'    backward colourful points (each colour corresponding to one
+#'    \code{data} argument with an additional required column 'ID' for
+#'    identifying the different individuals/tasks. If provided, those data are
+#'    displayed as backward colourful points (each colour corresponding to one
 #'    individual/task).
 #' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
 #'    and associated 'Output' prior mean parameter of the GP prediction.
@@ -95,19 +90,22 @@ plot_db <- function(data, cluster = F, legend = F) {
 #'    between the min and max 'Output' values contained in \code{pred_gp}.
 #' @param heatmap A logical value indicating whether the GP prediction should be
 #'    represented as a heatmap of probabilities for 1-dimensional inputs. If
-#'    FALSE (default), the mean curve and associated 95%CI are displayed.
+#'    FALSE (default), the mean curve and associated Credible Interval are
+#'    displayed.
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
 #'
 #' @return Visualisation of a Magma or GP prediction (optional: display data
-#'    points, training data points and the prior mean function). For 1-D inputs,
-#'    the prediction is represented as a mean curve and its associated 95%
-#'    Credible Interval, or as a heatmap of probabilities if \code{heatmap} =
-#'    TRUE. For 2-D inputs, the prediction is represented as a heatmap, where
-#'    each couple of inputs on the x-axis and y-axis are associated
-#'    with a gradient of colours for the posterior mean values, whereas the
-#'    uncertainty is indicated by the transparency (the narrower is the 95%CI,
-#'    the more opaque is the associated colour, and vice versa)
+#'    points, training data points and the prior mean function). For 1-D
+#'    inputs, the prediction is represented as a mean curve and its associated
+#'    95%  Credible Interval, or as a heatmap of probabilities if
+#'    \code{heatmap} = TRUE. For 2-D inputs, the prediction is represented as a
+#'    heatmap, where each couple of inputs on the x-axis and y-axis are
+#'    associated with a gradient of colours for the posterior mean values,
+#'    whereas the uncertainty is indicated by the transparency (the narrower is
+#'    the Credible Interval, the more opaque is the associated colour, and vice
+#'    versa)
+#'
 #' @export
 #'
 #' @examples
@@ -215,8 +213,7 @@ plot_gp <- function(pred_gp,
 
     if (!is.null(data)) {
       ## Round the 'Output' values to reduce size of labels on the graph
-      data <-
-        data %>% dplyr::mutate(Output = round(.data$Output, 1))
+      data <- data %>% dplyr::mutate(Output = round(.data$Output, 1))
 
       gg <- gg + ggplot2::geom_label(
         data = data,
@@ -269,7 +266,8 @@ plot_gp <- function(pred_gp,
         tidyr::expand(tidyr::nesting_(col_to_nest),
           "Ygrid" = y_grid
         ) %>%
-        dplyr::mutate("Proba" = 2 * (1 - stats::pnorm(abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))))
+        dplyr::mutate("Proba" = 2 *
+          (1 - stats::pnorm(abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))))
 
       gg <- ggplot2::ggplot() +
         ggplot2::geom_raster(
