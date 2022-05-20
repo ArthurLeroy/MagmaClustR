@@ -169,40 +169,90 @@ plot_magmaclust = function(pred_clust,
   }
 
   if(all_clust){
+    ## GP visualisation without Credible Interval
+    gg <- plot_gp(
+      pred_gp = pred_gp,
+      x_input = x_input,
+      data = data,
+      data_train = data_train,
+      y_grid = y_grid,
+      heatmap = heatmap,
+      prob_CI = 0)
 
+
+    gtitle = paste0("Mixture of GP predictions")
   } else {
-   ## Classic GP visualisation for cluster-specific predictions
-   gg <- plot_gp(
-     pred_gp = pred_gp,
-     x_input = x_input,
-     data = data,
-     data_train = data_train,
-     prior_mean = prior_mean,
-     y_grid = y_grid,
-     heatmap = heatmap,
-     prob_CI = prob_CI)
+    if(col_clust)
+    {
+      ## Check whether 'data_train' provides a 'Cluster' column
+      if(!('Cluster' %in% names(data_train))){
+        cat("The 'data_train' argument does not provide a 'Cluster' column.",
+            "Therefore, training data remain coloured by individual. \n \n")
+      } else{
+        ## Certify that 'Cluster' is discrete
+        data_train$Cluster = as.factor(data_train$Cluster)
+
+        ## Classic GP visualisation with modified training data plot
+        gg <- plot_gp(
+          pred_gp = pred_gp,
+          x_input = x_input,
+          data = data,
+          y_grid = y_grid,
+          heatmap = heatmap,
+          prob_CI = prob_CI
+          ) +
+          ggplot2::geom_point(
+            data = data_train,
+            ggplot2::aes_string(x = names(inputs)[1],
+                                y = "Output", col = "Cluster"),
+            size = 0.5,
+            alpha = 0.5
+          ) +
+          ggplot2::scale_color_brewer(palette="Set1")
+      }
+    } else{
+      ## Classic GP visualisation for cluster-specific predictions
+      gg <- plot_gp(
+        pred_gp = pred_gp,
+        x_input = x_input,
+        data = data,
+        data_train = data_train,
+        y_grid = y_grid,
+        heatmap = heatmap,
+        prob_CI = prob_CI)
+    }
+
+    gtitle = paste0("Cluster ", cluster, " -- Proba = ", mixture[[cluster]])
   }
 
-  if(col_clust)
-  {
-    ## Check whether 'data_train' provides a 'Cluster' column
-    if(!('Cluster' %in% names(data_train))){
-      cat("The 'data_train' argument does not provide a 'Cluster' column.",
-          "Therefore, training data remain coloured by individual. \n \n")
-    } else{
-      data_train$Cluster = as.factor(data_train$Cluster)
+  ## Display the prior mean process if provided
+  if (!is.null(prior_mean)) {
+    ## Bind the tibbles of hyper-posterior mean processes
+    mean_k = prior_mean %>% dplyr::bind_rows(.id = 'Cluster')
+
+    ## Display the mean functions if available
+    if (names(inputs)[1] %in% names(mean_k)) {
       gg <- gg +
-        ggplot2::geom_point(
-          data = data_train,
-          ggplot2::aes_string(x = names(inputs)[1],
-                              y = "Output", col = "Cluster"),
-          size = 0.5,
-          alpha = 0.5
-          )
+        ggplot2::geom_line(
+          data = mean_k,
+          ggplot2::aes_string(
+            x = names(inputs)[1],
+            y = 'Output',
+            col = 'Cluster'),
+          linetype = 'dashed'
+        ) +
+        ggplot2::scale_color_brewer(palette="Set1")
+    } else {
+      warning(
+        "The ", names(inputs)[1], " column does not exist in the ",
+        "'prior_mean' argument. The mean function cannot be displayed."
+      )
     }
   }
 
-  return(gg)
+
+  (gg + ggplot2::ggtitle(gtitle)) %>%
+  return()
 }
 #
 #   ## Get the inputs that should be used
