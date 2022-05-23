@@ -739,9 +739,9 @@ pred_magmaclust = function(data,
   if(plot){
     ## Check whether training data are available
     if(trained_model %>% is.null()){
-      data_train = trained_model$ini_args$data
-    } else{
       data_train = NULL
+    } else{
+      data_train = trained_model$ini_args$data
     }
 
     ## Plot the mixture-of-GPs prediction

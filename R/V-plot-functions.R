@@ -83,6 +83,7 @@ plot_magmaclust = function(pred_clust,
                          heatmap = FALSE,
                          prob_CI = 0.95)
 {
+
   ## Check prob_CI format
   if(prob_CI < 0 | prob_CI > 1)
   {
@@ -174,59 +175,63 @@ plot_magmaclust = function(pred_clust,
       pred_gp = pred_gp,
       x_input = x_input,
       data = data,
-      data_train = data_train,
       y_grid = y_grid,
       heatmap = heatmap,
       prob_CI = 0)
 
-
+    ## Define the adequate title
     gtitle = paste0("Mixture of GP predictions")
   } else {
-    if(col_clust)
-    {
-      ## Check whether 'data_train' provides a 'Cluster' column
-      if(!('Cluster' %in% names(data_train))){
-        cat("The 'data_train' argument does not provide a 'Cluster' column.",
-            "Therefore, training data remain coloured by individual. \n \n")
-      } else{
-        ## Certify that 'Cluster' is discrete
-        data_train$Cluster = as.factor(data_train$Cluster)
+    ## Classic GP visualisation for cluster-specific predictions
+    gg <- plot_gp(
+      pred_gp = pred_gp,
+      x_input = x_input,
+      data = data,
+      y_grid = y_grid,
+      heatmap = heatmap,
+      prob_CI = prob_CI)
 
-        ## Classic GP visualisation with modified training data plot
-        gg <- plot_gp(
-          pred_gp = pred_gp,
-          x_input = x_input,
-          data = data,
-          y_grid = y_grid,
-          heatmap = heatmap,
-          prob_CI = prob_CI
-          ) +
-          ggplot2::geom_point(
-            data = data_train,
-            ggplot2::aes_string(x = names(inputs)[1],
-                                y = "Output", col = "Cluster"),
-            size = 0.5,
-            alpha = 0.5
-          ) +
-          ggplot2::scale_color_brewer(palette="Set1")
-      }
-    } else{
-      ## Classic GP visualisation for cluster-specific predictions
-      gg <- plot_gp(
-        pred_gp = pred_gp,
-        x_input = x_input,
-        data = data,
-        data_train = data_train,
-        y_grid = y_grid,
-        heatmap = heatmap,
-        prob_CI = prob_CI)
-    }
-
+    ## Define the adequate title
     gtitle = paste0("Cluster ", cluster, " -- Proba = ", mixture[[cluster]])
+
+  }
+
+  ## Change colours of background points depending on 'col_clust'
+  if(col_clust)
+  {
+    ## Check whether 'data_train' provides a 'Cluster' column
+    if(!('Cluster' %in% names(data_train))){
+      cat("The 'data_train' argument does not provide a 'Cluster' column.",
+          "Therefore, training data remain coloured by individual. \n \n")
+    } else{
+      ## Certify that 'Cluster' is discrete
+      data_train$Cluster = as.factor(data_train$Cluster)
+
+      ## Colour training data plot by cluster
+      gg <- gg +
+        ggplot2::geom_point(
+          data = data_train,
+          ggplot2::aes_string(x = names(inputs)[1],
+                              y = "Output", col = "Cluster"),
+          size = 0.5,
+          alpha = 0.5
+        )
+    }
+  } else {
+    gg <- gg +
+      ggplot2::geom_point(
+        data = data_train,
+        ggplot2::aes_string(x = names(inputs)[1],
+                            y = "Output", col = "ID"),
+        size = 0.5,
+        alpha = 0.5
+      ) + ggplot2::guides(col = 'none')
   }
 
   ## Display the prior mean process if provided
   if (!is.null(prior_mean)) {
+
+    ## Extract 'mean' if the user provides the full 'hyperpost'
     ## Bind the tibbles of hyper-posterior mean processes
     mean_k = prior_mean %>% dplyr::bind_rows(.id = 'Cluster')
 
@@ -240,8 +245,7 @@ plot_magmaclust = function(pred_clust,
             y = 'Output',
             col = 'Cluster'),
           linetype = 'dashed'
-        ) +
-        ggplot2::scale_color_brewer(palette="Set1")
+        )
     } else {
       warning(
         "The ", names(inputs)[1], " column does not exist in the ",
@@ -250,186 +254,11 @@ plot_magmaclust = function(pred_clust,
     }
   }
 
+  ## Add scale colour if training data are descriminated by clusters
+  if(col_clust){
+    gg <- gg + ggplot2::scale_color_brewer(palette="Set1")
+  }
 
   (gg + ggplot2::ggtitle(gtitle)) %>%
   return()
 }
-#
-#   ## Get the inputs that should be used
-#   if (x_input %>% is.null()) {
-#     inputs <- pred_gp %>%
-#       dplyr::select(-c(.data$ID, .data$Mean, .data$Var))
-#   }
-#   else {
-#     inputs <- pred_gp[x_input]
-#   }
-#
-#   if(!all_clust){
-#     ## Format the tibble for displaying the Credible Intervals
-#     pred_gp <- pred_gp %>%
-#       dplyr::mutate("CI_inf" = .data$Mean - quant_ci * sqrt(.data$Var)) %>%
-#       dplyr::mutate("CI_sup" = .data$Mean + quant_ci * sqrt(.data$Var)) %>%
-#       dplyr::mutate("CI_Width" = .data$CI_sup - .data$CI_inf)
-#   }
-#
-#
-#   ## Display a heatmap if inputs are 2D
-#   if (ncol(inputs) == 2) {
-#
-#     gg <- ggplot2::ggplot() +
-#       ggplot2::geom_raster(
-#         data = pred_gp,
-#         ggplot2::aes_string(
-#           x = names(inputs)[1],
-#           y = names(inputs)[2],
-#           fill = "Mean",
-#           alpha = "CI_Width"
-#         ),
-#         interpolate = TRUE
-#       ) +
-#       ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse") +
-#       ggplot2::scale_alpha_continuous(range = c(0.1, 1), trans = "reverse")
-#
-#     if (!is.null(data)) {
-#       ## Round the 'Output' values to reduce size of labels on the graph
-#       data <- data %>% dplyr::mutate(Output = round(.data$Output, 1))
-#
-#       gg <- gg + ggplot2::geom_label(
-#         data = data,
-#         ggplot2::aes_string(
-#           x = names(inputs)[1],
-#           y = names(inputs)[2],
-#           label = "Output",
-#           fill = "Output"
-#         ),
-#         size = 3
-#       )
-#     }
-#   } else {
-#     ## Check the dimension of the inputs a propose an adequate representation
-#     if (ncol(inputs) == 1) {
-#       if ((dplyr::n_distinct(inputs) != nrow(inputs)) ) {
-#         warning(
-#           "Some values on the x-axis appear multiple times, probably ",
-#           "resulting in an incorrect graphical representation. Please ",
-#           "consider recomputing predictions for more adequate inputs. "
-#         )
-#       }
-#     } else {
-#       warning(
-#         "Impossible to display inputs with dimensions greater than 2. The ",
-#         "graph then simply uses 'Input' as x_axis and 'Output' as y-axis. "
-#       )
-#       inputs <- inputs %>% dplyr::select(.data$Input)
-#     }
-#
-#     ## Display a 'heatmap' if the argument is TRUE
-#     if (heatmap) {
-#       if (is.null(y_grid)) {
-#         y_grid <- seq(
-#           min(pred$Mean) - quant_ci * sqrt(max(pred$Var)),
-#           max(pred$Mean) + quant_ci * sqrt(max(pred$Var)),
-#           length.out = 500
-#         )
-#       }
-#       ## Define the columns needed to compute a prediction for all y-axis values
-#       col_to_nest = c(names(inputs)[1], "Mean", "Var")
-#
-#       db_heat <- pred %>%
-#         tidyr::expand(
-#           tidyr::nesting_(col_to_nest),
-#           "Ygrid" = y_grid
-#         ) %>%
-#         dplyr::mutate(
-#           "Proba" = 2 * (1 - stats::pnorm(
-#             abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))
-#           )
-#         )
-#
-#       gg <- ggplot2::ggplot() +
-#         ggplot2::geom_raster(
-#           data = db_heat,
-#           ggplot2::aes_string(
-#             x = names(inputs)[1],
-#             y = "Ygrid",
-#             fill = "Proba"
-#           ),
-#           interpolate = TRUE
-#         ) +
-#         ggplot2::scale_fill_gradientn(
-#           colours = c(
-#             "white", "#FDE0DD", "#FCC5C0", "#FA9FB5", "#F768A1",
-#             "#DD3497", "#AE017E", "#7A0177"
-#           )
-#         ) +
-#         ggplot2::labs(fill = "Proba CI") +
-#         ggplot2::ylab("Output")
-#
-#     } else { ## Display a classic curve otherwise
-#
-#       gg <- ggplot2::ggplot() +
-#         ggplot2::geom_line(
-#           data = pred,
-#           ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
-#           color = "#DB15C1"
-#         ) +
-#         ggplot2::geom_ribbon(
-#           data = pred,
-#           ggplot2::aes_string(
-#             x = names(inputs)[1],
-#             ymin = "CI_inf",
-#             ymax = "CI_sup"
-#           ),
-#           alpha = 0.2,
-#           fill = '#FA9FB5'
-#         ) +
-#         ggplot2::ylab("Output")
-#     }
-#
-#     ## Display the training data if provided
-#     if (!is.null(data_train)) {
-#       gg <- gg + ggplot2::geom_point(
-#         data = data_train,
-#         ggplot2::aes_string(x = names(inputs)[1], y = "Output", col = "ID"),
-#         size = 0.5,
-#         alpha = 0.5
-#       ) +
-#         ggplot2::guides(color = FALSE)
-#     }
-#     ## Display the observed data if provided
-#     if (!is.null(data)) {
-#       gg <- gg + ggplot2::geom_point(
-#         data = data,
-#         ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
-#         size = 2,
-#         shape = 20
-#       )
-#     }
-#   ## Display the (hyper-)prior mean process if provided
-#     if (!is.null(prior_mean)) {
-#       colori <- 1
-#       for(k in prior_mean %>% names()){
-#         if (names(inputs)[1] %in% names(prior_mean[[k]])) {
-#           gg <- gg +
-#             ggplot2::geom_line(
-#               data = prior_mean[[k]],
-#               ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
-#               linetype = "dashed",
-#               color = colori
-#               )
-#           } else {
-#             warning(
-#               "The ", names(inputs)[1], " column does not exist in the ",
-#               "'prior_mean' argument. The mean function cannot be displayed."
-#         )
-#           }
-#         colori <- colori + 1
-#       }
-#
-#     }
-#   }
-#
-#   (gg +  ggplot2::theme_classic()) %>%
-#     return()
-# }
-#
