@@ -381,6 +381,9 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
 #'   tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
 #' )
 kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
+
+  #browser()
+
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
   reference <- row.names(mat_cov)
   diag <- diag(x = pen_diag, ncol = ncol(mat_cov), nrow = nrow(mat_cov))
@@ -411,6 +414,8 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
 #'  the list of covariance matrices.
 #'
 #' @return A named list containing all of the inverse covariance matrices.
+#'
+#' @export
 #'
 #' @examples
 #' db <- simu_db(M = 3)
@@ -455,7 +460,7 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
 #'  the list of covariance matrices.
 #'
 #' @return A named list containing all of the inverse covariance matrices.
-#'
+#' @export
 #' @examples
 #' db <- simu_db(M = 3)
 #' hp <- tibble::tibble(ID = unique(db$ID), MagmaClustR:::hp())

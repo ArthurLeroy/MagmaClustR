@@ -6,11 +6,11 @@
 \usage{
 train_gp(
   data,
+  prior_mean = NULL,
   ini_hp = NULL,
   kern = "SE",
-  post_mean = NULL,
-  post_cov = NULL,
-  pen_diag = 0.01
+  hyperpost = NULL,
+  pen_diag = 1e-08
 )
 }
 \arguments{
@@ -23,6 +23,20 @@ variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference \code{Input}.}
+
+\item{prior_mean}{Mean parameter of the GP. This argument can be
+specified under various formats, such as:
+\itemize{
+\item NULL (default). The hyper-posterior mean would be set to 0 everywhere.
+\item A number. The hyper-posterior mean would be a constant function.
+\item A vector of the same length as all the distinct Input values in the
+\code{data} argument. This vector would be considered as the evaluation
+of the hyper-posterior mean function at the training Inputs.
+\item A function. This function is defined as the hyper-posterior mean.
+\item A tibble or data frame. Required columns: Input, Output. The Input
+values should include at least the same values as in the \code{data}
+argument.
+}}
 
 \item{ini_hp}{A named vector, tibble or data frame of hyper-parameters
 associated with the \code{kern} of the new individual/task.
@@ -50,24 +64,14 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
-\item{post_mean}{Hyper-posterior mean parameter of the mean GP. Typically,
-this argument would come from a previous training using
-\code{\link{train_magma}}, but it could also be specified under various
-formats, such as:
-\itemize{
-\item NULL (default). The hyper-posterior mean would be set to 0 everywhere.
-\item A number. The hyper-posterior mean would be a constant function.
-\item A vector of the same length as all the distinct Input values in the
-\code{data} argument. This vector would be considered as the evaluation
-of the hyper-posterior mean function at the training Inputs.
-\item A function. This function is defined as the hyper-posterior mean.
-\item A tibble or data frame. Required columns: Input, Output. The Input
-values should include at least the same values as in the \code{data}
-argument.
-}}
-
-\item{post_cov}{A matrix, the hyper-posterior covariance parameter in
-\code{magma}}
+\item{hyperpost}{A list, containing the elements 'mean' and 'cov',
+the parameters of the hyper-posterior distribution of the mean process.
+Typically, this argument should come from a previous learning using
+\code{\link{train_magma}}, or from the \code{\link{hyperposterior}}
+function. If \code{hyperpost} is provided, the likelihood that is
+maximised is the one involved during Magma's prediction step, and the
+\code{prior_mean} argument is ignored. For classic GP training, leave
+\code{hyperpost} to NULL.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
@@ -77,21 +81,14 @@ A tibble, containing the trained hyper-parameters for the kernel of
 the new individual/task.
 }
 \description{
-Learning hyper-parameters of any new individual/task in \code{magma} is
-required in the prediction procedure. This function can be used to learn the
-hyper-parameters of a simple GP (just ignore the \code{post_cov} argument
-and consider the \code{post_mean} argument as the  GP's mean parameter). When
-using within \code{magma}, by providing data for the new individual/task,
-the trained model (hyper-posterior mean and  covariance parameters) and
-initialisation values for the hyper-parameters, the function computes
-maximum likelihood estimates of the hyper-parameters.
+Learning hyper-parameters of any new individual/task in \code{Magma} is
+required in the prediction procedure. This function can also be used to learn
+hyper-parameters of a simple GP (just let the \code{hyperpost} argument set
+to NULL, and use \code{prior_mean} instead). When using within \code{Magma},
+by providing data for the new individual/task, the hyper-posterior mean and
+covariance parameters, and initialisation values for the hyper-parameters,
+the function computes maximum likelihood estimates of the hyper-parameters.
 }
 \examples{
-db = simu_db(M = 1, N = 10)
-train_gp(db)
-
-ini_hp = hp('SE')
-post_mean = tibble::tibble('Input' = db$Input, 'Output' = 1:10)
-post_cov = kern_to_cov(db$Input, 'SE', hp('SE'))
-train_gp(db, ini_hp, 'SE', post_mean, post_cov)
+TRUE
 }

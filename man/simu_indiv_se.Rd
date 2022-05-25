@@ -4,7 +4,7 @@
 \alias{simu_indiv_se}
 \title{Simulate a batch a data}
 \usage{
-simu_indiv_se(ID, input, covariate, mean, kern, v, l, sigma)
+simu_indiv_se(ID, input, covariate, mean, v, l, sigma)
 }
 \arguments{
 \item{ID}{An identification code, whether numeric or character.}
@@ -16,8 +16,6 @@ simu_indiv_se(ID, input, covariate, mean, kern, v, l, sigma)
 along with each reference input.}
 
 \item{mean}{A vector of numbers. Prior mean values of the GP.}
-
-\item{kern}{A kernel function, associated with the GP.}
 
 \item{v}{A number. The variance hyper-parameter of the SE kernel.}
 
@@ -35,7 +33,7 @@ a GP with a the Squared Exponential kernel as covariance structure, and
 specified hyper-parameters and input.
 }
 \examples{
-MagmaClustR:::simu_indiv_se("A", 1:10, 0, rep(0, 10), "SE", 2, 1, 0.5)
-MagmaClustR:::simu_indiv_se("B", 1:10, 2:11, 3:12, "SE", 1, 1, 1)
-MagmaClustR:::simu_indiv_se("C", 1:10, 5, rep(0, 10), "SE", 2, 1, 0.5)
+MagmaClustR:::simu_indiv_se("A", 1:10, 0, rep(0, 10), 2, 1, 0.5)
+MagmaClustR:::simu_indiv_se("B", 1:10, 2:11, 3:12, 1, 1, 1)
+MagmaClustR:::simu_indiv_se("C", 1:10, 5, rep(0, 10), 2, 1, 0.5)
 }

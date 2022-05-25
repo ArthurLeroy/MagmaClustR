@@ -167,3 +167,64 @@ gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
     rowSums() %>%
     return()
 }
+
+#'  Gradient of the mixture of Gaussian likelihoods
+#'
+#' Compute the gradient of a sum of Gaussian log-likelihoods, weighted by their
+#' mixture probabilities.
+#'
+#' @param hp A tibble, data frame or named vector of hyper-parameters.
+#' @param db A tibble containing data we want to evaluate the logL on.
+#'    Required columns: Input, Output. Additional covariate columns are allowed.
+#' @param mixture A tibble or data frame, indicating the mixture probabilities
+#'    of each cluster for the new individual/task.
+#' @param mean A list of hyper-posterior mean parameters for all clusters.
+#' @param kern A kernel function.
+#' @param post_cov A list of hyper-posterior covariance parameters for all
+#'    clusters.
+#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
+#'    numerical issues when inverting, in cases of nearly singular matrices.
+#'
+#' @return A named vector, corresponding to the value of the hyper-parameters'
+#'    gradients for the mixture of Gaussian log-likelihoods involved in the
+#'    prediction step of MagmaClust.
+#'
+#'
+#' @examples
+#' TRUE
+gr_sum_logL_GP_clust <- function(
+  hp,
+  db,
+  mixture,
+  mean,
+  kern,
+  post_cov,
+  pen_diag) {
+  ## Extract the observed (reference) Input
+  input_obs <- db %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::pull(.data$Input)
+  ## Remove 'ID' if present in 'db'
+  if('ID' %in% names(db)){
+    db = db %>% dplyr::select(- .data$ID)
+  }
+
+  ## Loop over the K clusters
+  floop <- function(k) {
+    tau_k = mixture[[k]]
+    mean_k <- mean[[k]] %>%
+      dplyr::filter(.data$Input %in% input_obs) %>%
+      dplyr::pull(.data$Output)
+
+    cov_k <- post_cov[[k]][
+      as.character(input_obs),
+      as.character(input_obs)
+    ]
+  (tau_k * gr_GP(hp, db, mean_k, kern, cov_k, pen_diag)) %>%
+    return()
+  }
+  sapply(names(mean), floop) %>%
+    rowSums() %>%
+    return()
+}
+

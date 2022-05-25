@@ -13,6 +13,9 @@ plot_gif(
   y_grid = NULL,
   heatmap = F,
   prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5,
   export_gif = FALSE,
   path = "gif_gp.gif",
   ...
@@ -59,6 +62,14 @@ FALSE (default), the mean curve and associated 95\% CI are displayed.}
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
 level of the Credible Interval associated with the posterior mean curve.}
 
+\item{size_data}{A number, controlling the size of the \code{data} points.}
+
+\item{size_data_train}{A number, controlling the size of the
+\code{data_train} points.}
+
+\item{alpha_data_train}{A number, between 0 and 1, controlling transparency
+of the \code{data_train} points.}
+
 \item{export_gif}{A logical value indicating whether the animation should
 be exported as a .gif file.}
 
@@ -80,17 +91,17 @@ Create a GIF animation displaying how Magma or classic GP
 predictions evolve and improve when the number of data points increase.
 }
 \examples{
-\donttest{
+\dontrun{
 ## 2-dimensional example
 db <- simu_db(M = 1, covariate = FALSE)
-hp = train_gp(db)
+hp <- train_gp(db)
 pred_gif(db, hp = hp) \%>\%
- plot_gif(data = db)
+  plot_gif(data = db)
 
 ## 2-dimensional example
 db_2D <- simu_db(M = 1, covariate = TRUE)
-hp_2D = train_gp(db_2D)
+hp_2D <- train_gp(db_2D)
 pred_gif(db_2D, hp = hp_2D) \%>\%
- plot_gif(data = db_2D)
+  plot_gif(data = db_2D)
 }
 }

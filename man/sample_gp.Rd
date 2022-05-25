@@ -9,7 +9,10 @@ sample_gp(
   x_input = NULL,
   data = NULL,
   data_train = NULL,
-  prior_mean = NULL
+  prior_mean = NULL,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5
 )
 }
 \arguments{
@@ -35,6 +38,14 @@ individual/task).}
 
 \item{prior_mean}{(Optional) A tibble or a data frame, containing the 'Input'
 and associated 'Output' prior mean parameter of the GP prediction.}
+
+\item{size_data}{A number, controlling the size of the \code{data} points.}
+
+\item{size_data_train}{A number, controlling the size of the
+\code{data_train} points.}
+
+\item{alpha_data_train}{A number, between 0 and 1, controlling transparency
+of the \code{data_train} points.}
 }
 \value{
 Draw and visualise from a posterior distribution from Magma or GP
@@ -47,16 +58,16 @@ According to the dimension of the inputs, the graph may be a curve or a
 heatmap.
 }
 \examples{
-\donttest{
+\dontrun{
 ## 1-dimensional example
 db <- simu_db(M = 1, covariate = FALSE)
-hp = train_gp(db)
+hp <- train_gp(db)
 pred_gp(db, get_full_cov = TRUE, plot = TRUE) \%>\%
- sample_gp(data = db)
+  sample_gp(data = db)
 
 ## 2-dimensional example
 db_2D <- simu_db(M = 1, covariate = TRUE)
 pred_gp(db_2D, get_full_cov = TRUE, plot = FALSE) \%>\%
-sample_gp(data = db_2D)
+  sample_gp(data = db_2D)
 }
 }

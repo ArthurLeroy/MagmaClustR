@@ -10,7 +10,6 @@
 #' @param covariate A vector of numbers. An additional input variable, observed
 #'  along with each reference input.
 #' @param mean A vector of numbers. Prior mean values of the GP.
-#' @param kern A kernel function, associated with the GP.
 #' @param v A number. The variance hyper-parameter of the SE kernel.
 #' @param l A number. The lengthscale hyper-parameter of the SE kernel.
 #' @param sigma A number. The noise hyper-parameter.
@@ -21,10 +20,10 @@
 #' @importFrom rlang .data
 #'
 #' @examples
-#' MagmaClustR:::simu_indiv_se("A", 1:10, 0, rep(0, 10), "SE", 2, 1, 0.5)
-#' MagmaClustR:::simu_indiv_se("B", 1:10, 2:11, 3:12, "SE", 1, 1, 1)
-#' MagmaClustR:::simu_indiv_se("C", 1:10, 5, rep(0, 10), "SE", 2, 1, 0.5)
-simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
+#' MagmaClustR:::simu_indiv_se("A", 1:10, 0, rep(0, 10), 2, 1, 0.5)
+#' MagmaClustR:::simu_indiv_se("B", 1:10, 2:11, 3:12, 1, 1, 1)
+#' MagmaClustR:::simu_indiv_se("C", 1:10, 5, rep(0, 10), 2, 1, 0.5)
+simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
   db <- tibble::tibble(
     "ID" = ID,
     "Output" = mvtnorm::rmvnorm(
@@ -32,8 +31,9 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
       mean + covariate,
       kern_to_cov(
         input,
-        kern,
-        tibble::tibble(se_variance = v, se_lengthscale = l)) +
+        'SE',
+        tibble::tibble(se_variance = v, se_lengthscale = l)
+      ) +
         diag(sigma, length(input), length(input))
     ) %>% as.vector(),
     "Input" = input,
@@ -56,33 +56,35 @@ simu_indiv_se <- function(ID, input, covariate, mean, kern, v, l, sigma) {
 #'
 #' @examples
 #' MagmaClustR:::draw(c(1, 2))
-draw <- function(int){
+draw <- function(int) {
   stats::runif(1, int[1], int[2]) %>%
     round(2) %>%
     return()
 }
 
-#' Simulate a complete training dataset
+#' Simulate a dataset tailored for MagmaClustR
 #'
-#' Simulate a complete training dataset, which may be coherent in many different
-#' settings. The various flexible arguments allow to adjust the number of
-#' individuals, of observed input, and the values of many parameters
+#' Simulate a complete training dataset, which may be representative of various
+#' applications. Several flexible arguments allow adjustment of the number of
+#' individuals, of observed inputs, and the values of many parameters
 #' controlling the data generation.
 #'
-#' @param M An integer. The number of individual.
+#' @param M An integer. The number of individual per cluster.
 #' @param N An integer. The number of observations per individual.
+#' @param K An integer. The number of underlying clusters.
 #' @param covariate A logical value indicating whether the dataset should
-#'    include an additional covariate named 'Covariate'.
+#'    include an additional input covariate named 'Covariate'.
 #' @param grid A vector of numbers defining a grid of observations
 #'    (i.e. the reference inputs).
 #' @param common_input A logical value indicating whether the reference inputs
 #'    are common to all individual.
 #' @param common_hp  A logical value indicating whether the hyper-parameters are
-#'   common to all individual.
+#'   common to all individual. If TRUE and K>1, the hyper-parameters remain
+#'   different between the clusters.
 #' @param add_hp A logical value indicating whether the values of
-#'    hyper-parameters should be added as columns of the dataset.
-#' @param kern_0 A kernel function, associated with the mean process.
-#' @param kern_i A kernel function, associated with the individual processes.
+#'    hyper-parameters should be added as columns in the dataset.
+#' @param add_clust A logical value indicating whether the name of the
+#'    clusters should be added as a column in the dataset.
 #' @param int_mu_v A vector of 2 numbers, defining an interval of admissible
 #'    values for the variance hyper-parameter of the mean process' kernel.
 #' @param int_mu_l A vector of 2 numbers, defining an interval of admissible
@@ -105,7 +107,7 @@ draw <- function(int){
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' simu_db(M = 5, N = 3)
 #' simu_db(M = 5, N = 3, common_input = FALSE)
 #' simu_db(M = 5, N = 3, common_hp = FALSE, add_hp = TRUE)
@@ -113,75 +115,183 @@ draw <- function(int){
 #' }
 simu_db <- function(M = 10,
                     N = 10,
-                    covariate = T,
+                    K = 1,
+                    covariate = F,
                     grid = seq(0, 10, 0.05),
                     common_input = T,
                     common_hp = T,
                     add_hp = F,
-                    kern_0 = "SE",
-                    kern_i = "SE",
+                    add_clust = F,
                     int_mu_v = c(0, 2),
                     int_mu_l = c(0, 2),
                     int_i_v = c(0, 2),
                     int_i_l = c(0, 2),
                     int_i_sigma = c(0, 1),
-                    m0_slope =  c(-2, 2),
-                    m0_intercept = c(0, 10),
+                    m0_slope = c(-5, 5),
+                    m0_intercept = c(-10, 10),
                     int_covariate = c(-5, 5)) {
-  m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
-  mu_v <- draw(int_mu_v)
-  mu_l <- draw(int_mu_l)
 
-  db_0 <- simu_indiv_se(
-    ID = "0", input = grid, covariate = 0, mean = m_0,
-    kern = kern_0, v = mu_v, l = mu_l, sigma = 0
-  )
   if (common_input) {
     t_i <- sample(grid, N, replace = F) %>% sort()
   }
-  if (common_hp) {
-    i_v <- draw(int_i_v)
-    i_l <- draw(int_i_l)
-    i_sigma <- draw(int_i_sigma)
-  }
 
-  floop <- function(i) {
-    if (!common_input) {
-      t_i <- sample(grid, N, replace = F) %>% sort()
-    }
-    if (!common_hp) {
+  floop_k <- function(k) {
+    m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
+    mu_v <- draw(int_mu_v)
+    mu_l <- draw(int_mu_l)
+
+    db_0 <- simu_indiv_se(
+      ID = "0",
+      input = grid,
+      covariate = 0,
+      mean = m_0,
+      v = mu_v,
+      l = mu_l,
+      sigma = 0
+    )
+    if (common_hp) {
       i_v <- draw(int_i_v)
       i_l <- draw(int_i_l)
       i_sigma <- draw(int_i_sigma)
     }
-    mean_i <- db_0 %>%
-      dplyr::filter(.data$Input %in% t_i) %>%
-      dplyr::pull(.data$Output)
 
-    covariate_i <- stats::runif(N, int_covariate[1], int_covariate[2]) %>%
-      round(2)
+    floop_i <- function(i, k) {
+      if (!common_input) {
+        t_i <- sample(grid, N, replace = F) %>% sort()
+      }
+      if (!common_hp) {
+        i_v <- draw(int_i_v)
+        i_l <- draw(int_i_l)
+        i_sigma <- draw(int_i_sigma)
+      }
+      mean_i <- db_0 %>%
+        dplyr::filter(.data$Input %in% t_i) %>%
+        dplyr::pull(.data$Output)
 
-    simu_indiv_se(
-      as.character(i),
-      t_i,
-      covariate_i,
-      mean_i,
-      kern_i,
-      i_v,
-      i_l,
-      i_sigma
+      covariate_i <- stats::runif(N, int_covariate[1], int_covariate[2]) %>%
+        round(2)
+
+      if(K > 1){
+        ID = paste0('ID', i, '-Clust', k)
+      } else{
+        ID = as.character(i)
+      }
+
+      simu_indiv_se(
+        ID = ID,
+        input = t_i,
+        covariate = covariate_i,
+        mean = mean_i,
+        v = i_v,
+        l = i_l,
+        sigma = i_sigma
+      ) %>%
+        return()
+    }
+    db <- sapply(seq_len(M), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
+      dplyr::bind_rows()
+    if (!add_hp) {
+      db <- db %>% dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
+    }
+
+    if (!covariate) {
+      db <- db %>% dplyr::select(-.data$Covariate)
+    }
+
+    if (add_clust) {
+      db <- db %>% dplyr::mutate('Cluster' = k)
+    }
+    return(db)
+  }
+
+  lapply(seq_len(K), floop_k) %>%
+    dplyr::bind_rows() %>%
+    return()
+}
+
+#' ini_kmeans
+#'
+#' @param data A tibble containing common Input and associated Output values
+#'   to cluster.
+#' @param k A number of clusters assumed for running the kmeans algorithm.
+#' @param nstart A number, indicating how many re-starts of kmeans are set.
+#' @param summary A boolean, indicating whether we want an outcome summary
+#'
+#' @return A tibble containing the initial clustering obtained through kmeans.
+#' @export
+#'
+#' @examples
+#' TRUE
+ini_kmeans <- function(data, k, nstart = 50, summary = F) {
+  if (!identical(
+    unique(data$Input),
+    data %>%
+      dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
+      dplyr::pull(.data$Input)
+    )) {
+    floop <- function(i) {
+      obs_i <- data %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::pull(.data$Output)
+      tibble::tibble(
+        "ID" = i,
+        "Input" = seq_len(3),
+        "Output" = c(min(obs_i), mean(obs_i), max(obs_i))
+      ) %>%
+        return()
+    }
+    db_regular <- unique(data$ID) %>%
+      lapply(floop) %>%
+      dplyr::bind_rows() %>%
+      dplyr::select(c(.data$ID, .data$Input, .data$Output))
+  }
+  else {
+    db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
+  }
+
+  res <- db_regular %>%
+    tidyr::spread(key = .data$Input, value = .data$Output) %>%
+    dplyr::select(-.data$ID) %>%
+    stats::kmeans(centers = k, nstart = nstart)
+
+  if (summary) {
+    res %>% print()
+  }
+
+  # browser()
+  broom::augment(
+    res,
+    db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)
     ) %>%
-      return()
-  }
-  db = sapply(seq_len(M), floop, simplify = F, USE.NAMES = T) %>%
-    dplyr::bind_rows()
-  if(!add_hp){
-    db = db %>% dplyr::select(- c('se_variance', 'se_lengthscale', 'noise'))
+    dplyr::select(c(.data$ID, .data$.cluster)) %>%
+    dplyr::rename(Cluster_ini = .data$.cluster) %>%
+    dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
+    return()
+}
+
+
+#' ini_hp_mixture
+#'
+#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+#'    , \code{Output}.
+#' @param k A number, indicating the number of clusters.
+#' @param name_clust A vector of characters. Each element should correspond to
+#'    the name of one cluster.
+#' @param nstart A number of restart used in the underlying kmeans algorithm
+#'
+#' @return A tibble indicating for each \code{ID} in which cluster it belongs
+#'    after a kmeans initialisation.
+#'
+#' @examples
+#' TRUE
+ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
+  db_ini = ini_kmeans(data, k, nstart) %>%
+    dplyr::mutate(value = 1) %>%
+    tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0)
+
+  if(!is.null(name_clust)){
+    names(db_ini) = c('ID', name_clust)
   }
 
-  if(!covariate){
-    db = db %>% dplyr::select(- .data$Covariate)
-  }
-
-  return(db)
+  return(db_ini)
 }

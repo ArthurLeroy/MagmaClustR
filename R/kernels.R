@@ -15,8 +15,6 @@
 #'
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
-#' @export
-#'
 #' @examples
 #' MagmaClustR:::se_kernel(
 #'   c(1, 0), c(0, 1),
@@ -195,8 +193,6 @@ rq_kernel <- function(x, y, hp, deriv = NULL, vectorized = FALSE) {
 #'
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
-#' @export
-#'
 #' @examples
 #' MagmaClustR:::lin_kernel(
 #'   c(1, 0), c(0, 1),
@@ -280,7 +276,7 @@ hp <- function(kern = "SE",
   ## Initiate interval boundaries
   min <- 0
   max <- 3
-  min_noise <- -10
+  min_noise <- -2
   max_noise <- 0
 
   len <- 1

@@ -2,35 +2,37 @@
 % Please edit documentation in R/simulate-data.R
 \name{simu_db}
 \alias{simu_db}
-\title{Simulate a complete training dataset}
+\title{Simulate a dataset tailored for MagmaClustR}
 \usage{
 simu_db(
   M = 10,
   N = 10,
-  covariate = T,
+  K = 1,
+  covariate = F,
   grid = seq(0, 10, 0.05),
   common_input = T,
   common_hp = T,
   add_hp = F,
-  kern_0 = "SE",
-  kern_i = "SE",
-  int_mu_v = c(0, 5),
+  add_clust = F,
+  int_mu_v = c(0, 2),
   int_mu_l = c(0, 2),
-  int_i_v = c(0, 5),
+  int_i_v = c(0, 2),
   int_i_l = c(0, 2),
   int_i_sigma = c(0, 1),
-  m0_slope = c(-2, 2),
-  m0_intercept = c(0, 10),
+  m0_slope = c(-5, 5),
+  m0_intercept = c(-10, 10),
   int_covariate = c(-5, 5)
 )
 }
 \arguments{
-\item{M}{An integer. The number of individual.}
+\item{M}{An integer. The number of individual per cluster.}
 
 \item{N}{An integer. The number of observations per individual.}
 
+\item{K}{An integer. The number of underlying clusters.}
+
 \item{covariate}{A logical value indicating whether the dataset should
-include an additional covariate named 'Covariate'.}
+include an additional input covariate named 'Covariate'.}
 
 \item{grid}{A vector of numbers defining a grid of observations
 (i.e. the reference inputs).}
@@ -39,14 +41,14 @@ include an additional covariate named 'Covariate'.}
 are common to all individual.}
 
 \item{common_hp}{A logical value indicating whether the hyper-parameters are
-common to all individual.}
+common to all individual. If TRUE and K>1, the hyper-parameters remain
+different between the clusters.}
 
 \item{add_hp}{A logical value indicating whether the values of
-hyper-parameters should be added as columns of the dataset.}
+hyper-parameters should be added as columns in the dataset.}
 
-\item{kern_0}{A kernel function, associated with the mean process.}
-
-\item{kern_i}{A kernel function, associated with the individual processes.}
+\item{add_clust}{A logical value indicating whether the name of the
+clusters should be added as a column in the dataset.}
 
 \item{int_mu_v}{A vector of 2 numbers, defining an interval of admissible
 values for the variance hyper-parameter of the mean process' kernel.}
@@ -77,13 +79,13 @@ admissible values for the covariate inputs.}
 A full dataset of simulated training data.
 }
 \description{
-Simulate a complete training dataset, which may be coherent in many different
-settings. The various flexible arguments allow to adjust the number of
-individuals, of observed input, and the values of many parameters
+Simulate a complete training dataset, which may be representative of various
+applications. Several flexible arguments allow adjustment of the number of
+individuals, of observed inputs, and the values of many parameters
 controlling the data generation.
 }
 \examples{
-\donttest{
+\dontrun{
 simu_db(M = 5, N = 3)
 simu_db(M = 5, N = 3, common_input = FALSE)
 simu_db(M = 5, N = 3, common_hp = FALSE, add_hp = TRUE)

@@ -13,9 +13,10 @@ train_magma(
   kern_i = "SE",
   common_hp = T,
   grid_inputs = NULL,
-  pen_diag = 0.01,
+  pen_diag = 1e-08,
   n_iter_max = 25,
-  cv_threshold = 0.001
+  cv_threshold = 0.001,
+  fast_approx = FALSE
 )
 }
 \arguments{
@@ -80,10 +81,10 @@ operator '*' shall always be used before the '+' operators (e.g.
 }}
 
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
-"PERIO" and "RQ" are aso available here)}
+"PERIO" and "RQ" are also available here).}
 
 \item{common_hp}{A logical value, indicating whether the set of
-hyper-parameters is assumed to be common to all indiviuals.}
+hyper-parameters is assumed to be common to all individuals.}
 
 \item{grid_inputs}{A vector, indicating the grid of additional reference
 inputs on which the mean process' hyper-posterior should be evaluated.}
@@ -98,30 +99,41 @@ the EM algorithm to proceed while not reaching convergence.}
 under which the EM algorithm will stop. The convergence condition is
 defined as the difference of likelihoods between two consecutive steps,
 divided by the absolute value of the last one
-( (LL_n - LL_n-1) / |LL_n| ).}
+( \eqn{(LL_n - LL_n-1) / |LL_n|} ).}
+
+\item{fast_approx}{A boolean, indicating whether the EM algorithm should
+stop after only one iteration of the E-step. This advanced feature is
+mainly used to provide a faster approximation of the model selection
+procedure, by preventing any optimisation over the hyper-parameters.}
 }
 \value{
-A list, containing the results of the EM algorithm used for training
+A list, gathering the results of the EM algorithm used for training
 in Magma. The elements of the list are:
 \itemize{
-\item hp_0: A tibble containing the trained hyper-parameters for the mean
+\item hp_0: A tibble of the trained hyper-parameters for the mean
 process' kernel.
-\item hp_i: A tibble containing all the trained hyper-parameters for the
+\item hp_i: A tibble of all the trained hyper-parameters for the
 individual processes' kernels.
-\item post_mean: A tibble containing the values of hyper-posterior's mean
-parameter (\code{Output}) evaluated at each training reference
-\code{Input}.
-\item post_cov: A matrix, covariance parameter of the hyper-posterior
+\item hyperpost: A sub-list gathering the parameters of the mean processes'
+hyper-posterior distributions, namely:
+\itemize{
+\item mean: A tibble, the hyper-posterior mean parameter
+(\code{Output}) evaluated at each training reference \code{Input}.
+\item cov: A matrix, the covariance parameter for the hyper-posterior
 distribution of the mean process.
-\item pred_post: A tibble, gathering mean and covariance parameters of the
-mean process' hyper-posterior distribution under a format that allows
-direct visualisation as a GP prediction.
-\item ini_args: A list containing the initial values for the hyper-prior mean,
-the hyper-parameters, and the kernels that have been defined and used
-during the learning procedure.
-\item Converged: A logical value indicated whether the EM algorithm converged
+\item pred: A tibble, the predicted mean and variance at \code{Input}
+for the mean process' hyper-posterior distribution under a format
+that allows the direct visualisation as a GP prediction.
+}
+\item ini_args: A list containing the initial function arguments and values
+for the hyper-prior mean, the hyper-parameters. In particular, if
+those arguments were set to NULL, \code{ini_args} allows us to retrieve
+the (randomly chosen) initialisations used during training.
+\item seq_loglikelihood: A vector, containing the sequence of log-likelihood
+values associated with each iteration.
+\item converged: A logical value indicated whether the EM algorithm converged
 or not.
-\item Training_time: Total running time of the complete training.
+\item training_time: Total running time of the complete training.
 }
 }
 \description{
@@ -139,11 +151,10 @@ The user can specify custom kernel functions for the argument
 should have explicit names, and be contained within the \code{hp}
 argument. \code{hp} should typically be defined as a named vector or a
 data frame. Although it is not mandatory for the \code{train_magma}
-function to run, gradients can provided within kernel function definition.
-See for example \code{\link{se_kernel}} to create a custom kernel
+function to run, gradients can be provided within kernel function
+definition. See for example \code{\link{se_kernel}} to create a custom kernel
 function displaying an adequate format to be used in Magma.
 }
 \examples{
-db = simu_db()
-train_magma(db)
+TRUE
 }

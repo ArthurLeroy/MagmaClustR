@@ -12,7 +12,10 @@ plot_gp(
   prior_mean = NULL,
   y_grid = NULL,
   heatmap = F,
-  prob_CI = 0.95
+  prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5
 )
 }
 \arguments{
@@ -22,25 +25,20 @@ columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
 present in case of multi-dimensional inputs.}
 
 \item{x_input}{A vector of character strings, indicating which input should
-be displayed. If NULL(default) the 'Input' column is used for the x-axis.
+be displayed. If NULL (default) the 'Input' column is used for the x-axis.
 If providing a 2-dimensional vector, the corresponding columns are used
 for the x-axis and y-axis.}
 
 \item{data}{(Optional) A tibble or data frame. Required columns: 'Input',
-'Output'. Additional columns for covariates can be specified.
-The 'Input' column should define the variable that is used as
-reference for the observations (e.g. time for longitudinal data). The
-'Output' column specifies the observed values (the response
-variable). The data frame can also provide as many covariates as desired,
-with no constraints on the column names. These covariates are additional
-inputs (explanatory variables) of the models that are also observed at
-each reference 'Input'.}
+'Output'. Additional columns for covariates can be specified. This
+argument corresponds to the raw data on which the prediction has been
+performed.}
 
 \item{data_train}{(Optional) A tibble or data frame, containing the training
 data of the Magma model. The data set should have the same format as the
-\code{data} argument with an additional column 'ID' for identifying the
-different individuals/tasks. If provided, those data are displayed as
-backward colourful points (each colour corresponding to one
+\code{data} argument with an additional required column 'ID' for
+identifying the different individuals/tasks. If provided, those data are
+displayed as backward colourful points (each colour corresponding to one
 individual/task).}
 
 \item{prior_mean}{(Optional) A tibble or a data frame, containing the 'Input'
@@ -53,21 +51,32 @@ between the min and max 'Output' values contained in \code{pred_gp}.}
 
 \item{heatmap}{A logical value indicating whether the GP prediction should be
 represented as a heatmap of probabilities for 1-dimensional inputs. If
-FALSE (default), the mean curve and associated 95\%CI are displayed.}
+FALSE (default), the mean curve and associated Credible Interval are
+displayed.}
 
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
-level of the Credible Interval associated with the posterior mean curve.}
+level of the Credible Interval associated with the posterior mean curve.
+If this this argument is set to 1, the Credible Interval is not displayed.}
+
+\item{size_data}{A number, controlling the size of the \code{data} points.}
+
+\item{size_data_train}{A number, controlling the size of the
+\code{data_train} points.}
+
+\item{alpha_data_train}{A number, between 0 and 1, controlling transparency
+of the \code{data_train} points.}
 }
 \value{
 Visualisation of a Magma or GP prediction (optional: display data
-points, training data points and the prior mean function). For 1-D inputs,
-the prediction is represented as a mean curve and its associated 95\%
-Credible Interval, or as a heatmap of probabilities if \code{heatmap} =
-TRUE. For 2-D inputs, the prediction is represented as a heatmap, where
-each couple of inputs on the x-axis and y-axis are associated
-with a gradient of colours for the posterior mean values, whereas the
-uncertainty is indicated by the transparency (the narrower is the 95\%CI,
-the more opaque is the associated colour, and vice versa)
+points, training data points and the prior mean function). For 1-D
+inputs, the prediction is represented as a mean curve and its associated
+95\%  Credible Interval, or as a heatmap of probabilities if
+\code{heatmap} = TRUE. For 2-D inputs, the prediction is represented as a
+heatmap, where each couple of inputs on the x-axis and y-axis are
+associated with a gradient of colours for the posterior mean values,
+whereas the uncertainty is indicated by the transparency (the narrower is
+the Credible Interval, the more opaque is the associated colour, and vice
+versa)
 }
 \description{
 Display Magma or classic GP predictions. According to the dimension of the
@@ -75,15 +84,15 @@ inputs, the graph may be a mean curve + Credible Interval or a heatmap of
 probabilities.
 }
 \examples{
-\donttest{
+\dontrun{
 ## 1-dimensional example
 db <- simu_db(M = 1, covariate = FALSE)
 pred_gp(db) \%>\%
- plot_gp(data = db)
+  plot_gp(data = db)
 
 ## 2-dimensional example
 db_2D <- simu_db(M = 1, covariate = TRUE)
 pred_gp(db_2D) \%>\%
- plot_gp(data = db_2D)
+  plot_gp(data = db_2D)
 }
 }
