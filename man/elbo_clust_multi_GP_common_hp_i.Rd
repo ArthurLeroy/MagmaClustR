@@ -4,7 +4,7 @@
 \alias{elbo_clust_multi_GP_common_hp_i}
 \title{Penalised elbo for multiple individual GPs with common HPs}
 \usage{
-elbo_clust_multi_GP_common_hp_i(hp, db, post_k, kern, pen_diag)
+elbo_clust_multi_GP_common_hp_i(hp, db, hyperpost, kern, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
@@ -12,7 +12,7 @@ elbo_clust_multi_GP_common_hp_i(hp, db, post_k, kern, pen_diag)
 \item{db}{A tibble containing values we want to compute elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{post_k}{List of parameters for the K mean Gaussian processes.}
+\item{hyperpost}{List of parameters for the K mean Gaussian processes.}
 
 \item{kern}{A kernel function used to compute the covariance matrix at
 corresponding timestamps.}

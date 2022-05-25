@@ -11,10 +11,13 @@ plot_magmaclust(
   data = NULL,
   data_train = NULL,
   col_clust = FALSE,
-  y_grid = NULL,
   prior_mean = NULL,
+  y_grid = NULL,
   heatmap = FALSE,
-  prob_CI = 0.95
+  prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5
 )
 }
 \arguments{
@@ -44,18 +47,14 @@ data of the MagmaClust model. The data set should have the same format as
 the \code{data} argument with an additional required column \code{ID} for
 identifying the different individuals/tasks. If provided, those data are
 displayed as backward colourful points (each colour corresponding to one
-individual or a cluster, see \code'{col_clust} below).}
+individual or a cluster, see \code{col_clust} below).}
 
 \item{col_clust}{A boolean indicating whether backward points are coloured
-according to the individuals or to their predicted cluster. If one wants
-to colour by clusters, a column \code{Cluster} shall be present in
-\code{data_train} and its value should refer to the most probable cluster
-for each individual.}
-
-\item{y_grid}{A vector, indicating the grid of values on the y-axis for which
-probabilities should be computed for heatmaps of 1-dimensional
-predictions. If NULL (default), a vector of length 50 is defined, ranging
-between the min and max 'Output' values contained in \code{pred}.}
+according to the individuals or to their most probable cluster. If one
+wants to colour by clusters, a column \code{Cluster} shall be present in
+\code{data_train}. We advise to use \code{\link{data_allocate_cluster}}
+for automatically creating a well-formatted dataset from a trained
+MagmaClust model.}
 
 \item{prior_mean}{(Optional) A list providing, for each cluster, a
 tibble containing prior mean parameters of the prediction. This argument
@@ -63,13 +62,27 @@ typically comes as an outcome \code{hyperpost$mean}, available through
 the \code{\link{train_magmaclust}}, \code{\link{pred_magmaclust}}
 functions.}
 
+\item{y_grid}{A vector, indicating the grid of values on the y-axis for which
+probabilities should be computed for heatmaps of 1-dimensional
+predictions. If NULL (default), a vector of length 50 is defined, ranging
+between the min and max 'Output' values contained in \code{pred}.}
+
 \item{heatmap}{A logical value indicating whether the GP prediction should be
 represented as a heatmap of probabilities for 1-dimensional inputs. If
 FALSE (default), the mean curve (and associated Credible Interval if
 available) are displayed.}
 
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
-level of the Credible Interval associated with the posterior mean curve.}
+level of the Credible Interval associated with the posterior mean curve.
+If this this argument is set to 1, the Credible Interval is not displayed.}
+
+\item{size_data}{A number, controlling the size of the \code{data} points.}
+
+\item{size_data_train}{A number, controlling the size of the
+\code{data_train} points.}
+
+\item{alpha_data_train}{A number, between 0 and 1, controlling transparency
+of the \code{data_train} points.}
 }
 \value{
 Visualisation of a MagmaClust prediction (optional: display data

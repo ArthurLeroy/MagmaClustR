@@ -13,6 +13,9 @@ plot_gif(
   y_grid = NULL,
   heatmap = F,
   prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5,
   export_gif = FALSE,
   path = "gif_gp.gif",
   ...
@@ -58,6 +61,14 @@ FALSE (default), the mean curve and associated 95\% CI are displayed.}
 
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
 level of the Credible Interval associated with the posterior mean curve.}
+
+\item{size_data}{A number, controlling the size of the \code{data} points.}
+
+\item{size_data_train}{A number, controlling the size of the
+\code{data_train} points.}
+
+\item{alpha_data_train}{A number, between 0 and 1, controlling transparency
+of the \code{data_train} points.}
 
 \item{export_gif}{A logical value indicating whether the animation should
 be exported as a .gif file.}

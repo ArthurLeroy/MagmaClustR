@@ -18,7 +18,8 @@ train_magmaclust(
   grid_inputs = NULL,
   pen_diag = 1e-08,
   n_iter_max = 25,
-  cv_threshold = 0.001
+  cv_threshold = 0.001,
+  fast_approx = FALSE
 )
 }
 \arguments{
@@ -111,6 +112,11 @@ under which the VEM algorithm will stop. The convergence condition is
 defined as the difference of elbo between two consecutive steps,
 divided by the absolute value of the last one
 ( \eqn{(ELBO_n - ELBO_{n-1}) / |ELBO_n| } ).}
+
+\item{fast_approx}{A boolean, indicating whether the VEM algorithm should
+stop after only one iteration of the VE-step. This advanced feature is
+mainly used to provide a faster approximation of the model selection
+procedure, by preventing any optimisation over the hyper-parameters.}
 }
 \value{
 A list, containing the results of the VEM algorithm used in the
@@ -134,8 +140,10 @@ cluster for each individual.
 for the hyper-prior means, the hyper-parameters. In particular, if
 those arguments were set to NULL, \code{ini_args} allows us to retrieve
 the (randomly chosen) initialisations used during training.
-\item Converged: A logical value indicated whether the algorithm converged.
-\item Training_time: Total running time of the complete training.
+\item seq_elbo: A vector, containing the sequence of ELBO values associated
+with each iteration.
+\item converged: A logical value indicated whether the algorithm converged.
+\item training_time: Total running time of the complete training.
 }
 }
 \description{

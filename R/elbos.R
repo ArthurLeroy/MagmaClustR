@@ -3,7 +3,7 @@
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing the values we want to compute the elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param post_k List of parameters for the K mean GPs.
+#' @param hyperpost List of parameters for the K mean GPs.
 #' @param kern A kernel function used to compute the covariance matrix at
 #' corresponding timestamps.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
@@ -13,9 +13,9 @@
 #'
 #' @examples
 #' TRUE
-elbo_clust_multi_GP = function(hp, db, post_k, kern, pen_diag)
+elbo_clust_multi_GP = function(hp, db, hyperpost, kern, pen_diag)
 {
-  names_k = post_k$mean %>% names()
+  names_k = hyperpost$mean %>% names()
   t_i = db$Input
   y_i = db$Output
   i = unique(db$ID)
@@ -31,15 +31,15 @@ elbo_clust_multi_GP = function(hp, db, post_k, kern, pen_diag)
   #floop = function(k){
   for(k in (names_k))
   {
-    tau_i_k = tau_i_k = post_k$mixture %>%
+    tau_i_k = tau_i_k = hyperpost$mixture %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(k)
-    mean_mu_k = post_k$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>%
+    mean_mu_k = hyperpost$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>%
       dplyr::pull(.data$Output)
     corr1 = corr1 + tau_i_k * mean_mu_k
     corr2 = corr2 + tau_i_k *
       ( mean_mu_k %*% t(mean_mu_k) +
-          post_k$cov[[k]][as.character(t_i), as.character(t_i)] )
+          hyperpost$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
   ( LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2) ) %>% return()
@@ -90,7 +90,7 @@ elbo_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag=NULL)
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing values we want to compute elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param post_k List of parameters for the K mean Gaussian processes.
+#' @param hyperpost List of parameters for the K mean Gaussian processes.
 #' @param kern A kernel function used to compute the covariance matrix at
 #'    corresponding timestamps.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
@@ -101,9 +101,9 @@ elbo_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag=NULL)
 #'
 #' @examples
 #' TRUE
-elbo_clust_multi_GP_common_hp_i = function(hp, db, post_k, kern, pen_diag)
+elbo_clust_multi_GP_common_hp_i = function(hp, db, hyperpost, kern, pen_diag)
 {
-  names_k = post_k$mean %>% names()
+  names_k = hyperpost$mean %>% names()
   t = unique(db$Input)
 
   sum_i = 0
@@ -134,13 +134,13 @@ elbo_clust_multi_GP_common_hp_i = function(hp, db, post_k, kern, pen_diag)
     for(k in (names_k) )
     {
       ## Extract the covariance values associated with the i-th specific inputs
-      post_cov_i = post_k$cov[[k]][as.character(input_i),
+      post_cov_i = hyperpost$cov[[k]][as.character(input_i),
                                        as.character(input_i)]
 
-      tau_i_k = post_k$mixture %>%
+      tau_i_k = hyperpost$mixture %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
-      mean_mu_k = post_k$mean[[k]] %>%
+      mean_mu_k = hyperpost$mean[[k]] %>%
         dplyr::filter(.data$Input %in% input_i) %>%
         dplyr::pull(.data$Output)
       corr1 = corr1 + tau_i_k * mean_mu_k
@@ -171,7 +171,7 @@ elbo_clust_multi_GP_common_hp_i = function(hp, db, post_k, kern, pen_diag)
 #'    at corresponding inputs.
 #' @param kern_k Kernel used to compute the covariance matrix of the mean GPs
 #'    at corresponding inputs.
-#' @param post_k A list of parameters for the variational distributions
+#' @param hyperpost A list of parameters for the variational distributions
 #'    of the K mean GPs.
 #' @param m_k Prior value of the mean parameter of the mean GPs (mu_k).
 #'    Length = 1 or nrow(db).
@@ -188,7 +188,7 @@ elbo_monitoring_VEM = function(hp_k,
                                db,
                                kern_i,
                                kern_k,
-                               post_k,
+                               hyperpost,
                                m_k,
                                pen_diag)
 {
@@ -196,10 +196,10 @@ elbo_monitoring_VEM = function(hp_k,
   {
     logL_GP_mod(
       hp_k[hp_k$ID == k,],
-      db = post_k$mean[[k]],
+      db = hyperpost$mean[[k]],
       mean = m_k[[k]],
       kern_k,
-      post_k$cov[[k]],
+      hyperpost$cov[[k]],
       pen_diag
     ) %>%
     return()
@@ -213,7 +213,7 @@ elbo_monitoring_VEM = function(hp_k,
     elbo_clust_multi_GP(
       hp_i[hp_i$ID == i,],
       db %>% dplyr::filter(.data$ID == i),
-      post_k,
+      hyperpost,
       kern_i,
       pen_diag
     ) %>%
@@ -231,7 +231,7 @@ elbo_monitoring_VEM = function(hp_k,
 
     for(i in unique(db$ID)){
       ## Extract the probability of the i-th indiv to be in the k-th cluster
-      tau_i_k = post_k$mixture %>%
+      tau_i_k = hyperpost$mixture %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
       ## To avoid numerical issues if evaluating log(0/0)
@@ -241,7 +241,7 @@ elbo_monitoring_VEM = function(hp_k,
     }
     ## Compute the sum of log-determinant terms using Cholesky decomposition
     ## log(det(A)) = 2*sum(log(diag(chol(A))))
-    det = det + post_k$cov[[k]] %>% chol() %>% diag() %>% log() %>% sum()
+    det = det + hyperpost$cov[[k]] %>% chol() %>% diag() %>% log() %>% sum()
 
     return(sum_tau + det)
   }

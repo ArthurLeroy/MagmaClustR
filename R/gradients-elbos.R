@@ -3,7 +3,7 @@
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing the values we want to compute the elbo on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param post_k List of parameters for the K mean Gaussian processes.
+#' @param hyperpost List of parameters for the K mean Gaussian processes.
 #' @param kern A kernel function.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
@@ -12,12 +12,12 @@
 #'
 #' @examples
 #' TRUE
-gr_clust_multi_GP = function(hp, db, post_k, kern, pen_diag)
+gr_clust_multi_GP = function(hp, db, hyperpost, kern, pen_diag)
 {
   #browser()
   list_hp = names(hp)
 
-  names_k = post_k$mean %>% names()
+  names_k = hyperpost$mean %>% names()
   t_i = db$Input
   y_i = db$Output
   #inputs = db %>% dplyr::select(-.data$Output)
@@ -28,15 +28,15 @@ gr_clust_multi_GP = function(hp, db, post_k, kern, pen_diag)
 
   for(k in (names_k) )
   {
-    tau_i_k = post_k$mixture %>%
+    tau_i_k = hyperpost$mixture %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(k)
-    mean_mu_k = post_k$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>%
+    mean_mu_k = hyperpost$mean[[k]] %>% dplyr::filter(.data$Input %in% t_i) %>%
       dplyr::pull(.data$Output)
     corr1 = corr1 + tau_i_k * mean_mu_k
     corr2 = corr2 + tau_i_k *
       ( mean_mu_k %*% t(mean_mu_k) +
-          post_k$cov[[k]][as.character(t_i), as.character(t_i)] )
+          hyperpost$cov[[k]][as.character(t_i), as.character(t_i)] )
   }
 
   inv = kern_to_inv(t_i, kern, hp, pen_diag)
@@ -135,18 +135,18 @@ gr_GP_mod_common_hp_k = function(hp, db, mean, kern, post_cov, pen_diag = NULL)
 #' corresponding timestamps.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
-#' @param post_k List of parameters for the K mean Gaussian processes.
+#' @param hyperpost List of parameters for the K mean Gaussian processes.
 #'
 #' @return The gradient of the penalised Gaussian elbo for
 #'    the sum of the M individual GPs with common HPs.
 #'
 #' @examples
 #' TRUE
-gr_clust_multi_GP_common_hp_i = function(hp, db, post_k,
+gr_clust_multi_GP_common_hp_i = function(hp, db, hyperpost,
                                          kern, pen_diag = NULL)
 {
   list_hp <- names(hp)
-  names_k = post_k$mean %>% names()
+  names_k = hyperpost$mean %>% names()
 
   ## Loop over individuals to compute the sum of log-Likelihoods
   funloop <- function(i){
@@ -171,13 +171,13 @@ gr_clust_multi_GP_common_hp_i = function(hp, db, post_k,
     {
       #browser()
       ## Extract the covariance values associated with the i-th specific inputs
-      post_cov_i = post_k$cov[[k]][as.character(input_i),
+      post_cov_i = hyperpost$cov[[k]][as.character(input_i),
                                        as.character(input_i)]
 
-      tau_i_k = post_k$mixture %>%
+      tau_i_k = hyperpost$mixture %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
-      mean_mu_k = post_k$mean[[k]] %>%
+      mean_mu_k = hyperpost$mean[[k]] %>%
         dplyr::filter(.data$Input %in% input_i) %>%
         dplyr::pull(.data$Output)
       corr1 = corr1 + tau_i_k * mean_mu_k

@@ -123,9 +123,11 @@ that allows the direct visualisation as a GP prediction.
 for the hyper-prior mean, the hyper-parameters. In particular, if
 those arguments were set to NULL, \code{ini_args} allows us to retrieve
 the (randomly chosen) initialisations used during training.
-\item Converged: A logical value indicated whether the EM algorithm converged
+\item seq_loglikelihood: A vector, containing the sequence of log-likelihood
+values associated with each iteration.
+\item converged: A logical value indicated whether the EM algorithm converged
 or not.
-\item Training_time: Total running time of the complete training.
+\item training_time: Total running time of the complete training.
 }
 }
 \description{

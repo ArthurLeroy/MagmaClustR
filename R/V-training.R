@@ -81,6 +81,10 @@
 #'    defined as the difference of elbo between two consecutive steps,
 #'    divided by the absolute value of the last one
 #'    ( \eqn{(ELBO_n - ELBO_{n-1}) / |ELBO_n| } ).
+#' @param fast_approx A boolean, indicating whether the VEM algorithm should
+#'    stop after only one iteration of the VE-step. This advanced feature is
+#'    mainly used to provide a faster approximation of the model selection
+#'    procedure, by preventing any optimisation over the hyper-parameters.
 #'
 #' @details The user can specify custom kernel functions for the argument
 #'    \code{kern_k} and \code{kern_i}. The hyper-parameters used in the kernel
@@ -112,8 +116,10 @@
 #'    for the hyper-prior means, the hyper-parameters. In particular, if
 #'    those arguments were set to NULL, \code{ini_args} allows us to retrieve
 #'    the (randomly chosen) initialisations used during training.
-#'    - Converged: A logical value indicated whether the algorithm converged.
-#'    - Training_time: Total running time of the complete training.
+#'    - seq_elbo: A vector, containing the sequence of ELBO values associated
+#'    with each iteration.
+#'    - converged: A logical value indicated whether the algorithm converged.
+#'    - training_time: Total running time of the complete training.
 #'
 #' @export
 #'
@@ -132,7 +138,8 @@ train_magmaclust <- function(data,
                              grid_inputs = NULL,
                              pen_diag = 1e-8,
                              n_iter_max = 25,
-                             cv_threshold = 1e-3) {
+                             cv_threshold = 1e-3,
+                             fast_approx = FALSE) {
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("ID", "Output", "Input") %in% names(data))) {
@@ -310,6 +317,7 @@ train_magmaclust <- function(data,
   ## Initialize the monitoring information
   cv <- FALSE
   elbo_monitoring <- -Inf
+  seq_elbo <- c()
 
   if (is.null(ini_mixture)) {
     mixture <- ini_mixture(data, k = nb_cluster, name_clust = ID_k, 50)
@@ -341,6 +349,24 @@ train_magmaclust <- function(data,
       mixture,
       pen_diag
     )
+
+    ## Break after VE-step if we can to comput the fast approximation
+    if(fast_approx){
+      ## Track the ELBO values
+      seq_elbo <- elbo_monitoring_VEM(
+        hp_k,
+        hp_i,
+        data,
+        kern_i,
+        kern_k,
+        hyperpost = post,
+        m_k = m_k,
+        pen_diag
+      )
+
+      cv = FALSE
+      break
+    }
 
     ## VM-Step of MagmaClsut
     new_hp <- vm_step(data,
@@ -375,7 +401,7 @@ train_magmaclust <- function(data,
       data,
       kern_i,
       kern_k,
-      post_k = post,
+      hyperpost = post,
       m_k = m_k,
       pen_diag
     )
@@ -392,6 +418,9 @@ train_magmaclust <- function(data,
     hp_i <- new_hp_i
     mixture <- post$mixture
     elbo_monitoring <- new_elbo_monitoring
+
+    ## Track the ELBO values
+    seq_elbo = c(seq_elbo, elbo_monitoring)
 
     ## Compute the convergence ratio
     eps <- diff_moni / abs(elbo_monitoring)
@@ -488,6 +517,7 @@ train_magmaclust <- function(data,
     "hp_i" = hp_i,
     "hyperpost" = post,
     "ini_args" = fct_args,
+    "seq_elbo" = seq_elbo,
     "converged" = cv,
     "training_time" = difftime(t2, t1, units = "secs")
   ) %>%
@@ -674,6 +704,7 @@ train_gp_clust <- function(data,
   ## Initialise the monitoring information
   cv <- FALSE
   logL_monitoring <- -Inf
+
   ## Initialisation
   mixture = prop_mixture
 
@@ -785,5 +816,74 @@ train_gp_clust <- function(data,
     }
   }
 
-  list("hp" = hp, "mixture" = mixture) %>% return()
+  list("hp" = hp, "mixture" = mixture) %>%
+    return()
+}
+
+select_nb_cluster <- function(data,
+                              fast_approx = TRUE,
+                              grid_nb_cluster = 1:10,
+                              plot = TRUE,
+                              ...){
+  ## Compute the number of different individuals/tasks
+  nb_i = data$ID %>% dplyr::n_distinct()
+
+  ## Initialise tracking of V-BIC values
+  seq_vbic = c()
+
+    floop = function(k){browser()
+      if (fast_approx == TRUE){
+        ## Train a MagmaClust model with k clusters
+        mod = train_magmaclust(data = data,
+                               nb_cluster = k,
+                               fast_approx = TRUE,
+                               ...)
+      } else {
+        ## Train only on E-step of a MagmaClust model with k clusters
+        mod = train_magmaclust(data = data,
+                               nb_cluster = k,
+                               ...)
+      }
+      ## Extract the value of the ELBO at convergence
+      elbo = mod$seq_elbo %>% dplyr::last()
+
+      ## Define the adequate BIC penalty according to the hypotheses on HPs
+      nb_hp_k = mod$hp_k %>%
+        dplyr::select(- c(.data$ID, .data$prop_miture)) %>%
+        unlist %>%
+        dplyr::n_distinct()
+
+      nb_hp_i = mod$hp_i %>%
+        dplyr::select(- .data$ID) %>%
+        unlist %>%
+        dplyr::n_distinct()
+
+      pen_bic = 0.5 * (nb_hp_k + nb_hp_i + k - 1) * log(nb_i)
+
+      mod[['V-BIC']] = elbo - pen
+      seq_vbic <<- c(seq_vbic, elbo - pen)
+
+      return(mod)
+    }
+    mod_k = sapply(grid_nb_cluster, floop, simplify = FALSE, USE.NAMES = TRUE)
+
+
+    tib_vbic = tibble::tibble('Nb_clust' = grid_nb_cluster, 'VBIC' = seq_vbic)
+
+    best_k = tib_vbic %>%
+      dplyr::filter(.data$VBIC == max(.data$VBIC)) %>%
+      dplyr::pull(.data$Nb_clust)
+
+    if(plot)
+    {
+      (ggplot(tib_vbic, aes(x = Nb_clust, y = VBIC)) +
+        geom_point() +
+        geom_line() +
+        theme_classic()) %>%
+      print()
+    }
+
+    list('best_k' = best_k, 'seq_vbic' = tib_vbic, 'trained_models' = mod_k) %>%
+      return()
+
 }

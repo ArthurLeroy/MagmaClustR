@@ -105,9 +105,11 @@
 #'    for the hyper-prior mean, the hyper-parameters. In particular, if
 #'    those arguments were set to NULL, \code{ini_args} allows us to retrieve
 #'    the (randomly chosen) initialisations used during training.
-#'    - Converged: A logical value indicated whether the EM algorithm converged
+#'    - seq_loglikelihood: A vector, containing the sequence of log-likelihood
+#'    values associated with each iteration.
+#'    - converged: A logical value indicated whether the EM algorithm converged
 #'    or not.
-#'    - Training_time: Total running time of the complete training.
+#'    - training_time: Total running time of the complete training.
 #'
 #' @export
 #'
@@ -283,6 +285,7 @@ train_magma <- function(data,
   ## Initialise the monitoring information
   cv <- FALSE
   logL_monitoring <- -Inf
+  seq_loglikelihood = c()
 
   ## Iterate E-step and M-step until convergence
   for (i in 1:n_iter_max)
@@ -350,6 +353,9 @@ train_magma <- function(data,
     hp_0 <- new_hp_0
     hp_i <- new_hp_i
     logL_monitoring <- new_logL_monitoring
+
+    ## Track the log-likelihood values
+    seq_loglikelihood = c(seq_loglikelihood, logL_monitoring)
 
     ## Compute the convergence ratio
     eps <- diff_logL / abs(logL_monitoring)
@@ -430,6 +436,7 @@ train_magma <- function(data,
     "hp_i" = hp_i,
     "hyperpost" = post,
     "ini_args" = fct_args,
+    "seq_loglikelihood" = seq_loglikelihood,
     "converged" = cv,
     "training_time" = difftime(t_2, t_1, units = "secs")
   ) %>%

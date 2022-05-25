@@ -12,7 +12,10 @@ plot_gp(
   prior_mean = NULL,
   y_grid = NULL,
   heatmap = F,
-  prob_CI = 0.95
+  prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5
 )
 }
 \arguments{
@@ -52,7 +55,16 @@ FALSE (default), the mean curve and associated Credible Interval are
 displayed.}
 
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
-level of the Credible Interval associated with the posterior mean curve.}
+level of the Credible Interval associated with the posterior mean curve.
+If this this argument is set to 1, the Credible Interval is not displayed.}
+
+\item{size_data}{A number, controlling the size of the \code{data} points.}
+
+\item{size_data_train}{A number, controlling the size of the
+\code{data_train} points.}
+
+\item{alpha_data_train}{A number, between 0 and 1, controlling transparency
+of the \code{data_train} points.}
 }
 \value{
 Visualisation of a Magma or GP prediction (optional: display data

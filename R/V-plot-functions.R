@@ -30,12 +30,13 @@
 #'    the \code{data} argument with an additional required column \code{ID} for
 #'    identifying the different individuals/tasks. If provided, those data are
 #'    displayed as backward colourful points (each colour corresponding to one
-#'    individual or a cluster, see \code'{col_clust} below).
+#'    individual or a cluster, see \code{col_clust} below).
 #' @param col_clust A boolean indicating whether backward points are coloured
-#'    according to the individuals or to their predicted cluster. If one wants
-#'    to colour by clusters, a column \code{Cluster} shall be present in
-#'    \code{data_train} and its value should refer to the most probable cluster
-#'    for each individual.
+#'    according to the individuals or to their most probable cluster. If one
+#'    wants to colour by clusters, a column \code{Cluster} shall be present in
+#'    \code{data_train}. We advise to use \code{\link{data_allocate_cluster}}
+#'    for automatically creating a well-formatted dataset from a trained
+#'    MagmaClust model.
 #' @param prior_mean (Optional) A list providing, for each cluster, a
 #'    tibble containing prior mean parameters of the prediction. This argument
 #'    typically comes as an outcome \code{hyperpost$mean}, available through
@@ -52,6 +53,11 @@
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
 #'    If this this argument is set to 1, the Credible Interval is not displayed.
+#' @param size_data A number, controlling the size of the \code{data} points.
+#' @param size_data_train A number, controlling the size of the
+#'    \code{data_train} points.
+#' @param alpha_data_train A number, between 0 and 1, controlling transparency
+#'    of the \code{data_train} points.
 #'
 #' @return Visualisation of a MagmaClust prediction (optional: display data
 #'    points, training data points and the prior mean functions). For 1-D
@@ -81,7 +87,10 @@ plot_magmaclust = function(pred_clust,
                          prior_mean = NULL,
                          y_grid = NULL,
                          heatmap = FALSE,
-                         prob_CI = 0.95)
+                         prob_CI = 0.95,
+                         size_data = 3,
+                         size_data_train = 1,
+                         alpha_data_train = 0.5)
 {
 
   ## Check prob_CI format
@@ -102,7 +111,7 @@ plot_magmaclust = function(pred_clust,
   if( !('mixture' %in% names(pred_clust)) ){
     stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
   }
-  ## Check presence of 'pred_mixture'
+  ## Check presence of 'mixture_pred'
   if( !('mixture_pred' %in% names(pred_clust)) ){
     stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
   }
@@ -177,7 +186,10 @@ plot_magmaclust = function(pred_clust,
       data = data,
       y_grid = y_grid,
       heatmap = heatmap,
-      prob_CI = 0)
+      prob_CI = 0,
+      size_data = size_data,
+      size_data_train = size_data_train,
+      alpha_data_train = alpha_data_train)
 
     ## Define the adequate title
     gtitle = paste0("Mixture of GP predictions")
@@ -189,43 +201,49 @@ plot_magmaclust = function(pred_clust,
       data = data,
       y_grid = y_grid,
       heatmap = heatmap,
-      prob_CI = prob_CI)
+      prob_CI = prob_CI,
+      size_data = size_data,
+      size_data_train = size_data_train,
+      alpha_data_train = alpha_data_train)
 
     ## Define the adequate title
     gtitle = paste0("Cluster ", cluster, " -- Proba = ", mixture[[cluster]])
-
   }
 
-  ## Change colours of background points depending on 'col_clust'
-  if(col_clust)
-  {
-    ## Check whether 'data_train' provides a 'Cluster' column
-    if(!('Cluster' %in% names(data_train))){
-      cat("The 'data_train' argument does not provide a 'Cluster' column.",
-          "Therefore, training data remain coloured by individual. \n \n")
-    } else{
-      ## Certify that 'Cluster' is discrete
-      data_train$Cluster = as.factor(data_train$Cluster)
+  ## Display training data if available
+  if(!is.null(data_train)){
+    ## Change colours of background points depending on 'col_clust'
+    if(col_clust)
+    {
+      ## Check whether 'data_train' provides a 'Cluster' column
+      if(!('Cluster' %in% names(data_train))) {
+        cat("The 'data_train' argument does not provide a 'Cluster' column.",
+            "Therefore, training data remain coloured by individual. \n \n")
+      } else{
+        ## Certify that 'Cluster' is discrete
+        data_train$Cluster = as.factor(data_train$Cluster)
 
-      ## Colour training data plot by cluster
+        ## Colour training data plot by cluster
+        gg <- gg +
+          ggplot2::geom_point(
+            data = data_train,
+            ggplot2::aes_string(x = names(inputs)[1],
+                                y = "Output", col = "Cluster"),
+            size = size_data_train,
+            alpha = alpha_data_train
+          )
+      }
+    } else {
       gg <- gg +
         ggplot2::geom_point(
           data = data_train,
           ggplot2::aes_string(x = names(inputs)[1],
-                              y = "Output", col = "Cluster"),
-          size = 0.5,
-          alpha = 0.5
-        )
+                              y = "Output", fill = "ID"),
+          shape = 21,
+          size = size_data_train,
+          alpha = alpha_data_train
+        ) + ggplot2::guides(fill = 'none')
     }
-  } else {
-    gg <- gg +
-      ggplot2::geom_point(
-        data = data_train,
-        ggplot2::aes_string(x = names(inputs)[1],
-                            y = "Output", col = "ID"),
-        size = 0.5,
-        alpha = 0.5
-      ) + ggplot2::guides(col = 'none')
   }
 
   ## Display the prior mean process if provided
@@ -254,10 +272,8 @@ plot_magmaclust = function(pred_clust,
     }
   }
 
-  ## Add scale colour if training data are descriminated by clusters
-  if(col_clust){
-    gg <- gg + ggplot2::scale_color_brewer(palette="Set1")
-  }
+  ## Change scale colour palette
+  gg <- gg + ggplot2::scale_color_brewer(palette="Set1")
 
   (gg + ggplot2::ggtitle(gtitle)) %>%
   return()

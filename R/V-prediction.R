@@ -786,3 +786,38 @@ proba_max_cluster = function(mixture)
       dplyr::rename('Cluster' = .data$name, 'Proba' = .data$value)
   }
 }
+
+#' Allocate training data into the most probable cluster
+#'
+#' @param trained_model A list, containing  the information coming from a
+#'    MagmaClust model, previously trained using the
+#'    \code{\link{train_magmaclust}} function.
+#'
+#' @return The original dataset used to train the MagmaClust model, with
+#'    additional 'Cluster' and associated 'Proba' columns, indicating the most
+#'    probable cluster for each individual/task at the end of the training
+#'    procedure.
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+data_allocate_cluster = function(trained_model){
+  ## Check format and extract useful information
+  if(!is.list(trained_model)){
+    stop("Please provide a trained MagmaClust model.")
+  } else{
+    db = trained_model$ini_args$data
+    mixture = trained_model$hyperpost$mixture
+  }
+
+  ## Remove old 'Cluster' column if necessary
+  if('Cluster' %in% names(db)){
+    db = db %>% dplyr::select(- .data$Cluster)
+  }
+
+  max_clust = proba_max_cluster(mixture)
+  db %>%
+    dplyr::left_join(max_clust, by = 'ID') %>%
+    return()
+}

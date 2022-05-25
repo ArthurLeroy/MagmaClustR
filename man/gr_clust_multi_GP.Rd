@@ -4,7 +4,7 @@
 \alias{gr_clust_multi_GP}
 \title{Gradient of the elbo for a mixture of GPs}
 \usage{
-gr_clust_multi_GP(hp, db, post_k, kern, pen_diag)
+gr_clust_multi_GP(hp, db, hyperpost, kern, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or named vector containing hyper-parameters.}
@@ -12,7 +12,7 @@ gr_clust_multi_GP(hp, db, post_k, kern, pen_diag)
 \item{db}{A tibble containing the values we want to compute the elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.}
 
-\item{post_k}{List of parameters for the K mean Gaussian processes.}
+\item{hyperpost}{List of parameters for the K mean Gaussian processes.}
 
 \item{kern}{A kernel function.}
 

@@ -95,6 +95,11 @@ plot_db <- function(data, cluster = F, legend = F) {
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
 #'    If this this argument is set to 1, the Credible Interval is not displayed.
+#' @param size_data A number, controlling the size of the \code{data} points.
+#' @param size_data_train A number, controlling the size of the
+#'    \code{data_train} points.
+#' @param alpha_data_train A number, between 0 and 1, controlling transparency
+#'    of the \code{data_train} points.
 #'
 #' @return Visualisation of a Magma or GP prediction (optional: display data
 #'    points, training data points and the prior mean function). For 1-D
@@ -128,7 +133,10 @@ plot_gp <- function(pred_gp,
                     prior_mean = NULL,
                     y_grid = NULL,
                     heatmap = F,
-                    prob_CI = 0.95) {
+                    prob_CI = 0.95,
+                    size_data = 3,
+                    size_data_train = 1,
+                    alpha_data_train = 0.5) {
   if(prob_CI < 0 | prob_CI > 1)
   {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
@@ -348,8 +356,8 @@ plot_gp <- function(pred_gp,
           y = "Output",
           col = "ID"
         ),
-        size = 0.5,
-        alpha = 0.5
+        size = size_data_train,
+        alpha = alpha_data_train
       ) + ggplot2::guides(color = 'none')
     }
     ## Display the observed data if provided
@@ -357,7 +365,7 @@ plot_gp <- function(pred_gp,
       gg <- gg + ggplot2::geom_point(
         data = data,
         ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
-        size = 2,
+        size = size_data,
         shape = 20
       )
     }
@@ -410,6 +418,11 @@ plot_gp <- function(pred_gp,
 #'    individual/task).
 #' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
 #'    and associated 'Output' prior mean parameter of the GP prediction.
+#' @param size_data A number, controlling the size of the \code{data} points.
+#' @param size_data_train A number, controlling the size of the
+#'    \code{data_train} points.
+#' @param alpha_data_train A number, between 0 and 1, controlling transparency
+#'    of the \code{data_train} points.
 #'
 #' @return Draw and visualise from a posterior distribution from Magma or GP
 #'    prediction (optional: display data points, training data points and the
@@ -433,7 +446,10 @@ sample_gp <- function(pred_gp,
                       x_input = NULL,
                       data = NULL,
                       data_train = NULL,
-                      prior_mean = NULL) {
+                      prior_mean = NULL,
+                      size_data = 3,
+                      size_data_train = 1,
+                      alpha_data_train = 0.5) {
   if (is.data.frame(pred_gp) | !is.list(pred_gp)) {
     stop(
       "The 'pred_gp' argument should be a list containing 'pred' and 'cov' ",
@@ -513,8 +529,8 @@ sample_gp <- function(pred_gp,
           y = "Output",
           col = "ID"
         ),
-        size = 0.5,
-        alpha = 0.5
+        size = size_data_train,
+        alpha = alpha_data_train
       ) +
         ggplot2::guides(color = 'none')
     }
@@ -526,7 +542,7 @@ sample_gp <- function(pred_gp,
           x = names(inputs)[1],
           y = "Output"
         ),
-        size = 2,
+        size = size_data,
         shape = 18
       )
     }
@@ -555,8 +571,8 @@ sample_gp <- function(pred_gp,
           y = .data$Output,
           col = .data$ID
         ),
-        size = 0.5,
-        alpha = 0.5
+        size = size_data_train,
+        alpha = alpha_data_train
       ) +
         ggplot2::guides(color = 'none')
     }
@@ -566,7 +582,7 @@ sample_gp <- function(pred_gp,
         ggplot2::geom_point(
           data = data,
           ggplot2::aes(x = .data$Input, y = .data$Output),
-          size = 2,
+          size = size_data,
           shape = 18
         )
     }
@@ -631,6 +647,11 @@ sample_gp <- function(pred_gp,
 #'    FALSE (default), the mean curve and associated 95% CI are displayed.
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
+#' @param size_data A number, controlling the size of the \code{data} points.
+#' @param size_data_train A number, controlling the size of the
+#'    \code{data_train} points.
+#' @param alpha_data_train A number, between 0 and 1, controlling transparency
+#'    of the \code{data_train} points.
 #' @param export_gif A logical value indicating whether the animation should
 #'    be exported as a .gif file.
 #' @param path A character string defining the path where the GIF file should be
@@ -667,6 +688,9 @@ plot_gif <- function(pred_gp,
                      y_grid = NULL,
                      heatmap = F,
                      prob_CI = 0.95,
+                     size_data = 3,
+                     size_data_train = 1,
+                     alpha_data_train = 0.5,
                      export_gif = FALSE,
                      path = "gif_gp.gif",
                      ...) {
@@ -674,8 +698,10 @@ plot_gif <- function(pred_gp,
   if (heatmap) {
     if (is.null(y_grid)) {
       y_grid <- seq(
-        min(pred_gp$Mean) - stats::qnorm((1 + prob_CI) / 2) * sqrt(max(pred_gp$Var)),
-        max(pred_gp$Mean) + stats::qnorm((1 + prob_CI) / 2) * sqrt(max(pred_gp$Var)),
+        min(pred_gp$Mean) -
+          stats::qnorm((1 + prob_CI) / 2) * sqrt(max(pred_gp$Var)),
+        max(pred_gp$Mean) +
+          stats::qnorm((1 + prob_CI) / 2) * sqrt(max(pred_gp$Var)),
         length.out = 50
       )
     }
@@ -702,7 +728,10 @@ plot_gif <- function(pred_gp,
     prior_mean = prior_mean,
     y_grid = y_grid,
     heatmap = heatmap,
-    prob_CI = prob_CI
+    prob_CI = prob_CI,
+    size_data = size_data,
+    size_data_train = size_data_train,
+    alpha_data_train = alpha_data_train
   ) +
     gganimate::transition_states(.data$Index, ...)
 
