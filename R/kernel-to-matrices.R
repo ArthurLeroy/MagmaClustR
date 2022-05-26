@@ -57,9 +57,11 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
     input_2 <- input
   }
   ## Test whether some input values are duplicated
-  if(!(unique(input) %>% identical(input))){
-    warning("Some inputs are duplicated. This will result in a singular ",
-        "matrix and an unexpected behaviour of the algorithm.")
+  if (!(unique(input) %>% identical(input))) {
+    warning(
+      "Some inputs are duplicated. This will result in a singular ",
+      "matrix and an unexpected behaviour of the algorithm."
+    )
   }
 
   ## Process the character string defining the covariance structure
@@ -129,8 +131,7 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
                 true_deriv <- T
                 past_true_deriv <- T
               }
-            }
-            else if (s == "LIN") {
+            } else if (s == "LIN") {
               temp_kern <- lin_kernel
               if (any(deriv %in% c("lin_slope", "lin_offset"))) {
                 true_deriv <- T
@@ -242,12 +243,9 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
       }
       return(out)
     }
-  }
-  else if (is.function(kern)) {
+  } else if (is.function(kern)) {
     kernel <- kern
-  }
-
-  else {
+  } else {
     stop("Error in the 'kern' argument: please use a valid character string, or
       provide a valid custom kernel function")
   }
@@ -258,10 +256,9 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
     list_input_2 <- input_2
     reference <- as.character(input)
     reference_2 <- as.character(input_2)
-  }
-  else {
+  } else {
     list_input <- split(t(input), rep(1:nrow(input), each = ncol(input)))
-    list_input_2 <- split(t(input_2), rep(1:nrow(input_2), each = ncol(input_2)))
+    list_input_2 <- split(t(input_2), rep(1:nrow(input_2), each=ncol(input_2)))
     if (("Input" %in% colnames(input)) & ("Input" %in% colnames(input_2))) {
       reference <- input %>%
         tibble::as_tibble() %>%
@@ -281,7 +278,7 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
     if (deriv == "noise") {
-      mat = cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]]) %>%
+      mat <- cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]]) %>%
         `rownames<-`(reference) %>%
         `colnames<-`(reference_2)
 
@@ -306,8 +303,7 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
         Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))
       )
     }
-  }
-  else {
+  } else {
     ## Detect whether speed-up vectorised computation is provided
     if ("vectorized" %in% methods::formalArgs(kernel)) {
       mat <- kernel(x = input, y = input_2, hp = hp, vectorized = TRUE)
@@ -382,7 +378,7 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
 #' )
 kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
 
-  #browser()
+  # browser()
 
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
   reference <- row.names(mat_cov)

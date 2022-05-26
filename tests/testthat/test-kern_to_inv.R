@@ -27,7 +27,7 @@ test_that("kern_to_inv() works for vector inputs", {
       res[i, j] <- se_kernel(input[i, ], input[j, ], hp)
     }
   }
-  res = res %>%
+  res <- res %>%
     solve() %>%
     `rownames<-`(input$Input) %>%
     `colnames<-`(input$Input)
@@ -42,7 +42,7 @@ test_that("dimension names are correct", {
   df4 <- data.frame(fu = c(5, 6, 7), blob = c(2, 3, 4))
 
   dimnames(kern_to_inv(df, "SE", hp)) %>%
-    expect_equal(list(c('5', '6', '7'), c('5', '6', '7')))
+    expect_equal(list(c("5", "6", "7"), c("5", "6", "7")))
   dimnames(kern_to_inv(df, "SE", hp)) %>%
     expect_equal(dimnames(kern_to_inv(df2, "SE", hp)))
   dimnames(kern_to_inv(df, "SE", hp)) %>%

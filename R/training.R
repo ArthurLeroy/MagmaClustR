@@ -86,8 +86,8 @@
 #'    argument. \code{hp} should typically be defined as a named vector or a
 #'    data frame. Although it is not mandatory for the \code{train_magma}
 #'    function to run, gradients can be provided within kernel function
-#'    definition. See for example \code{\link{se_kernel}} to create a custom kernel
-#'    function displaying an adequate format to be used in Magma.
+#'    definition. See for example \code{\link{se_kernel}} to create a custom
+#'    kernel function displaying an adequate format to be used in Magma.
 #'
 #' @return A list, gathering the results of the EM algorithm used for training
 #'    in Magma. The elements of the list are:
@@ -164,8 +164,7 @@ train_magma <- function(data,
       "The 'prior_mean' argument has not been specified. The hyper_prior mean",
       "function is thus set to be 0 everywhere.\n \n"
     )
-  }
-  else if (prior_mean %>% is.vector()) {
+  } else if (prior_mean %>% is.vector()) {
     if (length(prior_mean) == length(all_input)) {
       m_0 <- prior_mean
     } else if (length(prior_mean) == 1) {
@@ -174,19 +173,16 @@ train_magma <- function(data,
         "The provided 'prior_mean' argument is of length 1. Thus, the",
         "hyper_prior mean function has set to be constant everywhere.\n \n"
       )
-    }
-    else {
+    } else {
       stop(
         "The 'prior_mean' argument is of length ", length(prior_mean),
         ", whereas the grid of training inputs is of length ",
         length(all_input)
       )
     }
-  }
-  else if (prior_mean %>% is.function()) {
+  } else if (prior_mean %>% is.function()) {
     m_0 <- prior_mean(all_input)
-  }
-  else if (prior_mean %>% is.data.frame()) {
+  } else if (prior_mean %>% is.data.frame()) {
     if (all(c("Output", "Input") %in% names(prior_mean))) {
       m_0 <- prior_mean %>%
         dplyr::filter(.data$Input %in% all_input) %>%
@@ -206,8 +202,7 @@ train_magma <- function(data,
         "should contain the mandatory column names: 'Output', 'Input'"
       )
     }
-  }
-  else {
+  } else {
     stop(
       "Incorrect format for the 'prior_mean' argument. Please read ",
       "?hyperposterior() for details."
@@ -262,36 +257,35 @@ train_magma <- function(data,
       hp_i <- tibble::tibble(
         ID = list_ID,
         dplyr::bind_rows(ini_hp_i)
-        )
+      )
     } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
       all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
       stop(
         "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
         "'data'."
       )
-    }
-    else {
+    } else {
       hp_i <- ini_hp_i
     }
   }
 
   ## Add a 'noise' hyper-parameter if absent
-  if(!('noise' %in% names(hp_i))){
-    if(common_hp){
-      hp_i = hp_i %>% dplyr::mutate(hp(NULL, noise = T))
-    } else{
-      hp_i = hp_i %>%
-        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = 'ID')
+  if (!("noise" %in% names(hp_i))) {
+    if (common_hp) {
+      hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
+    } else {
+      hp_i <- hp_i %>%
+        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = "ID")
     }
   }
 
   ## Keep an history of the (possibly random) initial values of hyper-parameters
-  hp_i_ini = hp_i
-  hp_0_ini = hp_0
+  hp_i_ini <- hp_i
+  hp_0_ini <- hp_0
   ## Initialise the monitoring information
   cv <- FALSE
   logL_monitoring <- -Inf
-  seq_loglikelihood = c()
+  seq_loglikelihood <- c()
 
   ## Iterate E-step and M-step until convergence
   for (i in 1:n_iter_max)
@@ -311,7 +305,7 @@ train_magma <- function(data,
     )
 
     ## Break after E-step if we can to compute the fast approximation
-    if(fast_approx){
+    if (fast_approx) {
       ## Track the log-likelihood values
       seq_loglikelihood <- logL_monitoring(
         hp_0 = hp_0,
@@ -322,9 +316,10 @@ train_magma <- function(data,
         kern_i = kern_i,
         post_mean = post$mean,
         post_cov = post$cov,
-        pen_diag = pen_diag)
+        pen_diag = pen_diag
+      )
 
-      cv = FALSE
+      cv <- FALSE
       break
     }
 
@@ -345,7 +340,7 @@ train_magma <- function(data,
     new_hp_i <- new_hp$hp_i
 
     ## In case something went wrong during the optimization
-    if (any(is.na(new_hp_0)) | any(is.na(new_hp_i)) ) {
+    if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
       warning(paste0("The M-step encountered an error at iteration : ", i))
       warning(
         "Training has stopped and hyper-parameters values from the ",
@@ -364,12 +359,15 @@ train_magma <- function(data,
       kern_i = kern_i,
       post_mean = post$mean,
       post_cov = post$cov,
-      pen_diag = pen_diag)
+      pen_diag = pen_diag
+    )
 
     diff_logL <- new_logL_monitoring - logL_monitoring
-    if(diff_logL %>% is.nan()){diff_logL <- -Inf}
+    if (diff_logL %>% is.nan()) {
+      diff_logL <- -Inf
+    }
 
-    if (diff_logL < - 0.1) {
+    if (diff_logL < -0.1) {
       warning("The likelihood descreased. Possible numerical issues.")
     }
 
@@ -379,11 +377,13 @@ train_magma <- function(data,
     logL_monitoring <- new_logL_monitoring
 
     ## Track the log-likelihood values
-    seq_loglikelihood = c(seq_loglikelihood, logL_monitoring)
+    seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
 
     ## Compute the convergence ratio
     eps <- diff_logL / abs(logL_monitoring)
-    if(eps %>% is.nan()){eps <- 1}
+    if (eps %>% is.nan()) {
+      eps <- 1
+    }
 
     ## Provide monitoring information
     t_i_2 <- Sys.time()
@@ -394,44 +394,52 @@ train_magma <- function(data,
     ) %>%
       cat()
 
-    paste0("Value of the likelihood: ",
-           logL_monitoring %>% round(5),
-           " --- Convergence ratio = ",
-           eps %>% round(5),
-           "\n \n") %>%
+    paste0(
+      "Value of the likelihood: ",
+      logL_monitoring %>% round(5),
+      " --- Convergence ratio = ",
+      eps %>% round(5),
+      "\n \n"
+    ) %>%
       cat()
 
     ## Check the convergence condition
     if (abs(eps) < cv_threshold) {
-      cat("The EM algorithm successfully converged, training is completed.",
-          "\n \n")
+      cat(
+        "The EM algorithm successfully converged, training is completed.",
+        "\n \n"
+      )
       cv <- TRUE
       break
     }
   }
   ## Check for a prematurate ending of the EM algorithm
   if (!cv & (i == n_iter_max)) {
-    warning("The EM algorithm has reached the maximum number of iterations ",
-            "before convergence, training might be sub-optimal \n \n")
+    warning(
+      "The EM algorithm has reached the maximum number of iterations ",
+      "before convergence, training might be sub-optimal \n \n"
+    )
   }
 
   ## Evaluate the hyper-posterior on the grid of inputs if provided
   if (!is.null(grid_inputs)) {
-      cat("Start evaluating hyper-posterior distribution of the mean process",
-           "on the provided grid of inputs... \n \n")
+    cat(
+      "Start evaluating hyper-posterior distribution of the mean process",
+      "on the provided grid of inputs... \n \n"
+    )
 
-      post <- hyperposterior(
-        data = data,
-        hp_0 = hp_0,
-        hp_i = hp_i,
-        kern_0 = kern_0,
-        kern_i = kern_i,
-        prior_mean = prior_mean,
-        grid_inputs = grid_inputs,
-        pen_diag = pen_diag
-      )
-      cat("Done!\n \n")
-  } else{
+    post <- hyperposterior(
+      data = data,
+      hp_0 = hp_0,
+      hp_i = hp_i,
+      kern_0 = kern_0,
+      kern_i = kern_i,
+      prior_mean = prior_mean,
+      grid_inputs = grid_inputs,
+      pen_diag = pen_diag
+    )
+    cat("Done!\n \n")
+  } else {
     ## Create a variable for directly plotting the mean process' hyper-posterior
     post$pred <- tibble::tibble(
       "Input" = post$mean %>% dplyr::pull(.data$Input),
@@ -441,17 +449,19 @@ train_magma <- function(data,
   }
 
   ## Create an history list of the initial arguments of the function
-  fct_args  = list('data' = data,
-                  'prior_mean' = prior_mean,
-                  'ini_hp_0' = hp_0_ini,
-                  'ini_hp_i' = hp_i_ini,
-                  'kern_0'= kern_0,
-                  'kern_i' = kern_i,
-                  'common_hp' = common_hp,
-                  'grid_inputs' = grid_inputs,
-                  'pen_diag' = pen_diag,
-                  'n_iter_max' = n_iter_max,
-                  'cv_threshold' = cv_threshold)
+  fct_args <- list(
+    "data" = data,
+    "prior_mean" = prior_mean,
+    "ini_hp_0" = hp_0_ini,
+    "ini_hp_i" = hp_i_ini,
+    "kern_0" = kern_0,
+    "kern_i" = kern_i,
+    "common_hp" = common_hp,
+    "grid_inputs" = grid_inputs,
+    "pen_diag" = pen_diag,
+    "n_iter_max" = n_iter_max,
+    "cv_threshold" = cv_threshold
+  )
 
   t_2 <- Sys.time()
   ## Create and return the list of elements from the trained model
@@ -549,7 +559,7 @@ train_gp <- function(data,
 
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
-    if(dplyr::n_distinct(data$ID) > 1){
+    if (dplyr::n_distinct(data$ID) > 1) {
       stop(
         "Problem in the 'ID' column: different values are not allowed. ",
         "The prediction can only be performed for one individual/task."
@@ -560,25 +570,25 @@ train_gp <- function(data,
   }
 
   ## Check whether 'hyperpost' is provided and thus used for Magma prediction
-  if(!is.null(hyperpost)){
+  if (!is.null(hyperpost)) {
     cat(
       "The 'hyperpost' argument is provided. Therefore, this training is",
       "considered to be part of the prediction step in Magma. Hyper-posterior",
       "mean and covariance parameters are used in the likelihood",
       "maximisation. \n \n"
     )
-    mean <-  hyperpost$mean %>%
+    mean <- hyperpost$mean %>%
       dplyr::filter(.data$Input %in% input_obs) %>%
       dplyr::arrange(.data$Input) %>%
       dplyr::pull(.data$Output)
 
     post_cov <- hyperpost$cov[
       as.character(input_obs),
-      as.character(input_obs)]
-
+      as.character(input_obs)
+    ]
   } else {
     ## Set post_cov to 0 if we are not in Magma but in a classic GP training
-    post_cov = 0
+    post_cov <- 0
     ## Extract the values of the hyper-posterior mean at reference Input
     if (prior_mean %>% is.null()) {
       mean <- rep(0, length(input_obs))
@@ -586,8 +596,7 @@ train_gp <- function(data,
         "The 'prior_mean' argument has not been specified. The",
         "mean function is thus set to be 0 everywhere.\n \n"
       )
-    }
-    else if (prior_mean %>% is.vector()) {
+    } else if (prior_mean %>% is.vector()) {
       if (length(prior_mean) == length(input_obs)) {
         mean <- prior_mean
       } else if (length(prior_mean) == 1) {
@@ -598,19 +607,16 @@ train_gp <- function(data,
           "hyper-posterior mean function has set to be constant everywhere.",
           "\n \n"
         )
-      }
-      else {
+      } else {
         stop(
           "The 'prior_mean' argument is of length ", length(prior_mean),
           ", whereas the grid of training inputs is of length ",
           length(input_obs)
         )
       }
-    }
-    else if (prior_mean %>% is.function()) {
+    } else if (prior_mean %>% is.function()) {
       mean <- prior_mean(input_obs)
-    }
-    else if (prior_mean %>% is.data.frame()) {
+    } else if (prior_mean %>% is.data.frame()) {
       if (all(c("Output", "Input") %in% names(prior_mean))) {
         mean <- prior_mean %>%
           dplyr::filter(.data$Input %in% input_obs) %>%
@@ -630,8 +636,7 @@ train_gp <- function(data,
           "should contain the mandatory column names: 'Output', 'Input'"
         )
       }
-    }
-    else {
+    } else {
       stop(
         "Incorrect format for the 'prior_mean' argument. Please read ",
         "?train_gp() for details."
@@ -648,8 +653,9 @@ train_gp <- function(data,
         "You can use the function 'hp()' to easily generate a tibble of random",
         " hyper-parameters with the desired format for initialisation."
       )
+    } else {
+      hp <- ini_hp
     }
-    else{hp = ini_hp}
   } else {
     if (ini_hp %>% is.null()) {
       hp <- hp(kern, noise = T)
@@ -686,4 +692,1830 @@ train_gp <- function(data,
     hp_new <- hp
   }
   return(hp_new)
+}
+
+######################### MagmaClust ##########################
+
+#' Compute the hyper-posterior distribution for each cluster in MagmaClust
+#'
+#' Recompute the E-step of the VEM algorithm in MagmaClust for a new set of
+#' reference \code{Input}. Once training is completed, it can be necessary to
+#' evaluate the hyper-posterior distributions of the mean processes at specific
+#' locations, for which we want to make predictions. This process is directly
+#' implemented in the \code{\link{pred_magmaclust}} function but for the user
+#' might want to use \code{hyperpost_clust} for a tailored control 'by hand' of
+#' the prediction procedure.
+#'
+#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+#'    , \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{ID} column contains the unique names/codes used to identify each
+#'    individual/task (or batch of data).
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param mixture A tibble or data frame, indicating the mixture probabilities
+#'     of each cluster for each individual. Required column: \code{ID}.
+#' @param hp_k A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_k}.
+#' @param hp_i A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}.
+#' @param kern_k A kernel function, associated with the mean GPs.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
+#'    "LIN", PERIO" and "RQ" are also available here)
+#' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
+#'    mean GPs, one value for each cluster.
+#'    cluster. This argument can be specified under various formats, such as:
+#'    - NULL (default). All hyper-prior means would be set to 0 everywhere.
+#'    - A numerical vector of the same length as the number of clusters.
+#'    Each number is associated with one cluster, and considered
+#'    to be the hyper-prior mean parameter of the cluster (i.e. a constant
+#'    function at all \code{Input}).
+#'    - A list of functions. Each function is associated with one cluster. These
+#'    functions are all evaluated at all \code{Input} values, to provide
+#'    specific hyper-prior mean vectors for each cluster.
+#' @param grid_inputs A vector, indicating the grid of additional reference
+#'    inputs on which the mean process' hyper-posterior should be evaluated.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#'
+#' @return A list containing the parameters of the mean processes'
+#'         hyper-posterior distribution, namely:
+#'         \itemize{
+#'            \item mean: A list of tibbles containing, for each cluster, the
+#'                  hyper-posterior mean parameters evaluated at each
+#'                  \code{Input}.
+#'            \item cov: A list of matrices containing, for each cluster, the
+#'                  hyper-posterior covariance parameter of the mean process.
+#'            \item mixture: A tibble, indicating the mixture probabilities in
+#'                  each cluster for each individual.
+#'          }
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+hyperposterior_clust <- function(data,
+                                 mixture,
+                                 hp_k,
+                                 hp_i,
+                                 kern_k,
+                                 kern_i,
+                                 prior_mean_k = NULL,
+                                 grid_inputs = NULL,
+                                 pen_diag = 1e-8) {
+  ## Get the number of clusters
+  nb_cluster <- hp_k %>%
+    dplyr::pull(.data$ID) %>%
+    length()
+  ## Get the name of clusters
+  ID_k <- hp_k %>%
+    dplyr::pull(.data$ID)
+
+  if (grid_inputs %>% is.null()) {
+    ## Define the union of all reference Inputs in the dataset
+    all_input <- unique(data$Input) %>% sort()
+    cat(
+      "The argument 'grid_inputs' is NULL, the hyper-posterior distributions",
+      "will only be evaluated on observed Input from 'data'.\n \n"
+    )
+  } else {
+    ## Define the union among all reference Inputs and the specified grid
+    all_input <- unique(data$Input) %>%
+      union(grid_inputs) %>%
+      sort()
+  }
+
+  ## Initialise m_k according to the value provided by the user
+  m_k <- list()
+  if (prior_mean_k %>% is.null()) {
+    ## Create a list named by cluster with evaluation of the mean at all Input
+    for (k in 1:nb_cluster) {
+      m_k[[ID_k[k]]] <- rep(0, length(all_input))
+    }
+    cat(
+      "The 'prior_mean_k' argument has not been specified. The hyper_prior ",
+      "mean functions are thus set to be 0 everywhere.\n \n"
+    )
+  } else if (prior_mean_k[[1]] %>% is.function()) {
+    ## Create a list named by cluster with evaluation of the mean at all Input
+    for (k in 1:nb_cluster) {
+      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_input)
+    }
+  } else if (prior_mean_k %>% is.vector()) {
+    if (length(prior_mean_k) == nb_cluster) {
+      ## Create a list named by cluster with evaluation of the mean at all Input
+      for (k in 1:nb_cluster) {
+        m_k[[ID_k[k]]] <- rep(prior_mean_k[[k]], length(all_input))
+      }
+    } else if (length(prior_mean_k) == 1) {
+      ## Create a list named by cluster with evaluation of the mean at all Input
+      for (k in 1:nb_cluster) {
+        m_k[[ID_k[k]]] <- rep(prior_mean_k, length(all_input))
+      }
+      cat(
+        "The provided 'prior_mean_k' argument is of length 1. Thus, the same",
+        "hyper-prior constant mean function has been set for each",
+        "cluster.\n \n "
+      )
+    } else {
+      stop(
+        "The 'prior_mean_k' argument is of length ", length(prior_mean_k),
+        ", whereas there are ", length(hp_k$ID), " clusters."
+      )
+    }
+  } else {
+    stop(
+      "Incorrect format for the 'prior_mean_k' argument. Please read ",
+      "?hyperposterior_clust() for details."
+    )
+  }
+  ## Create a dummy tibble for Input of the K mean processes
+  input_clust <- tibble::tibble(
+    "ID" = rep(hp_k$ID, each = length(all_input)),
+    "Input" = rep(all_input, length(hp_k$ID))
+  )
+  ## Compute all the inverse covariance matrices
+  inv_k <- list_kern_to_inv(input_clust, kern_k, hp_k, pen_diag = pen_diag)
+  list_inv_i <- list_kern_to_inv(data, kern_i, hp_i, pen_diag = pen_diag)
+  ## Create a named list of Output values for all individuals
+  value_i <- base::split(data$Output, list(data$ID))
+
+  ## Update the posterior inverse covariances ##
+  floop <- function(k) {
+    ## Get the inverse covariance matrice of the k-th cluster
+    post_inv <- inv_k[[k]]
+    for (i in names(list_inv_i))
+    {
+      ## Get the inverse covariance matrice of the i-th individual
+      inv_i <- list_inv_i[[i]]
+      ## Collect the common inputs between mean and individual processes
+      co_input <- intersect(row.names(inv_i), row.names(post_inv))
+      ## Get the probability of the i-th individual to be in the k-th cluster
+      tau_i_k <- mixture %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::pull(k)
+      ## Sum the common inverse covariance's terms
+      post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
+        tau_i_k * inv_i[co_input, co_input]
+    }
+    ## Fast or slow matrix inversion if nearly singular
+    post_cov <- tryCatch(chol(post_inv) %>% chol2inv(), error = function(e) {
+      MASS::ginv(post_inv)
+    }) %>%
+      `rownames<-`(all_input) %>%
+      `colnames<-`(all_input) %>%
+      return()
+  }
+  cov_k <- sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
+  ##############################################
+
+  ## Update the posterior means ##
+  floop2 <- function(k) {
+    ## Compute the weighted mean of the k-th cluster
+    weighted_k <- inv_k[[k]] %*% m_k[[k]]
+
+    for (i in list_inv_i %>% names())
+    {
+      ## Get the probability of the i-th individual to be in the k-th cluster
+      tau_i_k <- mixture %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::pull(k)
+      ## Compute the weighted mean for the i-th individual
+      weighted_i <- tau_i_k * list_inv_i[[i]] %*% value_i[[i]]
+      # row.names(weithed_i) = row.names(list_inv_i[[j]])
+      ## Collect the common inputs between mean and individual processes
+      co_input <- intersect(row.names(weighted_i), row.names(weighted_k))
+      ## Sum the common weighted mean terms
+      weighted_k[co_input, ] <- weighted_k[co_input, ] + weighted_i[co_input, ]
+    }
+    ## Compute the updated mean parameter
+    post_mean <- cov_k[[k]] %*% weighted_k %>% as.vector()
+
+    tibble::tibble(
+      "Input" = all_input,
+      "Output" = post_mean
+    ) %>%
+      return()
+  }
+  mean_k <- sapply(ID_k, floop2, simplify = FALSE, USE.NAMES = TRUE)
+  ##############################################
+
+  ## Format the GP prediction of the hyper-posterior mean (for direct plot)
+  floop_pred <- function(k) {
+    tibble::tibble(
+      "Input" = mean_k[[k]] %>% dplyr::pull(.data$Input),
+      "Mean" = mean_k[[k]] %>% dplyr::pull(.data$Output),
+      "Var" = cov_k[[k]] %>% diag() %>% as.vector()
+    ) %>%
+      return()
+  }
+  pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
+
+  list("mean" = mean_k, "cov" = cov_k, "mixture" = mixture, "pred" = pred) %>%
+    return()
+}
+
+#' MagmaClust prediction
+#'
+#' Compute the posterior predictive distribution in MagmaClust.
+#' Providing data from any new individual/task, its trained hyper-parameters
+#' and a previously trained MagmaClust model, the multi-task posterior
+#' distribution is evaluated on any arbitrary inputs that are specified through
+#' the 'grid_inputs' argument. Due to the nature of the model, the prediction is
+#' defined as a mixture of Gaussian distributions. Therefore the present
+#' function computes the parameters of the predictive distribution
+#' associated with each cluster, as well as the posterior mixture probabilities
+#' for this new individual/task.
+#'
+#' @param data  A tibble or data frame. Required columns: \code{Input},
+#'    \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference 'Input'.
+#' @param trained_model A list, containing  the information coming from a
+#'    MagmaClust model, previously trained using the
+#'    \code{\link{train_magmaclust}} function. If \code{trained_model} is set to
+#'    NULL, the \code{hyperpost} and \code{prop_mixture} arguments are mandatory
+#'    to perform required re-computations for the prediction to succeed.
+#' @param mixture A tibble or data frame, indicating the mixture probabilities
+#'     of each cluster for the new individual/task.
+#'     If NULL, the \code{\link{train_gp_clust}} function is used to compute
+#'     these posterior probabilities according to \code{data}.
+#' @param hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with \code{kern}. The columns/elements should be named
+#'    according to the hyper-parameters that are used in \code{kern}. The
+#'    \code{\link{train_gp_clust}} function can be used to learn
+#'    maximum-likelihood estimators of the hyper-parameters.
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param grid_inputs The grid of inputs (reference Input and covariates) values
+#'    on which the GP should be evaluated. Ideally, this argument should be a
+#'    tibble or a data frame, providing the same columns as \code{data}, except
+#'    'Output'. Nonetheless, in cases where \code{data} provides only one
+#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+#'    vector. This vector would be used as reference input for prediction and if
+#'    NULL, a vector of length 500 is defined, ranging between the min and max
+#'    Input values of \code{data}.
+#' @param hyperpost A list, containing the elements \code{mean}, \code{cov} and
+#'   \code{mixture} the parameters of the hyper-posterior distributions of the
+#'    mean processes. Typically, this argument should come from a previous
+#'    learning using \code{\link{train_magmaclust}}, or a previous prediction
+#'    with \code{\link{pred_magmaclust}}, with the argument \code{get_hyperpost}
+#'    set to TRUE.
+#' @param prop_mixture A tibble or a named vector of the mixture proportions.
+#'    Each name of column or element should refer to a cluster. The value
+#'    associated with each cluster is a number between 0 and 1. If both
+#'    \code{mixture} and \code{trained_model} are set to NULL, this argument
+#'    allows to recompute mixture probabilities, thanks to the \code{hyperpost}
+#'    argument and the \code{\link{train_gp_clust}} function.
+#' @param get_hyperpost A logical value, indicating whether the hyper-posterior
+#'    distributions of the mean processes should be returned. This can be useful
+#'    when planning to perform several predictions on the same grid of inputs,
+#'    since recomputation of the hyper-posterior can be prohibitive for high
+#'    dimensional grids.
+#' @param get_full_cov A logical value, indicating whether the full posterior
+#'    covariance matrices should be returned.
+#' @param plot A logical value, indicating whether a plot of the results is
+#'    automatically displayed.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#'
+#' @return A list of GP prediction results composed of:
+#'         \itemize{
+#'           \item pred: As sub-list containing, for each cluster:
+#'             \itemize{
+#'              \item pred_gp: A tibble, representing the GP predictions as two
+#'                 column \code{Mean} and \code{Var}, evaluated on the
+#'                 \code{grid_inputs}. The column \code{Input} and additional
+#'                 covariates columns are associated with each predicted values.
+#'              \item proba: A number, the posterior probability associated with
+#'                 this cluster.
+#'              \item cov (if \code{get_full_cov} = TRUE): A matrix, the full
+#'                 posterior covariance matrix associated with this cluster.
+#'              }
+#'           \item mixture: A tibble, indicating the mixture probabilities
+#'              of each cluster for the predicted individual/task.
+#'           \item hyperpost (if \code{get_hyperpost} = TRUE): A list,
+#'              containing the hyper-posterior distributions information useful
+#'              for visualisation purposes.
+#'          }
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' db <- simu_db()
+#' training_test <- train_magmaclust(db)
+#' pred_magmaclust(db %>% filter(ID == 1), trained_magmaclust = training_test)
+#' }
+pred_magmaclust <- function(data,
+                            trained_model = NULL,
+                            mixture = NULL,
+                            hp = NULL,
+                            kern = "SE",
+                            grid_inputs = NULL,
+                            hyperpost = NULL,
+                            prop_mixture = NULL,
+                            get_hyperpost = FALSE,
+                            get_full_cov = FALSE,
+                            plot = TRUE,
+                            pen_diag = 1e-8) {
+  ## Extract the observed Output (data points)
+  data_obs <- data %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::pull(.data$Output)
+
+  ## Extract the observed (reference) Input
+  input_obs <- data %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::pull(.data$Input)
+
+  ## Extract the observed inputs (reference Input + covariates)
+  inputs_obs <- data %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::select(-.data$Output)
+
+  ## Remove the 'ID' column if present
+  if ("ID" %in% names(data)) {
+    if (dplyr::n_distinct(data$ID) > 1) {
+      stop(
+        "Problem in the 'ID' column: different values are not allowed. ",
+        "The prediction can only be performed for one individual/task."
+      )
+    }
+    ## Collect all the Inputs
+    inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
+    ## Get 'ID' of the individual to predict
+    ID_data <- unique(data$ID)
+  } else {
+    ## Set 'ID' of the individual to predict to 'ID_pred' if not provided
+    ID_data <- "ID_pred"
+    data <- data %>% dplyr::mutate("ID" = "ID_pred", .before = 1)
+  }
+
+  ## Define the target inputs to predict
+  if (grid_inputs %>% is.null()) {
+    ## Test whether 'data' only provide the Input column and no covariates
+    if (inputs_obs %>% names() %>% length() == 1) {
+      input_pred <- seq(min(data$Input), max(data$Input), length.out = 500)
+      inputs_pred <- tibble::tibble("Input" = input_pred)
+    } else if (inputs_obs %>% names() %>% length() == 2) {
+      ## Define a default grid for 'Input'
+      input_pred <- rep(
+        seq(min(data$Input), max(data$Input), length.out = 20),
+        each = 20
+      )
+      inputs_pred <- tibble::tibble("Input" = input_pred)
+      ## Add a grid for the covariate
+      name_cova <- inputs_obs %>%
+        dplyr::select(-.data$Input) %>%
+        names()
+      cova <- inputs_obs[name_cova]
+      inputs_pred[name_cova] <- rep(
+        seq(min(cova), max(cova), length.out = 20),
+        times = 20
+      )
+    } else {
+      stop(
+        "The 'grid_inputs' argument should be a either a numerical vector ",
+        "or a data frame depending on the context. Please read ",
+        "?pred_magmaclust()."
+      )
+    }
+  } else if (grid_inputs %>% is.vector()) {
+    ## Test whether 'data' only provide the Input column and no covariates
+    if (inputs_obs %>% names() %>% length() == 1) {
+      input_pred <- grid_inputs %>% sort()
+      inputs_pred <- tibble::tibble("Input" = input_pred)
+    } else {
+      stop(
+        "The 'grid_inputs' argument should be a either a numerical vector ",
+        "or a data frame depending on the context. Please read  ",
+        "?pred_magmaclust()."
+      )
+    }
+  } else if (grid_inputs %>% is.data.frame()) {
+    ## Test whether 'data' has the same columns as grid_inputs
+    if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
+      input_pred <- grid_inputs %>%
+        dplyr::arrange(.data$Input) %>%
+        dplyr::pull(.data$Input)
+
+      inputs_pred <- grid_inputs %>%
+        dplyr::arrange(.data$Input) %>%
+        dplyr::select(names(inputs_obs))
+    } else {
+      stop(
+        "The 'grid_inputs' argument should provide a column 'Input', and ",
+        "the same additional covariate columns as contained in 'data'."
+      )
+    }
+  } else {
+    stop(
+      "The 'grid_inputs' argument should be a either a numerical vector ",
+      "or a data frame depending on the context. Please read ?pred_gp()."
+    )
+  }
+  ## Define the union of all distinct reference Input
+  all_input <- union(input_obs, input_pred) %>% sort()
+
+  ## Check whether the hyper-posterior is provided and recompute if necessary
+  if (hyperpost %>% is.null()) {
+    if (trained_model %>% is.null()) {
+      stop(
+        "If the 'hyperpost' argument is NULL, the 'trained_model' ",
+        "should be provided, in order to extract or recompute mean processes' ",
+        "hyper-posterior distributions evaluated at the correct inputs."
+      )
+    } else {
+      ## Get the hyper-posterior distribution from the trained model
+      hyperpost <- trained_model$hyperpost
+
+      ## Check hyperpost format (in particular presence of all reference Input)
+      if (!all(all_input %in% hyperpost$mean[[1]]$Input)) {
+        cat(
+          "The hyper-posterior distribution of the mean process provided in",
+          "'hyperpost' argument isn't evaluated on the expected inputs.",
+          "Start evaluating the hyper-posterior on the correct inputs...\n \n"
+        )
+        hyperpost <- hyperposterior_clust(
+          data = trained_model$ini_args$data,
+          mixture = trained_model$hyperpost$mixture,
+          hp_k = trained_model$hp_k,
+          hp_i = trained_model$hp_i,
+          kern_k = trained_model$ini_args$kern_k,
+          kern_i = trained_model$ini_args$kern_i,
+          prior_mean_k = trained_model$ini_args$prior_mean_k,
+          grid_inputs = all_input,
+          pen_diag = pen_diag
+        )
+        cat("Done!\n \n")
+      }
+    }
+  } else if (hyperpost %>% is.list()) {
+    ## Check hyperpost format
+    if (!is.null(hyperpost$mean)) {
+      ## Check hyperpost format (in particular presence of all reference Input
+      if (!all(all_input %in% hyperpost$mean[[1]]$Input)) {
+        stop(
+          "The hyper-posterior distribution of the mean processes provided ",
+          "in the 'hyperpost' argument isn't evaluated on expected inputs. ",
+          "Please provide a 'trained_model' argument for re-computation. "
+        )
+      }
+    } else {
+      stop(
+        "The format of the 'hyperpost' argument is not as expected. Please ",
+        "read ?pred_magmaclust() for details."
+      )
+    }
+  } else {
+    stop(
+      "The format of the 'hyperpost' argument is not as expected. Please ",
+      "read ?pred_magmaclust() for details."
+    )
+  }
+
+  ## Get clusters' names
+  ID_k <- hyperpost$mean %>% names()
+
+  ## Extract or learn the hyper-parameters if not provided
+  if (hp %>% is.null()) {
+    if (!is.null(trained_model)) {
+      ## Check whether hyper-parameters are common if we have 'trained_model'
+      if (tryCatch(trained_model$ini_args$common_hp_i,
+        error = function(e) FALSE
+      )) {
+        ## Extract the hyper-parameters common to all 'i'
+        hp <- trained_model$hp_i %>%
+          dplyr::slice(1) %>%
+          dplyr::mutate("ID" = ID_data)
+        ## Extract and format the mixture proportions
+        prop_mixture <- trained_model$hp_k %>%
+          dplyr::pull(.data$prop_mixture, name = .data$ID)
+
+        mixture <- update_mixture(
+          data,
+          hyperpost$mean,
+          hyperpost$cov,
+          hp,
+          trained_model$ini_args$kern_i,
+          prop_mixture,
+          pen_diag
+        )
+      } else if (kern %>% is.function()) {
+        stop(
+          "When using a custom kernel function the 'hp' argument is ",
+          "mandatory, in order to provide the name of the hyper-parameters. ",
+          "You can use the function 'hp()' to easily generate a tibble of ",
+          "random hyper-parameters with the desired format, or use ",
+          "'train_gp_clust()' to learn ML estimators for a better fit."
+        )
+      } else if (kern %>% is.character()) {
+        ## Extract the mixture proportions
+        prop_mixture <- trained_model$hp_k %>%
+          dplyr::pull(.data$prop_mixture, name = .data$ID)
+
+        cat(
+          "The 'hp' argument has not been specified. The 'train_gp_clust()'",
+          "function (with random initialisation) will be used to learn ML",
+          "estimators for hyper-parameters and mixture probabilities... \n \n"
+        )
+        hp_mix <- train_gp_clust(
+          data,
+          prop_mixture = prop_mixture,
+          ini_hp = hp(kern, noise = T, list_ID = ID_data),
+          kern = kern,
+          hyperpost = hyperpost,
+          pen_diag = pen_diag
+        )
+
+        ## Extract values of hyper-parameters and mixture probabilities
+        hp <- hp_mix$hp
+        mixture <- hp_mix$mixture
+      }
+    } else if (kern %>% is.function()) {
+      stop(
+        "When using a custom kernel function the 'hp' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format, or use 'train_gp_clust()' ",
+        "to learn ML estimators for a better fit."
+      )
+    } else if (kern %>% is.character()) {
+      cat(
+        "The 'hp' argument has not been specified. The 'train_gp_clust()'",
+        "function (with random initialisation) will be used to learn ML",
+        "estimators for hyper-parameters and mixture probabilities... \n \n"
+      )
+      ## If 'prop_mixture' has no name, use the ID_k to retrieve them
+      if (!("ID" %in% prop_mixture) & !is.null(prop_mixture)) {
+        names(prop_mixture) <- ID_k
+      }
+
+      hp_mix <- train_gp_clust(
+        data,
+        prop_mixture = prop_mixture,
+        ini_hp = hp(kern, noise = T, list_ID = ID_data),
+        kern = kern,
+        hyperpost = hyperpost,
+        pen_diag = pen_diag
+      )
+
+      ## Extract values of hyper-parameters and mixture probabilities
+      hp <- hp_mix$hp
+      mixture <- hp_mix$mixture
+    } else {
+      stop(
+        "Incorrect format for the 'kern' argument. Please read ?pred_gp() for ",
+        "details."
+      )
+    }
+  }
+
+  ## Remove the noise of the hp for evaluating some of the sub-matrix
+  if ("noise" %in% names(hp)) {
+    hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
+    noise <- exp(hp[["noise"]])
+  } else {
+    hp_rm_noi <- hp
+    noise <- 0
+  }
+
+  ## Initialisation if we want to recover full_cov
+  full_cov <- list()
+  ## Initialisation of the mixture prediction
+  mixture_mean <- 0
+
+  floop <- function(k) {
+    ## Extract the mean parameter from the hyper-posterior
+    mean_obs <- hyperpost$mean[[k]] %>%
+      dplyr::right_join(inputs_obs, by = "Input") %>%
+      dplyr::arrange(.data$Input) %>%
+      dplyr::pull(.data$Output)
+
+    mean_pred <- hyperpost$mean[[k]] %>%
+      dplyr::right_join(inputs_pred, by = "Input") %>%
+      dplyr::arrange(.data$Input) %>%
+      dplyr::pull(.data$Output)
+
+    ## Extract the covariance sub-matrices from the hyper-posterior
+    post_cov_obs <- hyperpost$cov[[k]][
+      as.character(input_obs),
+      as.character(input_obs)
+    ]
+    post_cov_pred <- hyperpost$cov[[k]][
+      as.character(input_pred),
+      as.character(input_pred)
+    ]
+    post_cov_crossed <- hyperpost$cov[[k]][
+      as.character(input_obs),
+      as.character(input_pred)
+    ]
+
+    ## Sum the covariance matrices on observed inputs and compute the inverse
+    cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
+    diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
+
+    inv_obs <- tryCatch((cov_obs + diag) %>% chol() %>% chol2inv(),
+      error = function(e) {
+        MASS::ginv(cov_obs + diag)
+      }
+    ) %>%
+      `rownames<-`(as.character(input_obs)) %>%
+      `colnames<-`(as.character(input_obs))
+
+    ## Compute the other required sum of sub-matrices for prediction
+    cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi) + post_cov_pred
+    cov_crossed <- kern_to_cov(
+      inputs_obs,
+      kern,
+      hp_rm_noi,
+      input_2 = inputs_pred
+    ) + post_cov_crossed
+
+    ## Compute the posterior mean of a GP
+    pred_mean <- (mean_pred +
+      t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+      as.vector()
+
+    ## Compute the posterior covariance matrix of a GP
+    pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
+
+    ## Keep track of the full predicted covariances
+    full_cov[[k]] <<- pred_cov
+
+    ## Select the adequate individual/task if necessary
+    proba <- mixture %>%
+      dplyr::filter(.data$ID == ID_data) %>%
+      dplyr::pull(k)
+
+    ## Combine cluster-specific predictions into a mixture prediction
+    mixture_mean <<- mixture_mean + proba * pred_mean
+
+    ## Create a tibble of values and associated uncertainty from a GP prediction
+    pred_gp <- tibble::tibble(
+      "ID" = ID_data,
+      "Proba" = proba,
+      "Mean" = pred_mean,
+      "Var" = (diag(pred_cov) + noise) %>% as.vector()
+    ) %>%
+      dplyr::mutate(inputs_pred) %>%
+      return()
+  }
+  pred <- sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
+
+  ## Compute the mixture variance of predictions
+  mixture_var <- 0
+  for (k in ID_k)
+  {
+    proba_k <- mixture %>%
+      dplyr::filter(.data$ID == ID_data) %>%
+      dplyr::pull(k)
+    ## Cov(mixture) = Sum_k{ tau_k * (C_k + (m_k - m)(m_k - m)T) }
+    mixture_var <- mixture_var +
+      proba_k * (pred[[k]]$Var + (pred[[k]]$Mean - mixture_mean)^2)
+  }
+
+  ## Create a tibble of values for the mixture prediction
+  mixture_pred <- tibble::tibble(
+    "ID" = ID_data,
+    "Mean" = mixture_mean,
+    "Var" = mixture_var %>% as.vector()
+  ) %>%
+    dplyr::mutate(inputs_pred)
+
+  res <- list("pred" = pred, "mixture" = mixture, "mixture_pred" = mixture_pred)
+
+  ## Check whether hyper-posterior should be returned
+  if (get_hyperpost) {
+    res[["hyperpost"]] <- hyperpost
+  }
+  ## Check whether posterior covariance should be returned
+  if (get_full_cov) {
+    res[["full_cov"]] <- full_cov
+  }
+
+  ## Display the graph of the prediction if expected
+  if (plot) {
+    ## Check whether training data are available
+    if (trained_model %>% is.null()) {
+      data_train <- NULL
+    } else {
+      data_train <- trained_model$ini_args$data
+    }
+
+    ## Plot the mixture-of-GPs prediction
+    plot_magmaclust(
+      res,
+      data = data,
+      data_train = data_train,
+      prior_mean = hyperpost$mean
+    ) %>%
+      print()
+  }
+
+  return(res)
+}
+
+#' Indicates the most probable cluster
+#'
+#' @param mixture A tibble or data frame containing mixture probabilities.
+#'
+#' @return A tibble, retaining only the most probable cluster. The column
+#'    \code{Cluster} indicates the the cluster's name whereas \code{Proba}
+#'    refers to its associated probability. If \code{ID} is initially
+#'    a column of \code{mixture} (optional), the function returns the most
+#'    probable cluster for all the different \code{ID} values.
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+proba_max_cluster <- function(mixture) {
+  if ("ID" %in% names(mixture)) {
+    mixture %>%
+      tidyr::pivot_longer(-.data$ID) %>%
+      dplyr::group_by(.data$ID) %>%
+      dplyr::filter(.data$value == max(.data$value)) %>%
+      dplyr::rename("Cluster" = .data$name, "Proba" = .data$value)
+  } else {
+    mixture %>%
+      tidyr::pivot_longer(tidyselect::everything()) %>%
+      dplyr::filter(.data$value == max(.data$value)) %>%
+      dplyr::rename("Cluster" = .data$name, "Proba" = .data$value)
+  }
+}
+
+#' Allocate training data into the most probable cluster
+#'
+#' @param trained_model A list, containing  the information coming from a
+#'    MagmaClust model, previously trained using the
+#'    \code{\link{train_magmaclust}} function.
+#'
+#' @return The original dataset used to train the MagmaClust model, with
+#'    additional 'Cluster' and associated 'Proba' columns, indicating the most
+#'    probable cluster for each individual/task at the end of the training
+#'    procedure.
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+data_allocate_cluster <- function(trained_model) {
+  ## Check format and extract useful information
+  if (!is.list(trained_model)) {
+    stop("Please provide a trained MagmaClust model.")
+  } else {
+    db <- trained_model$ini_args$data
+    mixture <- trained_model$hyperpost$mixture
+  }
+
+  ## Remove old 'Cluster' column if necessary
+  if ("Cluster" %in% names(db)) {
+    db <- db %>% dplyr::select(-.data$Cluster)
+  }
+
+  max_clust <- proba_max_cluster(mixture)
+  db %>%
+    dplyr::left_join(max_clust, by = "ID") %>%
+    return()
+}
+
+
+#' Training MagmaClust with a Variational EM algorithm
+#'
+#' The hyper-parameters and the hyper-posterior distributions involved in
+#' MagmaClust can be learned thanks to a VEM algorithm implemented in
+#' \code{train_magmaclust}. By providing a dataset, the model hypotheses
+#' (hyper-prior mean parameters, covariance kernels and number of clusters) and
+#' initialisation values for the hyper-parameters, the function computes
+#' maximum likelihood estimates of the HPs as well as the mean and covariance
+#' parameters of the Gaussian hyper-posterior distributions of the mean
+#' processes.
+#'
+#' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
+#'    , \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{ID} column contains the unique names/codes used to identify each
+#'    individual/task (or batch of data).
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param nb_cluster A number, indicating the number of clusters of
+#'    individuals/tasks that are assumed to exist among the dataset.
+#' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
+#'    mean GPs, one value for each cluster.
+#'    cluster. This argument can be specified under various formats, such as:
+#'    - NULL (default). All hyper-prior means would be set to 0 everywhere.
+#'    - A numerical vector of the same length as the number of clusters.
+#'    Each number is associated with one cluster, and considered
+#'    to be the hyper-prior mean parameter of the cluster (i.e. a constant
+#'    function at all \code{Input}).
+#'    - A list of functions. Each function is associated with one cluster. These
+#'    functions are all evaluated at all \code{Input} values, to provide
+#'    specific hyper-prior mean vectors for each cluster.
+#' @param ini_hp_k A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_k}, the mean process' kernel.
+#'    Required column : \code{ID}. The \code{ID} column contains the unique
+#'    names/codes used to identify each cluster. The other columns
+#'    should be named according to the hyper-parameters that are used in
+#'    \code{kern_k}.
+#' @param ini_hp_i A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_i}, the individual processes' kernel.
+#'    Required column : \code{ID}. The \code{ID} column contains the unique
+#'    names/codes used to identify each individual/task. The other columns
+#'    should be named according to the hyper-parameters that are used in
+#'    \code{kern_i}.
+#' @param kern_k A kernel function, associated with the mean GPs.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param kern_i A kernel function, associated with the individual GPs. (See
+#'    details above in \code{kern_k}).
+#' @param ini_mixture Initial values of the probability to belong to each
+#'    cluster for each individual (\code{\link{ini_mixture}} can be used for
+#'    a k-means initialisation. Used by default if NULL).
+#' @param common_hp_k A boolean indicating whether hyper-parameters are common
+#'    among the mean GPs.
+#' @param common_hp_i A boolean indicating whether hyper-parameters are common
+#'    among the individual GPs.
+#' @param grid_inputs A vector, indicating the grid of additional reference
+#'    inputs on which the mean processes' hyper-posteriors should be evaluated.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#' @param n_iter_max A number, indicating the maximum number of iterations of
+#'    the VEM algorithm to proceed while not reaching convergence.
+#' @param cv_threshold A number, indicating the threshold of the likelihood gain
+#'    under which the VEM algorithm will stop. The convergence condition is
+#'    defined as the difference of elbo between two consecutive steps,
+#'    divided by the absolute value of the last one
+#'    ( \eqn{(ELBO_n - ELBO_{n-1}) / |ELBO_n| } ).
+#' @param fast_approx A boolean, indicating whether the VEM algorithm should
+#'    stop after only one iteration of the VE-step. This advanced feature is
+#'    mainly used to provide a faster approximation of the model selection
+#'    procedure, by preventing any optimisation over the hyper-parameters.
+#'
+#' @details The user can specify custom kernel functions for the argument
+#'    \code{kern_k} and \code{kern_i}. The hyper-parameters used in the kernel
+#'    should have explicit names, and be contained within the \code{hp}
+#'    argument. \code{hp} should typically be defined as a named vector or a
+#'    data frame. Although it is not mandatory for the \code{train_magmaclust}
+#'    function to run, gradients be can provided within kernel function
+#'    definition. See for example \code{\link{se_kernel}} to create a custom
+#'    kernel function displaying an adequate format to be used in
+#'    MagmaClust.
+#'
+#' @return A list, containing the results of the VEM algorithm used in the
+#'    training step of MagmaClust. The elements of the list are:
+#'    - hp_k: A tibble containing the trained hyper-parameters for the mean
+#'    process' kernel and the mixture proportions for each cluster.
+#'    - hp_i: A tibble containing the trained hyper-parameters for the
+#'    individual processes' kernels.
+#'    - hyperpost: A sub-list containing the parameters of the mean processes'
+#'    hyper-posterior distribution, namely:
+#'      \itemize{
+#'        \item mean: A list of tibbles containing, for each cluster, the
+#'              hyper-posterior mean parameters evaluated at each \code{Input}.
+#'        \item cov: A list of matrices containing, for each cluster, the
+#'              hyper-posterior covariance parameter of the mean process.
+#'        \item mixture: A tibble, indicating the mixture probabilities in each
+#'              cluster for each individual.
+#'      }
+#'    - ini_args: A list containing the initial function arguments and values
+#'    for the hyper-prior means, the hyper-parameters. In particular, if
+#'    those arguments were set to NULL, \code{ini_args} allows us to retrieve
+#'    the (randomly chosen) initialisations used during training.
+#'    - seq_elbo: A vector, containing the sequence of ELBO values associated
+#'    with each iteration.
+#'    - converged: A logical value indicated whether the algorithm converged.
+#'    - training_time: Total running time of the complete training.
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+train_magmaclust <- function(data,
+                             nb_cluster = NULL,
+                             prior_mean_k = NULL,
+                             ini_hp_k = NULL,
+                             ini_hp_i = NULL,
+                             kern_k = "SE",
+                             kern_i = "SE",
+                             ini_mixture = NULL,
+                             common_hp_k = T,
+                             common_hp_i = T,
+                             grid_inputs = NULL,
+                             pen_diag = 1e-8,
+                             n_iter_max = 25,
+                             cv_threshold = 1e-3,
+                             fast_approx = FALSE) {
+  ## Check for the correct format of the training data
+  if (data %>% is.data.frame()) {
+    if (!all(c("ID", "Output", "Input") %in% names(data))) {
+      stop(
+        "The 'data' argument should be a tibble or a data frame containing ",
+        "at least the mandatory column names: 'ID', 'Output' and 'Input'"
+      )
+    }
+  } else {
+    stop(
+      "The 'data' argument should be a tibble or a data frame containing ",
+      "at least the mandatory column names: 'ID', 'Output' and 'Input'"
+    )
+  }
+
+  ## Check the number of cluster
+  if (nb_cluster %>% is.null()) {
+    nb_cluster <- 3
+    ID_k <- c("K1", "K2", "K3")
+    cat(
+      "The number of cluster argument has not been specified. There will",
+      "be 3 cluster by default. \n \n"
+    )
+  }
+
+  ## Retrieve or create the names of the clusters
+  if (!is.null(ini_hp_k)) {
+    ID_k <- ini_hp_k$ID %>% unique()
+    if (length(ID_k) != nb_cluster) {
+      stop(
+        "The argument 'ini_hp_k' provides hyper-parameters for a number of ",
+        "clusters that is different from the 'nb_cluster' argument. "
+      )
+    }
+  } else {
+    ID_k <- paste0("K", 1:nb_cluster)
+  }
+
+  ## Certify that IDs are of type 'character'
+  data$ID <- data$ID %>% as.character()
+  ## Extract the list of different IDs
+  list_ID <- unique(data$ID)
+  ## Extract the union of all reference inputs provided in the training data
+  all_input <- data$Input %>%
+    unique() %>%
+    sort()
+
+  ## Initialise the individual process' HPs according to user's values
+  if (kern_i %>% is.function()) {
+    if (ini_hp_i %>% is.null()) {
+      stop(
+        "When using a custom kernel function the 'ini_hp_i' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format for initialisation."
+      )
+    }
+  } else {
+    if (ini_hp_i %>% is.null()) {
+      hp_i <- hp(kern_i, list_ID = list_ID,
+                 common_hp = common_hp_i, noise = TRUE)
+      cat(
+        "The 'ini_hp_i' argument has not been specified. Random values of",
+        "hyper-parameters for the individual processes are used as",
+        "initialisation.\n \n"
+      )
+    } else if (!("ID" %in% names(ini_hp_i))) {
+      ## Create a full tibble of common HPs if the column ID is not specified
+      hp_i <- tibble::tibble(
+        ID = list_ID,
+        dplyr::bind_rows(ini_hp_i)
+      )
+      cat(
+        "No 'ID' column in the 'ini_hp_i' argument. The same hyper-parameter",
+        "values have been duplicated for every 'ID' present in the 'data'.\n \n"
+      )
+    } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
+      all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+      stop(
+        "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
+        "'data'."
+      )
+    } else {
+      hp_i <- ini_hp_i
+    }
+  }
+
+  ## Add a 'noise' hyper-parameter if absent
+  if (!("noise" %in% names(hp_i))) {
+    if (common_hp_i) {
+      hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
+    } else {
+      hp_i <- hp_i %>%
+        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = "ID")
+    }
+  }
+
+  ## Initialise the cluster process' hp according to user's values
+  if (kern_k %>% is.function()) {
+    if (ini_hp_k %>% is.null()) {
+      stop(
+        "When using a custom kernel function the 'ini_hp_k' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format for initialisation."
+      )
+    }
+  } else {
+    if (ini_hp_k %>% is.null()) {
+      hp_k <- hp(kern_k, list_ID = ID_k, common_hp = common_hp_k, noise = F)
+      cat(
+        "The 'ini_hp_k' argument has not been specified. Random values of",
+        "hyper-parameters for the mean processes are used as",
+        "initialisation.\n \n"
+      )
+    } else if (!("ID" %in% names(ini_hp_k))) {
+      ## Create a full tibble of common HPs if the column ID is not specified
+      hp_k <- tibble::tibble(
+        ID = ID_k,
+        dplyr::bind_rows(ini_hp_k)
+      )
+      cat(
+        "No 'ID' column in the 'ini_hp_k' argument. The same hyper-parameter",
+        "values have been duplicated for every cluster's 'ID'.\n \n"
+      )
+    } else {
+      hp_k <- ini_hp_k
+    }
+  }
+
+  ## Initialise m_k according to the value provided by the user
+  m_k <- list()
+  if (prior_mean_k %>% is.null()) {
+    ## Create a list named by cluster with evaluation of the mean at all Input
+    for (k in 1:nb_cluster) {
+      m_k[[ID_k[k]]] <- rep(0, length(all_input))
+    }
+    cat(
+      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+      "function is thus set to be 0 everywhere.\n \n"
+    )
+  } else if (prior_mean_k[[1]] %>% is.function()) {
+    ## Create a list named by cluster with evaluation of the mean at all Input
+    for (k in 1:nb_cluster) {
+      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_input)
+    }
+  } else if (prior_mean_k %>% is.vector()) {
+    if (length(prior_mean_k) == nb_cluster) {
+      ## Create a list named by cluster with evaluation of the mean at all Input
+      for (k in 1:nb_cluster) {
+        m_k[[ID_k[k]]] <- rep(prior_mean_k[[k]], length(all_input))
+      }
+    } else if (length(prior_mean_k) == 1) {
+      ## Create a list named by cluster with evaluation of the mean at all Input
+      for (k in 1:nb_cluster) {
+        m_k[[ID_k[k]]] <- rep(prior_mean_k, length(all_input))
+      }
+      cat(
+        "The provided 'prior_mean' argument is of length 1. Thus, the same",
+        "hyper-prior constant mean function has been set for each",
+        "cluster.\n \n "
+      )
+    } else {
+      stop(
+        "The 'prior_mean_k' argument is of length ", length(prior_mean_k),
+        ", whereas there are ", length(hp_k$ID), " clusters."
+      )
+    }
+  } else {
+    stop(
+      "Incorrect format for the 'prior_mean_k' argument. Please read ",
+      "?train_magmaclust() for details."
+    )
+  }
+
+  ## Track the total training time
+  t1 <- Sys.time()
+
+  ## Initialize the monitoring information
+  cv <- FALSE
+  elbo_monitoring <- -Inf
+  seq_elbo <- c()
+
+  if (is.null(ini_mixture)) {
+    mixture <- ini_mixture(data, k = nb_cluster, name_clust = ID_k, 50)
+  }
+
+  hp_k[["prop_mixture"]] <- mixture %>%
+    dplyr::select(-.data$ID) %>%
+    colMeans() %>%
+    as.vector()
+
+  ## Keep an history of the (possibly random) initial values of hyper-parameters
+  hp_i_ini <- hp_i
+  hp_k_ini <- hp_k
+  mixture_ini <- mixture
+  ## Iterate VE-step and VM-step until convergence
+  for (i in 1:n_iter_max)
+  {
+    ## Track the running time for each iteration of the EM algorithm
+    t_i_1 <- Sys.time()
+
+    ## VE-Step of MagmaClust
+    post <- ve_step(
+      data,
+      m_k,
+      kern_k,
+      kern_i,
+      hp_k,
+      hp_i,
+      mixture,
+      pen_diag
+    )
+
+    ## Break after VE-step if we can to compute the fast approximation
+    if (fast_approx) {
+      ## Track the ELBO values
+      seq_elbo <- elbo_monitoring_VEM(
+        hp_k,
+        hp_i,
+        data,
+        kern_i,
+        kern_k,
+        hyperpost = post,
+        m_k = m_k,
+        pen_diag
+      )
+
+      cv <- FALSE
+      break
+    }
+
+    ## VM-Step of MagmaClsut
+    new_hp <- vm_step(data,
+      hp_k,
+      hp_i,
+      list_mu_param = post,
+      kern_k,
+      kern_i,
+      m_k,
+      common_hp_k,
+      common_hp_i,
+      pen_diag
+    ) # %>% suppressMessages()
+
+    new_hp_k <- new_hp$hp_k
+    new_hp_i <- new_hp$hp_i
+
+    ## In case something went wrong during the optimization
+    if (any(is.na(new_hp_k)) | any(is.na(new_hp_i))) {
+      warning(paste0("The M-step encountered an error at iteration : ", i))
+      warning(
+        "Training has stopped and hyper-parameters values from the ",
+        "last valid iteration are returned."
+      )
+      break
+    }
+
+    ## Monitoring of the elbo
+    new_elbo_monitoring <- elbo_monitoring_VEM(
+      new_hp_k,
+      new_hp_i,
+      data,
+      kern_i,
+      kern_k,
+      hyperpost = post,
+      m_k = m_k,
+      pen_diag
+    )
+
+    diff_moni <- new_elbo_monitoring - elbo_monitoring
+    if (diff_moni %>% is.nan()) {
+      diff_moni <- -Inf
+    }
+
+    if (diff_moni < -0.1) {
+      warning("Likelihood descreased")
+    }
+
+    ## Update HPs values and the elbo monitoring
+    hp_k <- new_hp_k
+    hp_i <- new_hp_i
+    mixture <- post$mixture
+    elbo_monitoring <- new_elbo_monitoring
+
+    ## Track the ELBO values
+    seq_elbo <- c(seq_elbo, elbo_monitoring)
+
+    ## Compute the convergence ratio
+    eps <- diff_moni / abs(elbo_monitoring)
+    if (eps %>% is.nan()) {
+      eps <- 1
+    }
+
+    ## Provide monitoring information
+    t_i_2 <- Sys.time()
+    paste0(
+      "VEM algorithm, step ", i, ": ",
+      difftime(t_i_2, t_i_1, units = "secs") %>% round(2),
+      " seconds \n \n"
+    ) %>%
+      cat()
+
+    paste0(
+      "Value of the elbo: ",
+      elbo_monitoring %>% round(5),
+      " --- Convergence ratio = ",
+      eps %>% round(5),
+      "\n \n"
+    ) %>%
+      cat()
+
+    ## Check the convergence condition
+    if (abs(eps) < cv_threshold) {
+      cat(
+        "The EM algorithm successfully converged, training is completed.",
+        "\n \n"
+      )
+      cv <- TRUE
+      break
+    }
+    ## Check for a prematurate ending of the EM algorithm
+    if (!cv & (i == n_iter_max)) {
+      warning(
+        "The EM algorithm has reached the maximum number of iterations ",
+        "before convergence, training might be sub-optimal \n \n"
+      )
+    }
+  }
+
+  ## Evaluate the hyper-posterior on the grid of inputs if provided
+  if (!is.null(grid_inputs)) {
+    cat(
+      "Start evaluating hyper-posterior distributions of the mean processes",
+      "on the provided grid of inputs... \n \n"
+    )
+
+    post <- hyperposterior_clust(
+      data = data,
+      post$mixture,
+      hp_k = hp_k,
+      hp_i = hp_i,
+      kern_k = kern_k,
+      kern_i = kern_i,
+      prior_mean_k = prior_mean_k,
+      grid_inputs = grid_inputs,
+      pen_diag = pen_diag
+    )
+    cat("Done!\n \n")
+  } else {
+    ## Create a variable for directly plotting the mean process' hyper-posterior
+    floop_pred <- function(k) {
+      tibble::tibble(
+        "Input" = post$mean[[k]] %>% dplyr::pull(.data$Input),
+        "Mean" = post$mean[[k]] %>% dplyr::pull(.data$Output),
+        "Var" = post$cov[[k]] %>% diag() %>% as.vector()
+      ) %>%
+        return()
+    }
+    post$pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
+  }
+
+
+  ## Create an history list of the initial arguments of the function
+  fct_args <- list(
+    "data" = data,
+    "nb_cluster" = nb_cluster,
+    "prior_mean_k" = prior_mean_k,
+    "ini_hp_k" = hp_k_ini,
+    "ini_hp_i" = hp_i_ini,
+    "kern_k" = kern_k,
+    "kern_i" = kern_i,
+    "ini_mixture" = mixture_ini,
+    "common_hp_k" = common_hp_k,
+    "common_hp_i" = common_hp_i,
+    "n_iter_max" = n_iter_max,
+    "pen_diag" = pen_diag,
+    "cv_threshold" = cv_threshold
+  )
+  t2 <- Sys.time()
+  ## Create and return the list of elements from the trained model
+  list(
+    "hp_k" = hp_k,
+    "hp_i" = hp_i,
+    "hyperpost" = post,
+    "ini_args" = fct_args,
+    "seq_elbo" = seq_elbo,
+    "converged" = cv,
+    "training_time" = difftime(t2, t1, units = "secs")
+  ) %>%
+    return()
+}
+
+#' Prediction in MagmaClust: learning new HPs and mixture probabilities
+#'
+#' Learning hyper-parameters and mixture probabilities of any new
+#' individual/task is required in \code{MagmaClust} in the prediction procedure.
+#' By providing data for the new individual/task, the hyper-posterior mean and
+#' covariance parameters, the mixture proportions, and initialisation values for
+#' the hyper-parameters, \code{train_gp_clust} uses an EM algorithm to compute
+#' maximum likelihood estimates of the hyper-parameters and hyper-posterior
+#' mixture probabilities of the new individual/task.
+#'
+#' @param data  A tibble or data frame. Required columns: \code{Input},
+#'    \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param prop_mixture A tibble or a named vector. Each name of column or
+#'    element should refer to a cluster. The value associated with each cluster
+#'    is a number between 0 and 1, corresponding to the mixture
+#'    proportions.
+#' @param ini_hp A tibble or data frame of hyper-parameters
+#'    associated with \code{kern}, the individual process kernel.
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param hyperpost A list, containing the elements \code{mean}, \code{cov} and
+#'   \code{mixture} the parameters of the hyper-posterior distributions of the
+#'    mean processes. Typically, this argument should come from a previous
+#'    learning using \code{\link{train_magmaclust}}, or a previous prediction
+#'    with \code{\link{pred_magmaclust}}, with the argument \code{get_hyperpost}
+#'    set to TRUE.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#' @param n_iter_max A number, indicating the maximum number of iterations of
+#'    the EM algorithm to proceed while not reaching convergence.
+#' @param cv_threshold A number, indicating the threshold of the likelihood gain
+#'    under which the EM algorithm will stop.
+#'
+#' @return A list, containing the results of the EM algorithm used during the
+#'    prediction step of MagmaClust. The elements of the list are:
+#'    - hp: A tibble of optimal hyper-parameters for the new individual's GP.
+#'    - mixture: A tibble of mixture probabilities for the new individual.
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+train_gp_clust <- function(data,
+                           prop_mixture = NULL,
+                           ini_hp = NULL,
+                           kern = "SE",
+                           hyperpost = NULL,
+                           pen_diag = 1e-8,
+                           n_iter_max = 25,
+                           cv_threshold = 1e-3) {
+  ## Extract the observed (reference) Input
+  input_obs <- data %>%
+    dplyr::arrange(.data$Input) %>%
+    dplyr::pull(.data$Input)
+
+  ## Initialise the individual process' hp according to user's values
+  if (kern %>% is.function()) {
+    if (ini_hp %>% is.null()) {
+      stop(
+        "When using a custom kernel function the 'ini_hp' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format for initialisation."
+      )
+    } else {
+      hp <- ini_hp
+    }
+  } else {
+    if (ini_hp %>% is.null()) {
+      hp <- hp(kern, noise = T)
+      cat(
+        "The 'ini_hp' argument has not been specified. Random values of",
+        "hyper-parameters are used as initialisation.\n \n"
+      )
+    } else {
+      hp <- ini_hp
+    }
+  }
+
+  ## Check whether initial mixture probabilities are provided
+  if (prop_mixture %>% is.null()) {
+    stop(
+      "The 'prop_mixture' argument is mandatory in order to provide clusters' ",
+      "number, name and mixture proportions. If a MagmaClust model has been ",
+      "previously trained, 'hp_k$prop_mixture' can be used as a default value."
+    )
+  } else {
+    ## Remove the 'ID' column if present
+    if ("ID" %in% names(prop_mixture)) {
+      prop_mixture <- prop_mixture %>%
+        dplyr::select(-.data$ID)
+    }
+    ## Check clusters' names
+    if (!(names(prop_mixture) %>% setequal(names(hyperpost$mean)))) {
+      stop(
+        "The 'prop_mixture' and 'hyperpost' arguments provide different names ",
+        "for clusters."
+      )
+    }
+    ## Check that cluster's probabilities sum to 1
+    if (round(sum(prop_mixture), 2) != 1) {
+      stop(
+        "The initial probabilities in 'prop_mixture' should sum to 1 ",
+        "for all clusters."
+      )
+    }
+  }
+
+  ## Check whether 'hyperpost' exists
+  if (hyperpost %>% is.null()) {
+    stop(
+      "The 'hyperpost' argument is necessary. Please read ?train_gp_clust."
+    )
+  }
+  ## Check whether 'hyperpost' is evaluated on the correct Input
+  if (!all(input_obs %in% hyperpost$mean[[1]]$Input)) {
+    stop(
+      "The 'hyperpost' argument is not evaluated on the same Input location as",
+      "the data. Please see ?hyperposterior_clust to recompute the correct",
+      "evaluation."
+    )
+  }
+
+  ## Check whether column 'ID' exists in 'data' and 'hp' or create if necessary
+  if (("ID" %in% names(data)) & ("ID" %in% names(hp))) {
+    if (dplyr::n_distinct(data$ID) > 1) {
+      stop("The 'data' argument cannot have multiple 'ID' values.")
+    }
+    if (dplyr::n_distinct(hp$ID) > 1) {
+      stop("The 'hp' argument cannot have multiple 'ID' values.")
+    }
+    if (unique(data$ID) != unique(hp$ID)) {
+      stop("The 'data' and 'hp' arguments have different 'ID' values.")
+    }
+  } else if ("ID" %in% names(data)) {
+    if (dplyr::n_distinct(data$ID) > 1) {
+      stop("The 'data' argument cannot have multiple 'ID' values.")
+    }
+    hp <- hp %>% dplyr::mutate("ID" = unique(data$ID), .before = 1)
+  } else if ("ID" %in% names(hp)) {
+    if (dplyr::n_distinct(hp$ID) > 1) {
+      stop("The 'data' argument cannot have multiple 'ID' values.")
+    }
+    data <- data %>% dplyr::mutate("ID" = unique(hp$ID), .before = 1)
+  } else {
+    data <- data %>% dplyr::mutate("ID" = "ID_pred", .before = 1)
+    hp <- hp %>% dplyr::mutate("ID" = "ID_pred", .before = 1)
+  }
+
+  ## Certify that IDs are of type 'character'
+  data$ID <- data$ID %>% as.character()
+  hp$ID <- hp$ID %>% as.character()
+  ## Collect hyper-parameters' names
+  list_hp <- hp %>%
+    dplyr::select(-.data$ID) %>%
+    names()
+  ID_hp <- hp$ID %>% unique()
+
+  ## Initialise the monitoring information
+  cv <- FALSE
+  logL_monitoring <- -Inf
+
+  ## Initialisation
+  mixture <- prop_mixture
+
+  for (i in 1:n_iter_max)
+  {
+    ## Track the running time for each iteration of the EM algorithm
+    t_i_1 <- Sys.time()
+
+    ## Format the hyper-parameters for optimisation with opm()
+    par <- hp %>% dplyr::select(-.data$ID)
+    ## We start with a M-step to take advantage of the initial 'prop_mixture'
+    ## M step
+    new_hp <- optimr::opm(
+      par = par,
+      fn = sum_logL_GP_clust,
+      gr = gr_sum_logL_GP_clust,
+      db = data,
+      mixture = mixture,
+      mean = hyperpost$mean,
+      kern = kern,
+      post_cov = hyperpost$cov,
+      pen_diag = pen_diag,
+      method = "L-BFGS-B",
+      control = list(kkt = FALSE)
+    ) %>%
+      dplyr::select(list_hp) %>%
+      tibble::as_tibble() %>%
+      dplyr::mutate("ID" = ID_hp, .before = 1)
+
+    ## In case something went wrong during the optimization
+    if (any(is.na(new_hp))) {
+      warning(paste0("The M-step encountered an error at iteration : ", i))
+      warning(
+        "Training has stopped and hyper-parameters values from the ",
+        "last valid iteration are returned."
+      )
+      break
+    }
+
+    ## E step
+    new_mixture <- update_mixture(
+      data,
+      hyperpost$mean,
+      hyperpost$cov,
+      new_hp,
+      kern,
+      prop_mixture,
+      pen_diag
+    )
+
+    ## Monitoring the complete log-likelihood
+    new_logL_monitoring <- sum_logL_GP_clust(
+      hp = new_hp,
+      db = data,
+      mixture = new_mixture,
+      mean = hyperpost$mean,
+      kern = kern,
+      post_cov = hyperpost$cov,
+      prop_mixture = prop_mixture,
+      pen_diag = pen_diag
+    )
+
+    diff_logL <- new_logL_monitoring - logL_monitoring
+    if (diff_logL %>% is.nan()) {
+      diff_logL <- -Inf
+    }
+
+    if (diff_logL < -0.1) {
+      warning("The likelihood descreased. Possible numerical issues.")
+    }
+
+    ## Update HPs values and the log-likelihood monitoring
+    hp <- new_hp
+    mixture <- new_mixture
+    logL_monitoring <- new_logL_monitoring
+
+    ## Compute the convergence ratio
+    eps <- diff_logL / abs(logL_monitoring)
+    if (eps %>% is.nan()) {
+      eps <- 1
+    }
+
+    ## Provide monitoring information
+    t_i_2 <- Sys.time()
+    paste0(
+      "EM algorithm, step ", i, ": ",
+      difftime(t_i_2, t_i_1, units = "secs") %>% round(2),
+      " seconds \n \n"
+    ) %>%
+      cat()
+
+    paste0(
+      "Value of the likelihood: ",
+      logL_monitoring %>% round(5),
+      " --- Convergence ratio = ",
+      eps %>% round(5),
+      "\n \n"
+    ) %>%
+      cat()
+
+    ## Check the convergence condition
+    if (abs(eps) < cv_threshold) {
+      cat(
+        "The EM algorithm successfully converged, training is completed.",
+        "\n \n"
+      )
+      cv <- TRUE
+      break
+    }
+    ## Check for a prematurate ending of the EM algorithm
+    if (!cv & (i == n_iter_max)) {
+      warning(
+        "The EM algorithm has reached the maximum number of ",
+        "iterations before convergence, the training might be ",
+        "sub-optimal. \n \n"
+      )
+    }
+  }
+
+  list("hp" = hp, "mixture" = mixture) %>%
+    return()
+}
+
+#' Select the optimal number of clusters
+#'
+#' In MagmaClust, as for any clustering method, the number K of clusters has to
+#' be provided as an hypothesis of the model. This function implements a model
+#' selection procedure, by maximising a variational BIC criterion, computed
+#' for different values of K. A heuristic for a fast approximation of the
+#' procedure is proposed as well, although the corresponding models would not
+#' be properly trained.
+#'
+#' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
+#'    , \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{ID} column contains the unique names/codes used to identify each
+#'    individual/task (or batch of data).
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param fast_approx A boolean, indicating whether a fast approximation should
+#'    be used for selecting the number of clusters. If TRUE, each Magma or
+#'    MagmaClust model will perform only one E-step of the training, using
+#'    the same fixed values for the hyper-parameters (\code{ini_hp_k} and
+#'    \code{ini_hp_i}, or random values if not provided) in all models. The
+#'    resulting models should not be considered as trained, but this approach
+#'    provides an convenient heuristic to avoid a cumbersome model selection
+#'    procedure.
+#' @param grid_nb_cluster A vector of integer, corresponding to grid of values
+#'    that will be tested for the number of clusters.
+#' @param ini_hp_k A tibble or data frame of hyper-parameters associated with
+#'    \code{kern_k}.
+#' @param ini_hp_i A tibble or data frame of hyper-parameters associated with
+#'    \code{kern_i}.
+#' @param kern_k A kernel function associated to the mean processes.
+#' @param kern_i A kernel function associated to the individuals/tasks.
+#' @param plot A boolean indicating whether the plot of V-BIC values for all
+#'    numbers of clusters should displayed.
+#' @param ... Any additional argument that could be passed to
+#'    \code{\link{train_magmaclust}}.
+#'
+#' @return A list, containing the results of model selection procedure for
+#'    selecting the optimal number of clusters thanks to a V-BIC criterion
+#'    maximisation. The elements of the list are:
+#'    - best_k: An integer, indicating the resulting optimal number of custers
+#'    - seq_vbic: A vector, corresponding to the sequence of the V-BIC values
+#'    associated with the models trained for each provided cluster's number in
+#'    \code{grid_nb_cluster}.
+#'    - trained_models: A list, named by associated number of clusters, of
+#'    Magma or MagmaClust models that have been trained (or approximated if
+#'    \code{fast_approx} = T) during the model selection procedure.
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+select_nb_cluster <- function(data,
+                              fast_approx = TRUE,
+                              grid_nb_cluster = 1:10,
+                              ini_hp_k = NULL,
+                              ini_hp_i = NULL,
+                              kern_k = "SE",
+                              kern_i = "SE",
+                              plot = TRUE,
+                              ...) {
+  ## Compute the number of different individuals/tasks
+  nb_i <- data$ID %>% dplyr::n_distinct()
+
+  ## Draw common initialisation for hyper-parameters for all values of K
+  if (ini_hp_k %>% is.null()) {
+    ini_hp_k <- hp(kern = kern_k)
+  }
+
+  if (ini_hp_i %>% is.null()) {
+    hp_i <- hp(
+      kern = kern_i, list_ID = unique(data$ID),
+      common_hp = T, noise = T
+    )
+  } else {
+    hp_i <- ini_hp_i
+  }
+
+
+  ## Initialise tracking of V-BIC values
+  seq_vbic <- c()
+
+  floop <- function(k) {
+    ## Attribute the initial common hyper-parameters to all clusters
+    hp_k <- tibble::tibble("ID" = paste0("K", 1:k)) %>%
+      dplyr::mutate(ini_hp_k)
+
+    ## Train Magma if k = 1 and MagmaClust otherwise
+    if (k == 1) {
+      mod <- train_magma(
+        data = data,
+        ini_hp_0 = hp_k,
+        ini_hp_i = hp_i,
+        fast_approx = fast_approx,
+        ...
+      )
+      ## Extract the value of the log-likelihood at convergence
+      elbo <- mod$seq_loglikelihood %>% dplyr::last()
+    } else {
+      mod <- train_magmaclust(
+        data = data,
+        nb_cluster = k,
+        ini_hp_k = hp_k,
+        ini_hp_i = hp_i,
+        fast_approx = fast_approx,
+        ...
+      )
+      ## Extract the value of the ELBO at convergence
+      elbo <- mod$seq_elbo %>% dplyr::last()
+    }
+
+    ## Define the adequate BIC penalty according to the hypotheses on HPs
+    nb_hp_k <- hp_k %>%
+      dplyr::select(-.data$ID) %>%
+      unlist() %>%
+      dplyr::n_distinct()
+
+    nb_hp_i <- hp_i %>%
+      dplyr::select(-.data$ID) %>%
+      unlist() %>%
+      dplyr::n_distinct()
+
+    pen_bic <- 0.5 * (nb_hp_k + nb_hp_i + k - 1) * log(nb_i)
+
+    mod[["V-BIC"]] <- elbo - pen_bic
+    seq_vbic <<- c(seq_vbic, elbo - pen_bic)
+
+    return(mod)
+  }
+  mod_k <- sapply(grid_nb_cluster, floop, simplify = FALSE, USE.NAMES = TRUE)
+
+
+  tib_vbic <- tibble::tibble("Nb_clust" = grid_nb_cluster, "VBIC" = seq_vbic)
+
+  best_k <- tib_vbic %>%
+    dplyr::filter(.data$VBIC == max(.data$VBIC)) %>%
+    dplyr::pull(.data$Nb_clust)
+
+  if (plot) {
+    (ggplot2::ggplot(
+      tib_vbic,
+      ggplot2::aes(x = .data$Nb_clust, y = .data$VBIC)
+    ) +
+      ggplot2::geom_point() +
+      ggplot2::geom_line() +
+      ggplot2::theme_classic() +
+      ggplot2::xlab("Number of clusters") +
+      ggplot2::ylab("Value of the variational BIC")) %>%
+      print()
+  }
+
+  list("best_k" = best_k, "seq_vbic" = tib_vbic, "trained_models" = mod_k) %>%
+    return()
 }

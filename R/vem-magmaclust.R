@@ -26,102 +26,112 @@
 #'
 #' @examples
 #' \dontrun{
-#' k = seq_len(3)
+#' k <- seq_len(3)
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
 #'
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
-#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
-#'    nstart = 50)
+#' old_mixture <- MagmaClustR:::ini_mixture(
+#'   db = db, k = length(k),
+#'   nstart = 50
+#' )
 #' prop_mixture_1 <- old_mixture %>% dplyr::select(-.data$ID)
-#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
-#'   unlist() %>% mean() )
+#' hp_k[["prop_mixture"]] <- sapply(prop_mixture_1, function(x) {
+#'   x %>%
+#'     unlist() %>%
+#'     mean()
+#' })
 #'
-#' MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture ,0.001)
-#'
+#' MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture, 0.001)
 #' }
 #'
-ve_step = function(db,
-                   m_k,
-                   kern_k,
-                   kern_i,
-                   hp_k,
-                   hp_i,
-                   old_mixture,
-                   pen_diag) {
-  prop_mixture_k = hp_k %>%
+ve_step <- function(db,
+                    m_k,
+                    kern_k,
+                    kern_i,
+                    hp_k,
+                    hp_i,
+                    old_mixture,
+                    pen_diag) {
+  prop_mixture_k <- hp_k %>%
     dplyr::pull(.data$prop_mixture, name = .data$ID)
-  all_input = unique(db$Input) %>% sort()
-  t_clust = tibble::tibble(
-    'ID' = rep(names(m_k), each = length(all_input)),
-    'Input' = rep(all_input, length(m_k)))
+  all_input <- unique(db$Input) %>% sort()
+  t_clust <- tibble::tibble(
+    "ID" = rep(names(m_k), each = length(all_input)),
+    "Input" = rep(all_input, length(m_k))
+  )
 
   ## Compute all the inverse covariance matrices
-  list_inv_k = list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag)
-  list_inv_i = list_kern_to_inv(db, kern_i, hp_i, pen_diag)
+  list_inv_k <- list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag)
+  list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)
 
   ## Create a named list of Output values for all individuals
   list_output_i <- base::split(db$Output, list(db$ID))
 
   ## Update each mu_k parameters for each cluster ##
-  floop = function(k)
-  {
-    post_inv = list_inv_k[[k]]
-    tau_k = old_mixture %>% dplyr::select(.data$ID, k)
-    for(i in list_inv_i %>% names())
+  floop <- function(k) {
+    post_inv <- list_inv_k[[k]]
+    tau_k <- old_mixture %>% dplyr::select(.data$ID, k)
+    for (i in list_inv_i %>% names())
     {
       ## Extract the corresponding mixture probability
-      tau_i_k = tau_k %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(k)
+      tau_i_k <- tau_k %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::pull(k)
 
-      inv_i = list_inv_i[[i]]
+      inv_i <- list_inv_i[[i]]
       ## Collect input's common indices between mean and individual processes
-      co_input = intersect(row.names(inv_i), row.names(post_inv))
+      co_input <- intersect(row.names(inv_i), row.names(post_inv))
       ## Sum the common inverse covariance's terms
-      post_inv[co_input, co_input] = post_inv[co_input, co_input]+
+      post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
         tau_i_k * inv_i[co_input, co_input]
     }
 
     ## Fast or slow matrix inversion if nearly singular
     tryCatch(post_inv %>% chol() %>% chol2inv(),
-             error = function(e){MASS::ginv(post_inv)}) %>%
+      error = function(e) {
+        MASS::ginv(post_inv)
+      }
+    ) %>%
       `rownames<-`(all_input) %>%
       `colnames<-`(all_input) %>%
       return()
   }
-  cov_k = sapply(names(m_k), floop, simplify = FALSE, USE.NAMES = TRUE)
+  cov_k <- sapply(names(m_k), floop, simplify = FALSE, USE.NAMES = TRUE)
 
   ##############################################
 
   ## Update the posterior mean for each cluster ##
 
-  floop2 = function(k)
-  {
-    prior_mean = m_k[[k]]
-    prior_inv = list_inv_k[[k]]
-    tau_k = old_mixture %>% dplyr::select(.data$ID, k)
+  floop2 <- function(k) {
+    prior_mean <- m_k[[k]]
+    prior_inv <- list_inv_k[[k]]
+    tau_k <- old_mixture %>% dplyr::select(.data$ID, k)
 
-    weighted_mean = prior_inv %*% prior_mean
+    weighted_mean <- prior_inv %*% prior_mean
 
-    for(i in list_inv_i %>% names())
+    for (i in list_inv_i %>% names())
     {
       ## Extract the corresponding mixture probability
-      tau_i_k = tau_k %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(k)
+      tau_i_k <- tau_k %>%
+        dplyr::filter(.data$ID == i) %>%
+        dplyr::pull(k)
       ## Compute the weighted mean for the i-th individual
-      weighted_i = tau_i_k * list_inv_i[[i]] %*% list_output_i[[i]]
+      weighted_i <- tau_i_k * list_inv_i[[i]] %*% list_output_i[[i]]
       ## Collect input's common indices between mean and individual processes
-      co_input = intersect(row.names(weighted_i), row.names(weighted_mean))
+      co_input <- intersect(row.names(weighted_i), row.names(weighted_mean))
       ## Sum the common weighted mean's terms
-      weighted_mean[co_input,] = weighted_mean[co_input,] +
-        weighted_i[co_input,]
+      weighted_mean[co_input, ] <- weighted_mean[co_input, ] +
+        weighted_i[co_input, ]
     }
 
     ## Compute the updated mean parameter
-    new_mean = cov_k[[k]] %*% weighted_mean %>% as.vector()
-    tibble::tibble('Input' = all_input, 'Output' = new_mean) %>% return()
+    new_mean <- cov_k[[k]] %*% weighted_mean %>% as.vector()
+    tibble::tibble("Input" = all_input, "Output" = new_mean) %>% return()
   }
-  mean_k = sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
+  mean_k <- sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
   ## Update mixture
   mixture <- update_mixture(
@@ -131,11 +141,14 @@ ve_step = function(db,
     hp_i,
     kern_i,
     prop_mixture_k,
-    pen_diag)
+    pen_diag
+  )
 
-  list('mean' = mean_k,
-       'cov' = cov_k,
-       'mixture' = mixture) %>%
+  list(
+    "mean" = mean_k,
+    "cov" = cov_k,
+    "mixture" = mixture
+  ) %>%
     return()
 }
 
@@ -179,56 +192,69 @@ ve_step = function(db,
 #'
 #' ## Common inputs across individuals & cluster and differents HPs
 #' ## across individuals & Cluster
-#' k = seq_len(2)
+#' k <- seq_len(2)
 #' m_k <- c("K1" = 0, "K2" = 0)
 #'
 #' db <- simu_db(N = 10, common_input = FALSE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 #'
-#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
-#'   nstart = 50)
+#' old_mixture <- MagmaClustR:::ini_mixture(
+#'   db = db, k = length(k),
+#'   nstart = 50
+#' )
 #' prop_mixture_1 <- old_mixture %>% dplyr::select(-.data$ID)
-#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
-#'   unlist() %>% mean() )
+#' hp_k[["prop_mixture"]] <- sapply(prop_mixture_1, function(x) {
+#'   x %>%
+#'     unlist() %>%
+#'     mean()
+#' })
 #'
-#' post = MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
-#'   0.001)
+#' post <- MagmaClustR:::ve_step(
+#'   db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
+#'   0.001
+#' )
 #'
 #' MagmaClustR:::vm_step(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 2)
 #'
 #'
 #' ## Different inputs across individuals & cluster and common HPs
-#' k = seq_len(4)
+#' k <- seq_len(4)
 #' m_k <- c("K1" = 0, "K2" = 0, "K3" = 0, "K4" = 0)
 #' db <- simu_db(N = 10, common_input = FALSE)
 #' hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k), common_hp = TRUE)
 #' hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID), common_hp = TRUE)
 #'
-#' old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
-#'    nstart = 50)
+#' old_mixture <- MagmaClustR:::ini_mixture(
+#'   db = db, k = length(k),
+#'   nstart = 50
+#' )
 #' prop_mixture_1 <- old_mixture %>% dplyr::select(-.data$ID)
-#' hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x %>%
-#'   unlist() %>% mean() )
+#' hp_k[["prop_mixture"]] <- sapply(prop_mixture_1, function(x) {
+#'   x %>%
+#'     unlist() %>%
+#'     mean()
+#' })
 #'
-#' post = MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
-#'   0.001)
+#' post <- MagmaClustR:::ve_step(
+#'   db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
+#'   0.001
+#' )
 #'
 #' MagmaClustR:::vm_step(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
-#'}
-vm_step = function(db,
-                   old_hp_k,
-                   old_hp_i,
-                   list_mu_param,
-                   kern_k,
-                   kern_i,
-                   m_k,
-                   common_hp_k,
-                   common_hp_i,
-                   pen_diag)
-{
-  list_ID_k = names(m_k)
-  list_ID_i = unique(db$ID)
+#' }
+vm_step <- function(db,
+                    old_hp_k,
+                    old_hp_i,
+                    list_mu_param,
+                    kern_k,
+                    kern_i,
+                    m_k,
+                    common_hp_k,
+                    common_hp_i,
+                    pen_diag) {
+  list_ID_k <- names(m_k)
+  list_ID_i <- unique(db$ID)
 
   list_hp_i <- old_hp_i %>%
     dplyr::select(-.data$ID) %>%
@@ -256,10 +282,9 @@ vm_step = function(db,
   }
 
   ## Check whether hyper-parameters are common to all individuals
-  if(common_hp_i)
-  {
+  if (common_hp_i) {
     ## Extract the hyper-parameters associated with the i-th individual
-    par_i <-  old_hp_i %>%
+    par_i <- old_hp_i %>%
       dplyr::select(-.data$ID) %>%
       dplyr::slice(1)
 
@@ -274,17 +299,15 @@ vm_step = function(db,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
       control = list(kkt = F)
-      ) %>%
-        dplyr::select(list_hp_i) %>%
-        tibble::as_tibble() %>%
-        tidyr::uncount(weights = length(list_ID_i)) %>%
-        dplyr::mutate('ID' = list_ID_i, .before = 1)
-
-  }
-  else {
-    loop2 = function(i) {
+    ) %>%
+      dplyr::select(list_hp_i) %>%
+      tibble::as_tibble() %>%
+      tidyr::uncount(weights = length(list_ID_i)) %>%
+      dplyr::mutate("ID" = list_ID_i, .before = 1)
+  } else {
+    loop2 <- function(i) {
       ## Extract the hyper-parameters associated with the i-th individual
-      par_i <-  old_hp_i %>%
+      par_i <- old_hp_i %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::select(-.data$ID)
       ## Extract the data associated with the i-th individual
@@ -306,7 +329,7 @@ vm_step = function(db,
         tibble::as_tibble() %>%
         return()
     }
-    new_hp_i = sapply(list_ID_i, loop2, simplify=FALSE, USE.NAMES=TRUE) %>%
+    new_hp_i <- sapply(list_ID_i, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest(cols = .data$value)
   }
@@ -314,11 +337,10 @@ vm_step = function(db,
   ## Compute the prop mixture of each cluster
   prop_mixture <- list_mu_param$mixture %>%
     dplyr::select(-.data$ID) %>%
-    colMeans
+    colMeans()
 
   ## Check whether hyper-parameters are common to all cluster
-  if(common_hp_k)
-  {
+  if (common_hp_k) {
     ## Extract the hyper-parameters associated with the k-th cluster
     par_k <- old_hp_k %>%
       dplyr::select(-.data$ID) %>%
@@ -337,16 +359,14 @@ vm_step = function(db,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
       control = list(kkt = F)
-      ) %>%
-        dplyr::select(list_hp_k) %>%
-        tibble::as_tibble() %>%
-        tidyr::uncount(weights = length(list_ID_k)) %>%
-        dplyr::mutate('ID' = list_ID_k, .before = 1) %>%
-        dplyr::mutate("prop_mixture" = prop_mixture)
-  }
-  else
-  {
-    loop = function(k) {
+    ) %>%
+      dplyr::select(list_hp_k) %>%
+      tibble::as_tibble() %>%
+      tidyr::uncount(weights = length(list_ID_k)) %>%
+      dplyr::mutate("ID" = list_ID_k, .before = 1) %>%
+      dplyr::mutate("prop_mixture" = prop_mixture)
+  } else {
+    loop <- function(k) {
       ## Extract the hyper-parameters associated with the k-th cluster
       par_k <- old_hp_k %>%
         dplyr::filter(.data$ID == k) %>%
@@ -376,7 +396,7 @@ vm_step = function(db,
         tibble::as_tibble() %>%
         return()
     }
-    new_hp_k = sapply(list_ID_k, loop, simplify=FALSE, USE.NAMES=TRUE) %>%
+    new_hp_k <- sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest_auto(.data$value) %>%
       dplyr::mutate("prop_mixture" = prop_mixture)
@@ -412,73 +432,71 @@ vm_step = function(db,
 #'
 #' @examples
 #' TRUE
-update_mixture <- function(
-  db,
-  mean_k,
-  cov_k,
-  hp,
-  kern,
-  prop_mixture,
-  pen_diag) {
+update_mixture <- function(db,
+                           mean_k,
+                           cov_k,
+                           hp,
+                           kern,
+                           prop_mixture,
+                           pen_diag) {
+  c_i <- 0
+  c_k <- 0
+  ID_i <- unique(db$ID)
+  ID_k <- names(mean_k)
+  mat_elbo <- matrix(NA, nrow = length(ID_k), ncol = length(ID_i))
+  vec_prop <- c()
 
-  c_i = 0
-  c_k = 0
-  ID_i = unique(db$ID)
-  ID_k = names(mean_k)
-  mat_elbo = matrix(NA, nrow = length(ID_k), ncol = length(ID_i))
-  vec_prop = c()
-
-  for(i in ID_i)
+  for (i in ID_i)
   {
-    c_i = c_i + 1
+    c_i <- c_i + 1
     ## Extract the i-th specific Input
-    input_i = db %>%
+    input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(.data$Input)
     ## Extract the i-th specific hyper-parameters
-    hp_i = hp %>%
+    hp_i <- hp %>%
       dplyr::filter(.data$ID == i)
     ## Extract the data associated with the i-th individual
-    db_i = db %>%
+    db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::select(-.data$ID)
 
-    for(k in ID_k)
+    for (k in ID_k)
     {
-      c_k = c_k + 1
+      c_k <- c_k + 1
 
       ## Create a vector of proportion with the clusters in adequate order
-      vec_prop[c_k] = prop_mixture[[k]]
+      vec_prop[c_k] <- prop_mixture[[k]]
       ## Extract the mean values associated with the i-th specific inputs
-      mean_k_i = mean_k[[k]] %>%
+      mean_k_i <- mean_k[[k]] %>%
         dplyr::filter(.data$Input %in% input_i) %>%
         dplyr::pull(.data$Output)
       ## Extract the covariance values associated with the i-th specific inputs
-      cov_k_i = cov_k[[k]][as.character(input_i), as.character(input_i)]
+      cov_k_i <- cov_k[[k]][as.character(input_i), as.character(input_i)]
 
-      mat_elbo[c_k,c_i] = - logL_GP_mod(
+      mat_elbo[c_k, c_i] <- -logL_GP_mod(
         hp_i,
         db_i,
         mean_k_i,
         kern,
         cov_k_i,
-        pen_diag)
+        pen_diag
+      )
 
-      #if(is.na(mat_elbo[c_k,c_i])){print(i)} Detect the failing ID
+      # if(is.na(mat_elbo[c_k,c_i])){print(i)} Detect the failing ID
     }
-    c_k = 0
+    c_k <- 0
   }
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x))/sum exp(x - max(x))
   ## to remain numerically stable
-  mat_L = mat_elbo %>% apply(2,function(x) exp(x - max(x)))
+  mat_L <- mat_elbo %>% apply(2, function(x) exp(x - max(x)))
 
   (vec_prop * mat_L) %>%
-    apply(2,function(x) x / sum(x)) %>%
+    apply(2, function(x) x / sum(x)) %>%
     `rownames<-`(ID_k) %>%
     t() %>%
     round(5) %>%
     tibble::as_tibble() %>%
-    dplyr::mutate('ID' = ID_i, .before = 1) %>%
+    dplyr::mutate("ID" = ID_i, .before = 1) %>%
     return()
 }
-

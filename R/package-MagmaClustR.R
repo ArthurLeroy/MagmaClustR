@@ -22,7 +22,7 @@
 #' \href{../doc/Details.html}{Details}. Or simply run the following code: \cr
 #' \code{vignette("Details", package = "MagmaClustR")} \cr
 #'
-#'@section Author(s):
+#' @section Author(s):
 #' Arthur Leroy, Pierre Pathe and Pierre Latouche \cr
 #' Maintainer: Arthur Leroy - \email{arthur.leroy.pro@@gmail.com}
 #'

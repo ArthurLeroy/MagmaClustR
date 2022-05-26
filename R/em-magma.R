@@ -19,7 +19,7 @@
 #' parameter, and \code{cov}, the hyper-posterior's covariance matrix.
 #'
 #' @examples
-#'TRUE
+#' TRUE
 #'
 e_step <- function(db,
                    m_0,
@@ -28,7 +28,6 @@ e_step <- function(db,
                    hp_0,
                    hp_i,
                    pen_diag) {
-
   all_input <- unique(db$Input) %>% sort()
 
   ## Compute all the inverse covariance matrices
@@ -72,11 +71,11 @@ e_step <- function(db,
   ##############################################
 
   ## Format the mean parameter of the hyper-posterior distribution
-  tib_mean = tibble::tibble(
+  tib_mean <- tibble::tibble(
     "Input" = all_input,
     "Output" = post_mean,
     "Var" = post_cov %>% diag() %>% as.vector(),
-    )
+  )
   list(
     "mean" = tib_mean,
     "cov" = post_cov
@@ -195,7 +194,7 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
   if (common_hp) {
     ## Optimise hyper-parameters of the individual processes
     new_hp_i <- optimr::opm(
-      par = old_hp_i%>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
+      par = old_hp_i %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
       fn = logL_GP_mod_common_hp,
       gr = gr_GP_mod_common_hp,
       db = db,
@@ -210,8 +209,7 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
       tibble::as_tibble() %>%
       tidyr::uncount(weights = length(list_ID)) %>%
       dplyr::mutate("ID" = list_ID, .before = 1)
-  }
-  else {
+  } else {
     floop <- function(i) {
       ## Extract the i-th specific inputs
       input_i <- db %>%

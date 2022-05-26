@@ -31,7 +31,7 @@ simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
       mean + covariate,
       kern_to_cov(
         input,
-        'SE',
+        "SE",
         tibble::tibble(se_variance = v, se_lengthscale = l)
       ) +
         diag(sigma, length(input), length(input))
@@ -130,7 +130,6 @@ simu_db <- function(M = 10,
                     m0_slope = c(-5, 5),
                     m0_intercept = c(-10, 10),
                     int_covariate = c(-5, 5)) {
-
   if (common_input) {
     t_i <- sample(grid, N, replace = F) %>% sort()
   }
@@ -171,10 +170,10 @@ simu_db <- function(M = 10,
       covariate_i <- stats::runif(N, int_covariate[1], int_covariate[2]) %>%
         round(2)
 
-      if(K > 1){
-        ID = paste0('ID', i, '-Clust', k)
-      } else{
-        ID = as.character(i)
+      if (K > 1) {
+        ID <- paste0("ID", i, "-Clust", k)
+      } else {
+        ID <- as.character(i)
       }
 
       simu_indiv_se(
@@ -199,7 +198,7 @@ simu_db <- function(M = 10,
     }
 
     if (add_clust) {
-      db <- db %>% dplyr::mutate('Cluster' = k)
+      db <- db %>% dplyr::mutate("Cluster" = k)
     }
     return(db)
   }
@@ -228,7 +227,7 @@ ini_kmeans <- function(data, k, nstart = 50, summary = F) {
     data %>%
       dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
       dplyr::pull(.data$Input)
-    )) {
+  )) {
     floop <- function(i) {
       obs_i <- data %>%
         dplyr::filter(.data$ID == i) %>%
@@ -244,8 +243,7 @@ ini_kmeans <- function(data, k, nstart = 50, summary = F) {
       lapply(floop) %>%
       dplyr::bind_rows() %>%
       dplyr::select(c(.data$ID, .data$Input, .data$Output))
-  }
-  else {
+  } else {
     db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
   }
 
@@ -262,7 +260,7 @@ ini_kmeans <- function(data, k, nstart = 50, summary = F) {
   broom::augment(
     res,
     db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)
-    ) %>%
+  ) %>%
     dplyr::select(c(.data$ID, .data$.cluster)) %>%
     dplyr::rename(Cluster_ini = .data$.cluster) %>%
     dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
@@ -270,7 +268,11 @@ ini_kmeans <- function(data, k, nstart = 50, summary = F) {
 }
 
 
-#' ini_hp_mixture
+#' Mixture initialisation with kmeans
+#'
+#' Provide an initial kmeans allocation of the individuals/tasks in a dataset
+#' into a definite number of clusters, and return the associated mixture
+#' probabilities.
 #'
 #' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    , \code{Output}.
@@ -285,12 +287,12 @@ ini_kmeans <- function(data, k, nstart = 50, summary = F) {
 #' @examples
 #' TRUE
 ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
-  db_ini = ini_kmeans(data, k, nstart) %>%
+  db_ini <- ini_kmeans(data, k, nstart) %>%
     dplyr::mutate(value = 1) %>%
     tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0)
 
-  if(!is.null(name_clust)){
-    names(db_ini) = c('ID', name_clust)
+  if (!is.null(name_clust)) {
+    names(db_ini) <- c("ID", name_clust)
   }
 
   return(db_ini)

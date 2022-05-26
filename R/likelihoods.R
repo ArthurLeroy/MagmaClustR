@@ -1,16 +1,16 @@
 #' Compute the Multivariate Gaussian likelihood
 #'
-#' Modification of the function \code{dmvnorm()} from the package \code{mvtnorm},
-#' providing an implementation of the Multivariate Gaussian likelihood. This
-#' version uses inverse of the covariance function as argument instead of the
-#' traditional covariance.
+#' Modification of the function \code{dmvnorm()} from the package
+#' \code{mvtnorm}, providing an implementation of the Multivariate Gaussian
+#' likelihood. This version uses inverse of the covariance function as argument
+#' instead of the traditional covariance.
 #'
 #' @param x A vector, containing values the likelihood is evaluated on.
 #' @param mu A vector or matrix, specifying the mean parameter.
 #' @param inv_Sigma A matrix, specifying the inverse of covariance parameter.
 #' @param log A logical value, indicating whether we return the log-likelihood.
 #'
-#' @return A number, corresponding to the Multivariate Gaussian (log)-likelihood.
+#' @return A number, corresponding to the Multivariate Gaussian log-likelihood.
 #'
 #' @examples
 #' MagmaClustR:::dmnorm(c(1, 2), c(0, 0), cbind(c(1, 0), c(0, 1)), TRUE)
@@ -24,8 +24,7 @@ dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
     if (is.matrix(x)) {
       mu <- matrix(rep(mu, nrow(x)), ncol = p, byrow = TRUE)
     }
-  }
-  else {
+  } else {
     p <- ncol(mu)
   }
   if (!all(dim(inv_Sigma) == c(p, p)) || nrow(x) != nrow(mu)) {
@@ -67,15 +66,15 @@ dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
 #' TRUE
 logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   ## Extract the input variables (reference Input + Covariates)
-  input = db %>% dplyr::select(- .data$Output)
+  input <- db %>% dplyr::select(-.data$Output)
 
   ## Sum the two covariance matrices and inverse the result
   cov <- kern_to_cov(input, kern, hp) + post_cov
   diag <- diag(x = pen_diag, ncol = ncol(cov), nrow = nrow(cov))
   inv <- tryCatch((cov + diag) %>% chol() %>% chol2inv(),
-                  error = function(e) {
-                    MASS::ginv(cov + diag)
-                  }
+    error = function(e) {
+      MASS::ginv(cov + diag)
+    }
   )
   (-dmnorm(db$Output, mean, inv, log = T)) %>%
     return()
@@ -104,9 +103,11 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' @examples
 #' TRUE
 logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
-  #browser()
+  # browser()
 
-  if(length(mean) == 1){mean = rep(mean, nrow(db))}
+  if (length(mean) == 1) {
+    mean <- rep(mean, nrow(db))
+  }
   ## mean is equal for all timestamps
 
   ## Extract the input variables (reference Input + Covariates)
@@ -115,7 +116,7 @@ logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   inv <- kern_to_inv(inputs, kern, hp, pen_diag)
 
   ## Classical Gaussian log-likelihood
-  LL_norm <- - dmnorm(db$Output, mean, inv, log = T)
+  LL_norm <- -dmnorm(db$Output, mean, inv, log = T)
   ## Correction trace term (- 1/2 * Trace(inv %*% post_cov))
   cor_term <- 0.5 * sum(inv * post_cov)
 
@@ -146,22 +147,21 @@ logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' @examples
 #' TRUE
 logL_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
-
   funloop <- function(i) {
     ## Extract the i-th specific reference inputs
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(.data$Input)
     ## Extract the i-th specific Inputs and Output
-    db_i = db %>%
+    db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(- .data$ID)
+      dplyr::select(-.data$ID)
     ## Extract the mean values associated with the i-th specific inputs
-    mean_i = mean %>%
+    mean_i <- mean %>%
       dplyr::filter(.data$Input %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i = post_cov[as.character(input_i), as.character(input_i)]
+    post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
 
     ## Compute the modified logL for the individual processes
     logL_GP_mod(hp, db_i, mean_i, kern, post_cov_i, pen_diag) %>%
@@ -196,16 +196,15 @@ logL_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @examples
 #' TRUE
-logL_monitoring <- function(
-  hp_0,
-  hp_i,
-  db,
-  m_0,
-  kern_0,
-  kern_i,
-  post_mean,
-  post_cov,
-  pen_diag) {
+logL_monitoring <- function(hp_0,
+                            hp_i,
+                            db,
+                            m_0,
+                            kern_0,
+                            kern_i,
+                            post_mean,
+                            post_cov,
+                            pen_diag) {
   ## Compute the modified logL for the mean process
   ll_0 <- logL_GP_mod(hp_0, post_mean, m_0, kern_0, post_cov, pen_diag)
 
@@ -218,17 +217,17 @@ logL_monitoring <- function(
     ## Extract the i-th specific hyper-parameters
     hp_i_i <- hp_i %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(- .data$ID)
+      dplyr::select(-.data$ID)
     ## Extract the i-th specific Inputs and Output
-    db_i = db %>%
+    db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(- .data$ID)
+      dplyr::select(-.data$ID)
     ## Extract the mean values associated with the i-th specific inputs
-    post_mean_i = post_mean %>%
+    post_mean_i <- post_mean %>%
       dplyr::filter(.data$Input %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i = post_cov[as.character(input_i), as.character(input_i)]
+    post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
 
     ## Compute the modified logL for the individual processes
     logL_GP_mod(hp_i_i, db_i, post_mean_i, kern_i, post_cov_i, pen_diag) %>%
@@ -238,7 +237,11 @@ logL_monitoring <- function(
 
   ## Compute the log-determinant term using Cholesky decomposition
   ## log(det(A)) = 2*sum(log(diag(chol(A))))
-  det = post_cov %>% chol() %>% diag() %>% log() %>% sum()
+  det <- post_cov %>%
+    chol() %>%
+    diag() %>%
+    log() %>%
+    sum()
 
   ## Since the logL_GP_* functions return negative likelihoods for minimisation
   ## in the M-step, we need to x(-1) once more to retrieve the correct logL
@@ -278,28 +281,27 @@ logL_monitoring <- function(
 #'
 #' @examples
 #' TRUE
-sum_logL_GP_clust <- function(
-  hp,
-  db,
-  mixture,
-  mean,
-  kern,
-  post_cov,
-  prop_mixture = NULL,
-  pen_diag) {
+sum_logL_GP_clust <- function(hp,
+                              db,
+                              mixture,
+                              mean,
+                              kern,
+                              post_cov,
+                              prop_mixture = NULL,
+                              pen_diag) {
   ## Extract the observed (reference) Input
   input_obs <- db %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Input)
 
   ## Remove 'ID' if present in 'db'
-  if('ID' %in% names(db)){
-    db = db %>% dplyr::select(- .data$ID)
+  if ("ID" %in% names(db)) {
+    db <- db %>% dplyr::select(-.data$ID)
   }
 
   ## Loop over the K clusters
   floop <- function(k) {
-    tau_k = mixture[[k]]
+    tau_k <- mixture[[k]]
     mean_k <- mean[[k]] %>%
       dplyr::filter(.data$Input %in% input_obs) %>%
       dplyr::pull(.data$Output)
@@ -309,16 +311,16 @@ sum_logL_GP_clust <- function(
       as.character(input_obs)
     ]
 
-    sum_LL = (tau_k * logL_GP(hp, db, mean_k, kern, cov_k, pen_diag))
+    sum_LL <- (tau_k * logL_GP(hp, db, mean_k, kern, cov_k, pen_diag))
 
     ## If prop_mixture is provided, compute full likelihood for monitoring EM
-    if(!is.null(prop_mixture)){
-      pi_k = prop_mixture[[k]]
+    if (!is.null(prop_mixture)) {
+      pi_k <- prop_mixture[[k]]
       ## To avoid numerical issues if evaluating log(0/0)
-      log_frac = ifelse((tau_k == 0|(pi_k == 0)), 0, log(pi_k/tau_k))
+      log_frac <- ifelse((tau_k == 0 | (pi_k == 0)), 0, log(pi_k / tau_k))
 
       ## Return -sum_LL because its a quantity that is minimised otherwise
-      sum_LL = - sum_LL + tau_k * log_frac
+      sum_LL <- -sum_LL + tau_k * log_frac
     }
 
     return(sum_LL)

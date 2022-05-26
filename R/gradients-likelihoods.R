@@ -19,7 +19,7 @@
 #' db <- tibble::tibble(Input = 1:5, Output = 2:6)
 #' mean <- rep(0, 5)
 #' hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-#' post_cov = kern_to_cov(1:5, 'SE', hp)
+#' post_cov <- kern_to_cov(1:5, "SE", hp)
 #' MagmaClustR:::gr_GP(hp, db, mean, "SE", post_cov, 0.001)
 gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
@@ -72,7 +72,7 @@ gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' db <- tibble::tibble(Input = 1:5, Output = 2:6)
 #' mean <- rep(0, 5)
 #' hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-#' post_cov = kern_to_cov(1:5, 'SE', hp)
+#' post_cov <- kern_to_cov(1:5, "SE", hp)
 #' MagmaClustR:::gr_GP_mod(hp, db, mean, "SE", post_cov, 0.001)
 gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
@@ -121,10 +121,9 @@ gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' db <- simu_db(N = 10, common_input = TRUE)
 #' mean <- tibble::tibble(Input = unique(db$Input), Output = 0)
 #' hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-#' post_cov <- kern_to_cov(unique(db$Input), 'SE', hp)
+#' post_cov <- kern_to_cov(unique(db$Input), "SE", hp)
 #' MagmaClustR:::gr_GP_mod_common_hp(hp, db, mean, "SE", post_cov, 0.001)
 gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
-
   list_hp <- names(hp)
 
   ## Loop over individuals to compute the sum of log-Likelihoods
@@ -136,17 +135,17 @@ gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
     ## Extract the i-th specific inputs (reference + covariates)
     inputs_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(- c(.data$ID, .data$Output))
+      dplyr::select(-c(.data$ID, .data$Output))
     ## Extract the i-th specific Inputs and Output
-    output_i = db %>%
+    output_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(.data$Output)
     ## Extract the mean values associated with the i-th specific inputs
-    mean_i = mean %>%
+    mean_i <- mean %>%
       dplyr::filter(.data$Input %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i = post_cov[as.character(input_i), as.character(input_i)]
+    post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
 
     ## Compute the term common to all partial derivatives
     inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
@@ -155,7 +154,7 @@ gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
       inv %*% (post_cov_i %*% inv - diag(1, length(input_i)))
     ## Loop over the derivatives of hyper-parameters for computing the gradient
     floop <- function(deriv) {
-      (- 0.5 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
+      (-0.5 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
         diag() %>%
         sum() %>%
         return()
@@ -192,26 +191,25 @@ gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @examples
 #' TRUE
-gr_sum_logL_GP_clust <- function(
-  hp,
-  db,
-  mixture,
-  mean,
-  kern,
-  post_cov,
-  pen_diag) {
+gr_sum_logL_GP_clust <- function(hp,
+                                 db,
+                                 mixture,
+                                 mean,
+                                 kern,
+                                 post_cov,
+                                 pen_diag) {
   ## Extract the observed (reference) Input
   input_obs <- db %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Input)
   ## Remove 'ID' if present in 'db'
-  if('ID' %in% names(db)){
-    db = db %>% dplyr::select(- .data$ID)
+  if ("ID" %in% names(db)) {
+    db <- db %>% dplyr::select(-.data$ID)
   }
 
   ## Loop over the K clusters
   floop <- function(k) {
-    tau_k = mixture[[k]]
+    tau_k <- mixture[[k]]
     mean_k <- mean[[k]] %>%
       dplyr::filter(.data$Input %in% input_obs) %>%
       dplyr::pull(.data$Output)
@@ -220,11 +218,10 @@ gr_sum_logL_GP_clust <- function(
       as.character(input_obs),
       as.character(input_obs)
     ]
-  (tau_k * gr_GP(hp, db, mean_k, kern, cov_k, pen_diag)) %>%
-    return()
+    (tau_k * gr_GP(hp, db, mean_k, kern, cov_k, pen_diag)) %>%
+      return()
   }
   sapply(names(mean), floop) %>%
     rowSums() %>%
     return()
 }
-

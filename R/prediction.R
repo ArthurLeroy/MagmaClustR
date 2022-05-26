@@ -101,7 +101,7 @@ pred_gp <- function(data,
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
     inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
-    if(dplyr::n_distinct(data$ID) > 1){
+    if (dplyr::n_distinct(data$ID) > 1) {
       stop(
         "Problem in the 'ID' column: different values are not allowed. ",
         "The prediction can only be performed for one individual/task."
@@ -119,14 +119,18 @@ pred_gp <- function(data,
       ## Define a default grid for 'Input'
       input_pred <- rep(
         seq(min(data$Input), max(data$Input), length.out = 20),
-        each = 20)
+        each = 20
+      )
       inputs_pred <- tibble::tibble("Input" = input_pred)
       ## Add a grid for the covariate
-      name_cova = inputs_obs %>% dplyr::select(-.data$Input) %>% names()
-      cova = inputs_obs[name_cova]
+      name_cova <- inputs_obs %>%
+        dplyr::select(-.data$Input) %>%
+        names()
+      cova <- inputs_obs[name_cova]
       inputs_pred[name_cova] <- rep(
         seq(min(cova), max(cova), length.out = 20),
-        times = 20)
+        times = 20
+      )
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
@@ -154,8 +158,7 @@ pred_gp <- function(data,
       inputs_pred <- grid_inputs %>%
         dplyr::arrange(.data$Input) %>%
         dplyr::select(names(inputs_obs))
-    }
-    else {
+    } else {
       stop(
         "The 'grid_inputs' argument should provide a column 'Input', and ",
         "the same additional covariate columns as contained in 'data'."
@@ -176,27 +179,23 @@ pred_gp <- function(data,
       "The 'mean' argument has not been specified. The ",
       "mean function is thus set to be 0 everywhere.\n \n"
     )
-  }
-  else if (mean %>% is.vector()) {
+  } else if (mean %>% is.vector()) {
     if (length(mean) == 1) {
       mean_obs <- rep(mean, length(input_obs))
       mean_pred <- rep(mean, length(input_pred))
       cat(
         "The mean function has been set to be", mean, "everywhere.\n \n"
       )
-    }
-    else {
+    } else {
       stop(
         "Incorrect format for the 'mean' argument. Please read ",
         "?pred_gp() for details."
       )
     }
-  }
-  else if (mean %>% is.function()) {
+  } else if (mean %>% is.function()) {
     mean_obs <- mean(input_obs)
     mean_pred <- mean(input_pred)
-  }
-  else if (mean %>% is.data.frame()) {
+  } else if (mean %>% is.data.frame()) {
     if (all(c("Output", "Input") %in% names(mean))) {
       mean_obs <- mean %>%
         dplyr::filter(.data$Input %in% input_obs) %>%
@@ -209,7 +208,7 @@ pred_gp <- function(data,
         dplyr::pull(.data$Output)
 
       if ((length(mean_obs) != length(input_obs)) |
-          (length(mean_pred) != length(input_pred))) {
+        (length(mean_pred) != length(input_pred))) {
         stop(
           "Problem in the length of the mean parameter. The ",
           "'mean' argument should provide an Output value for each Input ",
@@ -222,8 +221,7 @@ pred_gp <- function(data,
         "should contain the mandatory column names: 'Output', 'Input'"
       )
     }
-  }
-  else {
+  } else {
     stop(
       "Incorrect format for the 'mean' argument. Please read ",
       "?pred_gp() for details."
@@ -240,14 +238,14 @@ pred_gp <- function(data,
         " hyper-parameters with the desired format, or use 'train_gp()' to ",
         "learn ML estimators for a better fit of data."
       )
-    } else if (kern %>% is.character) {
+    } else if (kern %>% is.character()) {
       hp <- quiet(
         train_gp(data,
-                 prior_mean = mean_obs,
-                 ini_hp = hp(kern, noise = T),
-                 kern = kern,
-                 hyperpost = NULL,
-                 pen_diag = pen_diag
+          prior_mean = mean_obs,
+          ini_hp = hp(kern, noise = T),
+          kern = kern,
+          hyperpost = NULL,
+          pen_diag = pen_diag
         )
       )
 
@@ -265,12 +263,12 @@ pred_gp <- function(data,
   }
 
   ## Remove the noise of the hp for evaluating some of the sub-matrix
-  if("noise" %in% names(hp)){
-    hp_rm_noi = hp %>% dplyr::select(- .data$noise)
-    noise = exp(hp[['noise']])
+  if ("noise" %in% names(hp)) {
+    hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
+    noise <- exp(hp[["noise"]])
   } else {
-    hp_rm_noi = hp
-    noise = 0
+    hp_rm_noi <- hp
+    noise <- 0
   }
 
   ## Compute the required sub-matrix for prediction
@@ -280,7 +278,7 @@ pred_gp <- function(data,
 
   ## Compute the posterior mean
   pred_mean <- (mean_pred +
-                  t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+    t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
     as.vector()
 
   ## Compute the posterior covariance matrix
@@ -398,8 +396,7 @@ hyperposterior <- function(data,
       "The argument 'grid_inputs' is NULL, the hyper-posterior distribution",
       "will only be evaluated on observed Input from 'data'.\n \n"
     )
-  }
-  else {
+  } else {
     ## Define the union among all reference Inputs and a specified grid
     all_input <- unique(data$Input) %>%
       union(grid_inputs) %>%
@@ -413,8 +410,7 @@ hyperposterior <- function(data,
       "The 'prior_mean' argument has not been specified. The hyper_prior mean",
       "function is thus set to be 0 everywhere.\n \n"
     )
-  }
-  else if (prior_mean %>% is.vector()) {
+  } else if (prior_mean %>% is.vector()) {
     if (length(prior_mean) == length(all_input)) {
       m_0 <- prior_mean
     } else if (length(prior_mean) == 1) {
@@ -423,19 +419,16 @@ hyperposterior <- function(data,
         "The provided 'prior_mean' argument is of length 1. Thus, the",
         "hyper-prior mean function has set to be constant everywhere.\n \n"
       )
-    }
-    else {
+    } else {
       stop(
         "The 'prior_mean' argument is of length ", length(prior_mean),
         ", whereas the grid of training inputs is of length ",
         length(all_input)
       )
     }
-  }
-  else if (prior_mean %>% is.function()) {
+  } else if (prior_mean %>% is.function()) {
     m_0 <- prior_mean(all_input)
-  }
-  else if (prior_mean %>% is.data.frame()) {
+  } else if (prior_mean %>% is.data.frame()) {
     if (all(c("Output", "Input") %in% names(prior_mean))) {
       m_0 <- prior_mean %>%
         dplyr::filter(.data$Input %in% all_input) %>%
@@ -455,8 +448,7 @@ hyperposterior <- function(data,
         "should contain the mandatory column names: 'Output', 'Input'"
       )
     }
-  }
-  else {
+  } else {
     stop(
       "Incorrect format for the 'prior_mean' argument. Please read ",
       "?hyperposterior() for details."
@@ -476,7 +468,7 @@ hyperposterior <- function(data,
     ## Collect the input's common indices between mean and individual processes
     co_input <- intersect(row.names(inv_i), row.names(post_inv))
     ## Sum the common inverse covariance's terms
-    post_inv[co_input,co_input] <- post_inv[co_input, co_input] +
+    post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
       inv_i[co_input, co_input]
   }
   ##############################################
@@ -506,13 +498,13 @@ hyperposterior <- function(data,
   ##############################################
 
   ## Format the mean parameter of the hyper-posterior distribution
-  mean = tibble::tibble(
+  mean <- tibble::tibble(
     "Input" = all_input,
     "Output" = post_mean
   )
 
   ## Format the GP prediction of the hyper-posterior mean (for direct plot)
-  pred = tibble::tibble(
+  pred <- tibble::tibble(
     "Input" = all_input,
     "Mean" = post_mean,
     "Var" = post_cov %>% diag() %>% as.vector()
@@ -644,7 +636,7 @@ pred_magma <- function(data,
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
     inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
-    if(dplyr::n_distinct(data$ID) > 1){
+    if (dplyr::n_distinct(data$ID) > 1) {
       stop(
         "Problem in the 'ID' column: different values are not allowed. ",
         "The prediction can only be performed for one individual/task."
@@ -662,16 +654,19 @@ pred_magma <- function(data,
       ## Define a default grid for 'Input'
       input_pred <- rep(
         seq(min(data$Input), max(data$Input), length.out = 20),
-        each = 20)
+        each = 20
+      )
       inputs_pred <- tibble::tibble("Input" = input_pred)
       ## Add a grid for the covariate
-      name_cova = inputs_obs %>% dplyr::select(-.data$Input) %>% names()
-      cova = inputs_obs[name_cova]
+      name_cova <- inputs_obs %>%
+        dplyr::select(-.data$Input) %>%
+        names()
+      cova <- inputs_obs[name_cova]
       inputs_pred[name_cova] <- rep(
         seq(min(cova), max(cova), length.out = 20),
-        times = 20)
-    }
-    else {
+        times = 20
+      )
+    } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
         "or a data frame depending on the context. Please read ?pred_magma()."
@@ -690,7 +685,7 @@ pred_magma <- function(data,
     }
   } else if (grid_inputs %>% is.data.frame()) {
     ## Test whether 'data' has the same columns as grid_inputs
-    if ( names(inputs_obs) %>% setequal(names(grid_inputs)) ) {
+    if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
       input_pred <- grid_inputs %>%
         dplyr::arrange(.data$Input) %>%
         dplyr::pull(.data$Input)
@@ -698,8 +693,7 @@ pred_magma <- function(data,
       inputs_pred <- grid_inputs %>%
         dplyr::arrange(.data$Input) %>%
         dplyr::select(names(inputs_obs))
-    }
-    else {
+    } else {
       stop(
         "The 'grid_inputs' argument should provide a column 'Input', and ",
         "the same additional covariate columns as contained in 'data'."
@@ -723,16 +717,16 @@ pred_magma <- function(data,
         "should be provided, in order to extract or recompute mean process' ",
         "hyper-posterior distribution evaluated on the correct inputs."
       )
-    } else{
+    } else {
       ## Get the hyper-posterior distribution from the trained model
-      hyperpost = trained_model$hyperpost
+      hyperpost <- trained_model$hyperpost
     }
   }
   ## Check hyperpost format
   if ((hyperpost %>% is.list()) &
-      (!is.null(hyperpost$mean)) &
-      (!is.null(hyperpost$cov))
-      ) {
+    (!is.null(hyperpost$mean)) &
+    (!is.null(hyperpost$cov))
+  ) {
     ## Check hyperpost format (in particular presence of all reference Input)
     if (!all(all_input %in% hyperpost$mean$Input)) {
       cat(
@@ -749,9 +743,9 @@ pred_magma <- function(data,
         prior_mean = trained_model$ini_args$prior_mean,
         grid_inputs = all_input,
         pen_diag = pen_diag
-        )
-     cat("Done!\n \n")
-   }
+      )
+      cat("Done!\n \n")
+    }
   } else {
     stop(
       "The format of the 'hyperpost' argument is not as expected. Please ",
@@ -760,12 +754,12 @@ pred_magma <- function(data,
   }
   ## Extract the mean parameter from the hyper-posterior
   mean_obs <- hyperpost$mean %>%
-    dplyr::right_join(inputs_obs, by = 'Input') %>%
+    dplyr::right_join(inputs_obs, by = "Input") %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Output)
 
   mean_pred <- hyperpost$mean %>%
-    dplyr::right_join(inputs_pred, by = 'Input') %>%
+    dplyr::right_join(inputs_pred, by = "Input") %>%
     dplyr::arrange(.data$Input) %>%
     dplyr::pull(.data$Output)
 
@@ -785,13 +779,15 @@ pred_magma <- function(data,
 
   ## Extract or learn the hyper-parameters if not provided
   if (hp %>% is.null()) {
-    if(!is.null(trained_model)){
+    if (!is.null(trained_model)) {
       ## Check whether hyper-parameters are common if we have 'trained_model'
-      if(tryCatch(trained_model$ini_args$common_hp, error = function(e) FALSE)){
+      if (
+        tryCatch(trained_model$ini_args$common_hp, error = function(e) FALSE)
+        ) {
         ## Extract the hyper-parameters common to all 'i'
-        hp = trained_model$hp_i %>%
+        hp <- trained_model$hp_i %>%
           dplyr::slice(1) %>%
-          dplyr::select(- .data$ID)
+          dplyr::select(-.data$ID)
       } else if (kern %>% is.function()) {
         stop(
           "When using a custom kernel function the 'hp' argument is ",
@@ -803,11 +799,11 @@ pred_magma <- function(data,
       } else if (kern %>% is.character()) {
         hp <- quiet(
           train_gp(data,
-                   prior_mean = NULL,
-                   ini_hp = hp(kern, noise = T),
-                   kern = kern,
-                   hyperpost = hyperpost,
-                   pen_diag = pen_diag
+            prior_mean = NULL,
+            ini_hp = hp(kern, noise = T),
+            kern = kern,
+            hyperpost = hyperpost,
+            pen_diag = pen_diag
           )
         )
         cat(
@@ -827,11 +823,11 @@ pred_magma <- function(data,
     } else if (kern %>% is.character()) {
       hp <- quiet(
         train_gp(data,
-                 prior_mean = NULL,
-                 ini_hp = hp(kern, noise = T),
-                 kern = kern,
-                 hyperpost = hyperpost,
-                 pen_diag = pen_diag
+          prior_mean = NULL,
+          ini_hp = hp(kern, noise = T),
+          kern = kern,
+          hyperpost = hyperpost,
+          pen_diag = pen_diag
         )
       )
       cat(
@@ -852,30 +848,31 @@ pred_magma <- function(data,
   diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
 
   inv_obs <- tryCatch((cov_obs + diag) %>% chol() %>% chol2inv(),
-                      error = function(e) {
-                        MASS::ginv(cov_obs + diag)
-                      }
+    error = function(e) {
+      MASS::ginv(cov_obs + diag)
+    }
   ) %>%
     `rownames<-`(as.character(input_obs)) %>%
     `colnames<-`(as.character(input_obs))
 
   ## Remove the noise of the hp for evaluating some of the sub-matrix
-  if("noise" %in% names(hp)){
-    hp_rm_noi = hp %>% dplyr::select(- .data$noise)
-    noise = exp(hp[['noise']])
+  if ("noise" %in% names(hp)) {
+    hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
+    noise <- exp(hp[["noise"]])
   } else {
-    hp_rm_noi = hp
-    noise = 0
+    hp_rm_noi <- hp
+    noise <- 0
   }
 
   ## Compute the required sub-matrix for prediction
   cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi) + post_cov_pred
-  cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi, input_2=inputs_pred) +
+  cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi,
+                             input_2 = inputs_pred) +
     post_cov_crossed
 
   ## Compute the posterior mean of a GP
   pred_mean <- (mean_pred +
-                  t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+    t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
     as.vector()
 
   ## Compute the posterior covariance matrix of a GP
@@ -988,9 +985,11 @@ pred_magma <- function(data,
 #'
 #' @examples
 #' \donttest{
-#' db = simu_db(M = 1)
-#' grid_inputs = tibble::tibble(Input = seq(0,10, 0.1),
-#'                              Covariate = seq(-5,5, 0.1))
+#' db <- simu_db(M = 1)
+#' grid_inputs <- tibble::tibble(
+#'   Input = seq(0, 10, 0.1),
+#'   Covariate = seq(-5, 5, 0.1)
+#' )
 #' pred_gif(db, grid_inputs = grid_inputs)
 #' }
 pred_gif <- function(data,
@@ -1007,8 +1006,8 @@ pred_gif <- function(data,
   if ("ID" %in% names(data)) {
     inputs <- inputs %>% dplyr::select(-.data$ID)
   }
-  min_data = min(data$Input)
-  max_data = max(data$Input)
+  min_data <- min(data$Input)
+  max_data <- max(data$Input)
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
@@ -1020,14 +1019,17 @@ pred_gif <- function(data,
     } else if (inputs %>% names() %>% length() == 2) {
       ## Define a default grid for 'Input'
       grid_inputs <- tibble::tibble(
-        "Input" = rep(seq(min_data, max_data, length.out = 20),each = 20)
+        "Input" = rep(seq(min_data, max_data, length.out = 20), each = 20)
       )
       ## Add a grid for the covariate
-      name_cova = inputs %>% dplyr::select(-.data$Input) %>% names()
-      cova = inputs[name_cova]
+      name_cova <- inputs %>%
+        dplyr::select(-.data$Input) %>%
+        names()
+      cova <- inputs[name_cova]
       grid_inputs[name_cova] <- rep(
         seq(min(cova), max(cova), length.out = 20),
-        times = 20)
+        times = 20
+      )
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
@@ -1038,34 +1040,33 @@ pred_gif <- function(data,
 
   all_pred <- tibble::tibble()
   for (j in 1:nrow(data)) {
-
     cat(" =>", j)
     ## Extract the sample of the 'j' first data points
     data_j <- data %>% dplyr::slice(1:j)
     if (!is.null(trained_model) | !is.null(hyperpost)) {
       ## Compute Magma prediction for this sub-dataset
       all_pred <- quiet(pred_magma(data_j,
-                                   trained_model = trained_model,
-                                   hp = hp,
-                                   kern = kern,
-                                   grid_inputs = grid_inputs,
-                                   hyperpost = hyperpost,
-                                   get_hyperpost = FALSE,
-                                   get_full_cov = FALSE,
-                                   plot = FALSE,
-                                   pen_diag = pen_diag
+        trained_model = trained_model,
+        hp = hp,
+        kern = kern,
+        grid_inputs = grid_inputs,
+        hyperpost = hyperpost,
+        get_hyperpost = FALSE,
+        get_full_cov = FALSE,
+        plot = FALSE,
+        pen_diag = pen_diag
       )) %>%
         dplyr::mutate(Index = j) %>%
         dplyr::bind_rows(all_pred)
     } else {
       all_pred <- quiet(pred_gp(data_j,
-                                mean = mean,
-                                hp = hp,
-                                kern = kern,
-                                grid_inputs = grid_inputs,
-                                get_full_cov = FALSE,
-                                plot = FALSE,
-                                pen_diag = pen_diag
+        mean = mean,
+        hp = hp,
+        kern = kern,
+        grid_inputs = grid_inputs,
+        get_full_cov = FALSE,
+        plot = FALSE,
+        pen_diag = pen_diag
       )) %>%
         dplyr::mutate(Index = j) %>%
         dplyr::bind_rows(all_pred)

@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulate-data.R
 \name{ini_mixture}
 \alias{ini_mixture}
-\title{ini_hp_mixture}
+\title{Mixture initialisation with kmeans}
 \usage{
 ini_mixture(data, k, name_clust = NULL, nstart = 50)
 }
@@ -22,7 +22,9 @@ A tibble indicating for each \code{ID} in which cluster it belongs
 after a kmeans initialisation.
 }
 \description{
-ini_hp_mixture
+Provide an initial kmeans allocation of the individuals/tasks in a dataset
+into a definite number of clusters, and return the associated mixture
+probabilities.
 }
 \examples{
 TRUE
