@@ -1,13 +1,32 @@
 Package: MagmaClustR
 Title: Clustering and Prediction with Multi-Task Gaussian Processes
-Version: 0.0.0.9000
-Authors@R: 
+Version: 1.0.0
+Authors@R: c(
     person(given = "Arthur",
            family = "Leroy",
            role = c("aut", "cre"),
            email = "arthur.leroy.pro@gmail.com",
-           comment = c(ORCID = "0000-0003-0806-8934"))
-Description: What the package does (one paragraph).
+           comment = c(ORCID = "0000-0003-0806-8934")),
+    person(given = "Pierre",
+           family = "Pathé",
+           role = c("ctb"),
+           email = "pathepierre@gmail.com"),
+    person(given = "Pierre",
+           family = "Latouche",
+           role = c("aut"),
+           email = "pierre.latouche@gmail.com")
+           )
+Description: The MagmaClustR package implements two main algorithms, called
+   Magma and MagmaClust, using a multi-task GPs model to perform
+   predictions for supervised learning problems. Theses approaches leverage
+   the learning of cluster-specific mean processes, which are common across
+   similar tasks, to provide enhanced prediction performances (even far from
+   data) at a linear computational cost (in the number of tasks).
+   MagmaClust is a generalisation of Magma where the tasks are simultaneously
+   clustered into groups, each being associated to a specific   mean process.
+   User-oriented functions in the package are decomposed into
+   training, prediction and plotting functions. Some basic features of
+   standard GPs are also implemented.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

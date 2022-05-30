@@ -206,7 +206,12 @@ logL_monitoring <- function(hp_0,
                             post_cov,
                             pen_diag) {
   ## Compute the modified logL for the mean process
-  ll_0 <- logL_GP_mod(hp_0, post_mean, m_0, kern_0, post_cov, pen_diag)
+  ll_0 <- logL_GP_mod(hp = hp_0,
+                      db = post_mean,
+                      mean = m_0,
+                      kern = kern_0,
+                      post_cov = post_cov,
+                      pen_diag = pen_diag)
 
   ## Sum over the individuals
   funloop <- function(i) {

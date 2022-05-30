@@ -152,8 +152,8 @@ should have explicit names, and be contained within the \code{hp}
 argument. \code{hp} should typically be defined as a named vector or a
 data frame. Although it is not mandatory for the \code{train_magma}
 function to run, gradients can be provided within kernel function
-definition. See for example \code{\link{se_kernel}} to create a custom kernel
-function displaying an adequate format to be used in Magma.
+definition. See for example \code{\link{se_kernel}} to create a custom
+kernel function displaying an adequate format to be used in Magma.
 }
 \examples{
 TRUE

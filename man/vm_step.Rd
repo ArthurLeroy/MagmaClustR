@@ -66,40 +66,54 @@ hyper-parameters of all the kernels involved in MagmaClust.
 
 ## Common inputs across individuals & cluster and differents HPs
 ## across individuals & Cluster
-k = seq_len(2)
+k <- seq_len(2)
 m_k <- c("K1" = 0, "K2" = 0)
 
 db <- simu_db(N = 10, common_input = FALSE)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
 
-old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
-  nstart = 50)
+old_mixture <- MagmaClustR:::ini_mixture(
+  db = db, k = length(k),
+  nstart = 50
+)
 prop_mixture_1 <- old_mixture \%>\% dplyr::select(-.data$ID)
-hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x \%>\%
-  unlist() \%>\% mean() )
+hp_k[["prop_mixture"]] <- sapply(prop_mixture_1, function(x) {
+  x \%>\%
+    unlist() \%>\%
+    mean()
+})
 
-post = MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
-  0.001)
+post <- MagmaClustR:::ve_step(
+  db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
+  0.001
+)
 
 MagmaClustR:::vm_step(db, hp_k, hp_i, post, "SE", "SE", m_k, FALSE, FALSE, 2)
 
 
 ## Different inputs across individuals & cluster and common HPs
-k = seq_len(4)
+k <- seq_len(4)
 m_k <- c("K1" = 0, "K2" = 0, "K3" = 0, "K4" = 0)
 db <- simu_db(N = 10, common_input = FALSE)
 hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k), common_hp = TRUE)
 hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID), common_hp = TRUE)
 
-old_mixture = MagmaClustR:::ini_mixture(db = db, k = length(k),
-   nstart = 50)
+old_mixture <- MagmaClustR:::ini_mixture(
+  db = db, k = length(k),
+  nstart = 50
+)
 prop_mixture_1 <- old_mixture \%>\% dplyr::select(-.data$ID)
-hp_k[['prop_mixture']] = sapply( prop_mixture_1, function(x) x \%>\%
-  unlist() \%>\% mean() )
+hp_k[["prop_mixture"]] <- sapply(prop_mixture_1, function(x) {
+  x \%>\%
+    unlist() \%>\%
+    mean()
+})
 
-post = MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
-  0.001)
+post <- MagmaClustR:::ve_step(
+  db, m_k, "SE", "SE", hp_k, hp_i, old_mixture,
+  0.001
+)
 
 MagmaClustR:::vm_step(db, hp_k, hp_i, post, "SE", "SE", m_k, TRUE, TRUE, 0.1)
 }
