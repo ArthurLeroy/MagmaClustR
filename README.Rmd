@@ -18,7 +18,11 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of MagmaClustR is to ...
+The *MagmaClustR* package implements two main algorithms, called Magma (*Leroy et al., 2022*) and MagmaClust (*Leroy et al., 2020*), using a multi-task GPs model to perform predictions for supervised learning problems. Theses approaches leverage the learning of cluster-specific mean processes, which are common across similar tasks, to provide enhanced prediction performances (even far from data) at a linear computational cost (in the number of tasks). MagmaClust is a generalisation of Magma where the tasks are simultaneously clustered into groups, each being associated to a specific   mean process. User-oriented functions in the package are decomposed into training, prediction and plotting functions. Some basic features of standard GPs are also implemented.
+
+Leroy, A., Latouche, P., Guedj, B., Gey, S. MAGMA: inference and prediction using multi-task Gaussian processes with common mean. *Mach Learn* **111**, 1821–1849 (2022). https://doi.org/10.1007/s10994-022-06172-1
+
+Leroy, A., Latouche, P., Guedj, B., & Gey, S. Cluster-Specific Predictions with Multi-Task Gaussian Processes. *arXiv preprint* (2020). https://arxiv.org/abs/2011.07866
 
 ## Installation
 
@@ -34,27 +38,114 @@ And the development version from [GitHub](https://github.com/) with:
 # install.packages("devtools")
 devtools::install_github("ArthurLeroy/MagmaClustR")
 ```
-## Example
+## Example: Magma
 
-This is a basic example which shows you how to solve a common problem:
+Here is a basic example on how to simulate a dataset with the adequate format, then train a Magma model and use it to perform predictions.
 
-```{r example}
+### Data generation
+```{r generate data Magma}
 library(MagmaClustR)
-## basic example code
+## Simulate a dataset with 11 individuals, each observed at 10 input locations
+set.seed(42) 
+data_magma <- simu_db(M = 11, N = 10) 
+## Split individuals into training and prediction sets, and define test points
+magma_train <- data_magma %>% subset(ID %in% 1:10)
+magma_pred <- data_magma %>% subset(ID == 11) %>% head(5)
+magma_test <- data_magma %>% subset(ID == 11) %>% tail(5)
+
+data_magma
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
 
-```{r cars}
-summary(cars)
+### Training and prediction with Magma 
+
+```{r train and predict Magma}
+model <- train_magma(data = magma_train)
+
+pred  <- pred_magma(data = magma_pred,
+                    trained_model = model)
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this. You could also use GitHub Actions to re-render `README.Rmd` every time you push. An example workflow can be found here: <https://github.com/r-lib/actions/tree/master/examples>.
+### Display the resulting predictions
 
-You can also embed plots, for example:
+Several arguments are available in a specific plotting function to offer additional control in the display of results. For instance, the GP prediction can be represented as a heatmap of probabilities:
 
-```{r pressure, echo = FALSE}
-plot(pressure)
+```{r display Magma}
+plot_gp(pred_gp = pred,
+        data = magma_pred,
+        data_train = magma_train,
+        prior_mean = model$hyperpost$mean,
+        heatmap = TRUE) 
 ```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
+Additionally, it is also possible to create animated representations by using functions that generate GIFs. For instance, below, the true testing points have been represented as red dots and we can observe how the prediction evolves as we add more data points to our prediction dataset.
+
+```{r gif Magma}
+
+pred_gif  <- pred_gif(data = magma_pred,
+                      trained_model = model,
+                      grid_inputs = seq(0, 10, 0.01))
+
+plot_gif(pred_gp = pred,
+        data = magma_pred,
+        data_train = magma_train,
+        prior_mean = model$hyperpost$mean) + 
+  ggplot2::geom_points(data = magma_test,
+                       ggplot2::aes(x = Input, y = Output),
+                       color = 'red')
+```
+
+Note that the `grid_inputs` argument is optional. It merely allows users to control the grid of values on which the prediction is performed. 
+
+## Example: MagmaClust
+
+Here is a basic example on how to simulate a dataset with the adequate format, then train a MagmaClust model and use it to perform simultaneous clustering and predictions.
+
+### Data generation
+
+```{r generate data MagmaClust}
+
+## Simulate a dataset containing 3 clusters of 4 individuals, each observed at 10 input locations
+set.seed(42) 
+data_magmaclust <- simu_db(M = 4, N = 10, K = 3) 
+## Split individuals into training and prediction sets, and define test points
+list_ID = unique(data_magmaclust$ID)
+magmaclust_train <- data_magmaclust %>% subset(ID %in% list_ID[1:11])
+magmaclust_pred <- data_magmaclust %>% subset(ID == list_ID[12]) %>% head(5)
+magmaclust_test <- data_magmaclust %>% subset(ID == list_ID[12]) %>% tail(5)
+
+data_magma
+```
+
+
+### Training and prediction with MagmaClust
+
+```{r train and predict MagmaClust}
+model_clust <- train_magmaclust(data = magmaclust_train,
+                     grid_inputs = seq(0, 10, 0.01))
+
+pred_clust  <- pred_magmaclust(data = magmaclust_pred,
+                    trained_model = model_clust,
+                    grid_inputs = seq(0, 10, 0.01))
+```
+
+Note that the `grid_inputs` argument is optional. It merely allows users to control the grid of values on which the prediction is performed. 
+
+### Display the resulting predictions
+
+As before, a specific plotting function is provided. For MagmaClust, we advise to use the heatmap representation in priority, as a mixture of GPs may not be unimodal in general (and thus prevents the definition of Credible Interval).
+
+```{r display MagmaClust}
+## Allocate individuals to their most probable cluster to colour them by clusters afterwards
+data_train_with_clust = data_allocate_cluster(model_clust)
+
+plot_magmaclust(pred = pred_clust,
+                cluster = "all",
+                data = magmaclust_pred,
+                data_train = data_train_with_clust,
+                col_clust = TRUE,
+                prior_mean = model_clust$hyperpost$mean,
+                heatmap = TRUE) 
+```
+
+## Example: in 2-dimensions
