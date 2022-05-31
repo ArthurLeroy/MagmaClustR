@@ -149,3 +149,28 @@ plot_magmaclust(pred = pred_clust,
 ```
 
 ## Example: in 2-dimensions
+
+Although unidimensional-input problems are easier to visualise, both Magma and MagmaClust can also be applied with as many covariates as desired in the model.
+
+### Data generation
+```{r generate data 2-D}
+library(MagmaClustR)
+## Dataset with 11 individuals, 10 reference input locations and a covariate
+set.seed(42) 
+data_dim2 <- simu_db(M = 11, N = 10, covariate = TRUE) 
+## Split individuals into training and prediction sets, and define test points
+dim2_train <- data_dim2 %>% subset(ID %in% 1:10)
+dim2_pred <- data_dim2 %>% subset(ID == 11) %>% head(5)
+dim2_test <- data_dim2 %>% subset(ID == 11) %>% tail(5)
+
+data_dim2
+```
+
+### Training and prediction with Magma 
+
+```{r train and predict Magma in 2-D}
+model_dim2 <- train_magma(data = dim2_train)
+
+pred_dim2  <- pred_magma(data = dim2_pred,
+                         trained_model = model_dim2)
+```

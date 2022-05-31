@@ -407,7 +407,7 @@ hyperposterior <- function(data,
   if (prior_mean %>% is.null()) {
     m_0 <- rep(0, length(all_input))
     cat(
-      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+      "The 'prior_mean' argument has not been specified. The hyper-prior mean",
       "function is thus set to be 0 everywhere.\n \n"
     )
   } else if (prior_mean %>% is.vector()) {
@@ -437,8 +437,8 @@ hyperposterior <- function(data,
 
       if (length(m_0) != length(all_input)) {
         stop(
-          "Problem in the length of the hyper_prior mean parameter. The ",
-          "'pior_mean' argument should provide an Output value for each Input ",
+          "Problem in the length of the hyper-prior mean parameter. The ",
+          "'prior_mean' argument should provide an Output value for each Input ",
           "value appearing in the training data."
         )
       }
@@ -1191,7 +1191,7 @@ hyperposterior_clust <- function(data,
       m_k[[ID_k[k]]] <- rep(0, length(all_input))
     }
     cat(
-      "The 'prior_mean_k' argument has not been specified. The hyper_prior ",
+      "The 'prior_mean_k' argument has not been specified. The hyper-prior ",
       "mean functions are thus set to be 0 everywhere.\n \n"
     )
   } else if (prior_mean_k[[1]] %>% is.function()) {
