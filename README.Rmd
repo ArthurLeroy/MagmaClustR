@@ -13,12 +13,12 @@ knitr::opts_chunk$set(
 )
 ```
 
-# MagmaClustR
+# MagmaClustR <img src="man/figures/logo.png" align="right" width="120" />
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The *MagmaClustR* package implements two main algorithms, called Magma (*Leroy et al., 2022*) and MagmaClust (*Leroy et al., 2020*), using a multi-task GPs model to perform predictions for supervised learning problems. Theses approaches leverage the learning of cluster-specific mean processes, which are common across similar tasks, to provide enhanced prediction performances (even far from data) at a linear computational cost (in the number of tasks). MagmaClust is a generalisation of Magma where the tasks are simultaneously clustered into groups, each being associated to a specific   mean process. User-oriented functions in the package are decomposed into training, prediction and plotting functions. Some basic features of standard GPs are also implemented.
+The *MagmaClustR* package implements two main algorithms, called Magma (*Leroy et al., 2022*) and MagmaClust (*Leroy et al., 2020*), using a multi-task Gaussian processes (GP) model to perform predictions for supervised learning problems. Applications involving functional data, such as multiple time series, are particularly well-handled. Theses approaches leverage the learning of cluster-specific mean processes, which are common across similar tasks, to provide enhanced prediction performances (even far from data points) at a linear computational cost (in the number of tasks). MagmaClust is a generalisation of Magma where the tasks are simultaneously clustered into groups, each being associated to a specific mean process. User-oriented functions in the package are decomposed into training, prediction and plotting functions. Some basic features of standard GPs are also implemented.
 
 Leroy, A., Latouche, P., Guedj, B., Gey, S. MAGMA: inference and prediction using multi-task Gaussian processes with common mean. *Mach Learn* **111**, 1821–1849 (2022). https://doi.org/10.1007/s10994-022-06172-1
 
@@ -46,8 +46,8 @@ Here is a basic example on how to simulate a dataset with the adequate format, t
 ```{r generate data Magma}
 library(MagmaClustR)
 ## Simulate a dataset with 11 individuals, each observed at 10 input locations
-set.seed(42) 
-data_magma <- simu_db(M = 11, N = 10) 
+set.seed(2)
+data_magma <- simu_db(M = 11, N = 10, common_input = FALSE)
 ## Split individuals into training and prediction sets, and define test points
 magma_train <- data_magma %>% subset(ID %in% 1:10)
 magma_pred <- data_magma %>% subset(ID == 11) %>% head(5)
@@ -59,18 +59,21 @@ data_magma
 
 ### Training and prediction with Magma 
 
-```{r train and predict Magma}
+```{r train_and_predict_Magma}
 model <- train_magma(data = magma_train)
 
 pred  <- pred_magma(data = magma_pred,
-                    trained_model = model)
+                    trained_model = model, 
+                    grid_inputs = seq(0,10, 0.01))
 ```
+
+Note that the `grid_inputs` argument is optional. It merely allows users to control the grid of values on which the prediction is performed. 
 
 ### Display the resulting predictions
 
 Several arguments are available in a specific plotting function to offer additional control in the display of results. For instance, the GP prediction can be represented as a heatmap of probabilities:
 
-```{r display Magma}
+```{r display_Magma}
 plot_gp(pred_gp = pred,
         data = magma_pred,
         data_train = magma_train,
@@ -80,17 +83,17 @@ plot_gp(pred_gp = pred,
 
 Additionally, it is also possible to create animated representations by using functions that generate GIFs. For instance, below, the true testing points have been represented as red dots and we can observe how the prediction evolves as we add more data points to our prediction dataset.
 
-```{r gif Magma}
+```{r gif_Magma, message=FALSE}
 
 pred_gif  <- pred_gif(data = magma_pred,
                       trained_model = model,
                       grid_inputs = seq(0, 10, 0.01))
 
-plot_gif(pred_gp = pred,
+plot_gif(pred_gp = pred_gif,
         data = magma_pred,
         data_train = magma_train,
         prior_mean = model$hyperpost$mean) + 
-  ggplot2::geom_points(data = magma_test,
+  ggplot2::geom_point(data = magma_test,
                        ggplot2::aes(x = Input, y = Output),
                        color = 'red')
 ```
@@ -106,7 +109,7 @@ Here is a basic example on how to simulate a dataset with the adequate format, t
 ```{r generate data MagmaClust}
 
 ## Simulate a dataset containing 3 clusters of 4 individuals, each observed at 10 input locations
-set.seed(42) 
+set.seed(2) 
 data_magmaclust <- simu_db(M = 4, N = 10, K = 3) 
 ## Split individuals into training and prediction sets, and define test points
 list_ID = unique(data_magmaclust$ID)
@@ -114,28 +117,27 @@ magmaclust_train <- data_magmaclust %>% subset(ID %in% list_ID[1:11])
 magmaclust_pred <- data_magmaclust %>% subset(ID == list_ID[12]) %>% head(5)
 magmaclust_test <- data_magmaclust %>% subset(ID == list_ID[12]) %>% tail(5)
 
-data_magma
+data_magmaclust
 ```
 
 
 ### Training and prediction with MagmaClust
 
-```{r train and predict MagmaClust}
-model_clust <- train_magmaclust(data = magmaclust_train,
-                     grid_inputs = seq(0, 10, 0.01))
+```{r train_and_predict_MagmaClust, message=FALSE}
+model_clust <- train_magmaclust(data = magmaclust_train)
 
 pred_clust  <- pred_magmaclust(data = magmaclust_pred,
                     trained_model = model_clust,
-                    grid_inputs = seq(0, 10, 0.01))
+                    grid_inputs = seq(0, 10, 0.01), 
+                    plot = FALSE)
 ```
 
-Note that the `grid_inputs` argument is optional. It merely allows users to control the grid of values on which the prediction is performed. 
 
 ### Display the resulting predictions
 
 As before, a specific plotting function is provided. For MagmaClust, we advise to use the heatmap representation in priority, as a mixture of GPs may not be unimodal in general (and thus prevents the definition of Credible Interval).
 
-```{r display MagmaClust}
+```{r display_MagmaClust, message=FALSE}
 ## Allocate individuals to their most probable cluster to colour them by clusters afterwards
 data_train_with_clust = data_allocate_cluster(model_clust)
 
@@ -145,6 +147,7 @@ plot_magmaclust(pred = pred_clust,
                 data_train = data_train_with_clust,
                 col_clust = TRUE,
                 prior_mean = model_clust$hyperpost$mean,
+                y_grid = seq(0, 60, 0.5),
                 heatmap = TRUE) 
 ```
 
@@ -156,7 +159,7 @@ Although unidimensional-input problems are easier to visualise, both Magma and M
 ```{r generate data 2-D}
 library(MagmaClustR)
 ## Dataset with 11 individuals, 10 reference input locations and a covariate
-set.seed(42) 
+set.seed(2) 
 data_dim2 <- simu_db(M = 11, N = 10, covariate = TRUE) 
 ## Split individuals into training and prediction sets, and define test points
 dim2_train <- data_dim2 %>% subset(ID %in% 1:10)
@@ -168,9 +171,11 @@ data_dim2
 
 ### Training and prediction with Magma 
 
-```{r train and predict Magma in 2-D}
+```{r train_and_predict_Magma_in_2-D, message=FALSE}
 model_dim2 <- train_magma(data = dim2_train)
 
 pred_dim2  <- pred_magma(data = dim2_pred,
                          trained_model = model_dim2)
 ```
+
+
