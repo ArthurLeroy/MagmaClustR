@@ -6,7 +6,7 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/ArthurLeroy/MagmaClustR/workflows/R-CMD-check/badge.svg)](https://github.com/ArthurLeroy/MagmaClustR/actions)
-[![codecov](https://codecov.io/gh/ArthurLeroy/MagmaClustR/branch/master/graph/badge.svg?token=KH7SOKOLKX)](https://codecov.io/gh/ArthurLeroy/MagmaClustR)
+[![codecov](https://codecov.io/gh/ArthurLeroy/MagmaClustR/branch/master/graph/badge.svg?token=KH7SOKOLKX)](https://app.codecov.io/gh/ArthurLeroy/MagmaClustR)
 <!-- badges: end -->
 
 The *MagmaClustR* package implements two main algorithms, called Magma
@@ -254,7 +254,7 @@ model <- train_magma(data = magma_train)
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
 #>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
-#> EM algorithm, step 1: 12.94 seconds 
+#> EM algorithm, step 1: 15.86 seconds 
 #>  
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
 #>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
@@ -310,7 +310,7 @@ model <- train_magma(data = magma_train)
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
 #>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
-#> EM algorithm, step 2: 6.75 seconds 
+#> EM algorithm, step 2: 7.87 seconds 
 #>  
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
 #>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
@@ -366,7 +366,7 @@ model <- train_magma(data = magma_train)
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
 #>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
-#> EM algorithm, step 3: 6.17 seconds 
+#> EM algorithm, step 3: 10.97 seconds 
 #>  
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
 #>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
@@ -520,15 +520,15 @@ model_clust <- train_magmaclust(data = magmaclust_train)
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 68.63 seconds 
+#> VEM algorithm, step 1: 62.31 seconds 
 #>  
 #> Value of the elbo: -403.8673 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 26.25 seconds 
+#> VEM algorithm, step 2: 32.01 seconds 
 #>  
 #> Value of the elbo: -383.34763 --- Convergence ratio = 0.05353
 #>  
-#> VEM algorithm, step 3: 22.03 seconds 
+#> VEM algorithm, step 3: 19.11 seconds 
 #>  
 #> Value of the elbo: -383.08831 --- Convergence ratio = 0.00068
 #>  
@@ -777,7 +777,7 @@ model_dim2 <- train_magma(data = dim2_train)
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
 #>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
-#> EM algorithm, step 1: 15.34 seconds 
+#> EM algorithm, step 1: 12.45 seconds 
 #>  
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
 #>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
@@ -833,7 +833,7 @@ model_dim2 <- train_magma(data = dim2_train)
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
 #>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
-#> EM algorithm, step 2: 21.3 seconds 
+#> EM algorithm, step 2: 15.13 seconds 
 #>  
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
 #>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
@@ -889,7 +889,7 @@ model_dim2 <- train_magma(data = dim2_train)
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
 #>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
-#> EM algorithm, step 3: 15.56 seconds 
+#> EM algorithm, step 3: 12.61 seconds 
 #>  
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
 #>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
@@ -945,7 +945,7 @@ model_dim2 <- train_magma(data = dim2_train)
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
 #>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
-#> EM algorithm, step 4: 10.33 seconds 
+#> EM algorithm, step 4: 8.69 seconds 
 #>  
 #> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
 #>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
