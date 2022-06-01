@@ -28,7 +28,6 @@ Imports:
     dplyr,
     ggplot2,
     magrittr,
-    maotai,
     methods,
     mvtnorm,
     optimr,
