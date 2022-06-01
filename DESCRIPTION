@@ -22,11 +22,11 @@ Description: The 'MagmaClustR' package implements two main algorithms, called
    leverage the learning of cluster-specific mean processes, which are common 
    across similar tasks, to provide enhanced prediction performances (even far 
    from data) at a linear computational cost (in the number of tasks).
-   MagmaClust is a generalisation of 'Magma' where the tasks are simultaneously
+   'MagmaClust' is a generalisation of 'Magma' where the tasks are simultaneously
    clustered into groups, each being associated to a specific   mean process.
    User-oriented functions in the package are decomposed into
    training, prediction and plotting functions. Some basic features of
-   standard Gaussian processess are also implemented.
+   standard Gaussian processes are also implemented.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
