@@ -62,7 +62,7 @@ A list, containing the results of model selection procedure for
 selecting the optimal number of clusters thanks to a V-BIC criterion
 maximisation. The elements of the list are:
 \itemize{
-\item best_k: An integer, indicating the resulting optimal number of custers
+\item best_k: An integer, indicating the resulting optimal number of clusters
 \item seq_vbic: A vector, corresponding to the sequence of the V-BIC values
 associated with the models trained for each provided cluster's number in
 \code{grid_nb_cluster}.

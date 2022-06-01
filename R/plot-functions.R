@@ -117,17 +117,7 @@ plot_db <- function(data, cluster = F, legend = F) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' ## 1-dimensional example
-#' db <- simu_db(M = 1, covariate = FALSE)
-#' pred_gp(db) %>%
-#'   plot_gp(data = db)
-#'
-#' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = TRUE)
-#' pred_gp(db_2D) %>%
-#'   plot_gp(data = db_2D)
-#' }
+#' TRUE
 plot_gp <- function(pred_gp,
                     x_input = NULL,
                     data = NULL,
@@ -431,18 +421,7 @@ plot_gp <- function(pred_gp,
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' ## 1-dimensional example
-#' db <- simu_db(M = 1, covariate = FALSE)
-#' hp <- train_gp(db)
-#' pred_gp(db, get_full_cov = TRUE, plot = TRUE) %>%
-#'   sample_gp(data = db)
-#'
-#' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = TRUE)
-#' pred_gp(db_2D, get_full_cov = TRUE, plot = FALSE) %>%
-#'   sample_gp(data = db_2D)
-#' }
+#' TRUE
 sample_gp <- function(pred_gp,
                       x_input = NULL,
                       data = NULL,
@@ -669,19 +648,7 @@ sample_gp <- function(pred_gp,
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' ## 2-dimensional example
-#' db <- simu_db(M = 1, covariate = FALSE)
-#' hp <- train_gp(db)
-#' pred_gif(db, hp = hp) %>%
-#'   plot_gif(data = db)
-#'
-#' ## 2-dimensional example
-#' db_2D <- simu_db(M = 1, covariate = TRUE)
-#' hp_2D <- train_gp(db_2D)
-#' pred_gif(db_2D, hp = hp_2D) %>%
-#'   plot_gif(data = db_2D)
-#' }
+#' TRUE
 plot_gif <- function(pred_gp,
                      x_input = NULL,
                      data = NULL,

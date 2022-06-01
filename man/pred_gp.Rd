@@ -99,9 +99,5 @@ evaluated on any arbitrary inputs since a GP is an infinite-dimensional
 object.
 }
 \examples{
-db <- simu_db(M = 1, N = 10)
-grid_inputs <- tibble::tibble(Input = 0:10, Covariate = 1:11)
-hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
-
-pred_gp(db, grid_inputs = grid_inputs)
+TRUE
 }

@@ -39,7 +39,7 @@ element or a column 'Noise', its value will be added on the diagonal of
 the covariance matrix.}
 
 \item{deriv}{A character, indicating according to which hyper-parameter the
-derivative should be computed. If NULL (defaut), the function simply
+derivative should be computed. If NULL (default), the function simply
 returns the covariance matrix.}
 
 \item{input_2}{(optional) A vector, matrix, data frame or tibble under the

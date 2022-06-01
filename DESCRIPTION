@@ -16,17 +16,17 @@ Authors@R: c(
            role = c("aut"),
            email = "pierre.latouche@gmail.com")
            )
-Description: The MagmaClustR package implements two main algorithms, called
-   Magma and MagmaClust, using a multi-task GPs model to perform
-   predictions for supervised learning problems. Theses approaches leverage
-   the learning of cluster-specific mean processes, which are common across
-   similar tasks, to provide enhanced prediction performances (even far from
-   data) at a linear computational cost (in the number of tasks).
-   MagmaClust is a generalisation of Magma where the tasks are simultaneously
+Description: The 'MagmaClustR' package implements two main algorithms, called
+   'Magma' and 'MagmaClust', using a multi-task Gaussian processes model to 
+   perform predictions for supervised learning problems. Theses approaches 
+   leverage the learning of cluster-specific mean processes, which are common 
+   across similar tasks, to provide enhanced prediction performances (even far 
+   from data) at a linear computational cost (in the number of tasks).
+   MagmaClust is a generalisation of 'Magma' where the tasks are simultaneously
    clustered into groups, each being associated to a specific   mean process.
    User-oriented functions in the package are decomposed into
    training, prediction and plotting functions. Some basic features of
-   standard GPs are also implemented.
+   standard Gaussian processess are also implemented.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -59,7 +59,5 @@ Suggests:
     gifski,
     png,
     transformr
-VignetteBuilder: knitr
-Config/testthat/edition: 3
 LinkingTo: 
     Rcpp

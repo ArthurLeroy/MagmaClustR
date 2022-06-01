@@ -233,6 +233,11 @@ train_magma <- function(data,
       hp_0 <- ini_hp_0
     }
   }
+  browser()
+  ## Remove ID column if present if hp_0
+  if ("ID" %in% names(hp_0)){
+    hp_0 = hp_0[names(hp_0) != "ID"]
+  }
 
   ## Initialise the individual process' hp according to user's values
   if (kern_i %>% is.function()) {
@@ -1580,7 +1585,7 @@ train_gp_clust <- function(data,
 #' @return A list, containing the results of model selection procedure for
 #'    selecting the optimal number of clusters thanks to a V-BIC criterion
 #'    maximisation. The elements of the list are:
-#'    - best_k: An integer, indicating the resulting optimal number of custers
+#'    - best_k: An integer, indicating the resulting optimal number of clusters
 #'    - seq_vbic: A vector, corresponding to the sequence of the V-BIC values
 #'    associated with the models trained for each provided cluster's number in
 #'    \code{grid_nb_cluster}.

@@ -11,9 +11,9 @@ update_mixture(db, mean_k, cov_k, hp, kern, prop_mixture, pen_diag)
 \code{Input}, \code{Output}. Additional columns for covariates can be
 specified.}
 
-\item{mean_k}{A list of the K hyper-poserior mean parameters.}
+\item{mean_k}{A list of the K hyper-posterior mean parameters.}
 
-\item{cov_k}{A list of the K hyper-poserior covariance matrices.}
+\item{cov_k}{A list of the K hyper-posterior covariance matrices.}
 
 \item{hp}{A named vector, tibble or data frame of hyper-parameters
 associated with \code{kern}, the individual process' kernel. The

@@ -71,11 +71,7 @@
 #' @export
 #'
 #' @examples
-#' db <- simu_db(M = 1, N = 10)
-#' grid_inputs <- tibble::tibble(Input = 0:10, Covariate = 1:11)
-#' hp <- tibble::tibble("variance" = 2, "lengthscale" = 1)
-#'
-#' pred_gp(db, grid_inputs = grid_inputs)
+#' TRUE
 pred_gp <- function(data,
                     mean = NULL,
                     hp = NULL,
@@ -376,11 +372,7 @@ pred_gp <- function(data,
 #' @export
 #'
 #' @examples
-#' db <- simu_db(N = 10, common_input = TRUE)
-#' hp_0 <- hp()
-#' hp_i <- hp("SE", list_ID = unique(db$ID))
-#' grid_inputs <- seq(0, 10, 0.1)
-#' hyperposterior(db, hp_0, hp_i, "SE", "SE", grid_inputs = grid_inputs)
+#' TRUE
 hyperposterior <- function(data,
                            hp_0,
                            hp_i,
@@ -599,15 +591,7 @@ hyperposterior <- function(data,
 #' @export
 #'
 #' @examples
-#' db <- simu_db(M = 1, N = 10, covariate = FALSE)
-#' grid_inputs <- seq(0, 10, 0.1)
-#' all_input <- union(db$Input, grid_inputs) %>% sort()
-#' hyperpost <- list(
-#'   "mean" = tibble::tibble(Input = all_input, Output = 0),
-#'   "cov" = kern_to_cov(all_input, "SE", hp("SE"))
-#' )
-#'
-#' pred_magma(db, grid_inputs = grid_inputs, hyperpost = hyperpost)
+#' TRUE
 pred_magma <- function(data,
                        trained_model = NULL,
                        hp = NULL,
@@ -984,14 +968,7 @@ pred_magma <- function(data,
 #' @export
 #'
 #' @examples
-#' \donttest{
-#' db <- simu_db(M = 1)
-#' grid_inputs <- tibble::tibble(
-#'   Input = seq(0, 10, 0.1),
-#'   Covariate = seq(-5, 5, 0.1)
-#' )
-#' pred_gif(db, grid_inputs = grid_inputs)
-#' }
+#' TRUE
 pred_gif <- function(data,
                      trained_model = NULL,
                      hyperpost = NULL,
@@ -1419,11 +1396,7 @@ hyperposterior_clust <- function(data,
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' db <- simu_db()
-#' training_test <- train_magmaclust(db)
-#' pred_magmaclust(db %>% filter(ID == 1), trained_magmaclust = training_test)
-#' }
+#' TRUE
 pred_magmaclust <- function(data,
                             trained_model = NULL,
                             mixture = NULL,

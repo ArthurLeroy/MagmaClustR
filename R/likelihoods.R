@@ -280,7 +280,7 @@ logL_monitoring <- function(hp_0,
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
 #' @return A number, expectation of mixture of Gaussian log-likelihoods in
-#'    the perdiction step of MagmaClust. This quantity is supposed to increase
+#'    the prediction step of MagmaClust. This quantity is supposed to increase
 #'    at each step of the EM algorithm, and can be used for monitoring the
 #'    procedure.
 #'

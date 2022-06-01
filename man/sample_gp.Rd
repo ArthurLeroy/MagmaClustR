@@ -58,16 +58,5 @@ According to the dimension of the inputs, the graph may be a curve or a
 heatmap.
 }
 \examples{
-\dontrun{
-## 1-dimensional example
-db <- simu_db(M = 1, covariate = FALSE)
-hp <- train_gp(db)
-pred_gp(db, get_full_cov = TRUE, plot = TRUE) \%>\%
-  sample_gp(data = db)
-
-## 2-dimensional example
-db_2D <- simu_db(M = 1, covariate = TRUE)
-pred_gp(db_2D, get_full_cov = TRUE, plot = FALSE) \%>\%
-  sample_gp(data = db_2D)
-}
+TRUE
 }

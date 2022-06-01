@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # MagmaClustR <img src="man/figures/logo.png" align="right" width="120" />
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/ArthurLeroy/MagmaClustR/workflows/R-CMD-check/badge.svg)](https://github.com/ArthurLeroy/MagmaClustR/actions)
 <!-- badges: end -->
 
 The *MagmaClustR* package implements two main algorithms, called Magma (*Leroy et al., 2022*) and MagmaClust (*Leroy et al., 2020*), using a multi-task Gaussian processes (GP) model to perform predictions for supervised learning problems. Applications involving functional data, such as multiple time series, are particularly well-handled. Theses approaches leverage the learning of cluster-specific mean processes, which are common across similar tasks, to provide enhanced prediction performances (even far from data points) at a linear computational cost (in the number of tasks). MagmaClust is a generalisation of Magma where the tasks are simultaneously clustered into groups, each being associated to a specific mean process. User-oriented functions in the package are decomposed into training, prediction and plotting functions. Some basic features of standard GPs are also implemented.

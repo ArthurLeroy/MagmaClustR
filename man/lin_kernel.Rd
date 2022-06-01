@@ -15,7 +15,7 @@ lin_kernel(x = NULL, y = NULL, hp, deriv = NULL, vectorized = F)
 hyperparameters. Required columns: 'lin_slope' and 'lin_offset'.}
 
 \item{deriv}{A character, indicating according to which hyper-parameter the
-derivative should be computed. If NULL (defaut), the function simply
+derivative should be computed. If NULL (default), the function simply
 returns the evaluation of the kernel.}
 
 \item{vectorized}{A logical value, indicating whether the function provides

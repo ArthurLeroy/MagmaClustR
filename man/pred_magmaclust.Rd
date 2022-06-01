@@ -137,9 +137,5 @@ associated with each cluster, as well as the posterior mixture probabilities
 for this new individual/task.
 }
 \examples{
-\dontrun{
-db <- simu_db()
-training_test <- train_magmaclust(db)
-pred_magmaclust(db \%>\% filter(ID == 1), trained_magmaclust = training_test)
-}
+TRUE
 }

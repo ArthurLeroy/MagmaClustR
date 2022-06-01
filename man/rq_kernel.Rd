@@ -16,7 +16,7 @@ hyperparameters. Required columns: 'rq_variance', 'rq_lengthscale', and
 'rq_scale'.}
 
 \item{deriv}{A character, indicating according to which hyper-parameter the
-derivative should be computed. If NULL (defaut), the function simply returns
+derivative should be computed. If NULL (default), the function simply returns
 the evaluation of the kernel.}
 
 \item{vectorized}{A logical value, indicating whether the function provides

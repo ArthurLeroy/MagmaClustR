@@ -84,15 +84,5 @@ inputs, the graph may be a mean curve + Credible Interval or a heatmap of
 probabilities.
 }
 \examples{
-\dontrun{
-## 1-dimensional example
-db <- simu_db(M = 1, covariate = FALSE)
-pred_gp(db) \%>\%
-  plot_gp(data = db)
-
-## 2-dimensional example
-db_2D <- simu_db(M = 1, covariate = TRUE)
-pred_gp(db_2D) \%>\%
-  plot_gp(data = db_2D)
-}
+TRUE
 }

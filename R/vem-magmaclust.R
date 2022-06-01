@@ -414,8 +414,8 @@ vm_step <- function(db,
 #' @param db A tibble or data frame. Columns required: \code{ID},
 #'    \code{Input}, \code{Output}. Additional columns for covariates can be
 #'    specified.
-#' @param mean_k A list of the K hyper-poserior mean parameters.
-#' @param cov_k A list of the K hyper-poserior covariance matrices.
+#' @param mean_k A list of the K hyper-posterior mean parameters.
+#' @param cov_k A list of the K hyper-posterior covariance matrices.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}, the individual process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters

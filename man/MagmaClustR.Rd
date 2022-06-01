@@ -19,14 +19,8 @@ standard GPs are also implemented.
 }
 \section{Details}{
 
-For a quick introduction to \pkg{MagmaClustR}, please read the vignette
-\href{../doc/Introduction_MagmaClustR.html}{Introduction of MagmaClustR}. Or
-simply run the following code: \cr
-\code{vignette("Introduction_MagmaClustR", package = "MagmaClustR")} \cr
-
-For a more advanced usage of \pkg{MagmaClustR}, please read the vignette
-\href{../doc/Details.html}{Details}. Or simply run the following code: \cr
-\code{vignette("Details", package = "MagmaClustR")} \cr
+For a quick introduction to \pkg{MagmaClustR}, please refer to the README at
+\url{https://github.com/ArthurLeroy/MagmaClustR}
 }
 
 \section{Author(s)}{

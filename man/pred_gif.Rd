@@ -104,12 +104,5 @@ Otherwise, a classic GP prediction is applied and the prior mean can be
 specified through the \code{mean} argument.
 }
 \examples{
-\donttest{
-db <- simu_db(M = 1)
-grid_inputs <- tibble::tibble(
-  Input = seq(0, 10, 0.1),
-  Covariate = seq(-5, 5, 0.1)
-)
-pred_gif(db, grid_inputs = grid_inputs)
-}
+TRUE
 }

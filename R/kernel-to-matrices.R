@@ -33,7 +33,7 @@
 #'    element or a column 'Noise', its value will be added on the diagonal of
 #'    the covariance matrix.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'    derivative should be computed. If NULL (defaut), the function simply
+#'    derivative should be computed. If NULL (default), the function simply
 #'    returns the covariance matrix.
 #' @param input_2 (optional) A vector, matrix, data frame or tibble under the
 #'    same format as \code{input}. This argument should be used only when the
@@ -362,7 +362,7 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  derivative should be computed. If NULL (default), the function simply returns
 #'  the inverse covariance matrix.
 #'
 #' @return The inverse of a covariance matrix, which elements are evaluations of
@@ -406,7 +406,7 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
 #' @param hp A tibble or data frame, containing the hyper-parameters associated
 #' with each individual.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  derivative should be computed. If NULL (default), the function simply returns
 #'  the list of covariance matrices.
 #'
 #' @return A named list containing all of the inverse covariance matrices.
@@ -452,7 +452,7 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  derivative should be computed. If NULL (default), the function simply returns
 #'  the list of covariance matrices.
 #'
 #' @return A named list containing all of the inverse covariance matrices.

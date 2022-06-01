@@ -5,7 +5,7 @@
 #' @param hp A tibble, data frame or named vector, containing the kernel's
 #'    hyperparameters. Required columns: 'se_variance', 'se_lengthscale'.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'    derivative should be computed. If NULL (defaut), the function simply
+#'    derivative should be computed. If NULL (default), the function simply
 #'    returns the evaluation of the kernel.
 #' @param vectorized A logical value, indicating whether the function provides
 #'    a vectorized version for speeded-up calculations. If TRUE, the \code{x}
@@ -54,7 +54,7 @@ se_kernel <- function(x = NULL, y = NULL, hp, deriv = NULL, vectorized = F) {
 #'    hyperparameters. Required columns: 'perio_variance', 'perio_lengthscale',
 #'    and 'period'.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  derivative should be computed. If NULL (default), the function simply returns
 #'  the evaluation of the kernel.
 #' @param vectorized A logical value, indicating whether the function provides
 #'    a vectorized version for speeded-up calculations. If TRUE, the \code{x}
@@ -116,7 +116,7 @@ perio_kernel <- function(x, y, hp, deriv = NULL, vectorized = F) {
 #'    hyperparameters. Required columns: 'rq_variance', 'rq_lengthscale', and
 #'    'rq_scale'.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'  derivative should be computed. If NULL (defaut), the function simply returns
+#'  derivative should be computed. If NULL (default), the function simply returns
 #'  the evaluation of the kernel.
 #' @param vectorized A logical value, indicating whether the function provides
 #'    a vectorized version for speeded-up calculations. If TRUE, the \code{x}
@@ -173,7 +173,7 @@ rq_kernel <- function(x, y, hp, deriv = NULL, vectorized = FALSE) {
 #' @param hp A tibble, data frame or named vector, containing the kernel's
 #'    hyperparameters. Required columns: 'lin_slope' and 'lin_offset'.
 #' @param deriv A character, indicating according to which hyper-parameter the
-#'    derivative should be computed. If NULL (defaut), the function simply
+#'    derivative should be computed. If NULL (default), the function simply
 #'    returns the evaluation of the kernel.
 #' @param vectorized A logical value, indicating whether the function provides
 #'    a vectorized version for speeded-up calculations. If TRUE, the \code{x}
