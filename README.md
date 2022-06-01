@@ -4,6 +4,8 @@
 # MagmaClustR <img src="man/figures/logo.png" align="right" width="120" />
 
 <!-- badges: start -->
+
+[![R-CMD-check](https://github.com/ArthurLeroy/MagmaClustR/workflows/R-CMD-check/badge.svg)](https://github.com/ArthurLeroy/MagmaClustR/actions)
 <!-- badges: end -->
 
 The *MagmaClustR* package implements two main algorithms, called Magma
@@ -87,22 +89,328 @@ model <- train_magma(data = magma_train)
 #>  
 #> The 'ini_hp_0' argument has not been specified. Random values of hyper-parameters for the mean process are used as initialisation.
 #>  
+#> Called from: train_magma(data = magma_train)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#238: if ("ID" %in% names(hp_0)) {
+#>     hp_0 = hp_0[names(hp_0) != "ID"]
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#243: if (kern_i %>% is.function()) {
+#>     if (ini_hp_i %>% is.null()) {
+#>         stop("When using a custom kernel function the 'ini_hp_i' argument is ", 
+#>             "mandatory, in order to provide the name of the hyper-parameters. ", 
+#>             "You can use the function 'hp()' to easily generate a tibble of random", 
+#>             " hyper-parameters with the desired format for initialisation.")
+#>     }
+#> } else {
+#>     if (ini_hp_i %>% is.null()) {
+#>         hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, 
+#>             noise = TRUE)
+#>         cat("The 'ini_hp_i' argument has not been specified. Random values of", 
+#>             "hyper-parameters for the individal processes are used as", 
+#>             "initialisation.\n \n")
+#>     }
+#>     else if (!("ID" %in% names(ini_hp_i))) {
+#>         hp_i <- tibble::tibble(ID = list_ID, dplyr::bind_rows(ini_hp_i))
+#>     }
+#>     else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) & 
+#>         all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+#>         stop("The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ", 
+#>             "'data'.")
+#>     }
+#>     else {
+#>         hp_i <- ini_hp_i
+#>     }
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#253: if (ini_hp_i %>% is.null()) {
+#>     hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, 
+#>         noise = TRUE)
+#>     cat("The 'ini_hp_i' argument has not been specified. Random values of", 
+#>         "hyper-parameters for the individal processes are used as", 
+#>         "initialisation.\n \n")
+#> } else if (!("ID" %in% names(ini_hp_i))) {
+#>     hp_i <- tibble::tibble(ID = list_ID, dplyr::bind_rows(ini_hp_i))
+#> } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) & 
+#>     all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+#>     stop("The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ", 
+#>         "'data'.")
+#> } else {
+#>     hp_i <- ini_hp_i
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#254: hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, 
+#>     noise = TRUE)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#255: cat("The 'ini_hp_i' argument has not been specified. Random values of", 
+#>     "hyper-parameters for the individal processes are used as", 
+#>     "initialisation.\n \n")
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 16.03 seconds 
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#278: if (!("noise" %in% names(hp_i))) {
+#>     if (common_hp) {
+#>         hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
+#>     }
+#>     else {
+#>         hp_i <- hp_i %>% dplyr::left_join(hp(NULL, list_ID = hp_i$ID, 
+#>             noise = T), by = "ID")
+#>     }
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#288: hp_i_ini <- hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#289: hp_0_ini <- hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#291: cv <- FALSE
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#292: logL_monitoring <- -Inf
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#293: seq_loglikelihood <- c()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#296: for (i in 1:n_iter_max) {
+#>     t_i_1 <- Sys.time()
+#>     post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#>     if (fast_approx) {
+#>         seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>             db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>             post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>         cv <- FALSE
+#>         break
+#>     }
+#>     new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>         post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#>     new_hp_0 <- new_hp$hp_0
+#>     new_hp_i <- new_hp$hp_i
+#>     if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>         warning(paste0("The M-step encountered an error at iteration : ", 
+#>             i))
+#>         warning("Training has stopped and hyper-parameters values from the ", 
+#>             "last valid iteration are returned.")
+#>         break
+#>     }
+#>     new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     diff_logL <- new_logL_monitoring - logL_monitoring
+#>     if (diff_logL %>% is.nan()) {
+#>         diff_logL <- -Inf
+#>     }
+#>     if (diff_logL < 0) {
+#>         warning("The likelihood descreased. Possible numerical issues.")
+#>     }
+#>     hp_0 <- new_hp_0
+#>     hp_i <- new_hp_i
+#>     logL_monitoring <- new_logL_monitoring
+#>     seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#>     eps <- diff_logL/abs(logL_monitoring)
+#>     if (eps %>% is.nan()) {
+#>         eps <- 1
+#>     }
+#>     t_i_2 <- Sys.time()
+#>     paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>         units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#>     paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>         " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>         cat()
+#>     if (abs(eps) < cv_threshold) {
+#>         cat("The EM algorithm successfully converged, training is completed.", 
+#>             "\n \n")
+#>         cv <- TRUE
+#>         break
+#>     }
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#299: t_i_1 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#302: post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#313: if (fast_approx) {
+#>     seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     cv <- FALSE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#332: new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>     post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#344: new_hp_0 <- new_hp$hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#345: new_hp_i <- new_hp$hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#348: if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>     warning(paste0("The M-step encountered an error at iteration : ", 
+#>         i))
+#>     warning("Training has stopped and hyper-parameters values from the ", 
+#>         "last valid iteration are returned.")
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#358: new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>     db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, post_mean = post$mean, 
+#>     post_cov = post$cov, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#370: diff_logL <- new_logL_monitoring - logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#371: if (diff_logL %>% is.nan()) {
+#>     diff_logL <- -Inf
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#375: if (diff_logL < 0) {
+#>     warning("The likelihood descreased. Possible numerical issues.")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#380: hp_0 <- new_hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#381: hp_i <- new_hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#382: logL_monitoring <- new_logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#385: seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#388: eps <- diff_logL/abs(logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#389: if (eps %>% is.nan()) {
+#>     eps <- 1
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#> EM algorithm, step 1: 14.1 seconds 
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>     cat()
 #> Value of the likelihood: -379.55987 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 8.14 seconds 
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#412: if (abs(eps) < cv_threshold) {
+#>     cat("The EM algorithm successfully converged, training is completed.", 
+#>         "\n \n")
+#>     cv <- TRUE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#299: t_i_1 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#302: post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#313: if (fast_approx) {
+#>     seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     cv <- FALSE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#332: new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>     post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#344: new_hp_0 <- new_hp$hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#345: new_hp_i <- new_hp$hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#348: if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>     warning(paste0("The M-step encountered an error at iteration : ", 
+#>         i))
+#>     warning("Training has stopped and hyper-parameters values from the ", 
+#>         "last valid iteration are returned.")
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#358: new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>     db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, post_mean = post$mean, 
+#>     post_cov = post$cov, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#370: diff_logL <- new_logL_monitoring - logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#371: if (diff_logL %>% is.nan()) {
+#>     diff_logL <- -Inf
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#375: if (diff_logL < 0) {
+#>     warning("The likelihood descreased. Possible numerical issues.")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#380: hp_0 <- new_hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#381: hp_i <- new_hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#382: logL_monitoring <- new_logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#385: seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#388: eps <- diff_logL/abs(logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#389: if (eps %>% is.nan()) {
+#>     eps <- 1
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#> EM algorithm, step 2: 7.42 seconds 
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>     cat()
 #> Value of the likelihood: -374.3461 --- Convergence ratio = 0.01393
 #>  
-#> EM algorithm, step 3: 7.48 seconds 
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#412: if (abs(eps) < cv_threshold) {
+#>     cat("The EM algorithm successfully converged, training is completed.", 
+#>         "\n \n")
+#>     cv <- TRUE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#299: t_i_1 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#302: post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#313: if (fast_approx) {
+#>     seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     cv <- FALSE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#332: new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>     post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#344: new_hp_0 <- new_hp$hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#345: new_hp_i <- new_hp$hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#348: if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>     warning(paste0("The M-step encountered an error at iteration : ", 
+#>         i))
+#>     warning("Training has stopped and hyper-parameters values from the ", 
+#>         "last valid iteration are returned.")
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#358: new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>     db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, post_mean = post$mean, 
+#>     post_cov = post$cov, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#370: diff_logL <- new_logL_monitoring - logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#371: if (diff_logL %>% is.nan()) {
+#>     diff_logL <- -Inf
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#375: if (diff_logL < 0) {
+#>     warning("The likelihood descreased. Possible numerical issues.")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#380: hp_0 <- new_hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#381: hp_i <- new_hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#382: logL_monitoring <- new_logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#385: seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#388: eps <- diff_logL/abs(logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#389: if (eps %>% is.nan()) {
+#>     eps <- 1
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#> EM algorithm, step 3: 6.35 seconds 
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>     cat()
 #> Value of the likelihood: -374.17964 --- Convergence ratio = 0.00044
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#412: if (abs(eps) < cv_threshold) {
+#>     cat("The EM algorithm successfully converged, training is completed.", 
+#>         "\n \n")
+#>     cv <- TRUE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#413: cat("The EM algorithm successfully converged, training is completed.", 
+#>     "\n \n")
 #> The EM algorithm successfully converged, training is completed. 
-#> 
+#>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#417: cv <- TRUE
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#418: break
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#422: if (!cv & (i == n_iter_max)) {
+#>     warning("The EM algorithm has reached the maximum number of iterations ", 
+#>         "before convergence, training might be sub-optimal \n \n")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#430: if (!is.null(grid_inputs)) {
+#>     cat("Start evaluating hyper-posterior distribution of the mean process", 
+#>         "on the provided grid of inputs... \n \n")
+#>     post <- hyperposterior(data = data, hp_0 = hp_0, hp_i = hp_i, 
+#>         kern_0 = kern_0, kern_i = kern_i, prior_mean = prior_mean, 
+#>         grid_inputs = grid_inputs, pen_diag = pen_diag)
+#>     cat("Done!\n \n")
+#> } else {
+#>     post$pred <- tibble::tibble(Input = post$mean %>% dplyr::pull(.data$Input), 
+#>         Mean = post$mean %>% dplyr::pull(.data$Output), Var = post$cov %>% 
+#>             diag() %>% as.vector())
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#449: post$pred <- tibble::tibble(Input = post$mean %>% dplyr::pull(.data$Input), 
+#>     Mean = post$mean %>% dplyr::pull(.data$Output), Var = post$cov %>% 
+#>         diag() %>% as.vector())
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#457: fct_args <- list(data = data, prior_mean = prior_mean, ini_hp_0 = hp_0_ini, 
+#>     ini_hp_i = hp_i_ini, kern_0 = kern_0, kern_i = kern_i, common_hp = common_hp, 
+#>     grid_inputs = grid_inputs, pen_diag = pen_diag, n_iter_max = n_iter_max, 
+#>     cv_threshold = cv_threshold)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#471: t_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#473: list(hp_0 = hp_0, hp_i = hp_i, hyperpost = post, ini_args = fct_args, 
+#>     seq_loglikelihood = seq_loglikelihood, converged = cv, training_time = difftime(t_2, 
+#>         t_1, units = "secs")) %>% return()
 
 pred  <- pred_magma(data = magma_pred,
                     trained_model = model, 
@@ -211,15 +519,15 @@ model_clust <- train_magmaclust(data = magmaclust_train)
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 72.83 seconds 
+#> VEM algorithm, step 1: 60.92 seconds 
 #>  
 #> Value of the elbo: -403.8673 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 28.82 seconds 
+#> VEM algorithm, step 2: 21.94 seconds 
 #>  
 #> Value of the elbo: -383.34763 --- Convergence ratio = 0.05353
 #>  
-#> VEM algorithm, step 3: 21.5 seconds 
+#> VEM algorithm, step 3: 18.85 seconds 
 #>  
 #> Value of the elbo: -383.08831 --- Convergence ratio = 0.00068
 #>  
@@ -304,26 +612,384 @@ model_dim2 <- train_magma(data = dim2_train)
 #>  
 #> The 'ini_hp_0' argument has not been specified. Random values of hyper-parameters for the mean process are used as initialisation.
 #>  
+#> Called from: train_magma(data = dim2_train)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#238: if ("ID" %in% names(hp_0)) {
+#>     hp_0 = hp_0[names(hp_0) != "ID"]
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#243: if (kern_i %>% is.function()) {
+#>     if (ini_hp_i %>% is.null()) {
+#>         stop("When using a custom kernel function the 'ini_hp_i' argument is ", 
+#>             "mandatory, in order to provide the name of the hyper-parameters. ", 
+#>             "You can use the function 'hp()' to easily generate a tibble of random", 
+#>             " hyper-parameters with the desired format for initialisation.")
+#>     }
+#> } else {
+#>     if (ini_hp_i %>% is.null()) {
+#>         hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, 
+#>             noise = TRUE)
+#>         cat("The 'ini_hp_i' argument has not been specified. Random values of", 
+#>             "hyper-parameters for the individal processes are used as", 
+#>             "initialisation.\n \n")
+#>     }
+#>     else if (!("ID" %in% names(ini_hp_i))) {
+#>         hp_i <- tibble::tibble(ID = list_ID, dplyr::bind_rows(ini_hp_i))
+#>     }
+#>     else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) & 
+#>         all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+#>         stop("The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ", 
+#>             "'data'.")
+#>     }
+#>     else {
+#>         hp_i <- ini_hp_i
+#>     }
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#253: if (ini_hp_i %>% is.null()) {
+#>     hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, 
+#>         noise = TRUE)
+#>     cat("The 'ini_hp_i' argument has not been specified. Random values of", 
+#>         "hyper-parameters for the individal processes are used as", 
+#>         "initialisation.\n \n")
+#> } else if (!("ID" %in% names(ini_hp_i))) {
+#>     hp_i <- tibble::tibble(ID = list_ID, dplyr::bind_rows(ini_hp_i))
+#> } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) & 
+#>     all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+#>     stop("The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ", 
+#>         "'data'.")
+#> } else {
+#>     hp_i <- ini_hp_i
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#254: hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, 
+#>     noise = TRUE)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#255: cat("The 'ini_hp_i' argument has not been specified. Random values of", 
+#>     "hyper-parameters for the individal processes are used as", 
+#>     "initialisation.\n \n")
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 11.83 seconds 
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#278: if (!("noise" %in% names(hp_i))) {
+#>     if (common_hp) {
+#>         hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
+#>     }
+#>     else {
+#>         hp_i <- hp_i %>% dplyr::left_join(hp(NULL, list_ID = hp_i$ID, 
+#>             noise = T), by = "ID")
+#>     }
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#288: hp_i_ini <- hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#289: hp_0_ini <- hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#291: cv <- FALSE
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#292: logL_monitoring <- -Inf
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#293: seq_loglikelihood <- c()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#296: for (i in 1:n_iter_max) {
+#>     t_i_1 <- Sys.time()
+#>     post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#>     if (fast_approx) {
+#>         seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>             db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>             post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>         cv <- FALSE
+#>         break
+#>     }
+#>     new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>         post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#>     new_hp_0 <- new_hp$hp_0
+#>     new_hp_i <- new_hp$hp_i
+#>     if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>         warning(paste0("The M-step encountered an error at iteration : ", 
+#>             i))
+#>         warning("Training has stopped and hyper-parameters values from the ", 
+#>             "last valid iteration are returned.")
+#>         break
+#>     }
+#>     new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     diff_logL <- new_logL_monitoring - logL_monitoring
+#>     if (diff_logL %>% is.nan()) {
+#>         diff_logL <- -Inf
+#>     }
+#>     if (diff_logL < 0) {
+#>         warning("The likelihood descreased. Possible numerical issues.")
+#>     }
+#>     hp_0 <- new_hp_0
+#>     hp_i <- new_hp_i
+#>     logL_monitoring <- new_logL_monitoring
+#>     seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#>     eps <- diff_logL/abs(logL_monitoring)
+#>     if (eps %>% is.nan()) {
+#>         eps <- 1
+#>     }
+#>     t_i_2 <- Sys.time()
+#>     paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>         units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#>     paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>         " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>         cat()
+#>     if (abs(eps) < cv_threshold) {
+#>         cat("The EM algorithm successfully converged, training is completed.", 
+#>             "\n \n")
+#>         cv <- TRUE
+#>         break
+#>     }
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#299: t_i_1 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#302: post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#313: if (fast_approx) {
+#>     seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     cv <- FALSE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#332: new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>     post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#344: new_hp_0 <- new_hp$hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#345: new_hp_i <- new_hp$hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#348: if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>     warning(paste0("The M-step encountered an error at iteration : ", 
+#>         i))
+#>     warning("Training has stopped and hyper-parameters values from the ", 
+#>         "last valid iteration are returned.")
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#358: new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>     db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, post_mean = post$mean, 
+#>     post_cov = post$cov, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#370: diff_logL <- new_logL_monitoring - logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#371: if (diff_logL %>% is.nan()) {
+#>     diff_logL <- -Inf
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#375: if (diff_logL < 0) {
+#>     warning("The likelihood descreased. Possible numerical issues.")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#380: hp_0 <- new_hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#381: hp_i <- new_hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#382: logL_monitoring <- new_logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#385: seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#388: eps <- diff_logL/abs(logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#389: if (eps %>% is.nan()) {
+#>     eps <- 1
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#> EM algorithm, step 1: 11.63 seconds 
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>     cat()
 #> Value of the likelihood: -242.84823 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 15.28 seconds 
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#412: if (abs(eps) < cv_threshold) {
+#>     cat("The EM algorithm successfully converged, training is completed.", 
+#>         "\n \n")
+#>     cv <- TRUE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#299: t_i_1 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#302: post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#313: if (fast_approx) {
+#>     seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     cv <- FALSE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#332: new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>     post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#344: new_hp_0 <- new_hp$hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#345: new_hp_i <- new_hp$hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#348: if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>     warning(paste0("The M-step encountered an error at iteration : ", 
+#>         i))
+#>     warning("Training has stopped and hyper-parameters values from the ", 
+#>         "last valid iteration are returned.")
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#358: new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>     db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, post_mean = post$mean, 
+#>     post_cov = post$cov, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#370: diff_logL <- new_logL_monitoring - logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#371: if (diff_logL %>% is.nan()) {
+#>     diff_logL <- -Inf
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#375: if (diff_logL < 0) {
+#>     warning("The likelihood descreased. Possible numerical issues.")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#380: hp_0 <- new_hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#381: hp_i <- new_hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#382: logL_monitoring <- new_logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#385: seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#388: eps <- diff_logL/abs(logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#389: if (eps %>% is.nan()) {
+#>     eps <- 1
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#> EM algorithm, step 2: 13.68 seconds 
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>     cat()
 #> Value of the likelihood: -231.94883 --- Convergence ratio = 0.04699
 #>  
-#> EM algorithm, step 3: 13.1 seconds 
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#412: if (abs(eps) < cv_threshold) {
+#>     cat("The EM algorithm successfully converged, training is completed.", 
+#>         "\n \n")
+#>     cv <- TRUE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#299: t_i_1 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#302: post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#313: if (fast_approx) {
+#>     seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     cv <- FALSE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#332: new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>     post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#344: new_hp_0 <- new_hp$hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#345: new_hp_i <- new_hp$hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#348: if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>     warning(paste0("The M-step encountered an error at iteration : ", 
+#>         i))
+#>     warning("Training has stopped and hyper-parameters values from the ", 
+#>         "last valid iteration are returned.")
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#358: new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>     db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, post_mean = post$mean, 
+#>     post_cov = post$cov, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#370: diff_logL <- new_logL_monitoring - logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#371: if (diff_logL %>% is.nan()) {
+#>     diff_logL <- -Inf
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#375: if (diff_logL < 0) {
+#>     warning("The likelihood descreased. Possible numerical issues.")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#380: hp_0 <- new_hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#381: hp_i <- new_hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#382: logL_monitoring <- new_logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#385: seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#388: eps <- diff_logL/abs(logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#389: if (eps %>% is.nan()) {
+#>     eps <- 1
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#> EM algorithm, step 3: 11.87 seconds 
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>     cat()
 #> Value of the likelihood: -231.6273 --- Convergence ratio = 0.00139
 #>  
-#> EM algorithm, step 4: 7.93 seconds 
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#412: if (abs(eps) < cv_threshold) {
+#>     cat("The EM algorithm successfully converged, training is completed.", 
+#>         "\n \n")
+#>     cv <- TRUE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#299: t_i_1 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#302: post <- e_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     hp_0 = hp_0, hp_i = hp_i, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#313: if (fast_approx) {
+#>     seq_loglikelihood <- logL_monitoring(hp_0 = hp_0, hp_i = hp_i, 
+#>         db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>         post_mean = post$mean, post_cov = post$cov, pen_diag = pen_diag)
+#>     cv <- FALSE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#332: new_hp <- m_step(db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, 
+#>     old_hp_0 = hp_0, old_hp_i = hp_i, post_mean = post$mean, 
+#>     post_cov = post$cov, common_hp = common_hp, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#344: new_hp_0 <- new_hp$hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#345: new_hp_i <- new_hp$hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#348: if (any(is.na(new_hp_0)) | any(is.na(new_hp_i))) {
+#>     warning(paste0("The M-step encountered an error at iteration : ", 
+#>         i))
+#>     warning("Training has stopped and hyper-parameters values from the ", 
+#>         "last valid iteration are returned.")
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#358: new_logL_monitoring <- logL_monitoring(hp_0 = new_hp_0, hp_i = new_hp_i, 
+#>     db = data, m_0 = m_0, kern_0 = kern_0, kern_i = kern_i, post_mean = post$mean, 
+#>     post_cov = post$cov, pen_diag = pen_diag)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#370: diff_logL <- new_logL_monitoring - logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#371: if (diff_logL %>% is.nan()) {
+#>     diff_logL <- -Inf
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#375: if (diff_logL < 0) {
+#>     warning("The likelihood descreased. Possible numerical issues.")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#380: hp_0 <- new_hp_0
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#381: hp_i <- new_hp_i
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#382: logL_monitoring <- new_logL_monitoring
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#385: seq_loglikelihood <- c(seq_loglikelihood, logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#388: eps <- diff_logL/abs(logL_monitoring)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#389: if (eps %>% is.nan()) {
+#>     eps <- 1
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#394: t_i_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#395: paste0("EM algorithm, step ", i, ": ", difftime(t_i_2, t_i_1, 
+#>     units = "secs") %>% round(2), " seconds \n \n") %>% cat()
+#> EM algorithm, step 4: 7.96 seconds 
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#402: paste0("Value of the likelihood: ", logL_monitoring %>% round(5), 
+#>     " --- Convergence ratio = ", eps %>% round(5), "\n \n") %>% 
+#>     cat()
 #> Value of the likelihood: -231.61445 --- Convergence ratio = 6e-05
 #>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#412: if (abs(eps) < cv_threshold) {
+#>     cat("The EM algorithm successfully converged, training is completed.", 
+#>         "\n \n")
+#>     cv <- TRUE
+#>     break
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#413: cat("The EM algorithm successfully converged, training is completed.", 
+#>     "\n \n")
 #> The EM algorithm successfully converged, training is completed. 
-#> 
+#>  
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#417: cv <- TRUE
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#418: break
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#422: if (!cv & (i == n_iter_max)) {
+#>     warning("The EM algorithm has reached the maximum number of iterations ", 
+#>         "before convergence, training might be sub-optimal \n \n")
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#430: if (!is.null(grid_inputs)) {
+#>     cat("Start evaluating hyper-posterior distribution of the mean process", 
+#>         "on the provided grid of inputs... \n \n")
+#>     post <- hyperposterior(data = data, hp_0 = hp_0, hp_i = hp_i, 
+#>         kern_0 = kern_0, kern_i = kern_i, prior_mean = prior_mean, 
+#>         grid_inputs = grid_inputs, pen_diag = pen_diag)
+#>     cat("Done!\n \n")
+#> } else {
+#>     post$pred <- tibble::tibble(Input = post$mean %>% dplyr::pull(.data$Input), 
+#>         Mean = post$mean %>% dplyr::pull(.data$Output), Var = post$cov %>% 
+#>             diag() %>% as.vector())
+#> }
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#449: post$pred <- tibble::tibble(Input = post$mean %>% dplyr::pull(.data$Input), 
+#>     Mean = post$mean %>% dplyr::pull(.data$Output), Var = post$cov %>% 
+#>         diag() %>% as.vector())
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#457: fct_args <- list(data = data, prior_mean = prior_mean, ini_hp_0 = hp_0_ini, 
+#>     ini_hp_i = hp_i_ini, kern_0 = kern_0, kern_i = kern_i, common_hp = common_hp, 
+#>     grid_inputs = grid_inputs, pen_diag = pen_diag, n_iter_max = n_iter_max, 
+#>     cv_threshold = cv_threshold)
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#471: t_2 <- Sys.time()
+#> debug at C:/Users/user/Mon Drive/Travail/GitHub/MagmaClustR/R/training.R#473: list(hp_0 = hp_0, hp_i = hp_i, hyperpost = post, ini_args = fct_args, 
+#>     seq_loglikelihood = seq_loglikelihood, converged = cv, training_time = difftime(t_2, 
+#>         t_1, units = "secs")) %>% return()
 
 pred_dim2  <- pred_magma(data = dim2_pred,
                          trained_model = model_dim2)
