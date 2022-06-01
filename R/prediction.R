@@ -479,10 +479,10 @@ hyperposterior <- function(data,
       weighted_i[co_input, ]
   }
 
-  ## Fast or slow matrix inversion if nearly singular
-  post_cov <- tryCatch(post_inv %>% chol() %>% chol2inv(), error = function(e) {
-    MASS::ginv(post_inv)
-  }) %>%
+
+  post_cov <- post_inv %>%
+    chol() %>%
+    chol2inv() %>%
     `rownames<-`(all_input) %>%
     `colnames<-`(all_input)
   ## Compute the updated mean parameter
@@ -831,11 +831,9 @@ pred_magma <- function(data,
   cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
   diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
 
-  inv_obs <- tryCatch((cov_obs + diag) %>% chol() %>% chol2inv(),
-    error = function(e) {
-      MASS::ginv(cov_obs + diag)
-    }
-  ) %>%
+  inv_obs <- (cov_obs + diag) %>%
+    chol() %>%
+    chol2inv() %>%
     `rownames<-`(as.character(input_obs)) %>%
     `colnames<-`(as.character(input_obs))
 
@@ -1233,10 +1231,10 @@ hyperposterior_clust <- function(data,
       post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
         tau_i_k * inv_i[co_input, co_input]
     }
-    ## Fast or slow matrix inversion if nearly singular
-    post_cov <- tryCatch(chol(post_inv) %>% chol2inv(), error = function(e) {
-      MASS::ginv(post_inv)
-    }) %>%
+
+    post_cov <- post_inv %>%
+      chol() %>%
+      chol2inv() %>%
       `rownames<-`(all_input) %>%
       `colnames<-`(all_input) %>%
       return()
@@ -1706,11 +1704,9 @@ pred_magmaclust <- function(data,
     cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
     diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
 
-    inv_obs <- tryCatch((cov_obs + diag) %>% chol() %>% chol2inv(),
-                        error = function(e) {
-                          MASS::ginv(cov_obs + diag)
-                        }
-    ) %>%
+    inv_obs <- (cov_obs + diag) %>%
+      chol() %>%
+      chol2inv() %>%
       `rownames<-`(as.character(input_obs)) %>%
       `colnames<-`(as.character(input_obs))
 

@@ -53,10 +53,10 @@ e_step <- function(db,
     post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
       inv_i[co_input, co_input]
   }
-  ## Fast or slow matrix inversion if nearly singular
-  post_cov <- tryCatch(post_inv %>% chol() %>% chol2inv(), error = function(e) {
-    MASS::ginv(post_inv)
-  }) %>%
+
+  post_cov <- post_inv %>%
+    chol() %>%
+    chol2inv() %>%
     `rownames<-`(all_input) %>%
     `colnames<-`(all_input)
   ##############################################

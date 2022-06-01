@@ -89,12 +89,9 @@ ve_step <- function(db,
         tau_i_k * inv_i[co_input, co_input]
     }
 
-    ## Fast or slow matrix inversion if nearly singular
-    tryCatch(post_inv %>% chol() %>% chol2inv(),
-      error = function(e) {
-        MASS::ginv(post_inv)
-      }
-    ) %>%
+    post_inv %>%
+      chol() %>%
+      chol2inv() %>%
       `rownames<-`(all_input) %>%
       `colnames<-`(all_input) %>%
       return()

@@ -384,12 +384,9 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
   reference <- row.names(mat_cov)
   diag <- diag(x = pen_diag, ncol = ncol(mat_cov), nrow = nrow(mat_cov))
 
-  inv <- tryCatch((mat_cov + diag) %>% chol() %>% chol2inv(),
-    error = function(e) {
-      MASS::ginv(mat_cov + diag)
-    }
-  )
-  inv %>%
+  inv <- (mat_cov + diag) %>%
+    chol() %>%
+    chol2inv() %>%
     `rownames<-`(reference) %>%
     `colnames<-`(reference) %>%
     return()

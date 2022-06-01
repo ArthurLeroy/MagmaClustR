@@ -71,11 +71,8 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   ## Sum the two covariance matrices and inverse the result
   cov <- kern_to_cov(input, kern, hp) + post_cov
   diag <- diag(x = pen_diag, ncol = ncol(cov), nrow = nrow(cov))
-  inv <- tryCatch((cov + diag) %>% chol() %>% chol2inv(),
-    error = function(e) {
-      MASS::ginv(cov + diag)
-    }
-  )
+  inv <- (cov + diag) %>% chol() %>% chol2inv()
+
   (-dmnorm(db$Output, mean, inv, log = T)) %>%
     return()
 }
