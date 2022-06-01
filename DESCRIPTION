@@ -51,7 +51,7 @@ Imports:
     tidyselect
 Suggests: 
     rmarkdown,
-    MASS,
+    MASS (>= 4.3.0),
     knitr,
     testthat (>= 3.0.0),
     plotly,
