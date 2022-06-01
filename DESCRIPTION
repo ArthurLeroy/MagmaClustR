@@ -40,7 +40,6 @@ Imports:
     ggplot2,
     magrittr,
     maotai,
-    MASS,
     methods,
     mvtnorm,
     optimr,
@@ -52,6 +51,7 @@ Imports:
     tidyselect
 Suggests: 
     rmarkdown,
+    MASS,
     knitr,
     testthat (>= 3.0.0),
     plotly,
