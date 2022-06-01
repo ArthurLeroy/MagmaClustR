@@ -21,7 +21,8 @@ Description: The 'MagmaClustR' package implements two main algorithms,
     functions. Some basic features of standard Gaussian processes are also
     implemented.
 License: MIT + file LICENSE
-URL: https://github.com/ArthurLeroy/MagmaClustR
+URL: https://github.com/ArthurLeroy/MagmaClustR,
+    https://arthurleroy.github.io/MagmaClustR/
 BugReports: https://github.com/ArthurLeroy/MagmaClustR/issues
 Imports: 
     broom,
