@@ -378,8 +378,6 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
 #' )
 kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
 
-  # browser()
-
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
   reference <- row.names(mat_cov)
   diag <- diag(x = pen_diag, ncol = ncol(mat_cov), nrow = nrow(mat_cov))

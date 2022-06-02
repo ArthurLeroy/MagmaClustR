@@ -258,7 +258,6 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
     res %>% print()
   }
 
-  # browser()
   broom::augment(
     res,
     db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)

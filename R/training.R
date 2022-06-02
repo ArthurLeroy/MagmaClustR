@@ -233,7 +233,7 @@ train_magma <- function(data,
       hp_0 <- ini_hp_0
     }
   }
-  browser()
+
   ## Remove ID column if present if hp_0
   if ("ID" %in% names(hp_0)){
     hp_0 = hp_0[names(hp_0) != "ID"]
@@ -1634,7 +1634,7 @@ select_nb_cluster <- function(data,
     hp_k <- tibble::tibble("ID" = paste0("K", 1:k)) %>%
       dplyr::mutate(ini_hp_k)
 
-    cat("Model selection: K = ", K,"\n \n")
+    cat("Model selection: K = ", k,"\n \n")
 
     ## Train Magma if k = 1 and MagmaClust otherwise
     if (k == 1) {

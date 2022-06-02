@@ -13,7 +13,6 @@
 #' @examples
 #' TRUE
 gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
-  # browser()
   list_hp <- names(hp)
 
   names_k <- hyperpost$mean %>% names()
@@ -81,7 +80,7 @@ gr_GP_mod_common_hp_k <- function(
   post_cov,
   pen_diag = NULL
   ) {
-  # browser()
+
   if ("ID" %in% names(hp)) {
     hp <- hp %>% dplyr::select(-.data$ID)
   }
@@ -155,7 +154,7 @@ gr_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost,
 
   ## Loop over individuals to compute the sum of log-Likelihoods
   funloop <- function(i) {
-    # browser()
+
     ## Extract the i-th specific reference Input
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
@@ -174,7 +173,6 @@ gr_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost,
 
     for (k in (names_k))
     {
-      # browser()
       ## Extract the covariance values associated with the i-th specific inputs
       post_cov_i <- hyperpost$cov[[k]][
         as.character(input_i),
