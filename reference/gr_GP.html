@@ -79,13 +79,8 @@ sum of the individual and the hyper-posterior's mean process covariances).</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span class="va">db</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span>Input <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, Output <span class="op">=</span> <span class="fl">2</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">mean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">5</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">hp</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span>se_variance <span class="op">=</span> <span class="fl">1</span>, se_lengthscale <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">post_cov</span> <span class="op">&lt;-</span> <span class="fu"><a href="kern_to_cov.html">kern_to_cov</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, <span class="st">"SE"</span>, <span class="va">hp</span><span class="op">)</span></span>
-<span class="r-in"><span class="fu">MagmaClustR</span><span class="fu">:::</span><span class="fu">gr_GP</span><span class="op">(</span><span class="va">hp</span>, <span class="va">db</span>, <span class="va">mean</span>, <span class="st">"SE"</span>, <span class="va">post_cov</span>, <span class="fl">0.001</span><span class="op">)</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    se_variance se_lengthscale </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     -0.8468554     -1.5165957 </span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span class="cn">TRUE</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>

@@ -107,42 +107,8 @@ associated with the individual GPs.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span>
-<span class="r-in"><span class="co">## Common inputs across individuals and different HPs</span></span>
-<span class="r-in"><span class="va">db</span> <span class="op">&lt;-</span> <span class="fu"><a href="simu_db.html">simu_db</a></span><span class="op">(</span>N <span class="op">=</span> <span class="fl">10</span>, common_input <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">m_0</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">hp_0</span> <span class="op">&lt;-</span> <span class="fu">MagmaClustR</span><span class="fu">:::</span><span class="fu"><a href="hp.html">hp</a></span><span class="op">(</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">hp_i</span> <span class="op">&lt;-</span> <span class="fu">MagmaClustR</span><span class="fu">:::</span><span class="fu"><a href="hp.html">hp</a></span><span class="op">(</span><span class="st">"SE"</span>, list_ID <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">db</span><span class="op">$</span><span class="va">ID</span><span class="op">)</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">post</span> <span class="op">&lt;-</span> <span class="fu">MagmaClustR</span><span class="fu">:::</span><span class="fu"><a href="e_step.html">e_step</a></span><span class="op">(</span><span class="va">db</span>, <span class="va">m_0</span>, <span class="st">"SE"</span>, <span class="st">"SE"</span>, <span class="va">hp_0</span>, <span class="va">hp_i</span>, <span class="fl">0.001</span><span class="op">)</span></span>
-<span class="r-in"></span>
-<span class="r-in"><span class="fu">MagmaClustR</span><span class="fu">:::</span><span class="fu">m_step</span><span class="op">(</span></span>
-<span class="r-in">  <span class="va">db</span>, <span class="va">m_0</span>, <span class="st">"SE"</span>, <span class="st">"SE"</span>, <span class="va">hp_0</span>, <span class="va">hp_i</span>, <span class="va">post</span><span class="op">$</span><span class="va">mean</span>, <span class="va">post</span><span class="op">$</span><span class="va">cov</span>,</span>
-<span class="r-in">  <span class="cn">TRUE</span>, <span class="fl">0.1</span></span>
-<span class="r-in"><span class="op">)</span></span>
-<span class="r-in"></span>
-<span class="r-in"><span class="co">## Common inputs across individuals and common HPs</span></span>
-<span class="r-in"><span class="va">hp_i_common</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
-<span class="r-in">  ID <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">db</span><span class="op">$</span><span class="va">ID</span><span class="op">)</span>,</span>
-<span class="r-in">  variance <span class="op">=</span> <span class="fl">1</span>, lengthscale <span class="op">=</span> <span class="fl">1</span></span>
-<span class="r-in"><span class="op">)</span></span>
-<span class="r-in"><span class="fu">MagmaClustR</span><span class="fu">:::</span><span class="fu">m_step</span><span class="op">(</span></span>
-<span class="r-in">  <span class="va">db</span>, <span class="va">m_0</span>, <span class="st">"SE"</span>, <span class="st">"SE"</span>, <span class="va">hp_0</span>, <span class="va">hp_i_common</span>,</span>
-<span class="r-in">  <span class="va">post</span><span class="op">$</span><span class="va">mean</span>, <span class="va">post</span><span class="op">$</span><span class="va">cov</span>, <span class="cn">TRUE</span>, <span class="fl">0.5</span></span>
-<span class="r-in"><span class="op">)</span></span>
-<span class="r-in"></span>
-<span class="r-in"><span class="co">## Different inputs across individuals and different HPs</span></span>
-<span class="r-in"><span class="va">db_async</span> <span class="op">&lt;-</span> <span class="fu"><a href="simu_db.html">simu_db</a></span><span class="op">(</span>N <span class="op">=</span> <span class="fl">10</span>, common_input <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">m_0_async</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">db_async</span><span class="op">$</span><span class="va">Input</span> <span class="op"><a href="pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span class="r-in"><span class="va">post_async</span> <span class="op">&lt;-</span> <span class="fu">MagmaClustR</span><span class="fu">:::</span><span class="fu"><a href="e_step.html">e_step</a></span><span class="op">(</span></span>
-<span class="r-in">  <span class="va">db_async</span>, <span class="va">m_0_async</span>, <span class="st">"SE"</span>, <span class="st">"SE"</span>,</span>
-<span class="r-in">  <span class="va">hp_0</span>, <span class="va">hp_i</span>, <span class="fl">0.001</span></span>
-<span class="r-in"><span class="op">)</span></span>
-<span class="r-in"></span>
-<span class="r-in"><span class="fu">MagmaClustR</span><span class="fu">:::</span><span class="fu">m_step</span><span class="op">(</span></span>
-<span class="r-in">  <span class="va">db_async</span>, <span class="va">m_0_async</span>, <span class="st">"SE"</span>, <span class="st">"SE"</span>, <span class="va">hp_0</span>, <span class="va">hp_i</span>,</span>
-<span class="r-in">  <span class="va">post_async</span><span class="op">$</span><span class="va">mean</span>, <span class="va">post_async</span><span class="op">$</span><span class="va">cov</span>, <span class="cn">FALSE</span>, <span class="fl">0.01</span></span>
-<span class="r-in"><span class="op">)</span></span>
-<span class="r-in"><span class="op">}</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span class="cn">TRUE</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
