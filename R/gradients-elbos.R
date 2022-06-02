@@ -29,9 +29,11 @@ gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
     tau_i_k <- hyperpost$mixture %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(k)
+
     mean_mu_k <- hyperpost$mean[[k]] %>%
       dplyr::filter(.data$Input %in% t_i) %>%
       dplyr::pull(.data$Output)
+
     corr1 <- corr1 + tau_i_k * mean_mu_k
     corr2 <- corr2 + tau_i_k *
       (mean_mu_k %*% t(mean_mu_k) +
@@ -40,6 +42,7 @@ gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 
   inv <- kern_to_inv(t_i, kern, hp, pen_diag)
   prod_inv <- inv %*% y_i
+
   common_term <- (prod_inv - 2 * inv %*% corr1) %*% t(prod_inv) +
     inv %*% (corr2 %*% inv - diag(1, length(t_i)))
 
@@ -78,7 +81,7 @@ gr_GP_mod_common_hp_k <- function(
   mean,
   kern,
   post_cov,
-  pen_diag = NULL
+  pen_diag
   ) {
 
   if ("ID" %in% names(hp)) {

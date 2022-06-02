@@ -128,7 +128,7 @@ train_magma <- function(data,
                         kern_i = "SE",
                         common_hp = TRUE,
                         grid_inputs = NULL,
-                        pen_diag = 1e-8,
+                        pen_diag = 1e-10,
                         n_iter_max = 25,
                         cv_threshold = 1e-3,
                         fast_approx = FALSE) {
@@ -557,7 +557,7 @@ train_gp <- function(data,
                      ini_hp = NULL,
                      kern = "SE",
                      hyperpost = NULL,
-                     pen_diag = 1e-8) {
+                     pen_diag = 1e-10) {
 
   ## Extract the reference Input in the data
   input_obs <- unique(data$Input) %>% sort()
@@ -838,7 +838,7 @@ train_magmaclust <- function(data,
                              common_hp_k = TRUE,
                              common_hp_i = TRUE,
                              grid_inputs = NULL,
-                             pen_diag = 1e-8,
+                             pen_diag = 1e-10,
                              n_iter_max = 25,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
@@ -1303,7 +1303,7 @@ train_gp_clust <- function(data,
                            ini_hp = NULL,
                            kern = "SE",
                            hyperpost = NULL,
-                           pen_diag = 1e-8,
+                           pen_diag = 1e-10,
                            n_iter_max = 25,
                            cv_threshold = 1e-3) {
   ## Extract the observed (reference) Input
@@ -1623,7 +1623,6 @@ select_nb_cluster <- function(data,
     hp_i <- ini_hp_i
   }
 
-
   ## Initialise tracking of V-BIC values
   seq_vbic <- c()
 
@@ -1638,18 +1637,18 @@ select_nb_cluster <- function(data,
 
     ## Train Magma if k = 1 and MagmaClust otherwise
     if (k == 1) {
-      mod <- quiet(
+      mod <-
         train_magma(
           data = data,
           ini_hp_0 = hp_k,
           ini_hp_i = hp_i,
           fast_approx = fast_approx,
           ...)
-      )
+
       ## Extract the value of the log-likelihood at convergence
       elbo <- mod$seq_loglikelihood %>% dplyr::last()
     } else {
-      mod <- quiet(
+      mod <-
         train_magmaclust(
           data = data,
           nb_cluster = k,
@@ -1657,7 +1656,6 @@ select_nb_cluster <- function(data,
           ini_hp_i = hp_i,
           fast_approx = fast_approx,
           ...)
-      )
       ## Extract the value of the ELBO at convergence
       elbo <- mod$seq_elbo %>% dplyr::last()
     }
@@ -1680,15 +1678,14 @@ select_nb_cluster <- function(data,
 
     t_2 = Sys.time()
     ## Track training time
-    paste0("Training time: K = ",
+    paste0("Training time: ",
            difftime(t_2, t_1, units = "secs") %>% round(2),
-           "\n \n") %>%
+           " seconds \n \n") %>%
       cat()
 
     return(mod)
   }
   mod_k <- sapply(grid_nb_cluster, floop, simplify = FALSE, USE.NAMES = TRUE)
-
 
   tib_vbic <- tibble::tibble("Nb_clust" = grid_nb_cluster, "VBIC" = seq_vbic)
 

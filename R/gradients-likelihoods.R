@@ -26,8 +26,8 @@ gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   inputs <- db %>% dplyr::select(-.data$Output)
 
   cov <- kern_to_cov(inputs, kern, hp) + post_cov
-  diag <- diag(x = pen_diag, ncol = ncol(cov), nrow = nrow(cov))
-  inv <- (cov + diag) %>% chol() %>% chol2inv()
+
+  inv <- cov %>% chol_inv_jitter(pen_diag = pen_diag)
 
   ## Compute the term common to all partial derivatives
   prod_inv <- inv %*% (output - mean)

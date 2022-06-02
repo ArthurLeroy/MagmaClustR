@@ -47,8 +47,7 @@ e_step <- function(db,
   }
 
   post_cov <- post_inv %>%
-    chol() %>%
-    chol2inv() %>%
+    chol_inv_jitter(pen_diag = pen_diag) %>%
     `rownames<-`(all_input) %>%
     `colnames<-`(all_input)
   ##############################################

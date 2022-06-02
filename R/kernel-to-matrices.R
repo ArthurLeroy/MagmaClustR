@@ -46,11 +46,7 @@
 #' kernel for each pair of reference inputs.
 #'
 #' @examples
-#' kern_to_cov(
-#'   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
-#'   "SE",
-#'   tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-#' )
+#' TRUE
 kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
   ## If a second set of inputs is not provided, only 'input' against itself
   if (input_2 %>% is.null()) {
@@ -371,20 +367,14 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
 #' @export
 #'
 #' @examples
-#' kern_to_inv(
-#'   rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
-#'   "SE",
-#'   tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-#' )
-kern_to_inv <- function(input, kern, hp, pen_diag = 0, deriv = NULL) {
+#' TRUE
+kern_to_inv <- function(input, kern, hp, pen_diag = 1e-10, deriv = NULL) {
 
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
   reference <- row.names(mat_cov)
-  diag <- diag(x = pen_diag, ncol = ncol(mat_cov), nrow = nrow(mat_cov))
 
-  inv <- (mat_cov + diag) %>%
-    chol() %>%
-    chol2inv() %>%
+  inv <- mat_cov %>%
+    chol_inv_jitter(pen_diag = pen_diag) %>%
     `rownames<-`(reference) %>%
     `colnames<-`(reference) %>%
     return()
@@ -476,3 +466,29 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib MagmaClustR, .registration = TRUE
 NULL
+
+#' Inverse a matrix using an adaptive jitter term
+#'
+#' Inverse a matrix from its Choleski decomposition. If (nearly-)singular,
+#' increase the order of magnitude of the jitter term added to the diagonal
+#' until the matrix becomes non-singular.
+#'
+#' @param mat A matrix, possibly singular.
+#' @param pen_diag A number, a jitter term to add on the diagonal.
+#'
+#' @return A matrix, inverse of \code{mat} plus an adaptive jitter term
+#'    added on the diagonal.
+#'
+#' @examples
+#' TRUE
+chol_inv_jitter <- function(mat, pen_diag){
+  ## Add a jitter term to the diagonal
+  diag(mat) <- diag(mat) + pen_diag
+  ## Recursive pattern for the adaptive jitter (if error, increase jitter)
+  tryCatch(
+    mat %>% chol() %>% chol2inv(),
+    error = function(e) {
+      chol_inv_jitter(mat, 10*pen_diag)
+      }
+    )
+}

@@ -79,7 +79,7 @@ pred_gp <- function(data,
                     grid_inputs = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
-                    pen_diag = 1e-8) {
+                    pen_diag = 1e-10) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -380,7 +380,7 @@ hyperposterior <- function(data,
                            kern_i,
                            prior_mean = NULL,
                            grid_inputs = NULL,
-                           pen_diag = 1e-8) {
+                           pen_diag = 1e-10) {
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
     all_input <- unique(data$Input) %>% sort()
@@ -479,10 +479,8 @@ hyperposterior <- function(data,
       weighted_i[co_input, ]
   }
 
-
   post_cov <- post_inv %>%
-    chol() %>%
-    chol2inv() %>%
+    chol_inv_jitter(pen_diag = pen_diag) %>%
     `rownames<-`(all_input) %>%
     `colnames<-`(all_input)
   ## Compute the updated mean parameter
@@ -601,7 +599,7 @@ pred_magma <- function(data,
                        get_hyperpost = FALSE,
                        get_full_cov = FALSE,
                        plot = TRUE,
-                       pen_diag = 1e-8) {
+                       pen_diag = 1e-10) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -829,11 +827,9 @@ pred_magma <- function(data,
 
   ## Sum the covariance matrices on observed inputs and compute the inverse
   cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
-  diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
 
-  inv_obs <- (cov_obs + diag) %>%
-    chol() %>%
-    chol2inv() %>%
+  inv_obs <- cov_obs %>%
+    chol_inv_jitter(pen_diag = pen_diag) %>%
     `rownames<-`(as.character(input_obs)) %>%
     `colnames<-`(as.character(input_obs))
 
@@ -974,7 +970,7 @@ pred_gif <- function(data,
                      hp = NULL,
                      kern = "SE",
                      grid_inputs = NULL,
-                     pen_diag = 1e-8) {
+                     pen_diag = 1e-10) {
   ## Extract the inputs (reference Input + covariates)
   inputs <- data %>% dplyr::select(-.data$Output)
   ## Remove the 'ID' column if present
@@ -1135,7 +1131,7 @@ hyperposterior_clust <- function(data,
                                  kern_i,
                                  prior_mean_k = NULL,
                                  grid_inputs = NULL,
-                                 pen_diag = 1e-8) {
+                                 pen_diag = 1e-10) {
   ## Get the number of clusters
   nb_cluster <- hp_k %>%
     dplyr::pull(.data$ID) %>%
@@ -1233,8 +1229,7 @@ hyperposterior_clust <- function(data,
     }
 
     post_cov <- post_inv %>%
-      chol() %>%
-      chol2inv() %>%
+      chol_inv_jitter(pen_diag = pen_diag) %>%
       `rownames<-`(all_input) %>%
       `colnames<-`(all_input) %>%
       return()
@@ -1406,7 +1401,7 @@ pred_magmaclust <- function(data,
                             get_hyperpost = FALSE,
                             get_full_cov = FALSE,
                             plot = TRUE,
-                            pen_diag = 1e-8) {
+                            pen_diag = 1e-10) {
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -1702,11 +1697,9 @@ pred_magmaclust <- function(data,
 
     ## Sum the covariance matrices on observed inputs and compute the inverse
     cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
-    diag <- diag(x = pen_diag, ncol = ncol(cov_obs), nrow = nrow(cov_obs))
 
-    inv_obs <- (cov_obs + diag) %>%
-      chol() %>%
-      chol2inv() %>%
+    inv_obs <- cov_obs %>%
+      chol_inv_jitter(pen_diag = pen_diag) %>%
       `rownames<-`(as.character(input_obs)) %>%
       `colnames<-`(as.character(input_obs))
 

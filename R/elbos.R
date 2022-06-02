@@ -21,13 +21,12 @@ elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 
   inv <- kern_to_inv(t_i, kern, hp, pen_diag)
 
-  ## classic gaussian centered log likelihood
+  ## classic Gaussian centred log likelihood
   LL_norm <- -dmnorm(y_i, rep(0, length(y_i)), inv, log = T)
 
   corr1 <- 0
   corr2 <- 0
 
-  # floop = function(k){
   for (k in (names_k))
   {
     tau_i_k <- tau_i_k <- hyperpost$mixture %>%
@@ -70,12 +69,14 @@ elbo_GP_mod_common_hp_k <- function(
   mean,
   kern,
   post_cov,
-  pen_diag = NULL
+  pen_diag
   ) {
+
   list_ID_k <- names(db)
   # t_k = db[[1]] %>% dplyr::pull(.data$Input)
   t_k <- db[[1]] %>%
     dplyr::pull(.data$Input)
+
   inv <- kern_to_inv(t_k, kern, hp, pen_diag)
 
   LL_norm <- 0
@@ -109,11 +110,8 @@ elbo_GP_mod_common_hp_k <- function(
 #' TRUE
 elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
   names_k <- hyperpost$mean %>% names()
-  t <- unique(db$Input)
 
   sum_i <- 0
-  t_i_old <- NULL
-
   for (i in unique(db$ID))
   {
     ## Extract the i-th specific reference Input
@@ -128,10 +126,6 @@ elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
     output_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(.data$Output)
-
-    # t_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Input)
-    # input_i = as.character(t_i)
-    # y_i = db %>% dplyr::filter(.data$ID == i) %>% dplyr::pull(.data$Output)
 
     corr1 <- 0
     corr2 <- 0
@@ -157,7 +151,7 @@ elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
 
     inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
 
-    ## Classic Gaussian centered log-likelihood
+    ## Classic Gaussian centred log-likelihood
     LL_norm <- -dmnorm(output_i, rep(0, length(output_i)), inv, log = T)
 
     sum_i <- sum_i +
