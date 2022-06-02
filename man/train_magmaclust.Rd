@@ -16,7 +16,7 @@ train_magmaclust(
   common_hp_k = TRUE,
   common_hp_i = TRUE,
   grid_inputs = NULL,
-  pen_diag = 1e-08,
+  pen_diag = 1e-10,
   n_iter_max = 25,
   cv_threshold = 0.001,
   fast_approx = FALSE

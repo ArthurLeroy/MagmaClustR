@@ -12,7 +12,7 @@ pred_gif(
   hp = NULL,
   kern = "SE",
   grid_inputs = NULL,
-  pen_diag = 1e-08
+  pen_diag = 1e-10
 )
 }
 \arguments{

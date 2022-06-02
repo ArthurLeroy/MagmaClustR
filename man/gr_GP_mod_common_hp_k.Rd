@@ -4,7 +4,7 @@
 \alias{gr_GP_mod_common_hp_k}
 \title{Gradient of the penalised elbo for multiple mean GPs with common HPs}
 \usage{
-gr_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag = NULL)
+gr_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or named vector containing hyper-parameters.}

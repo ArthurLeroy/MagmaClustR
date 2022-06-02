@@ -10,7 +10,7 @@ train_gp(
   ini_hp = NULL,
   kern = "SE",
   hyperpost = NULL,
-  pen_diag = 1e-08
+  pen_diag = 1e-10
 )
 }
 \arguments{

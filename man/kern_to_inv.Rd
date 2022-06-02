@@ -4,7 +4,7 @@
 \alias{kern_to_inv}
 \title{Create inverse of a covariance matrix from a kernel}
 \usage{
-kern_to_inv(input, kern, hp, pen_diag = 0, deriv = NULL)
+kern_to_inv(input, kern, hp, pen_diag = 1e-10, deriv = NULL)
 }
 \arguments{
 \item{input}{A vector, matrix, data frame or tibble containing all inputs for
@@ -56,9 +56,5 @@ infinite-dimensional covariance structure of a GP, defined thanks to this
 kernel.
 }
 \examples{
-kern_to_inv(
-  rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
-  "SE",
-  tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-)
+TRUE
 }

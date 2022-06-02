@@ -59,9 +59,5 @@ a finite-dimensional evaluation of the infinite-dimensional covariance
 structure of a GP, defined thanks to this kernel.
 }
 \examples{
-kern_to_cov(
-  rbind(c(1, 0, 1), c(2, 1, 2), c(1, 2, 3)),
-  "SE",
-  tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-)
+TRUE
 }

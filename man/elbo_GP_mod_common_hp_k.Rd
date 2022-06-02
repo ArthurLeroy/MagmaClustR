@@ -4,7 +4,7 @@
 \alias{elbo_GP_mod_common_hp_k}
 \title{Penalised elbo for multiple mean GPs with common HPs}
 \usage{
-elbo_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag = NULL)
+elbo_GP_mod_common_hp_k(hp, db, mean, kern, post_cov, pen_diag)
 }
 \arguments{
 \item{hp}{A tibble, data frame or named vector containing hyper-parameters.}

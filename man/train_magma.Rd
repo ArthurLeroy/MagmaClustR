@@ -13,7 +13,7 @@ train_magma(
   kern_i = "SE",
   common_hp = TRUE,
   grid_inputs = NULL,
-  pen_diag = 1e-08,
+  pen_diag = 1e-10,
   n_iter_max = 25,
   cv_threshold = 0.001,
   fast_approx = FALSE

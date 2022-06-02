@@ -14,7 +14,7 @@ pred_magma(
   get_hyperpost = FALSE,
   get_full_cov = FALSE,
   plot = TRUE,
-  pen_diag = 1e-08
+  pen_diag = 1e-10
 )
 }
 \arguments{
