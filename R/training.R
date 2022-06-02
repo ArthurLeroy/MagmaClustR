@@ -1628,29 +1628,35 @@ select_nb_cluster <- function(data,
   seq_vbic <- c()
 
   floop <- function(k) {
+    t_1 = Sys.time()
+
     ## Attribute the initial common hyper-parameters to all clusters
     hp_k <- tibble::tibble("ID" = paste0("K", 1:k)) %>%
       dplyr::mutate(ini_hp_k)
 
+    cat("Model selection: K = ", K,"\n \n")
+
     ## Train Magma if k = 1 and MagmaClust otherwise
     if (k == 1) {
-      mod <- train_magma(
-        data = data,
-        ini_hp_0 = hp_k,
-        ini_hp_i = hp_i,
-        fast_approx = fast_approx,
-        ...
+      mod <- quiet(
+        train_magma(
+          data = data,
+          ini_hp_0 = hp_k,
+          ini_hp_i = hp_i,
+          fast_approx = fast_approx,
+          ...)
       )
       ## Extract the value of the log-likelihood at convergence
       elbo <- mod$seq_loglikelihood %>% dplyr::last()
     } else {
-      mod <- train_magmaclust(
-        data = data,
-        nb_cluster = k,
-        ini_hp_k = hp_k,
-        ini_hp_i = hp_i,
-        fast_approx = fast_approx,
-        ...
+      mod <- quiet(
+        train_magmaclust(
+          data = data,
+          nb_cluster = k,
+          ini_hp_k = hp_k,
+          ini_hp_i = hp_i,
+          fast_approx = fast_approx,
+          ...)
       )
       ## Extract the value of the ELBO at convergence
       elbo <- mod$seq_elbo %>% dplyr::last()
@@ -1671,6 +1677,13 @@ select_nb_cluster <- function(data,
 
     mod[["V-BIC"]] <- elbo - pen_bic
     seq_vbic <<- c(seq_vbic, elbo - pen_bic)
+
+    t_2 = Sys.time()
+    ## Track training time
+    paste0("Training time: K = ",
+           difftime(t_2, t_1, units = "secs") %>% round(2),
+           "\n \n") %>%
+      cat()
 
     return(mod)
   }
