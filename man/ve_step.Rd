@@ -41,26 +41,5 @@ the parameters of the hyper-posteriors distributions
 for the mean processes and mixture variables involved in MagmaClust.
 }
 \examples{
-\dontrun{
-k <- seq_len(3)
-m_k <- c("K1" = 0, "K2" = 0, "K3" = 0)
-
-db <- simu_db(N = 10, common_input = TRUE)
-hp_k <- MagmaClustR:::hp("SE", list_ID = names(m_k))
-hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-
-old_mixture <- MagmaClustR:::ini_mixture(
-  db = db, k = length(k),
-  nstart = 50
-)
-prop_mixture_1 <- old_mixture \%>\% dplyr::select(-.data$ID)
-hp_k[["prop_mixture"]] <- sapply(prop_mixture_1, function(x) {
-  x \%>\%
-    unlist() \%>\%
-    mean()
-})
-
-MagmaClustR:::ve_step(db, m_k, "SE", "SE", hp_k, hp_i, old_mixture, 0.001)
-}
-
+TRUE
 }

@@ -58,40 +58,5 @@ Maximisation step of the EM algorithm to compute hyper-parameters of all the
 kernels involved in Magma.
 }
 \examples{
-\dontrun{
-## Common inputs across individuals and different HPs
-db <- simu_db(N = 10, common_input = TRUE)
-m_0 <- rep(0, 10)
-hp_0 <- MagmaClustR:::hp()
-hp_i <- MagmaClustR:::hp("SE", list_ID = unique(db$ID))
-post <- MagmaClustR:::e_step(db, m_0, "SE", "SE", hp_0, hp_i, 0.001)
-
-MagmaClustR:::m_step(
-  db, m_0, "SE", "SE", hp_0, hp_i, post$mean, post$cov,
-  TRUE, 0.1
-)
-
-## Common inputs across individuals and common HPs
-hp_i_common <- tibble::tibble(
-  ID = unique(db$ID),
-  variance = 1, lengthscale = 1
-)
-MagmaClustR:::m_step(
-  db, m_0, "SE", "SE", hp_0, hp_i_common,
-  post$mean, post$cov, TRUE, 0.5
-)
-
-## Different inputs across individuals and different HPs
-db_async <- simu_db(N = 10, common_input = FALSE)
-m_0_async <- rep(0, db_async$Input \%>\% unique() \%>\% length())
-post_async <- MagmaClustR:::e_step(
-  db_async, m_0_async, "SE", "SE",
-  hp_0, hp_i, 0.001
-)
-
-MagmaClustR:::m_step(
-  db_async, m_0_async, "SE", "SE", hp_0, hp_i,
-  post_async$mean, post_async$cov, FALSE, 0.01
-)
-}
+TRUE
 }

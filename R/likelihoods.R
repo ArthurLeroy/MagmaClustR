@@ -13,7 +13,7 @@
 #' @return A number, corresponding to the Multivariate Gaussian log-likelihood.
 #'
 #' @examples
-#' MagmaClustR:::dmnorm(c(1, 2), c(0, 0), cbind(c(1, 0), c(0, 1)), TRUE)
+#' TRUE
 dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
   if (is.vector(x)) {
     x <- t(as.matrix(x))

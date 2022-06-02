@@ -30,9 +30,5 @@ gradients for the modified Gaussian log-Likelihood involved in Magma.
 Gradient of the modified logLikelihood for GPs in Magma
 }
 \examples{
-db <- tibble::tibble(Input = 1:5, Output = 2:6)
-mean <- rep(0, 5)
-hp <- tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-post_cov <- kern_to_cov(1:5, "SE", hp)
-MagmaClustR:::gr_GP_mod(hp, db, mean, "SE", post_cov, 0.001)
+TRUE
 }

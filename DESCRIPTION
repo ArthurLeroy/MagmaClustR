@@ -8,18 +8,23 @@ Authors@R: c(
     person("Pierre", "Pathé", , "pathepierre@gmail.com", role = "ctb"),
     person("Pierre", "Latouche", , "pierre.latouche@gmail.com", role = "aut")
   )
-Description: The 'MagmaClustR' package implements two main algorithms,
-    called 'Magma' and 'MagmaClust', using a multi-task Gaussian processes
-    model to perform predictions for supervised learning problems. Theses
-    approaches leverage the learning of cluster-specific mean processes,
+Description: An implementation for the multi-task Gaussian processes with common 
+    mean framework. Two main algorithms, called 'Magma' and 'MagmaClust', 
+    are available to perform predictions for supervised learning problems, in
+    particular for time series or any functional/continuous data applications.
+    The corresponding articles has been respectively proposed by Arthur Leroy, 
+    Pierre Latouche, Benjamin Guedj and Servane Gey (2022) 
+    <doi:10.1007/s10994-022-06172-1>, and Arthur Leroy, Pierre Latouche, 
+    Benjamin Guedj and Servane Gey (2020) <arXiv:2011.07866>.
+    Theses approaches leverage the learning of cluster-specific mean processes,
     which are common across similar tasks, to provide enhanced prediction
     performances (even far from data) at a linear computational cost (in
     the number of tasks).  'MagmaClust' is a generalisation of 'Magma'
     where the tasks are simultaneously clustered into groups, each being
     associated to a specific mean process.  User-oriented functions in the
     package are decomposed into training, prediction and plotting
-    functions. Some basic features of standard Gaussian processes are also
-    implemented.
+    functions. Some basic features (classic kernels, training, prediction) of
+    standard Gaussian processes are also implemented. 
 License: MIT + file LICENSE
 URL: https://github.com/ArthurLeroy/MagmaClustR,
     https://arthurleroy.github.io/MagmaClustR/

@@ -11,7 +11,7 @@
 #'
 #' @examples
 #' TRUE
-plot_db <- function(data, cluster = F, legend = F) {
+plot_db <- function(data, cluster = FALSE, legend = FALSE) {
   ## Convert Cluster into factors for a better display
   data$ID <- as.factor(data$ID)
   if (cluster) {
@@ -124,7 +124,7 @@ plot_gp <- function(pred_gp,
                     data_train = NULL,
                     prior_mean = NULL,
                     y_grid = NULL,
-                    heatmap = F,
+                    heatmap = FALSE,
                     prob_CI = 0.95,
                     size_data = 3,
                     size_data_train = 1,
@@ -655,7 +655,7 @@ plot_gif <- function(pred_gp,
                      data_train = NULL,
                      prior_mean = NULL,
                      y_grid = NULL,
-                     heatmap = F,
+                     heatmap = FALSE,
                      prob_CI = 0.95,
                      size_data = 3,
                      size_data_train = 1,
@@ -790,7 +790,6 @@ plot_gif <- function(pred_gp,
 #'
 #' @examples
 #' TRUE
-#'
 plot_magmaclust <- function(pred_clust,
                             cluster = "all",
                             x_input = NULL,

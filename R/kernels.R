@@ -16,11 +16,13 @@
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' MagmaClustR:::se_kernel(
-#'   c(1, 0), c(0, 1),
-#'   tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-#' )
-se_kernel <- function(x = NULL, y = NULL, hp, deriv = NULL, vectorized = F) {
+#' TRUE
+se_kernel <- function(
+  x,
+  y,
+  hp,
+  deriv = NULL,
+  vectorized = FALSE) {
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -66,11 +68,13 @@ se_kernel <- function(x = NULL, y = NULL, hp, deriv = NULL, vectorized = F) {
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' MagmaClustR:::perio_kernel(
-#'   c(1, 0), c(0, 1),
-#'   tibble::tibble(perio_variance = 1, perio_lengthscale = 0.5, period = 2)
-#' )
-perio_kernel <- function(x, y, hp, deriv = NULL, vectorized = F) {
+#' TRUE
+perio_kernel <- function(
+  x,
+  y,
+  hp,
+  deriv = NULL,
+  vectorized = FALSE) {
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -127,11 +131,13 @@ perio_kernel <- function(x, y, hp, deriv = NULL, vectorized = F) {
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' MagmaClustR:::rq_kernel(
-#'   c(1, 0), c(0, 1),
-#'   tibble::tibble(rq_variance = 1, rq_lengthscale = 0.5, rq_scale = 3)
-#' )
-rq_kernel <- function(x, y, hp, deriv = NULL, vectorized = FALSE) {
+#' TRUE
+rq_kernel <- function(
+  x,
+  y,
+  hp,
+  deriv = NULL,
+  vectorized = FALSE) {
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -184,11 +190,13 @@ rq_kernel <- function(x, y, hp, deriv = NULL, vectorized = FALSE) {
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
 #' @examples
-#' MagmaClustR:::lin_kernel(
-#'   c(1, 0), c(0, 1),
-#'   tibble::tibble(lin_slope = 1, lin_offset = 1)
-#' )
-lin_kernel <- function(x = NULL, y = NULL, hp, deriv = NULL, vectorized = F) {
+#' TRUE
+lin_kernel <- function(
+  x,
+  y,
+  hp,
+  deriv = NULL,
+  vectorized = FALSE) {
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -253,13 +261,13 @@ lin_kernel <- function(x = NULL, y = NULL, hp, deriv = NULL, vectorized = F) {
 #' @export
 #'
 #' @examples
-#' hp("PERIO")
-#' hp(MagmaClustR:::se_kernel, 1:5, c("var", "lengthsc"), TRUE)
-hp <- function(kern = "SE",
-               list_ID = NULL,
-               list_hp = NULL,
-               noise = F,
-               common_hp = F) {
+#' TRUE
+hp <- function(
+  kern = "SE",
+  list_ID = NULL,
+  list_hp = NULL,
+  noise = FALSE,
+  common_hp = FALSE) {
   ## Initiate interval boundaries
   min <- 0
   max <- 3

@@ -8,12 +8,12 @@ simu_db(
   M = 10,
   N = 10,
   K = 1,
-  covariate = F,
+  covariate = FALSE,
   grid = seq(0, 10, 0.05),
-  common_input = T,
-  common_hp = T,
-  add_hp = F,
-  add_clust = F,
+  common_input = TRUE,
+  common_hp = TRUE,
+  add_hp = FALSE,
+  add_clust = FALSE,
   int_mu_v = c(0, 2),
   int_mu_l = c(0, 2),
   int_i_v = c(0, 2),
@@ -85,10 +85,15 @@ individuals, of observed inputs, and the values of many parameters
 controlling the data generation.
 }
 \examples{
-\dontrun{
-simu_db(M = 5, N = 3)
-simu_db(M = 5, N = 3, common_input = FALSE)
-simu_db(M = 5, N = 3, common_hp = FALSE, add_hp = TRUE)
-simu_db(M = 5, N = 3, common_input = FALSE, common_hp = FALSE)
-}
+## Generate a dataset with 3 clusters of 4 individuals, observed at 10 inputs
+data = simu_db(M = 4, N = 10, K = 3)
+
+## Generate a 2-D dataset with an additional input 'Covariate'
+data = simu_db(covariate = TRUE)
+
+## Generate a dataset where input locations are different among individuals
+data = simu_db(common_input = FALSE)
+
+## Generate a dataset with an additional column indicating the true clusters
+data = simu_db(K = 3, covariate = TRUE)
 }

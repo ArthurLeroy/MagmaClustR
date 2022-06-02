@@ -11,7 +11,7 @@ plot_gif(
   data_train = NULL,
   prior_mean = NULL,
   y_grid = NULL,
-  heatmap = F,
+  heatmap = FALSE,
   prob_CI = 0.95,
   size_data = 3,
   size_data_train = 1,

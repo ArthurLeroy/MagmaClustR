@@ -20,9 +20,7 @@
 #' @importFrom rlang .data
 #'
 #' @examples
-#' MagmaClustR:::simu_indiv_se("A", 1:10, 0, rep(0, 10), 2, 1, 0.5)
-#' MagmaClustR:::simu_indiv_se("B", 1:10, 2:11, 3:12, 1, 1, 1)
-#' MagmaClustR:::simu_indiv_se("C", 1:10, 5, rep(0, 10), 2, 1, 0.5)
+#' TRUE
 simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
   db <- tibble::tibble(
     "ID" = ID,
@@ -55,7 +53,7 @@ simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
 #' @return A 2-decimals-rounded random number
 #'
 #' @examples
-#' MagmaClustR:::draw(c(1, 2))
+#' TRUE
 draw <- function(int) {
   stats::runif(1, int[1], int[2]) %>%
     round(2) %>%
@@ -107,21 +105,26 @@ draw <- function(int) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' simu_db(M = 5, N = 3)
-#' simu_db(M = 5, N = 3, common_input = FALSE)
-#' simu_db(M = 5, N = 3, common_hp = FALSE, add_hp = TRUE)
-#' simu_db(M = 5, N = 3, common_input = FALSE, common_hp = FALSE)
-#' }
+#' ## Generate a dataset with 3 clusters of 4 individuals, observed at 10 inputs
+#' data = simu_db(M = 4, N = 10, K = 3)
+#'
+#' ## Generate a 2-D dataset with an additional input 'Covariate'
+#' data = simu_db(covariate = TRUE)
+#'
+#' ## Generate a dataset where input locations are different among individuals
+#' data = simu_db(common_input = FALSE)
+#'
+#' ## Generate a dataset with an additional column indicating the true clusters
+#' data = simu_db(K = 3, covariate = TRUE)
 simu_db <- function(M = 10,
                     N = 10,
                     K = 1,
-                    covariate = F,
+                    covariate = FALSE,
                     grid = seq(0, 10, 0.05),
-                    common_input = T,
-                    common_hp = T,
-                    add_hp = F,
-                    add_clust = F,
+                    common_input = TRUE,
+                    common_hp = TRUE,
+                    add_hp = FALSE,
+                    add_clust = FALSE,
                     int_mu_v = c(0, 2),
                     int_mu_l = c(0, 2),
                     int_i_v = c(0, 2),
@@ -208,7 +211,7 @@ simu_db <- function(M = 10,
     return()
 }
 
-#' ini_kmeans
+#' Run a k-means algoithm to initialise clusters' allocation
 #'
 #' @param data A tibble containing common Input and associated Output values
 #'   to cluster.
@@ -217,11 +220,10 @@ simu_db <- function(M = 10,
 #' @param summary A boolean, indicating whether we want an outcome summary
 #'
 #' @return A tibble containing the initial clustering obtained through kmeans.
-#' @export
 #'
 #' @examples
 #' TRUE
-ini_kmeans <- function(data, k, nstart = 50, summary = F) {
+ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
   if (!identical(
     unique(data$Input),
     data %>%

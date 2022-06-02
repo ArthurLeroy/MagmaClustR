@@ -25,5 +25,5 @@ likelihood. This version uses inverse of the covariance function as argument
 instead of the traditional covariance.
 }
 \examples{
-MagmaClustR:::dmnorm(c(1, 2), c(0, 0), cbind(c(1, 0), c(0, 1)), TRUE)
+TRUE
 }

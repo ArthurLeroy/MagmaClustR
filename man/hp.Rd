@@ -4,7 +4,13 @@
 \alias{hp}
 \title{Generate random hyper-parameters}
 \usage{
-hp(kern = "SE", list_ID = NULL, list_hp = NULL, noise = F, common_hp = F)
+hp(
+  kern = "SE",
+  list_ID = NULL,
+  list_hp = NULL,
+  noise = FALSE,
+  common_hp = FALSE
+)
 }
 \arguments{
 \item{kern}{A function, or a character string indicating the chosen type of
@@ -48,6 +54,5 @@ Generate a set of random hyper-parameters, specific to the chosen type of
 kernel, under the format that is used in Magma.
 }
 \examples{
-hp("PERIO")
-hp(MagmaClustR:::se_kernel, 1:5, c("var", "lengthsc"), TRUE)
+TRUE
 }

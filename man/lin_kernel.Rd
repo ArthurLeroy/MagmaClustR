@@ -4,7 +4,7 @@
 \alias{lin_kernel}
 \title{Linear Kernel}
 \usage{
-lin_kernel(x = NULL, y = NULL, hp, deriv = NULL, vectorized = F)
+lin_kernel(x, y, hp, deriv = NULL, vectorized = FALSE)
 }
 \arguments{
 \item{x}{A vector (or matrix if vectorized = T) of inputs.}
@@ -31,8 +31,5 @@ A scalar, corresponding to the evaluation of the kernel.
 Linear Kernel
 }
 \examples{
-MagmaClustR:::lin_kernel(
-  c(1, 0), c(0, 1),
-  tibble::tibble(lin_slope = 1, lin_offset = 1)
-)
+TRUE
 }

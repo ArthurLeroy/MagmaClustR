@@ -4,7 +4,7 @@
 \alias{plot_db}
 \title{Plot smoothed curves of raw data}
 \usage{
-plot_db(data, cluster = F, legend = F)
+plot_db(data, cluster = FALSE, legend = FALSE)
 }
 \arguments{
 \item{data}{A data frame or tibble with format : ID, Input, Output.}

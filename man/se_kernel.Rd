@@ -4,7 +4,7 @@
 \alias{se_kernel}
 \title{Squared Exponential Kernel}
 \usage{
-se_kernel(x = NULL, y = NULL, hp, deriv = NULL, vectorized = F)
+se_kernel(x, y, hp, deriv = NULL, vectorized = FALSE)
 }
 \arguments{
 \item{x}{A vector (or matrix if vectorized = T) of inputs.}
@@ -31,8 +31,5 @@ A scalar, corresponding to the evaluation of the kernel.
 Squared Exponential Kernel
 }
 \examples{
-MagmaClustR:::se_kernel(
-  c(1, 0), c(0, 1),
-  tibble::tibble(se_variance = 1, se_lengthscale = 0.5)
-)
+TRUE
 }

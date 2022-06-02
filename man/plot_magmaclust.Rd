@@ -110,5 +110,4 @@ function or the full heatmap of probabilities (more informative but slower).
 }
 \examples{
 TRUE
-
 }

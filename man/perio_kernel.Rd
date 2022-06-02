@@ -4,7 +4,7 @@
 \alias{perio_kernel}
 \title{Periodic Kernel}
 \usage{
-perio_kernel(x, y, hp, deriv = NULL, vectorized = F)
+perio_kernel(x, y, hp, deriv = NULL, vectorized = FALSE)
 }
 \arguments{
 \item{x}{A vector (or matrix if vectorized = T) of inputs.}
@@ -32,8 +32,5 @@ A scalar, corresponding to the evaluation of the kernel.
 Periodic Kernel
 }
 \examples{
-MagmaClustR:::perio_kernel(
-  c(1, 0), c(0, 1),
-  tibble::tibble(perio_variance = 1, perio_lengthscale = 0.5, period = 2)
-)
+TRUE
 }

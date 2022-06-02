@@ -32,8 +32,5 @@ A scalar, corresponding to the evaluation of the kernel.
 Rational Quadratic Kernel
 }
 \examples{
-MagmaClustR:::rq_kernel(
-  c(1, 0), c(0, 1),
-  tibble::tibble(rq_variance = 1, rq_lengthscale = 0.5, rq_scale = 3)
-)
+TRUE
 }

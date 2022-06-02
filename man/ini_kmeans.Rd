@@ -2,9 +2,9 @@
 % Please edit documentation in R/simulate-data.R
 \name{ini_kmeans}
 \alias{ini_kmeans}
-\title{ini_kmeans}
+\title{Run a k-means algoithm to initialise clusters' allocation}
 \usage{
-ini_kmeans(data, k, nstart = 50, summary = F)
+ini_kmeans(data, k, nstart = 50, summary = FALSE)
 }
 \arguments{
 \item{data}{A tibble containing common Input and associated Output values
@@ -20,7 +20,7 @@ to cluster.}
 A tibble containing the initial clustering obtained through kmeans.
 }
 \description{
-ini_kmeans
+Run a k-means algoithm to initialise clusters' allocation
 }
 \examples{
 TRUE
