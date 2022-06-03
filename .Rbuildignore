@@ -5,7 +5,6 @@
 ^doc$
 ^Meta$
 ^cran-comments\.md$
-^NEWS\.md$
 ^\.github$
 ^_pkgdown\.yml$
 ^docs$
