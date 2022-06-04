@@ -150,7 +150,7 @@ train_magma <- function(data,
 
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
-  ## Extract the list of differnt IDs
+  ## Extract the list of different IDs
   list_ID <- data$ID %>% unique()
   ## Extract the union of all reference inputs provided in the training data
   all_input <- data$Input %>%

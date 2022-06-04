@@ -447,6 +447,8 @@ hyperposterior <- function(data,
     )
   }
 
+  ## Certify that IDs are of type 'character'
+  data$ID <- data$ID %>% as.character()
   ## Compute all the inverse covariance matrices
   inv_0 <- kern_to_inv(all_input, kern_0, hp_0, pen_diag)
   list_inv_i <- list_kern_to_inv(data, kern_i, hp_i, pen_diag)
@@ -1138,7 +1140,11 @@ hyperposterior_clust <- function(data,
     length()
   ## Get the name of clusters
   ID_k <- hp_k %>%
-    dplyr::pull(.data$ID)
+    dplyr::pull(.data$ID) %>%
+    as.character()
+
+  ## Certify that IDs are of type 'character'
+  data$ID <- data$ID %>% as.character()
 
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
