@@ -18,3 +18,4 @@ Draw uniformly a number within a specified interval
 \examples{
 TRUE
 }
+\keyword{internal}

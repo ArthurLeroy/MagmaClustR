@@ -19,6 +19,8 @@
 #'
 #' @importFrom rlang .data
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
@@ -51,6 +53,8 @@ simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
 #' @param int An interval of values we want to draw uniformly in.
 #'
 #' @return A 2-decimals-rounded random number
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -221,6 +225,8 @@ simu_db <- function(M = 10,
 #'
 #' @return A tibble containing the initial clustering obtained through kmeans.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
@@ -284,6 +290,8 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
 #'
 #' @return A tibble indicating for each \code{ID} in which cluster it belongs
 #'    after a kmeans initialisation.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE

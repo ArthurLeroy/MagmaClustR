@@ -30,3 +30,4 @@ Penalised elbo for multiple individual GPs with common HPs
 \examples{
 TRUE
 }
+\keyword{internal}

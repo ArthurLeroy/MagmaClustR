@@ -52,3 +52,4 @@ Log-Likelihood for monitoring the EM algorithm in Magma
 \examples{
 TRUE
 }
+\keyword{internal}

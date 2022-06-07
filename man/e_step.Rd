@@ -37,3 +37,4 @@ hyper-posterior Gaussian distribution of the mean process in Magma.
 \examples{
 TRUE
 }
+\keyword{internal}

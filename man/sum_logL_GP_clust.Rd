@@ -57,3 +57,4 @@ penalisation of the full log-likelihood.
 \examples{
 TRUE
 }
+\keyword{internal}

@@ -36,3 +36,4 @@ of Gaussian likelihoods added with correction trace terms.
 \examples{
 TRUE
 }
+\keyword{internal}

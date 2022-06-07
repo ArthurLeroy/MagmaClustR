@@ -58,3 +58,4 @@ kernel.
 \examples{
 TRUE
 }
+\keyword{internal}

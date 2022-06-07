@@ -28,3 +28,4 @@ Gradient of the elbo for a mixture of GPs
 \examples{
 TRUE
 }
+\keyword{internal}

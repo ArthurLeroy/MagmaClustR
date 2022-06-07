@@ -29,3 +29,4 @@ probabilities.
 \examples{
 TRUE
 }
+\keyword{internal}

@@ -27,3 +27,4 @@ instead of the traditional covariance.
 \examples{
 TRUE
 }
+\keyword{internal}

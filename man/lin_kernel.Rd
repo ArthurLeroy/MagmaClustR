@@ -33,3 +33,4 @@ Linear Kernel
 \examples{
 TRUE
 }
+\keyword{internal}

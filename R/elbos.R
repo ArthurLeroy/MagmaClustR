@@ -11,6 +11,8 @@
 #'
 #' @return The value of the penalised Gaussian elbo for a mixture of GPs
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
@@ -61,6 +63,8 @@ elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 #' @return The value of the penalised Gaussian elbo for
 #'    the sum of the k mean GPs with common HPs.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 elbo_GP_mod_common_hp_k <- function(
@@ -105,6 +109,8 @@ elbo_GP_mod_common_hp_k <- function(
 #'
 #' @return The value of the penalised Gaussian elbo for
 #'    the sum of the M individual GPs with common HPs.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -181,6 +187,8 @@ elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
 #'
 #' @return Value of the elbo that is maximised during the VEM algorithm used for
 #'    training in MagmaClust.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE

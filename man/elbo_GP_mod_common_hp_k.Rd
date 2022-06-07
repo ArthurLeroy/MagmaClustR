@@ -33,3 +33,4 @@ Penalised elbo for multiple mean GPs with common HPs
 \examples{
 TRUE
 }
+\keyword{internal}

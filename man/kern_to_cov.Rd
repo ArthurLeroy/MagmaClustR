@@ -61,3 +61,4 @@ structure of a GP, defined thanks to this kernel.
 \examples{
 TRUE
 }
+\keyword{internal}

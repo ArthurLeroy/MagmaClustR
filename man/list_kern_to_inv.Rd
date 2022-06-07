@@ -33,3 +33,4 @@ hyper-parameters.
 \examples{
 TRUE
 }
+\keyword{internal}

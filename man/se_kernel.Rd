@@ -33,3 +33,4 @@ Squared Exponential Kernel
 \examples{
 TRUE
 }
+\keyword{internal}

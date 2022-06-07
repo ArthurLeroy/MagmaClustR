@@ -43,3 +43,4 @@ for the mean processes and mixture variables involved in MagmaClust.
 \examples{
 TRUE
 }
+\keyword{internal}

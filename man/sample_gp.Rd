@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot-functions.R
 \name{sample_gp}
 \alias{sample_gp}
-\title{Display Realisation From Posterior GP}
+\title{Display realisations from a posterior GP}
 \usage{
 sample_gp(
   pred_gp,

@@ -60,3 +60,4 @@ kernels involved in Magma.
 \examples{
 TRUE
 }
+\keyword{internal}

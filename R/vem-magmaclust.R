@@ -24,6 +24,8 @@
 #'    and \code{mixture}, the probabilities to belong to each cluster for each
 #'    individual.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 ve_step <- function(db,
@@ -161,6 +163,8 @@ ve_step <- function(db,
 #'    associated with the individual GPs, and \code{prop_mixture_k},
 #'    a tibble containing the hyper-parameters associated with each individual,
 #'    indicating the probabilities to belong to each cluster.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -350,6 +354,8 @@ vm_step <- function(db,
 #'
 #' @return Compute the hyper-posterior multinomial distributions by updating
 #'    mixture probabilities.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE

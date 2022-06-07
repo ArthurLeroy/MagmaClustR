@@ -29,3 +29,4 @@ Evidence Lower Bound for a mixture of GPs
 \examples{
 TRUE
 }
+\keyword{internal}

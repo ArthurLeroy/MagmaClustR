@@ -34,3 +34,4 @@ Periodic Kernel
 \examples{
 TRUE
 }
+\keyword{internal}

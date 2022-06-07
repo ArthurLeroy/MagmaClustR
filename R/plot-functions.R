@@ -385,7 +385,7 @@ plot_gp <- function(pred_gp,
     return()
 }
 
-#' Display Realisation From Posterior GP
+#' Display realisations from a posterior GP
 #'
 #' A realisation of a posterior GP distribution is drawn and displayed.
 #' According to the dimension of the inputs, the graph may be a curve or a

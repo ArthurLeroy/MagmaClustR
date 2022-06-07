@@ -41,3 +41,4 @@ Evidence Lower Bound maximised in MagmaClust
 \examples{
 TRUE
 }
+\keyword{internal}

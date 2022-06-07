@@ -23,3 +23,4 @@ until the matrix becomes non-singular.
 \examples{
 TRUE
 }
+\keyword{internal}

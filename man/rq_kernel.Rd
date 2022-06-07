@@ -34,3 +34,4 @@ Rational Quadratic Kernel
 \examples{
 TRUE
 }
+\keyword{internal}

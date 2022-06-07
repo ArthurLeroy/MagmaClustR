@@ -45,6 +45,8 @@
 #' @return A covariance matrix, where elements are evaluations of the associated
 #' kernel for each pair of reference inputs.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
@@ -366,6 +368,8 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
 #'
 #' @export
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 kern_to_inv <- function(input, kern, hp, pen_diag = 1e-10, deriv = NULL) {
@@ -397,6 +401,8 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 1e-10, deriv = NULL) {
 #' @return A named list containing all of the inverse covariance matrices.
 #'
 #' @export
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -439,7 +445,11 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
 #'  the list of covariance matrices.
 #'
 #' @return A named list containing all of the inverse covariance matrices.
+#'
 #' @export
+#'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
@@ -463,10 +473,6 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
     return()
 }
 
-#' @importFrom Rcpp sourceCpp
-#' @useDynLib MagmaClustR, .registration = TRUE
-NULL
-
 #' Inverse a matrix using an adaptive jitter term
 #'
 #' Inverse a matrix from its Choleski decomposition. If (nearly-)singular,
@@ -478,6 +484,8 @@ NULL
 #'
 #' @return A matrix, inverse of \code{mat} plus an adaptive jitter term
 #'    added on the diagonal.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -492,3 +500,7 @@ chol_inv_jitter <- function(mat, pen_diag){
       }
     )
 }
+
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib MagmaClustR, .registration = TRUE
+NULL

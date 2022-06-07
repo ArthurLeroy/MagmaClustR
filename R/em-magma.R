@@ -18,6 +18,8 @@
 #' containing the Input and associated Output of the hyper-posterior's mean
 #' parameter, and \code{cov}, the hyper-posterior's covariance matrix.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 e_step <- function(db,
@@ -110,6 +112,8 @@ e_step <- function(db,
 #'    containing the hyper-parameters associated with the mean GP,
 #'    \code{hp_i}, a tibble containing the hyper-parameters
 #'    associated with the individual GPs.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE

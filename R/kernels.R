@@ -15,6 +15,8 @@
 #'
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 se_kernel <- function(
@@ -66,6 +68,8 @@ se_kernel <- function(
 #'
 #'
 #' @return A scalar, corresponding to the evaluation of the kernel.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -130,6 +134,8 @@ perio_kernel <- function(
 #'
 #' @return A scalar, corresponding to the evaluation of the kernel.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 rq_kernel <- function(
@@ -188,6 +194,8 @@ rq_kernel <- function(
 #'    If FALSE, the \code{x} and \code{y} arguments are simply two inputs.
 #'
 #' @return A scalar, corresponding to the evaluation of the kernel.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE

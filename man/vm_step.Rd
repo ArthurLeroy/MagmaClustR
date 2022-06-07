@@ -64,3 +64,4 @@ hyper-parameters of all the kernels involved in MagmaClust.
 \examples{
 TRUE
 }
+\keyword{internal}

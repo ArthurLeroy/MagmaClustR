@@ -35,3 +35,4 @@ specified hyper-parameters and input.
 \examples{
 TRUE
 }
+\keyword{internal}

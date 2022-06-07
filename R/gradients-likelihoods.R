@@ -15,6 +15,8 @@
 #'    gradients for the Gaussian log-Likelihood (where the covariance can be the
 #'    sum of the individual and the hyper-posterior's mean process covariances).
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
@@ -60,6 +62,8 @@ gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' @return A named vector, corresponding to the value of the hyper-parameters
 #'    gradients for the modified Gaussian log-Likelihood involved in Magma.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
@@ -104,6 +108,8 @@ gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' @return A named vector, corresponding to the value of the hyper-parameters'
 #'    gradients for the modified Gaussian log-Likelihood involved in Magma with
 #'    the 'common HP' setting.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -172,6 +178,7 @@ gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'    gradients for the mixture of Gaussian log-likelihoods involved in the
 #'    prediction step of MagmaClust.
 #'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE

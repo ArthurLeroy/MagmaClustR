@@ -34,3 +34,4 @@ Log-Likelihood function of a Gaussian Process
 \examples{
 TRUE
 }
+\keyword{internal}

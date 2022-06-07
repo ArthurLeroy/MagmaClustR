@@ -34,3 +34,4 @@ added with correction trace term.
 \examples{
 TRUE
 }
+\keyword{internal}

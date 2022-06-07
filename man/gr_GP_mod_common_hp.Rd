@@ -35,3 +35,4 @@ Gradient of the modified logLikelihood with common HPs for GPs in Magma
 \examples{
 TRUE
 }
+\keyword{internal}

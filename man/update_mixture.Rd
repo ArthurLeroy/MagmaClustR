@@ -39,3 +39,4 @@ Update the mixture probabilities for each individual and each cluster
 \examples{
 TRUE
 }
+\keyword{internal}

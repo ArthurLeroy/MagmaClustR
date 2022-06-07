@@ -34,3 +34,4 @@ Gradient of the logLikelihood of a Gaussian Process
 \examples{
 TRUE
 }
+\keyword{internal}

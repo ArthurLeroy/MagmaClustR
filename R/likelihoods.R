@@ -12,6 +12,8 @@
 #'
 #' @return A number, corresponding to the Multivariate Gaussian log-likelihood.
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
@@ -62,6 +64,9 @@ dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
 #' @return A number, corresponding to the value of Gaussian
 #'    log-Likelihood (where the covariance can be the sum of the individual and
 #'    the hyper-posterior's mean process covariances).
+#'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
@@ -96,6 +101,8 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @return A number, corresponding to the value of the modified Gaussian
 #' log-Likelihood defined in Magma.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -139,6 +146,8 @@ logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @return A number, corresponding to the value of the modified Gaussian
 #' log-Likelihood with common hyper-parameters defined in Magma.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -189,6 +198,8 @@ logL_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' @return A number, expectation of joint log-likelihood of the model. This
 #'    quantity is supposed to increase at each step of the EM algorithm, and
 #'    thus used for monitoring the procedure.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -279,6 +290,8 @@ logL_monitoring <- function(hp_0,
 #'    the prediction step of MagmaClust. This quantity is supposed to increase
 #'    at each step of the EM algorithm, and can be used for monitoring the
 #'    procedure.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE

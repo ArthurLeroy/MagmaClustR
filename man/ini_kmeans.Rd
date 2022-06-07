@@ -25,3 +25,4 @@ Run a k-means algoithm to initialise clusters' allocation
 \examples{
 TRUE
 }
+\keyword{internal}

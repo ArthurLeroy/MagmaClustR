@@ -29,3 +29,4 @@ database, taking into account their specific inputs and hyper-parameters.
 \examples{
 TRUE
 }
+\keyword{internal}

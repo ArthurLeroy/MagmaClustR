@@ -32,3 +32,4 @@ Gradient of the modified logLikelihood for GPs in Magma
 \examples{
 TRUE
 }
+\keyword{internal}

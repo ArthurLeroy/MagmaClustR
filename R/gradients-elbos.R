@@ -10,6 +10,8 @@
 #'
 #' @return The gradient of the penalised Gaussian elbo for a mixture of GPs
 #'
+#' @keywords internal
+#'
 #' @examples
 #' TRUE
 gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
@@ -72,6 +74,8 @@ gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 #'
 #' @return The gradient of the penalised Gaussian elbo for
 #'    the sum of the k mean GPs with common HPs.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
@@ -147,6 +151,8 @@ gr_GP_mod_common_hp_k <- function(
 #'
 #' @return The gradient of the penalised Gaussian elbo for
 #'    the sum of the M individual GPs with common HPs.
+#'
+#' @keywords internal
 #'
 #' @examples
 #' TRUE
