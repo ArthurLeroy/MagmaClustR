@@ -166,15 +166,15 @@
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; EM algorithm, step 1: 10.32 seconds </span>
+<span class="co">#&gt; EM algorithm, step 1: 14.58 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the likelihood: -404.29385 --- Convergence ratio = Inf</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; EM algorithm, step 2: 4.27 seconds </span>
+<span class="co">#&gt; EM algorithm, step 2: 6.59 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the likelihood: -390.64092 --- Convergence ratio = 0.03495</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; EM algorithm, step 3: 6.47 seconds </span>
+<span class="co">#&gt; EM algorithm, step 3: 4.97 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the likelihood: -390.28064 --- Convergence ratio = 0.00092</span>
 <span class="co">#&gt;  </span>
@@ -216,12 +216,12 @@
 <span class="co">#&gt;  =&gt; 1 =&gt; 2 =&gt; 3 =&gt; 4 =&gt; 5 =&gt; 6 =&gt; 7</span>
 
 <span class="fu"><a href="reference/plot_gif.html">plot_gif</a></span><span class="op">(</span>pred_gp <span class="op">=</span> <span class="va">pred_gif</span>,
-        data <span class="op">=</span> <span class="va">magma_pred</span>,
-        data_train <span class="op">=</span> <span class="va">magma_train</span>,
-        prior_mean <span class="op">=</span> <span class="va">model</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span><span class="op">)</span> <span class="op">+</span> 
+         data <span class="op">=</span> <span class="va">magma_pred</span>,
+         data_train <span class="op">=</span> <span class="va">magma_train</span>,
+         prior_mean <span class="op">=</span> <span class="va">model</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span><span class="op">)</span> <span class="op">+</span> 
   <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">magma_test</span>,
-                       <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Input</span>, y <span class="op">=</span> <span class="va">Output</span><span class="op">)</span>,
-                       color <span class="op">=</span> <span class="st">'red'</span>, size <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></code></pre></div>
+                      <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">Input</span>, y <span class="op">=</span> <span class="va">Output</span><span class="op">)</span>,
+                      color <span class="op">=</span> <span class="st">'red'</span>, size <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></code></pre></div>
 <p><img src="reference/figures/README-gif_Magma-1.gif" width="100%"></p>
 </div>
 </div>
@@ -271,15 +271,15 @@
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; VEM algorithm, step 1: 126.81 seconds </span>
+<span class="co">#&gt; VEM algorithm, step 1: 70.88 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the elbo: -403.86908 --- Convergence ratio = Inf</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; VEM algorithm, step 2: 47.73 seconds </span>
+<span class="co">#&gt; VEM algorithm, step 2: 27.57 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the elbo: -383.34766 --- Convergence ratio = 0.05353</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; VEM algorithm, step 3: 23.75 seconds </span>
+<span class="co">#&gt; VEM algorithm, step 3: 44.69 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the elbo: -383.08838 --- Convergence ratio = 0.00068</span>
 <span class="co">#&gt;  </span>
@@ -287,9 +287,9 @@
 <span class="co">#&gt; </span>
 
 <span class="va">pred_clust</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/pred_magmaclust.html">pred_magmaclust</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">magmaclust_pred</span>,
-                    trained_model <span class="op">=</span> <span class="va">model_clust</span>,
-                    grid_inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span>, <span class="fl">0.01</span><span class="op">)</span>, 
-                    plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>
+                               trained_model <span class="op">=</span> <span class="va">model_clust</span>,
+                               grid_inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span>, <span class="fl">0.01</span><span class="op">)</span>, 
+                               plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>
 <span class="co">#&gt; The hyper-posterior distribution of the mean process provided in 'hyperpost' argument isn't evaluated on the expected inputs. Start evaluating the hyper-posterior on the correct inputs...</span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; The 'prior_mean_k' argument has not been specified. The hyper-prior  mean functions are thus set to be 0 everywhere.</span>
@@ -360,19 +360,19 @@
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; EM algorithm, step 1: 18.35 seconds </span>
+<span class="co">#&gt; EM algorithm, step 1: 27.34 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the likelihood: -243.2537 --- Convergence ratio = Inf</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; EM algorithm, step 2: 17.97 seconds </span>
+<span class="co">#&gt; EM algorithm, step 2: 28.45 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the likelihood: -232.0084 --- Convergence ratio = 0.04847</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; EM algorithm, step 3: 16.79 seconds </span>
+<span class="co">#&gt; EM algorithm, step 3: 28.96 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the likelihood: -231.63152 --- Convergence ratio = 0.00163</span>
 <span class="co">#&gt;  </span>
-<span class="co">#&gt; EM algorithm, step 4: 8.65 seconds </span>
+<span class="co">#&gt; EM algorithm, step 4: 14.32 seconds </span>
 <span class="co">#&gt;  </span>
 <span class="co">#&gt; Value of the likelihood: -231.61322 --- Convergence ratio = 8e-05</span>
 <span class="co">#&gt;  </span>
