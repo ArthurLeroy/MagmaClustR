@@ -103,23 +103,31 @@ variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference 'Input'.</p></dd>
+
+
 <dt>trained_model</dt>
 <dd><p>A list, containing  the information coming from a
 MagmaClust model, previously trained using the
 <code><a href="train_magmaclust.html">train_magmaclust</a></code> function. If <code>trained_model</code> is set to
 NULL, the <code>hyperpost</code> and <code>prop_mixture</code> arguments are mandatory
 to perform required re-computations for the prediction to succeed.</p></dd>
+
+
 <dt>mixture</dt>
 <dd><p>A tibble or data frame, indicating the mixture probabilities
 of each cluster for the new individual/task.
 If NULL, the <code><a href="train_gp_clust.html">train_gp_clust</a></code> function is used to compute
 these posterior probabilities according to <code>data</code>.</p></dd>
+
+
 <dt>hp</dt>
 <dd><p>A named vector, tibble or data frame of hyper-parameters
 associated with <code>kern</code>. The columns/elements should be named
 according to the hyper-parameters that are used in <code>kern</code>. The
 <code><a href="train_gp_clust.html">train_gp_clust</a></code> function can be used to learn
 maximum-likelihood estimators of the hyper-parameters.</p></dd>
+
+
 <dt>kern</dt>
 <dd><p>A kernel function, defining the covariance structure of the GP.
 Several popular kernels
@@ -137,6 +145,8 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).</p></li>
 </ul></dd>
+
+
 <dt>grid_inputs</dt>
 <dd><p>The grid of inputs (reference Input and covariates) values
 on which the GP should be evaluated. Ideally, this argument should be a
@@ -146,6 +156,8 @@ tibble or a data frame, providing the same columns as <code>data</code>, except
 vector. This vector would be used as reference input for prediction and if
 NULL, a vector of length 500 is defined, ranging between the min and max
 Input values of <code>data</code>.</p></dd>
+
+
 <dt>hyperpost</dt>
 <dd><p>A list, containing the elements <code>mean</code>, <code>cov</code> and
 <code>mixture</code> the parameters of the hyper-posterior distributions of the
@@ -153,6 +165,8 @@ mean processes. Typically, this argument should come from a previous
 learning using <code><a href="train_magmaclust.html">train_magmaclust</a></code>, or a previous prediction
 with <code>pred_magmaclust</code>, with the argument <code>get_hyperpost</code>
 set to TRUE.</p></dd>
+
+
 <dt>prop_mixture</dt>
 <dd><p>A tibble or a named vector of the mixture proportions.
 Each name of column or element should refer to a cluster. The value
@@ -160,25 +174,36 @@ associated with each cluster is a number between 0 and 1. If both
 <code>mixture</code> and <code>trained_model</code> are set to NULL, this argument
 allows to recompute mixture probabilities, thanks to the <code>hyperpost</code>
 argument and the <code><a href="train_gp_clust.html">train_gp_clust</a></code> function.</p></dd>
+
+
 <dt>get_hyperpost</dt>
 <dd><p>A logical value, indicating whether the hyper-posterior
 distributions of the mean processes should be returned. This can be useful
 when planning to perform several predictions on the same grid of inputs,
 since recomputation of the hyper-posterior can be prohibitive for high
 dimensional grids.</p></dd>
+
+
 <dt>get_full_cov</dt>
 <dd><p>A logical value, indicating whether the full posterior
 covariance matrices should be returned.</p></dd>
+
+
 <dt>plot</dt>
 <dd><p>A logical value, indicating whether a plot of the results is
 automatically displayed.</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list of GP prediction results composed of:</p><ul><li><p>pred: As sub-list containing, for each cluster:</p><ul><li><p>pred_gp: A tibble, representing the GP predictions as two
+    
+
+<p>A list of GP prediction results composed of:</p><ul><li><p>pred: As sub-list containing, for each cluster:</p><ul><li><p>pred_gp: A tibble, representing the GP predictions as two
 column <code>Mean</code> and <code>Var</code>, evaluated on the
 <code>grid_inputs</code>. The column <code>Input</code> and additional
 covariates columns are associated with each predicted values.</p></li>
@@ -209,7 +234,7 @@ for visualisation purposes.</p></li>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

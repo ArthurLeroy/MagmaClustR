@@ -73,38 +73,59 @@ hyper-parameters of all the kernels involved in MagmaClust.</p>
     <dl><dt>db</dt>
 <dd><p>A tibble or data frame. Columns required: ID, Input, Output.
 Additional columns for covariates can be specified.</p></dd>
+
+
 <dt>old_hp_k</dt>
 <dd><p>A named vector, tibble or data frame, containing the
 hyper-parameters from the previous M-step (or initialisation) associated
 with the mean GPs.</p></dd>
+
+
 <dt>old_hp_i</dt>
 <dd><p>A named vector, tibble or data frame, containing the
 hyper-parameters from the previous  M-step (or initialisation) associated
 with the individual GPs.</p></dd>
+
+
 <dt>list_mu_param</dt>
 <dd><p>List of parameters of the K mean GPs.</p></dd>
+
+
 <dt>kern_k</dt>
 <dd><p>A kernel used to compute the covariance matrix of the mean GP
 at corresponding timestamps.</p></dd>
+
+
 <dt>kern_i</dt>
 <dd><p>A kernel used to compute the covariance matrix of individuals
 GP at corresponding timestamps.</p></dd>
+
+
 <dt>m_k</dt>
 <dd><p>A named list of prior mean parameters for the K mean GPs.
 Length = 1 or nrow(unique(db$Input))</p></dd>
+
+
 <dt>common_hp_k</dt>
 <dd><p>A boolean indicating whether hp are common among
 mean GPs (for each mu_k)</p></dd>
+
+
 <dt>common_hp_i</dt>
 <dd><p>A boolean indicating whether hp are common among
 individual GPs (for each y_i)</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A named list, containing the elements <code>hp_k</code>, a tibble
+    
+
+<p>A named list, containing the elements <code>hp_k</code>, a tibble
 containing the hyper-parameters associated with each cluster,
 <code>hp_i</code>, a tibble containing the hyper-parameters
 associated with the individual GPs, and <code>prop_mixture_k</code>,
@@ -127,7 +148,7 @@ indicating the probabilities to belong to each cluster.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

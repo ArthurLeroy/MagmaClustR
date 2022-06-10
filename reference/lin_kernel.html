@@ -58,25 +58,36 @@
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
     <dl><dt>x</dt>
 <dd><p>A vector (or matrix if vectorized = T) of inputs.</p></dd>
+
+
 <dt>y</dt>
 <dd><p>A vector (or matrix if vectorized = T) of inputs.</p></dd>
+
+
 <dt>hp</dt>
 <dd><p>A tibble, data frame or named vector, containing the kernel's
 hyperparameters. Required columns: 'lin_slope' and 'lin_offset'.</p></dd>
+
+
 <dt>deriv</dt>
 <dd><p>A character, indicating according to which hyper-parameter the
 derivative should be computed. If NULL (default), the function simply
 returns the evaluation of the kernel.</p></dd>
+
+
 <dt>vectorized</dt>
 <dd><p>A logical value, indicating whether the function provides
 a vectorized version for speeded-up calculations. If TRUE, the <code>x</code>
 and <code>y</code> arguments should be the vector or matrix containing all
 inputs for which the kernel is evaluated on all pairs of elements.
 If FALSE, the <code>x</code> and <code>y</code> arguments are simply two inputs.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A scalar, corresponding to the evaluation of the kernel.</p>
+    
+
+<p>A scalar, corresponding to the evaluation of the kernel.</p>
     </div>
 
     <div class="section level2">
@@ -94,7 +105,7 @@ If FALSE, the <code>x</code> and <code>y</code> arguments are simply two inputs.
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

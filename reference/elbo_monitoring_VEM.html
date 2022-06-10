@@ -59,31 +59,48 @@
     <dl><dt>hp_k</dt>
 <dd><p>A tibble, data frame or named vector of hyper-parameters
 for each clusters.</p></dd>
+
+
 <dt>hp_i</dt>
 <dd><p>A tibble, data frame or named vector of hyper-parameters
 for each individuals.</p></dd>
+
+
 <dt>db</dt>
 <dd><p>A tibble containing values we want to compute elbo on.
 Required columns: Input, Output. Additional covariate columns are allowed.</p></dd>
+
+
 <dt>kern_i</dt>
 <dd><p>Kernel used to compute the covariance matrix of individuals GPs
 at corresponding inputs.</p></dd>
+
+
 <dt>kern_k</dt>
 <dd><p>Kernel used to compute the covariance matrix of the mean GPs
 at corresponding inputs.</p></dd>
+
+
 <dt>hyperpost</dt>
 <dd><p>A list of parameters for the variational distributions
 of the K mean GPs.</p></dd>
+
+
 <dt>m_k</dt>
 <dd><p>Prior value of the mean parameter of the mean GPs (mu_k).
 Length = 1 or nrow(db).</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Value of the elbo that is maximised during the VEM algorithm used for
+    
+
+<p>Value of the elbo that is maximised during the VEM algorithm used for
 training in MagmaClust.</p>
     </div>
 
@@ -102,7 +119,7 @@ training in MagmaClust.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

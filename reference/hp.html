@@ -80,23 +80,34 @@ operator '*' shall always be used before the '+' operators (e.g.
 </ul><p>In case of a custom kernel function, the argument <code>list_hp</code> has to be
 provided as well, for designing a tibble with the correct names of
 hyper-parameters.</p></dd>
+
+
 <dt>list_ID</dt>
 <dd><p>A vector, associating an <code>ID</code> value with each individual
 for whom hyper-parameters are generated. If NULL (default) only one set of
 hyper-parameters is return without the <code>ID</code> column.</p></dd>
+
+
 <dt>list_hp</dt>
 <dd><p>A vector of characters, providing the name of each
 hyper-parameter, in case where <code>kern</code> is a custom kernel function.</p></dd>
+
+
 <dt>noise</dt>
 <dd><p>A logical value, indicating whether a 'noise' hyper-parameter
 should be included.</p></dd>
+
+
 <dt>common_hp</dt>
 <dd><p>A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all indiviuals.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A tibble, providing a set of random hyper-parameters associated with
+    
+
+<p>A tibble, providing a set of random hyper-parameters associated with
 the kernel specified through the argument <code>kern</code>.</p>
     </div>
 
@@ -115,7 +126,7 @@ the kernel specified through the argument <code>kern</code>.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

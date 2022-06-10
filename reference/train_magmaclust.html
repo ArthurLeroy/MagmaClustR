@@ -105,9 +105,13 @@ variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference <code>Input</code>.</p></dd>
+
+
 <dt>nb_cluster</dt>
 <dd><p>A number, indicating the number of clusters of
 individuals/tasks that are assumed to exist among the dataset.</p></dd>
+
+
 <dt>prior_mean_k</dt>
 <dd><p>The set of hyper-prior mean parameters (m_k) for the K
 mean GPs, one value for each cluster.
@@ -120,6 +124,8 @@ function at all <code>Input</code>).</p></li>
 functions are all evaluated at all <code>Input</code> values, to provide
 specific hyper-prior mean vectors for each cluster.</p></li>
 </ul></dd>
+
+
 <dt>ini_hp_k</dt>
 <dd><p>A tibble or data frame of hyper-parameters
 associated with <code>kern_k</code>, the mean process' kernel.
@@ -127,6 +133,8 @@ Required column : <code>ID</code>. The <code>ID</code> column contains the uniqu
 names/codes used to identify each cluster. The other columns
 should be named according to the hyper-parameters that are used in
 <code>kern_k</code>.</p></dd>
+
+
 <dt>ini_hp_i</dt>
 <dd><p>A tibble or data frame of hyper-parameters
 associated with <code>kern_i</code>, the individual processes' kernel.
@@ -134,6 +142,8 @@ Required column : <code>ID</code>. The <code>ID</code> column contains the uniqu
 names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 <code>kern_i</code>.</p></dd>
+
+
 <dt>kern_k</dt>
 <dd><p>A kernel function, associated with the mean GPs.
 Several popular kernels
@@ -151,43 +161,64 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).</p></li>
 </ul></dd>
+
+
 <dt>kern_i</dt>
 <dd><p>A kernel function, associated with the individual GPs. (See
 details above in <code>kern_k</code>).</p></dd>
+
+
 <dt>ini_mixture</dt>
 <dd><p>Initial values of the probability to belong to each
 cluster for each individual (<code><a href="ini_mixture.html">ini_mixture</a></code> can be used for
 a k-means initialisation. Used by default if NULL).</p></dd>
+
+
 <dt>common_hp_k</dt>
 <dd><p>A boolean indicating whether hyper-parameters are common
 among the mean GPs.</p></dd>
+
+
 <dt>common_hp_i</dt>
 <dd><p>A boolean indicating whether hyper-parameters are common
 among the individual GPs.</p></dd>
+
+
 <dt>grid_inputs</dt>
 <dd><p>A vector, indicating the grid of additional reference
 inputs on which the mean processes' hyper-posteriors should be evaluated.</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.</p></dd>
+
+
 <dt>n_iter_max</dt>
 <dd><p>A number, indicating the maximum number of iterations of
 the VEM algorithm to proceed while not reaching convergence.</p></dd>
+
+
 <dt>cv_threshold</dt>
 <dd><p>A number, indicating the threshold of the likelihood gain
 under which the VEM algorithm will stop. The convergence condition is
 defined as the difference of elbo between two consecutive steps,
 divided by the absolute value of the last one
 ( \((ELBO_n - ELBO_{n-1}) / |ELBO_n| \) ).</p></dd>
+
+
 <dt>fast_approx</dt>
 <dd><p>A boolean, indicating whether the VEM algorithm should
 stop after only one iteration of the VE-step. This advanced feature is
 mainly used to provide a faster approximation of the model selection
 procedure, by preventing any optimisation over the hyper-parameters.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list, containing the results of the VEM algorithm used in the
+    
+
+<p>A list, containing the results of the VEM algorithm used in the
 training step of MagmaClust. The elements of the list are:</p><ul><li><p>hp_k: A tibble containing the trained hyper-parameters for the mean
 process' kernel and the mixture proportions for each cluster.</p></li>
 <li><p>hp_i: A tibble containing the trained hyper-parameters for the
@@ -237,7 +268,7 @@ MagmaClust.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

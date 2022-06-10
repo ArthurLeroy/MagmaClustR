@@ -87,10 +87,14 @@ variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference 'Input'.</p></dd>
+
+
 <dt>trained_model</dt>
 <dd><p>A list, containing  the information coming from a
 Magma model, previously trained using the <code><a href="train_magma.html">train_magma</a></code>
 function.</p></dd>
+
+
 <dt>hyperpost</dt>
 <dd><p>A list, containing the elements 'mean' and 'cov', the
 parameters of the hyper-posterior distribution of the mean process.
@@ -102,6 +106,8 @@ and 'Output'. The 'cov' element should be a covariance matrix with
 colnames and rownames corresponding to the 'Input' in 'mean'. In all
 cases, the column 'Input' should contain all the values appearing both in
 the 'Input' column of <code>data</code> and in <code>grid_inputs</code>.</p></dd>
+
+
 <dt>mean</dt>
 <dd><p>Mean parameter of the GP. This argument can be specified under
 various formats, such as:</p><ul><li><p>NULL (default). The mean would be set to 0 everywhere.</p></li>
@@ -111,12 +117,16 @@ various formats, such as:</p><ul><li><p>NULL (default). The mean would be set to
 values should include at least the same values as in the <code>data</code>
 argument.</p></li>
 </ul></dd>
+
+
 <dt>hp</dt>
 <dd><p>A named vector, tibble or data frame of hyper-parameters
 associated with <code>kern</code>. The columns/elements should be named
 according to the hyper-parameters that are used in <code>kern</code>. The
 function <code><a href="train_gp.html">train_gp</a></code> can be used to learn maximum-likelihood
 estimators of the hyper-parameters,</p></dd>
+
+
 <dt>kern</dt>
 <dd><p>A kernel function, defining the covariance structure of the GP.
 Several popular kernels
@@ -134,6 +144,8 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).</p></li>
 </ul></dd>
+
+
 <dt>grid_inputs</dt>
 <dd><p>The grid of inputs (reference Input and covariates) values
 on which the GP should be evaluated. Ideally, this argument should be a
@@ -143,17 +155,24 @@ tibble or a data frame, providing the same columns as <code>data</code>, except
 vector. This vector would be used as reference input for prediction and if
 NULL, a vector of length 500 is defined, ranging between the min and max
 Input values of <code>data</code>.</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A tibble, representing Magma or GP predictions as two column 'Mean'
+    
+
+<p>A tibble, representing Magma or GP predictions as two column 'Mean'
 and 'Var', evaluated on the <code>grid_inputs</code>. The column 'Input' and
 additional covariates columns are associated to each predicted values. An
 additional 'Index' column is created for the sake of GIF creation using
 the function <code><a href="plot_gif.html">plot_gif</a></code></p>
+
+
     </div>
 
     <div class="section level2">
@@ -171,7 +190,7 @@ the function <code><a href="plot_gif.html">plot_gif</a></code></p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

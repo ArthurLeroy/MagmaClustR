@@ -99,6 +99,8 @@ variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference <code>Input</code>.</p></dd>
+
+
 <dt>prior_mean</dt>
 <dd><p>Hyper-prior mean parameter (m_0) of the mean GP. This
 argument can be specified under various formats, such as:</p><ul><li><p>NULL (default). The hyper-prior mean would be set to 0 everywhere.</p></li>
@@ -111,12 +113,16 @@ of the hyper-prior mean function at the training Inputs.</p></li>
 values should include at least the same values as in the <code>data</code>
 argument.</p></li>
 </ul></dd>
+
+
 <dt>ini_hp_0</dt>
 <dd><p>A named vector, tibble or data frame of hyper-parameters
 associated with <code>kern_0</code>, the mean process' kernel. The
 columns/elements should be named according to the hyper-parameters
 that are used in <code>kern_0</code>. If NULL (default), random values are used
 as initialisation.</p></dd>
+
+
 <dt>ini_hp_i</dt>
 <dd><p>A tibble or data frame of hyper-parameters
 associated with <code>kern_i</code>, the individual processes' kernel.
@@ -126,6 +132,8 @@ should be named according to the hyper-parameters that are used in
 <code>kern_i</code>. Compared to <code>ini_hp_0</code> should contain an additional
 'noise' column to initialise the noise hyper-parameter of the model. If
 NULL (default), random values are used as initialisation.</p></dd>
+
+
 <dt>kern_0</dt>
 <dd><p>A kernel function, associated with the mean GP.
 Several popular kernels
@@ -143,36 +151,53 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).</p></li>
 </ul></dd>
+
+
 <dt>kern_i</dt>
 <dd><p>A kernel function, associated with the individual GPs. ("SE",
 "PERIO" and "RQ" are also available here).</p></dd>
+
+
 <dt>common_hp</dt>
 <dd><p>A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all individuals.</p></dd>
+
+
 <dt>grid_inputs</dt>
 <dd><p>A vector, indicating the grid of additional reference
 inputs on which the mean process' hyper-posterior should be evaluated.</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.</p></dd>
+
+
 <dt>n_iter_max</dt>
 <dd><p>A number, indicating the maximum number of iterations of
 the EM algorithm to proceed while not reaching convergence.</p></dd>
+
+
 <dt>cv_threshold</dt>
 <dd><p>A number, indicating the threshold of the likelihood gain
 under which the EM algorithm will stop. The convergence condition is
 defined as the difference of likelihoods between two consecutive steps,
 divided by the absolute value of the last one
 ( \((LL_n - LL_n-1) / |LL_n|\) ).</p></dd>
+
+
 <dt>fast_approx</dt>
 <dd><p>A boolean, indicating whether the EM algorithm should
 stop after only one iteration of the E-step. This advanced feature is
 mainly used to provide a faster approximation of the model selection
 procedure, by preventing any optimisation over the hyper-parameters.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list, gathering the results of the EM algorithm used for training
+    
+
+<p>A list, gathering the results of the EM algorithm used for training
 in Magma. The elements of the list are:</p><ul><li><p>hp_0: A tibble of the trained hyper-parameters for the mean
 process' kernel.</p></li>
 <li><p>hp_i: A tibble of all the trained hyper-parameters for the
@@ -223,7 +248,7 @@ kernel function displaying an adequate format to be used in Magma.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

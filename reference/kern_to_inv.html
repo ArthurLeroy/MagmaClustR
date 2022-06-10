@@ -78,6 +78,8 @@ one individual. If a vector, the elements are used as reference, otherwise
 reference (e.g. 'Input' would contain the timestamps in time-series
 applications). The other columns are considered as being covariates. If
 no column is named 'Input', the first one is used by default.</p></dd>
+
+
 <dt>kern</dt>
 <dd><p>A kernel function. Several popular kernels
 (see <a href="https://www.cs.toronto.edu/~duvenaud/cookbook/" class="external-link">The Kernel
@@ -94,21 +96,30 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).</p></li>
 </ul></dd>
+
+
 <dt>hp</dt>
 <dd><p>A list, data frame or tibble containing the hyper-parameters used
 in the kernel. The name of the elements (or columns) should correspond
 exactly to those used in the kernel definition.</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.</p></dd>
+
+
 <dt>deriv</dt>
 <dd><p>A character, indicating according to which hyper-parameter the
 derivative should be computed. If NULL (default), the function simply returns
 the inverse covariance matrix.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>The inverse of a covariance matrix, which elements are evaluations of
+    
+
+<p>The inverse of a covariance matrix, which elements are evaluations of
 the associated kernel for each pair of reference inputs.</p>
     </div>
 
@@ -127,7 +138,7 @@ the associated kernel for each pair of reference inputs.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

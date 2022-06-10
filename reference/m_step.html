@@ -73,36 +73,57 @@ kernels involved in Magma.</p>
     <dl><dt>db</dt>
 <dd><p>A tibble or data frame. Columns required: ID, Input, Output.
 Additional columns for covariates can be specified.</p></dd>
+
+
 <dt>m_0</dt>
 <dd><p>A vector, corresponding to the prior mean of the mean GP.</p></dd>
+
+
 <dt>kern_0</dt>
 <dd><p>A kernel function, associated with the mean GP.</p></dd>
+
+
 <dt>kern_i</dt>
 <dd><p>A kernel function, associated with the individual GPs.</p></dd>
+
+
 <dt>old_hp_0</dt>
 <dd><p>A named vector, tibble or data frame, containing the
 hyper-parameters from the previous M-step (or initialisation) associated
 with the mean GP.</p></dd>
+
+
 <dt>old_hp_i</dt>
 <dd><p>A tibble or data frame, containing the hyper-parameters
 from the previous M-step (or initialisation) associated with the
 individual GPs.</p></dd>
+
+
 <dt>post_mean</dt>
 <dd><p>A tibble, coming out of the E step, containing the Input and
 associated Output of the hyper-posterior mean parameter.</p></dd>
+
+
 <dt>post_cov</dt>
 <dd><p>A matrix, coming out of the E step, being the hyper-posterior
 covariance parameter.</p></dd>
+
+
 <dt>common_hp</dt>
 <dd><p>A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all indiviuals.</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A named list, containing the elements <code>hp_0</code>, a tibble
+    
+
+<p>A named list, containing the elements <code>hp_0</code>, a tibble
 containing the hyper-parameters associated with the mean GP,
 <code>hp_i</code>, a tibble containing the hyper-parameters
 associated with the individual GPs.</p>
@@ -123,7 +144,7 @@ associated with the individual GPs.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

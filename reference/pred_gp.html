@@ -93,6 +93,8 @@ variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference 'Input'.</p></dd>
+
+
 <dt>mean</dt>
 <dd><p>Mean parameter of the GP. This argument can be specified under
 various formats, such as:</p><ul><li><p>NULL (default). The mean would be set to 0 everywhere.</p></li>
@@ -102,6 +104,8 @@ various formats, such as:</p><ul><li><p>NULL (default). The mean would be set to
 values should include at least the same values as in the <code>data</code>
 argument.</p></li>
 </ul></dd>
+
+
 <dt>hp</dt>
 <dd><p>A named vector, tibble or data frame of hyper-parameters
 associated with <code>kern</code>. The columns/elements should be named
@@ -109,6 +113,8 @@ according to the hyper-parameters that are used in <code>kern</code>. If NULL
 (default), the function <code><a href="train_gp.html">train_gp</a></code> is called with random
 initial values for learning maximum-likelihood estimators of the
 hyper-parameters associated with <code>kern</code>.</p></dd>
+
+
 <dt>kern</dt>
 <dd><p>A kernel function, defining the covariance structure of the GP.
 Several popular kernels
@@ -126,6 +132,8 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).</p></li>
 </ul></dd>
+
+
 <dt>grid_inputs</dt>
 <dd><p>The grid of inputs (reference Input and covariates) values
 on which the GP should be evaluated. Ideally, this argument should be a
@@ -135,19 +143,28 @@ tibble or a data frame, providing the same columns as <code>data</code>, except
 vector. This vector would be used as reference input for prediction and if
 NULL, a vector of length 500 is defined, ranging between the min and max
 Input values of <code>data</code>.</p></dd>
+
+
 <dt>get_full_cov</dt>
 <dd><p>A logical value, indicating whether the full posterior
 covariance matrix should be returned.</p></dd>
+
+
 <dt>plot</dt>
 <dd><p>A logical value, indicating whether a plot of the results is
 automatically displayed.</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A tibble, representing the GP predictions as two column 'Mean' and
+    
+
+<p>A tibble, representing the GP predictions as two column 'Mean' and
 'Var', evaluated on the <code>grid_inputs</code>. The column 'Input' and
 additional covariates columns are associated to each predicted values.
 If the <code>get_full_cov</code> argument is TRUE, the function returns a list,
@@ -170,7 +187,7 @@ posterior covariance matrix is defined as 'cov'.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>

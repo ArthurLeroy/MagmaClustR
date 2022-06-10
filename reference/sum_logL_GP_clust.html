@@ -85,31 +85,48 @@ penalisation of the full log-likelihood.</p>
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
     <dl><dt>hp</dt>
 <dd><p>A tibble, data frame or named vector of hyper-parameters.</p></dd>
+
+
 <dt>db</dt>
 <dd><p>A tibble containing data we want to evaluate the logL on.
 Required columns: Input, Output. Additional covariate columns are allowed.</p></dd>
+
+
 <dt>mixture</dt>
 <dd><p>A tibble or data frame, indicating the mixture probabilities
 of each cluster for the new individual/task.</p></dd>
+
+
 <dt>mean</dt>
 <dd><p>A list of hyper-posterior mean parameters for all clusters.</p></dd>
+
+
 <dt>kern</dt>
 <dd><p>A kernel function.</p></dd>
+
+
 <dt>post_cov</dt>
 <dd><p>A list of hyper-posterior covariance parameters for all
 clusters.</p></dd>
+
+
 <dt>prop_mixture</dt>
 <dd><p>A tibble or a named vector. Each name of column or
 element should refer to a cluster. The value associated with each cluster
 is a number between 0 and 1, corresponding to the mixture
 proportions.</p></dd>
+
+
 <dt>pen_diag</dt>
 <dd><p>A jitter term that is added to the covariance matrix to avoid
 numerical issues when inverting, in cases of nearly singular matrices.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A number, expectation of mixture of Gaussian log-likelihoods in
+    
+
+<p>A number, expectation of mixture of Gaussian log-likelihoods in
 the prediction step of MagmaClust. This quantity is supposed to increase
 at each step of the EM algorithm, and can be used for monitoring the
 procedure.</p>
@@ -130,7 +147,7 @@ procedure.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
 </div>
 
     </footer></div>
