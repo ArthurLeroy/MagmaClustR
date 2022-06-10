@@ -48,32 +48,32 @@ Here is a basic example on how to simulate a dataset with the adequate format, t
 ```{r generate data Magma}
 library(MagmaClustR)
 ## Simulate a dataset with 11 individuals, each observed at 10 input locations
-set.seed(2)
+set.seed(28)
 data_magma <- simu_db(M = 11, N = 10, common_input = FALSE)
 ## Split individuals into training and prediction sets, and define test points
 magma_train <- data_magma %>% subset(ID %in% 1:10)
-magma_pred <- data_magma %>% subset(ID == 11) %>% head(5)
-magma_test <- data_magma %>% subset(ID == 11) %>% tail(5)
+magma_pred <- data_magma %>% subset(ID == 11) %>% head(7)
+magma_test <- data_magma %>% subset(ID == 11) %>% tail(3)
 
 data_magma
 ```
-
+As displayed above, any dataset processed in MagmaClustR should provide columns named `ID`, `Input`, and `Output`. Any additional column would be treated as a covariate (and thus define multi-dimensional inputs). 
 
 ### Training and prediction with Magma 
 
 ```{r train_and_predict_Magma}
-model <- train_magma(data = magma_train)
+model <- train_magma(data = magma_train, common_hp = F)
 
 pred  <- pred_magma(data = magma_pred,
                     trained_model = model, 
                     grid_inputs = seq(0,10, 0.01))
 ```
 
-Note that the `grid_inputs` argument is optional. It merely allows users to control the grid of values on which the prediction is performed. 
+Note that the `common_hp` and `grid_inputs` arguments are optional. They respectively indicate that a specific set of hyper-parameters is trained for each curve, and control the grid of values on which the prediction is performed.
 
 ### Display the resulting predictions
 
-Several arguments are available in a specific plotting function to offer additional control in the display of results. For instance, the GP prediction can be represented as a heatmap of probabilities:
+Several other arguments are available in dedicated plotting functions to offer extended options in the display of results. For instance, the GP predictions can be represented as a heatmap of probabilities:
 
 ```{r display_Magma}
 plot_gp(pred_gp = pred,
@@ -97,10 +97,8 @@ plot_gif(pred_gp = pred_gif,
         prior_mean = model$hyperpost$mean) + 
   ggplot2::geom_point(data = magma_test,
                        ggplot2::aes(x = Input, y = Output),
-                       color = 'red')
+                       color = 'red', size = 2)
 ```
-
-Note that the `grid_inputs` argument is optional. It merely allows users to control the grid of values on which the prediction is performed. 
 
 ## Example: MagmaClust
 

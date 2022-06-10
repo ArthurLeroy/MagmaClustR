@@ -58,51 +58,55 @@ format, then train a Magma model and use it to perform predictions.
 ``` r
 library(MagmaClustR)
 ## Simulate a dataset with 11 individuals, each observed at 10 input locations
-set.seed(2)
+set.seed(28)
 data_magma <- simu_db(M = 11, N = 10, common_input = FALSE)
 ## Split individuals into training and prediction sets, and define test points
 magma_train <- data_magma %>% subset(ID %in% 1:10)
-magma_pred <- data_magma %>% subset(ID == 11) %>% head(5)
-magma_test <- data_magma %>% subset(ID == 11) %>% tail(5)
+magma_pred <- data_magma %>% subset(ID == 11) %>% head(7)
+magma_test <- data_magma %>% subset(ID == 11) %>% tail(3)
 
 data_magma
 #> # A tibble: 110 x 3
 #>    ID    Output Input
 #>    <chr>  <dbl> <dbl>
-#>  1 1       1.52  1.9 
-#>  2 1      -5.76  3.3 
-#>  3 1      -3.78  3.35
-#>  4 1       7.23  5.25
-#>  5 1      14.9   6.2 
-#>  6 1       7.48  7.4 
-#>  7 1       7.21  8.15
-#>  8 1      11.5   8.2 
-#>  9 1      13.1   8.9 
-#> 10 1       8.72  9.5 
+#>  1 1      -14.7  0   
+#>  2 1      -15.7  0.7 
+#>  3 1      -11.1  1   
+#>  4 1      -19.3  1.5 
+#>  5 1      -16.5  1.7 
+#>  6 1      -33.5  5.2 
+#>  7 1      -42.2  7   
+#>  8 1      -48.9  7.1 
+#>  9 1      -50.5  8.05
+#> 10 1      -45.0  9.65
 #> # ... with 100 more rows
 ```
+
+As displayed above, any dataset processed in MagmaClustR should provide
+columns named `ID`, `Input`, and `Output`. Any additional column would
+be treated as a covariate (and thus define multi-dimensional inputs).
 
 ### Training and prediction with Magma
 
 ``` r
-model <- train_magma(data = magma_train)
+model <- train_magma(data = magma_train, common_hp = F)
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
 #> The 'ini_hp_0' argument has not been specified. Random values of hyper-parameters for the mean process are used as initialisation.
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 8.32 seconds 
+#> EM algorithm, step 1: 10.32 seconds 
 #>  
-#> Value of the likelihood: -380.13237 --- Convergence ratio = Inf
+#> Value of the likelihood: -404.29385 --- Convergence ratio = Inf
 #>  
 #> EM algorithm, step 2: 4.27 seconds 
 #>  
-#> Value of the likelihood: -374.41417 --- Convergence ratio = 0.01527
+#> Value of the likelihood: -390.64092 --- Convergence ratio = 0.03495
 #>  
-#> EM algorithm, step 3: 3.77 seconds 
+#> EM algorithm, step 3: 6.47 seconds 
 #>  
-#> Value of the likelihood: -374.17355 --- Convergence ratio = 0.00064
+#> Value of the likelihood: -390.28064 --- Convergence ratio = 0.00092
 #>  
 #> The EM algorithm successfully converged, training is completed. 
 #> 
@@ -117,19 +121,23 @@ pred  <- pred_magma(data = magma_pred,
 #> The 'prior_mean' argument has not been specified. The hyper-prior mean function is thus set to be 0 everywhere.
 #>  
 #> Done!
+#>  
+#> The 'hp' argument has not been specified. The 'train_gp()' function (with random initialisation) has been used to learn ML estimators for the hyper-parameters associated with the 'kern' argument.
 #> 
 ```
 
 <img src="man/figures/README-train_and_predict_Magma-1.png" width="100%" />
 
-Note that the `grid_inputs` argument is optional. It merely allows users
-to control the grid of values on which the prediction is performed.
+Note that the `common_hp` and `grid_inputs` arguments are optional. They
+respectively indicate that a specific set of hyper-parameters is trained
+for each curve, and control the grid of values on which the prediction
+is performed.
 
 ### Display the resulting predictions
 
-Several arguments are available in a specific plotting function to offer
-additional control in the display of results. For instance, the GP
-prediction can be represented as a heatmap of probabilities:
+Several other arguments are available in dedicated plotting functions to
+offer extended options in the display of results. For instance, the GP
+predictions can be represented as a heatmap of probabilities:
 
 ``` r
 plot_gp(pred_gp = pred,
@@ -151,7 +159,7 @@ dataset.
 pred_gif  <- pred_gif(data = magma_pred,
                       trained_model = model,
                       grid_inputs = seq(0, 10, 0.01))
-#>  => 1 => 2 => 3 => 4 => 5
+#>  => 1 => 2 => 3 => 4 => 5 => 6 => 7
 
 plot_gif(pred_gp = pred_gif,
         data = magma_pred,
@@ -159,13 +167,10 @@ plot_gif(pred_gp = pred_gif,
         prior_mean = model$hyperpost$mean) + 
   ggplot2::geom_point(data = magma_test,
                        ggplot2::aes(x = Input, y = Output),
-                       color = 'red')
+                       color = 'red', size = 2)
 ```
 
 <img src="man/figures/README-gif_Magma-1.gif" width="100%" />
-
-Note that the `grid_inputs` argument is optional. It merely allows users
-to control the grid of values on which the prediction is performed.
 
 ## Example: MagmaClust
 
@@ -214,15 +219,15 @@ model_clust <- train_magmaclust(data = magmaclust_train)
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 33.26 seconds 
+#> VEM algorithm, step 1: 126.81 seconds 
 #>  
 #> Value of the elbo: -403.86908 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 12.95 seconds 
+#> VEM algorithm, step 2: 47.73 seconds 
 #>  
 #> Value of the elbo: -383.34766 --- Convergence ratio = 0.05353
 #>  
-#> VEM algorithm, step 3: 11.17 seconds 
+#> VEM algorithm, step 3: 23.75 seconds 
 #>  
 #> Value of the elbo: -383.08838 --- Convergence ratio = 0.00068
 #>  
@@ -309,19 +314,19 @@ model_dim2 <- train_magma(data = dim2_train)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 6.89 seconds 
+#> EM algorithm, step 1: 18.35 seconds 
 #>  
 #> Value of the likelihood: -243.2537 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 7.36 seconds 
+#> EM algorithm, step 2: 17.97 seconds 
 #>  
 #> Value of the likelihood: -232.0084 --- Convergence ratio = 0.04847
 #>  
-#> EM algorithm, step 3: 7.09 seconds 
+#> EM algorithm, step 3: 16.79 seconds 
 #>  
 #> Value of the likelihood: -231.63152 --- Convergence ratio = 0.00163
 #>  
-#> EM algorithm, step 4: 3.43 seconds 
+#> EM algorithm, step 4: 8.65 seconds 
 #>  
 #> Value of the likelihood: -231.61322 --- Convergence ratio = 8e-05
 #>  
