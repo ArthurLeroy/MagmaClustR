@@ -92,12 +92,12 @@ pred_gif  <- pred_gif(data = magma_pred,
                       grid_inputs = seq(0, 10, 0.01))
 
 plot_gif(pred_gp = pred_gif,
-        data = magma_pred,
-        data_train = magma_train,
-        prior_mean = model$hyperpost$mean) + 
+         data = magma_pred,
+         data_train = magma_train,
+         prior_mean = model$hyperpost$mean) + 
   ggplot2::geom_point(data = magma_test,
-                       ggplot2::aes(x = Input, y = Output),
-                       color = 'red', size = 2)
+                      ggplot2::aes(x = Input, y = Output),
+                      color = 'red', size = 2)
 ```
 
 ## Example: MagmaClust
@@ -127,9 +127,9 @@ data_magmaclust
 model_clust <- train_magmaclust(data = magmaclust_train)
 
 pred_clust  <- pred_magmaclust(data = magmaclust_pred,
-                    trained_model = model_clust,
-                    grid_inputs = seq(0, 10, 0.01), 
-                    plot = FALSE)
+                               trained_model = model_clust,
+                               grid_inputs = seq(0, 10, 0.01), 
+                               plot = FALSE)
 ```
 
 

@@ -96,15 +96,15 @@ model <- train_magma(data = magma_train, common_hp = F)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 10.32 seconds 
+#> EM algorithm, step 1: 14.58 seconds 
 #>  
 #> Value of the likelihood: -404.29385 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 4.27 seconds 
+#> EM algorithm, step 2: 6.59 seconds 
 #>  
 #> Value of the likelihood: -390.64092 --- Convergence ratio = 0.03495
 #>  
-#> EM algorithm, step 3: 6.47 seconds 
+#> EM algorithm, step 3: 4.97 seconds 
 #>  
 #> Value of the likelihood: -390.28064 --- Convergence ratio = 0.00092
 #>  
@@ -162,12 +162,12 @@ pred_gif  <- pred_gif(data = magma_pred,
 #>  => 1 => 2 => 3 => 4 => 5 => 6 => 7
 
 plot_gif(pred_gp = pred_gif,
-        data = magma_pred,
-        data_train = magma_train,
-        prior_mean = model$hyperpost$mean) + 
+         data = magma_pred,
+         data_train = magma_train,
+         prior_mean = model$hyperpost$mean) + 
   ggplot2::geom_point(data = magma_test,
-                       ggplot2::aes(x = Input, y = Output),
-                       color = 'red', size = 2)
+                      ggplot2::aes(x = Input, y = Output),
+                      color = 'red', size = 2)
 ```
 
 <img src="man/figures/README-gif_Magma-1.gif" width="100%" />
@@ -219,15 +219,15 @@ model_clust <- train_magmaclust(data = magmaclust_train)
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 126.81 seconds 
+#> VEM algorithm, step 1: 70.88 seconds 
 #>  
 #> Value of the elbo: -403.86908 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 47.73 seconds 
+#> VEM algorithm, step 2: 27.57 seconds 
 #>  
 #> Value of the elbo: -383.34766 --- Convergence ratio = 0.05353
 #>  
-#> VEM algorithm, step 3: 23.75 seconds 
+#> VEM algorithm, step 3: 44.69 seconds 
 #>  
 #> Value of the elbo: -383.08838 --- Convergence ratio = 0.00068
 #>  
@@ -235,9 +235,9 @@ model_clust <- train_magmaclust(data = magmaclust_train)
 #> 
 
 pred_clust  <- pred_magmaclust(data = magmaclust_pred,
-                    trained_model = model_clust,
-                    grid_inputs = seq(0, 10, 0.01), 
-                    plot = FALSE)
+                               trained_model = model_clust,
+                               grid_inputs = seq(0, 10, 0.01), 
+                               plot = FALSE)
 #> The hyper-posterior distribution of the mean process provided in 'hyperpost' argument isn't evaluated on the expected inputs. Start evaluating the hyper-posterior on the correct inputs...
 #>  
 #> The 'prior_mean_k' argument has not been specified. The hyper-prior  mean functions are thus set to be 0 everywhere.
@@ -314,19 +314,19 @@ model_dim2 <- train_magma(data = dim2_train)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 18.35 seconds 
+#> EM algorithm, step 1: 27.34 seconds 
 #>  
 #> Value of the likelihood: -243.2537 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 17.97 seconds 
+#> EM algorithm, step 2: 28.45 seconds 
 #>  
 #> Value of the likelihood: -232.0084 --- Convergence ratio = 0.04847
 #>  
-#> EM algorithm, step 3: 16.79 seconds 
+#> EM algorithm, step 3: 28.96 seconds 
 #>  
 #> Value of the likelihood: -231.63152 --- Convergence ratio = 0.00163
 #>  
-#> EM algorithm, step 4: 8.65 seconds 
+#> EM algorithm, step 4: 14.32 seconds 
 #>  
 #> Value of the likelihood: -231.61322 --- Convergence ratio = 8e-05
 #>  
