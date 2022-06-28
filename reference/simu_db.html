@@ -60,25 +60,25 @@ controlling the data generation.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="fu">simu_db</span><span class="op">(</span>
-  M <span class="op">=</span> <span class="fl">10</span>,
-  N <span class="op">=</span> <span class="fl">10</span>,
-  K <span class="op">=</span> <span class="fl">1</span>,
-  covariate <span class="op">=</span> <span class="cn">FALSE</span>,
-  grid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span>, <span class="fl">0.05</span><span class="op">)</span>,
-  common_input <span class="op">=</span> <span class="cn">TRUE</span>,
-  common_hp <span class="op">=</span> <span class="cn">TRUE</span>,
-  add_hp <span class="op">=</span> <span class="cn">FALSE</span>,
-  add_clust <span class="op">=</span> <span class="cn">FALSE</span>,
-  int_mu_v <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span>,
-  int_mu_l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span>,
-  int_i_v <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span>,
-  int_i_l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span>,
-  int_i_sigma <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>,
-  m0_slope <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">5</span>, <span class="fl">5</span><span class="op">)</span>,
-  m0_intercept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>, <span class="fl">10</span><span class="op">)</span>,
-  int_covariate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">5</span>, <span class="fl">5</span><span class="op">)</span>
-<span class="op">)</span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">simu_db</span><span class="op">(</span></span>
+<span>  M <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>  N <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>  K <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  covariate <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  grid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span>, <span class="fl">0.05</span><span class="op">)</span>,</span>
+<span>  common_input <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  common_hp <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  add_hp <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  add_clust <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  int_mu_v <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span>,</span>
+<span>  int_mu_l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span>,</span>
+<span>  int_i_v <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span>,</span>
+<span>  int_i_l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2</span><span class="op">)</span>,</span>
+<span>  int_i_sigma <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  m0_slope <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">5</span>, <span class="fl">5</span><span class="op">)</span>,</span>
+<span>  m0_intercept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">10</span>, <span class="fl">10</span><span class="op">)</span>,</span>
+<span>  int_covariate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">5</span>, <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -176,17 +176,17 @@ admissible values for the covariate inputs.</p></dd>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span class="co">## Generate a dataset with 3 clusters of 4 individuals, observed at 10 inputs</span></span>
-<span class="r-in"><span class="va">data</span> <span class="op">=</span> <span class="fu">simu_db</span><span class="op">(</span>M <span class="op">=</span> <span class="fl">4</span>, N <span class="op">=</span> <span class="fl">10</span>, K <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
-<span class="r-in"></span>
-<span class="r-in"><span class="co">## Generate a 2-D dataset with an additional input 'Covariate'</span></span>
-<span class="r-in"><span class="va">data</span> <span class="op">=</span> <span class="fu">simu_db</span><span class="op">(</span>covariate <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span class="r-in"></span>
-<span class="r-in"><span class="co">## Generate a dataset where input locations are different among individuals</span></span>
-<span class="r-in"><span class="va">data</span> <span class="op">=</span> <span class="fu">simu_db</span><span class="op">(</span>common_input <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span class="r-in"></span>
-<span class="r-in"><span class="co">## Generate a dataset with an additional column indicating the true clusters</span></span>
-<span class="r-in"><span class="va">data</span> <span class="op">=</span> <span class="fu">simu_db</span><span class="op">(</span>K <span class="op">=</span> <span class="fl">3</span>, covariate <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co">## Generate a dataset with 3 clusters of 4 individuals, observed at 10 inputs</span></span></span>
+<span class="r-in"><span><span class="va">data</span> <span class="op">=</span> <span class="fu">simu_db</span><span class="op">(</span>M <span class="op">=</span> <span class="fl">4</span>, N <span class="op">=</span> <span class="fl">10</span>, K <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co">## Generate a 2-D dataset with an additional input 'Covariate'</span></span></span>
+<span class="r-in"><span><span class="va">data</span> <span class="op">=</span> <span class="fu">simu_db</span><span class="op">(</span>covariate <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co">## Generate a dataset where input locations are different among individuals</span></span></span>
+<span class="r-in"><span><span class="va">data</span> <span class="op">=</span> <span class="fu">simu_db</span><span class="op">(</span>common_input <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co">## Generate a dataset with an additional column indicating the true clusters</span></span></span>
+<span class="r-in"><span><span class="va">data</span> <span class="op">=</span> <span class="fu">simu_db</span><span class="op">(</span>K <span class="op">=</span> <span class="fl">3</span>, covariate <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
@@ -198,7 +198,7 @@ admissible values for the covariate inputs.</p></dd>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.5.</p>
 </div>
 
     </footer></div>

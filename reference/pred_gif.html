@@ -63,16 +63,16 @@ specified through the <code>mean</code> argument.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="fu">pred_gif</span><span class="op">(</span>
-  <span class="va">data</span>,
-  trained_model <span class="op">=</span> <span class="cn">NULL</span>,
-  hyperpost <span class="op">=</span> <span class="cn">NULL</span>,
-  mean <span class="op">=</span> <span class="cn">NULL</span>,
-  hp <span class="op">=</span> <span class="cn">NULL</span>,
-  kern <span class="op">=</span> <span class="st">"SE"</span>,
-  grid_inputs <span class="op">=</span> <span class="cn">NULL</span>,
-  pen_diag <span class="op">=</span> <span class="fl">1e-10</span>
-<span class="op">)</span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">pred_gif</span><span class="op">(</span></span>
+<span>  <span class="va">data</span>,</span>
+<span>  trained_model <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  grid_inputs <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  hyperpost <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  mean <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  hp <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  kern <span class="op">=</span> <span class="st">"SE"</span>,</span>
+<span>  pen_diag <span class="op">=</span> <span class="fl">1e-10</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -93,6 +93,17 @@ each reference 'Input'.</p></dd>
 <dd><p>A list, containing  the information coming from a
 Magma model, previously trained using the <code><a href="train_magma.html">train_magma</a></code>
 function.</p></dd>
+
+
+<dt>grid_inputs</dt>
+<dd><p>The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as <code>data</code>, except
+'Output'. Nonetheless, in cases where <code>data</code> provides only one
+'Input' column, the <code>grid_inputs</code> argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of <code>data</code>.</p></dd>
 
 
 <dt>hyperpost</dt>
@@ -146,17 +157,6 @@ operator '*' shall always be used before the '+' operators (e.g.
 </ul></dd>
 
 
-<dt>grid_inputs</dt>
-<dd><p>The grid of inputs (reference Input and covariates) values
-on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as <code>data</code>, except
-'Output'. Nonetheless, in cases where <code>data</code> provides only one
-'Input' column, the <code>grid_inputs</code> argument can be NULL (default) or a
-vector. This vector would be used as reference input for prediction and if
-NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of <code>data</code>.</p></dd>
-
-
 <dt>pen_diag</dt>
 <dd><p>A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.</p></dd>
@@ -177,7 +177,7 @@ the function <code><a href="plot_gif.html">plot_gif</a></code></p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span class="cn">TRUE</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="cn">TRUE</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 </code></pre></div>
     </div>
@@ -190,7 +190,7 @@ the function <code><a href="plot_gif.html">plot_gif</a></code></p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.4.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.5.</p>
 </div>
 
     </footer></div>
