@@ -214,7 +214,7 @@ vm_step <- function(db,
       dplyr::slice(1)
 
     ## Optimise hyper-parameters of the individual processes
-    new_hp_i <- optimr::opm(
+    new_hp_i <- stats::optim(
       par = par_i,
       fn = elbo_clust_multi_GP_common_hp_i,
       gr = gr_clust_multi_GP_common_hp_i,
@@ -223,10 +223,9 @@ vm_step <- function(db,
       kern = kern_i,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
-      control = list(kkt = F)
-    ) %>%
-      dplyr::select(list_hp_i) %>%
-      tibble::as_tibble() %>%
+      control = list(factr = 1e13, maxit = 25)
+    )$par %>%
+      tibble::as_tibble_row() %>%
       tidyr::uncount(weights = length(list_ID_i)) %>%
       dplyr::mutate("ID" = list_ID_i, .before = 1)
   } else {
@@ -239,7 +238,7 @@ vm_step <- function(db,
       db_i <- db %>% dplyr::filter(.data$ID == i)
 
       ## Optimise hyper-parameters of the individual processes
-      optimr::opm(
+      stats::optim(
         par = par_i,
         fn = elbo_clust_multi_GP,
         gr = gr_clust_multi_GP,
@@ -248,10 +247,9 @@ vm_step <- function(db,
         hyperpost = list_mu_param,
         kern = kern_i,
         method = "L-BFGS-B",
-        control = list(kkt = F)
-      ) %>%
-        dplyr::select(list_hp_i) %>%
-        tibble::as_tibble() %>%
+        control = list(factr = 1e13, maxit = 25)
+      )$par %>%
+        tibble::as_tibble_row() %>%
         return()
     }
     new_hp_i <- sapply(list_ID_i, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
@@ -273,7 +271,7 @@ vm_step <- function(db,
       dplyr::select(-.data$prop_mixture)
 
     ## Optimise hyper-parameters of the processes of each cluster
-    new_hp_k <- optimr::opm(
+    new_hp_k <- stats::optim(
       par = par_k,
       fn = elbo_GP_mod_common_hp_k,
       gr = gr_GP_mod_common_hp_k,
@@ -283,10 +281,9 @@ vm_step <- function(db,
       post_cov = list_mu_param$cov,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
-      control = list(kkt = F)
-    ) %>%
-      dplyr::select(list_hp_k) %>%
-      tibble::as_tibble() %>%
+      control = list(factr = 1e13, maxit = 25)
+    )$par %>%
+      tibble::as_tibble_row() %>%
       tidyr::uncount(weights = length(list_ID_k)) %>%
       dplyr::mutate("ID" = list_ID_k, .before = 1) %>%
       dplyr::mutate("prop_mixture" = prop_mixture)
@@ -305,7 +302,7 @@ vm_step <- function(db,
       post_cov_k <- list_mu_param$cov[[k]]
 
       ## Optimise hyper-parameters of the processes of each cluster
-      optimr::opm(
+      stats::optim(
         par = par_k,
         logL_GP_mod,
         gr = gr_GP_mod,
@@ -315,10 +312,9 @@ vm_step <- function(db,
         post_cov = post_cov_k,
         pen_diag = pen_diag,
         method = "L-BFGS-B",
-        control = list(kkt = FALSE)
-      ) %>%
-        dplyr::select(list_hp_k) %>%
-        tibble::as_tibble() %>%
+        control = list(factr = 1e13, maxit = 25)
+      )$par %>%
+        tibble::as_tibble_row() %>%
         return()
     }
     new_hp_k <- sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%

@@ -7,11 +7,11 @@
 pred_gif(
   data,
   trained_model = NULL,
+  grid_inputs = NULL,
   hyperpost = NULL,
   mean = NULL,
   hp = NULL,
   kern = "SE",
-  grid_inputs = NULL,
   pen_diag = 1e-10
 )
 }
@@ -29,6 +29,15 @@ each reference 'Input'.}
 \item{trained_model}{A list, containing  the information coming from a
 Magma model, previously trained using the \code{\link{train_magma}}
 function.}
+
+\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as \code{data}, except
+'Output'. Nonetheless, in cases where \code{data} provides only one
+'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of \code{data}.}
 
 \item{hyperpost}{A list, containing the elements 'mean' and 'cov', the
 parameters of the hyper-posterior distribution of the mean process.
@@ -76,15 +85,6 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
-
-\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
-on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as \code{data}, except
-'Output'. Nonetheless, in cases where \code{data} provides only one
-'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-vector. This vector would be used as reference input for prediction and if
-NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{data}.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}

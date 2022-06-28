@@ -79,7 +79,6 @@
 #'    mainly used to provide a faster approximation of the model selection
 #'    procedure, by preventing any optimisation over the hyper-parameters.
 #'
-#'
 #' @details The user can specify custom kernel functions for the argument
 #'    \code{kern_0} and \code{kern_i}. The hyper-parameters used in the kernel
 #'    should have explicit names, and be contained within the \code{hp}
@@ -132,7 +131,6 @@ train_magma <- function(data,
                         n_iter_max = 25,
                         cv_threshold = 1e-3,
                         fast_approx = FALSE) {
-
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("ID", "Output", "Input") %in% names(data))) {
@@ -148,6 +146,8 @@ train_magma <- function(data,
     )
   }
 
+  ## Remove possible missing data
+  data <- data %>% tidyr::drop_na()
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
   ## Extract the list of different IDs
@@ -559,6 +559,8 @@ train_gp <- function(data,
                      hyperpost = NULL,
                      pen_diag = 1e-10) {
 
+  ## Remove possible missing data
+  data <- data %>% tidyr::drop_na()
   ## Extract the reference Input in the data
   input_obs <- unique(data$Input) %>% sort()
 
@@ -675,7 +677,7 @@ train_gp <- function(data,
   ## Extract the names of hyper-parameters
   list_hp <- hp %>% names()
 
-  hp_new <- optimr::opm(
+  hp_new <- stats::optim(
     hp,
     fn = logL_GP,
     gr = gr_GP,
@@ -685,10 +687,9 @@ train_gp <- function(data,
     post_cov = post_cov,
     pen_diag = pen_diag,
     method = "L-BFGS-B",
-    control = list(kkt = FALSE)
-  ) %>%
-    dplyr::select(list_hp) %>%
-    tibble::as_tibble()
+    control = list(factr = 1e13, maxit = 25)
+  )$par %>%
+    tibble::as_tibble_row()
 
   ## If something went wrong during the optimization
   if (hp_new %>% is.na() %>% any()) {
@@ -880,6 +881,8 @@ train_magmaclust <- function(data,
     ID_k <- paste0("K", 1:nb_cluster)
   }
 
+  ## Remove possible missing data
+  data <- data %>% tidyr::drop_na()
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
   ## Extract the list of different IDs
@@ -1306,6 +1309,9 @@ train_gp_clust <- function(data,
                            pen_diag = 1e-10,
                            n_iter_max = 25,
                            cv_threshold = 1e-3) {
+
+  ## Remove possible missing data
+  data <- data %>% tidyr::drop_na()
   ## Extract the observed (reference) Input
   input_obs <- data %>%
     dplyr::arrange(.data$Input) %>%
@@ -1426,11 +1432,11 @@ train_gp_clust <- function(data,
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
-    ## Format the hyper-parameters for optimisation with opm()
+    ## Format the hyper-parameters for optimisation
     par <- hp %>% dplyr::select(-.data$ID)
     ## We start with a M-step to take advantage of the initial 'prop_mixture'
     ## M step
-    new_hp <- optimr::opm(
+    new_hp <- stats::optim(
       par = par,
       fn = sum_logL_GP_clust,
       gr = gr_sum_logL_GP_clust,
@@ -1441,10 +1447,9 @@ train_gp_clust <- function(data,
       post_cov = hyperpost$cov,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
-      control = list(kkt = FALSE)
-    ) %>%
-      dplyr::select(list_hp) %>%
-      tibble::as_tibble() %>%
+      control = list(factr = 1e13, maxit = 25)
+    )$par %>%
+      tibble::as_tibble_row() %>%
       dplyr::mutate("ID" = ID_hp, .before = 1)
 
     ## In case something went wrong during the optimization
@@ -1606,6 +1611,9 @@ select_nb_cluster <- function(data,
                               kern_i = "SE",
                               plot = TRUE,
                               ...) {
+
+  ## Remove possible missing data
+  data <- data %>% tidyr::drop_na()
   ## Compute the number of different individuals/tasks
   nb_i <- data$ID %>% dplyr::n_distinct()
 

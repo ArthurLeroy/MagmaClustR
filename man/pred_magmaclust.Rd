@@ -7,10 +7,10 @@
 pred_magmaclust(
   data,
   trained_model = NULL,
+  grid_inputs = NULL,
   mixture = NULL,
   hp = NULL,
   kern = "SE",
-  grid_inputs = NULL,
   hyperpost = NULL,
   prop_mixture = NULL,
   get_hyperpost = FALSE,
@@ -35,6 +35,15 @@ MagmaClust model, previously trained using the
 \code{\link{train_magmaclust}} function. If \code{trained_model} is set to
 NULL, the \code{hyperpost} and \code{prop_mixture} arguments are mandatory
 to perform required re-computations for the prediction to succeed.}
+
+\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as \code{data}, except
+'Output'. Nonetheless, in cases where \code{data} provides only one
+'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of \code{data}.}
 
 \item{mixture}{A tibble or data frame, indicating the mixture probabilities
 of each cluster for the new individual/task.
@@ -65,15 +74,6 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
-
-\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
-on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as \code{data}, except
-'Output'. Nonetheless, in cases where \code{data} provides only one
-'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-vector. This vector would be used as reference input for prediction and if
-NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{data}.}
 
 \item{hyperpost}{A list, containing the elements \code{mean}, \code{cov} and
 \code{mixture} the parameters of the hyper-posterior distributions of the

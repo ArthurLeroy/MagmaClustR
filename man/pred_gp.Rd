@@ -6,10 +6,10 @@
 \usage{
 pred_gp(
   data,
+  grid_inputs = NULL,
   mean = NULL,
   hp = NULL,
   kern = "SE",
-  grid_inputs = NULL,
   get_full_cov = FALSE,
   plot = TRUE,
   pen_diag = 1e-10
@@ -25,6 +25,15 @@ variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
 each reference 'Input'.}
+
+\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
+on which the GP should be evaluated. Ideally, this argument should be a
+tibble or a data frame, providing the same columns as \code{data}, except
+'Output'. Nonetheless, in cases where \code{data} provides only one
+'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
+vector. This vector would be used as reference input for prediction and if
+NULL, a vector of length 500 is defined, ranging between the min and max
+Input values of \code{data}.}
 
 \item{mean}{Mean parameter of the GP. This argument can be specified under
 various formats, such as:
@@ -62,15 +71,6 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
-
-\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
-on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as \code{data}, except
-'Output'. Nonetheless, in cases where \code{data} provides only one
-'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-vector. This vector would be used as reference input for prediction and if
-NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{data}.}
 
 \item{get_full_cov}{A logical value, indicating whether the full posterior
 covariance matrix should be returned.}

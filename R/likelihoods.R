@@ -107,7 +107,6 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' @examples
 #' TRUE
 logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
-
   if (length(mean) == 1) {
     mean <- rep(mean, nrow(db))
   }

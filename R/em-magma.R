@@ -141,7 +141,7 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
   }
 
   ## Optimise hyper-parameters of the mean process
-  new_hp_0 <- optimr::opm(
+  new_hp_0 <- stats::optim(
     par = old_hp_0,
     fn = logL_GP_mod,
     gr = gr_GP_mod,
@@ -151,16 +151,19 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
     post_cov = post_cov,
     pen_diag = pen_diag,
     method = "L-BFGS-B",
-    control = list(kkt = FALSE)
-  ) %>%
-    dplyr::select(list_hp_0) %>%
-    tibble::as_tibble()
+    control = list(factr = 1e13, maxit = 25)
+  )$par %>%
+    tibble::as_tibble_row()
 
   ## Check whether hyper-parameters are common to all individuals
   if (common_hp) {
+    ## Retrieve the adequate initial hyper-parameters
+    par_i <- old_hp_i %>%
+      dplyr::select(-.data$ID) %>%
+      dplyr::slice(1)
     ## Optimise hyper-parameters of the individual processes
-    new_hp_i <- optimr::opm(
-      par = old_hp_i %>% dplyr::select(-.data$ID) %>% dplyr::slice(1),
+    new_hp_i <- stats::optim(
+      par = par_i,
       fn = logL_GP_mod_common_hp,
       gr = gr_GP_mod_common_hp,
       db = db,
@@ -169,10 +172,9 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
       post_cov = post_cov,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
-      control = list(kkt = F)
-    ) %>%
-      dplyr::select(list_hp_i) %>%
-      tibble::as_tibble() %>%
+      control = list(factr = 1e13, maxit = 25)
+    )$par %>%
+      tibble::as_tibble_row() %>%
       tidyr::uncount(weights = length(list_ID)) %>%
       dplyr::mutate("ID" = list_ID, .before = 1)
   } else {
@@ -197,7 +199,7 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         dplyr::select(-.data$ID)
 
       ## Optimise hyper-parameters of the individual processes
-      optimr::opm(
+      stats::optim(
         par = par_i,
         fn = logL_GP_mod,
         gr = gr_GP_mod,
@@ -207,10 +209,9 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         post_cov = post_cov_i,
         pen_diag = pen_diag,
         method = "L-BFGS-B",
-        control = list(kkt = F)
-      ) %>%
-        dplyr::select(list_hp_i) %>%
-        tibble::as_tibble() %>%
+        control = list(factr = 1e13, maxit = 25)
+      )$par %>%
+        tibble::as_tibble_row() %>%
         return()
     }
     new_hp_i <- sapply(list_ID, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
