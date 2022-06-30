@@ -35,6 +35,7 @@ ve_step <- function(db,
                     hp_k,
                     hp_i,
                     old_mixture,
+                    iter,
                     pen_diag) {
   prop_mixture_k <- hp_k %>%
     dplyr::pull(.data$prop_mixture, name = .data$ID)
@@ -78,8 +79,6 @@ ve_step <- function(db,
   }
   cov_k <- sapply(names(m_k), floop, simplify = FALSE, USE.NAMES = TRUE)
 
-  ##############################################
-
   ## Update the posterior mean for each cluster ##
 
   floop2 <- function(k) {
@@ -111,15 +110,19 @@ ve_step <- function(db,
   mean_k <- sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
   ## Update mixture
-  mixture <- update_mixture(
-    db,
-    mean_k,
-    cov_k,
-    hp_i,
-    kern_i,
-    prop_mixture_k,
-    pen_diag
-  )
+  if(iter == 1){
+    mixture <- old_mixture
+  } else{
+    mixture <- update_mixture(
+      db,
+      mean_k,
+      cov_k,
+      hp_i,
+      kern_i,
+      prop_mixture_k,
+      pen_diag
+    )
+  }
 
   list(
     "mean" = mean_k,

@@ -1056,6 +1056,7 @@ train_magmaclust <- function(data,
       hp_k,
       hp_i,
       mixture,
+      iter = i,
       pen_diag
     )
 
