@@ -14,9 +14,10 @@
 #'    associated with \code{kern_k}.
 #' @param hp_i A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
+#' @param old_mixture A list of mixture values from the previous iteration.
+#' @param iter A number, indicating the current iteration of the VEM algorithm.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
-#' @param old_mixture A list of mixture values from the previous iteration.
 #'
 #' @return A named list, containing the elements \code{mean}, a tibble
 #'    containing the Input and associated Output of the hyper-posterior mean
@@ -109,7 +110,7 @@ ve_step <- function(db,
   }
   mean_k <- sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
-  ## Update mixture
+  ## Update mixture (skip first iteration to avoid bad HP initialisation issues)
   if(iter == 1){
     mixture <- old_mixture
   } else{
