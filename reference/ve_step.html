@@ -57,7 +57,7 @@ for the mean processes and mixture variables involved in MagmaClust.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ve_step</span><span class="op">(</span><span class="va">db</span>, <span class="va">m_k</span>, <span class="va">kern_k</span>, <span class="va">kern_i</span>, <span class="va">hp_k</span>, <span class="va">hp_i</span>, <span class="va">old_mixture</span>, <span class="va">pen_diag</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ve_step</span><span class="op">(</span><span class="va">db</span>, <span class="va">m_k</span>, <span class="va">kern_k</span>, <span class="va">kern_i</span>, <span class="va">hp_k</span>, <span class="va">hp_i</span>, <span class="va">old_mixture</span>, <span class="va">iter</span>, <span class="va">pen_diag</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -92,6 +92,10 @@ associated with <code>kern_i</code>.</p></dd>
 
 <dt>old_mixture</dt>
 <dd><p>A list of mixture values from the previous iteration.</p></dd>
+
+
+<dt>iter</dt>
+<dd><p>A number, indicating the current iteration of the VEM algorithm.</p></dd>
 
 
 <dt>pen_diag</dt>
