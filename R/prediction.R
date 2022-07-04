@@ -1148,7 +1148,6 @@ hyperposterior_clust <- function(data,
                                  prior_mean_k = NULL,
                                  grid_inputs = NULL,
                                  pen_diag = 1e-10) {
-
   ## Remove possible missing data
   data <- data %>% tidyr::drop_na()
 
@@ -1539,44 +1538,33 @@ pred_magmaclust <- function(data,
     } else {
       ## Get the hyper-posterior distribution from the trained model
       hyperpost <- trained_model$hyperpost
-
-      ## Check hyperpost format (in particular presence of all reference Input)
-      if (!all(all_input %in% hyperpost$mean[[1]]$Input)) {
-        cat(
-          "The hyper-posterior distribution of the mean process provided in",
-          "'hyperpost' argument isn't evaluated on the expected inputs.",
-          "Start evaluating the hyper-posterior on the correct inputs...\n \n"
-        )
-        hyperpost <- hyperposterior_clust(
-          data = trained_model$ini_args$data,
-          mixture = trained_model$hyperpost$mixture,
-          hp_k = trained_model$hp_k,
-          hp_i = trained_model$hp_i,
-          kern_k = trained_model$ini_args$kern_k,
-          kern_i = trained_model$ini_args$kern_i,
-          prior_mean_k = trained_model$ini_args$prior_mean_k,
-          grid_inputs = all_input,
-          pen_diag = pen_diag
-        )
-        cat("Done!\n \n")
-      }
     }
-  } else if (hyperpost %>% is.list()) {
-    ## Check hyperpost format
-    if (!is.null(hyperpost$mean)) {
-      ## Check hyperpost format (in particular presence of all reference Input
-      if (!all(all_input %in% hyperpost$mean[[1]]$Input)) {
-        stop(
-          "The hyper-posterior distribution of the mean processes provided ",
-          "in the 'hyperpost' argument isn't evaluated on expected inputs. ",
-          "Please provide a 'trained_model' argument for re-computation. "
-        )
-      }
-    } else {
-      stop(
-        "The format of the 'hyperpost' argument is not as expected. Please ",
-        "read ?pred_magmaclust() for details."
+  }
+
+  ## Check hyperpost format
+  if ((hyperpost %>% is.list()) &
+      (!is.null(hyperpost$mean[[1]])) &
+      (!is.null(hyperpost$cov[[1]]))
+  ) {
+    ## Check hyperpost format (in particular presence of all reference Input)
+    if (!all(all_input %in% hyperpost$mean[[1]]$Input)) {
+      cat(
+        "The hyper-posterior distribution of the mean processes provided in",
+        "'hyperpost' argument isn't evaluated on the expected inputs.\n \n",
+        "Start evaluating the hyper-posterior on the correct inputs...\n \n"
       )
+      hyperpost <- hyperposterior_clust(
+        data = trained_model$ini_args$data,
+        mixture = trained_model$hyperpost$mixture,
+        hp_k = trained_model$hp_k,
+        hp_i = trained_model$hp_i,
+        kern_k = trained_model$ini_args$kern_k,
+        kern_i = trained_model$ini_args$kern_i,
+        prior_mean_k = trained_model$ini_args$prior_mean_k,
+        grid_inputs = all_input,
+        pen_diag = pen_diag
+      )
+      cat("Done!\n \n")
     }
   } else {
     stop(
