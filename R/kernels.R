@@ -261,7 +261,7 @@ lin_kernel <- function(
 #' @param noise A logical value, indicating whether a 'noise' hyper-parameter
 #'    should be included.
 #' @param common_hp A logical value, indicating whether the set of
-#'    hyper-parameters is assumed to be common to all indiviuals.
+#'    hyper-parameters is assumed to be common to all individuals.
 #'
 #' @return A tibble, providing a set of random hyper-parameters associated with
 #'   the kernel specified through the argument \code{kern}.
@@ -279,8 +279,8 @@ hp <- function(
   ## Initiate interval boundaries
   min <- 0
   max <- 3
-  min_noise <- -2
-  max_noise <- 0
+  min_noise <- -5
+  max_noise <- -1
 
   len <- 1
 

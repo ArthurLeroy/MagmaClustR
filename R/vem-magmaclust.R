@@ -323,7 +323,7 @@ vm_step <- function(db,
     }
     new_hp_k <- sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
-      tidyr::unnest_auto(.data$value) %>%
+      tidyr::unnest_wider(.data$value) %>%
       dplyr::mutate("prop_mixture" = prop_mixture)
   }
 
