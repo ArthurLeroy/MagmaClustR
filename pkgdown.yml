@@ -2,7 +2,7 @@ pandoc: 2.7.3
 pkgdown: 2.0.5
 pkgdown_sha: ~
 articles: {}
-last_built: 2022-07-04T19:29Z
+last_built: 2022-07-05T14:13Z
 urls:
   reference: https://arthurleroy.github.io/MagmaClustR/reference
   article: https://arthurleroy.github.io/MagmaClustR/articles
