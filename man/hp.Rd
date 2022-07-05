@@ -43,7 +43,7 @@ hyper-parameter, in case where \code{kern} is a custom kernel function.}
 should be included.}
 
 \item{common_hp}{A logical value, indicating whether the set of
-hyper-parameters is assumed to be common to all indiviuals.}
+hyper-parameters is assumed to be common to all individuals.}
 }
 \value{
 A tibble, providing a set of random hyper-parameters associated with
