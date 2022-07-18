@@ -119,7 +119,7 @@ draw <- function(int) {
 #' data = simu_db(common_input = FALSE)
 #'
 #' ## Generate a dataset with an additional column indicating the true clusters
-#' data = simu_db(K = 3, covariate = TRUE)
+#' data = simu_db(K = 3, add_clust = TRUE)
 simu_db <- function(M = 10,
                     N = 10,
                     K = 1,
