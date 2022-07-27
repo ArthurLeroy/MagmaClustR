@@ -230,12 +230,12 @@ simu_db <- function(M = 10,
 #' @examples
 #' TRUE
 ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
-  if (!identical(
-    unique(data$Input),
-    data %>%
-      dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
-      dplyr::pull(.data$Input)
-  )) {
+  # if (!identical(
+  #   unique(data$Input),
+  #   data %>%
+  #     dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
+  #     dplyr::pull(.data$Input)
+  # )) {
     floop <- function(i) {
       obs_i <- data %>%
         dplyr::filter(.data$ID == i) %>%
@@ -251,9 +251,9 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
       lapply(floop) %>%
       dplyr::bind_rows() %>%
       dplyr::select(c(.data$ID, .data$Input, .data$Output))
-  } else {
-    db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
-  }
+  # } else {
+  #   db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
+  # }
 
   res <- db_regular %>%
     tidyr::spread(key = .data$Input, value = .data$Output) %>%
