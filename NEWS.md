@@ -1,5 +1,8 @@
 # MagmaClustR (development version)
 
+
+# MagmaClustR 1.0.1
+
 ## Major
 * Remove the package 'optimr' dependency and switch to base 'optim()' function
 * Increase convergence tolerance in 'optim()', which was too slow
