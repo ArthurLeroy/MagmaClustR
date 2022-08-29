@@ -5,6 +5,7 @@
 * Increase convergence tolerance in 'optim()', which was too slow
 
 ## Minor
+* Fix the warnings about the absolute value function in the Cpp code
 * Remove error message in 'train_magmaclust()' when common_hp_k = FALSE
 * Change the default intervals for hyper-parameters in 'simu_db()'
 * Automatically remove rows with missing data

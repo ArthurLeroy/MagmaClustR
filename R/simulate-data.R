@@ -252,7 +252,7 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
       dplyr::bind_rows() %>%
       dplyr::select(c(.data$ID, .data$Input, .data$Output))
   # } else {
-  #   db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
+  # db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
   # }
 
   res <- db_regular %>%
