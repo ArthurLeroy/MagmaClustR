@@ -69,12 +69,18 @@ dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
 #'
 #' @examples
 #' TRUE
-logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
+logL_GP <- function(hp,
+                    db,
+                    mean,
+                    kern,
+                    post_cov,
+                    pen_diag) {
+
   ## Extract the input variables (reference Input + Covariates)
-  input <- db %>% dplyr::select(-.data$Output)
+  inputs <- db %>% dplyr::select(-.data$Output)
 
   ## Sum the two covariance matrices and inverse the result
-  cov <- kern_to_cov(input, kern, hp) + post_cov
+  cov <- kern_to_cov(inputs, kern, hp) + post_cov
 
   inv <- cov %>% chol_inv_jitter(pen_diag = pen_diag)
 
@@ -150,25 +156,36 @@ logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @examples
 #' TRUE
-logL_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
+logL_GP_mod_common_hp <- function(hp,
+                                  db,
+                                  mean,
+                                  kern,
+                                  post_cov,
+                                  pen_diag) {
+
   funloop <- function(i) {
     ## Extract the i-th specific reference inputs
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Input)
+      dplyr::pull(.data$Reference)
     ## Extract the i-th specific Inputs and Output
     db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::select(-.data$ID)
     ## Extract the mean values associated with the i-th specific inputs
     mean_i <- mean %>%
-      dplyr::filter(.data$Input %in% input_i) %>%
+      dplyr::filter(.data$Reference %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
     post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
 
     ## Compute the modified logL for the individual processes
-    logL_GP_mod(hp, db_i, mean_i, kern, post_cov_i, pen_diag) %>%
+    logL_GP_mod(hp,
+                db_i,
+                mean_i,
+                kern,
+                post_cov_i,
+                pen_diag) %>%
       return()
   }
   sapply(unique(db$ID), funloop) %>%
@@ -212,19 +229,21 @@ logL_monitoring <- function(hp_0,
                             post_cov,
                             pen_diag) {
   ## Compute the modified logL for the mean process
-  ll_0 <- logL_GP_mod(hp = hp_0,
-                      db = post_mean,
-                      mean = m_0,
-                      kern = kern_0,
-                      post_cov = post_cov,
-                      pen_diag = pen_diag)
+  ll_0 <- logL_GP_mod(
+    hp = hp_0,
+    db = post_mean,
+    mean = m_0,
+    kern = kern_0,
+    post_cov = post_cov,
+    pen_diag = pen_diag
+  )
 
   ## Sum over the individuals
   funloop <- function(i) {
     ## Extract the i-th specific reference inputs
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Input)
+      dplyr::pull(.data$Reference)
     ## Extract the i-th specific hyper-parameters
     hp_i_i <- hp_i %>%
       dplyr::filter(.data$ID == i) %>%
@@ -235,13 +254,20 @@ logL_monitoring <- function(hp_0,
       dplyr::select(-.data$ID)
     ## Extract the mean values associated with the i-th specific inputs
     post_mean_i <- post_mean %>%
-      dplyr::filter(.data$Input %in% input_i) %>%
+      dplyr::filter(.data$Reference %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
+    post_cov_i <- post_cov[as.character(input_i),
+                           as.character(input_i)
+    ]
 
     ## Compute the modified logL for the individual processes
-    logL_GP_mod(hp_i_i, db_i, post_mean_i, kern_i, post_cov_i, pen_diag) %>%
+    logL_GP_mod(hp_i_i,
+                db_i,
+                post_mean_i,
+                kern_i,
+                post_cov_i,
+                pen_diag) %>%
       return()
   }
   sum_ll_i <- sapply(unique(db$ID), funloop) %>% sum()
@@ -302,10 +328,11 @@ sum_logL_GP_clust <- function(hp,
                               post_cov,
                               prop_mixture = NULL,
                               pen_diag) {
+
   ## Extract the observed (reference) Input
   input_obs <- db %>%
-    dplyr::arrange(.data$Input) %>%
-    dplyr::pull(.data$Input)
+    dplyr::arrange(.data$Reference) %>%
+    dplyr::pull(.data$Reference)
 
   ## Remove 'ID' if present in 'db'
   if ("ID" %in% names(db)) {
@@ -316,7 +343,7 @@ sum_logL_GP_clust <- function(hp,
   floop <- function(k) {
     tau_k <- mixture[[k]]
     mean_k <- mean[[k]] %>%
-      dplyr::filter(.data$Input %in% input_obs) %>%
+      dplyr::filter(.data$Reference %in% input_obs) %>%
       dplyr::pull(.data$Output)
 
     cov_k <- post_cov[[k]][

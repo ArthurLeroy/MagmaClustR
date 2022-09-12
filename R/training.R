@@ -131,6 +131,7 @@ train_magma <- function(data,
                         n_iter_max = 25,
                         cv_threshold = 1e-3,
                         fast_approx = FALSE) {
+
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("ID", "Output", "Input") %in% names(data))) {
@@ -152,10 +153,44 @@ train_magma <- function(data,
   data$ID <- data$ID %>% as.character()
   ## Extract the list of different IDs
   list_ID <- data$ID %>% unique()
+
+  ## Get input column names
+  if (!("Reference" %in% (data %>% names()))) {
+    names_col <- data %>%
+      dplyr::select(-.data$ID, -.data$Output) %>%
+      names()
+  } else {
+    names_col <- data %>%
+      dplyr::select(-.data$ID, -.data$Output, -.data$Reference) %>%
+      names()
+  }
+
+  ## Keep 6 significant digits for entries to avoid numerical errors and
+  ## Add a Reference column for identification
+  data <- data %>%
+    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    tidyr::unite("Reference",
+                 tidyselect::all_of(names_col),
+                 sep = ":",
+                 remove = FALSE) %>%
+    dplyr::arrange(.data$Reference)
+
+  ## Check that individuals do not have duplicate inputs
+  if(!(setequal(data %>% dplyr::select(-.data$Output),
+                data %>% dplyr::select(-.data$Output) %>% unique()
+                )
+       )
+     ){
+    stop("At least one individual have several Outputs on the same grid point.",
+         " Please read ?train_magma() for further details."
+    )
+    }
+
   ## Extract the union of all reference inputs provided in the training data
-  all_input <- data$Input %>%
-    unique() %>%
-    sort()
+  all_inputs <- data %>%
+    dplyr::select(-.data$ID, -.data$Output) %>%
+    unique()
+  all_input <- all_inputs %>% dplyr::pull(.data$Reference)
 
   ## Initialise m_0 according to the value provided by the user
   if (prior_mean %>% is.null()) {
@@ -181,12 +216,19 @@ train_magma <- function(data,
       )
     }
   } else if (prior_mean %>% is.function()) {
-    m_0 <- prior_mean(all_input)
+    m_0 <- prior_mean(all_inputs %>%
+                        dplyr::select(-.data$Reference)
+    )
   } else if (prior_mean %>% is.data.frame()) {
-    if (all(c("Output", "Input") %in% names(prior_mean))) {
+    if (all(c(tidyselect::all_of(names_col), "Output") %in% names(prior_mean))){
       m_0 <- prior_mean %>%
-        dplyr::filter(.data$Input %in% all_input) %>%
-        dplyr::arrange(.data$Input) %>%
+        purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+        tidyr::unite("Reference",
+                     tidyselect::all_of(names_col),
+                     sep = ":",
+                     remove = FALSE) %>%
+        dplyr::filter(.data$Reference %in% all_input) %>%
+        dplyr::arrange(.data$Reference) %>%
         dplyr::pull(.data$Output)
 
       if (length(m_0) != length(all_input)) {
@@ -235,8 +277,8 @@ train_magma <- function(data,
   }
 
   ## Remove ID column if present if hp_0
-  if ("ID" %in% names(hp_0)){
-    hp_0 = hp_0[names(hp_0) != "ID"]
+  if ("ID" %in% names(hp_0)) {
+    hp_0 <- hp_0[names(hp_0) != "ID"]
   }
 
   ## Initialise the individual process' hp according to user's values
@@ -251,7 +293,11 @@ train_magma <- function(data,
     }
   } else {
     if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, noise = TRUE)
+      hp_i <- hp(kern_i,
+                 list_ID = list_ID,
+                 common_hp = common_hp,
+                 noise = TRUE
+      )
       cat(
         "The 'ini_hp_i' argument has not been specified. Random values of",
         "hyper-parameters for the individal processes are used as",
@@ -259,12 +305,11 @@ train_magma <- function(data,
       )
     } else if (!("ID" %in% names(ini_hp_i))) {
       ## Create a full tibble of common HPs if the column ID is not specified
-      hp_i <- tibble::tibble(
-        ID = list_ID,
-        dplyr::bind_rows(ini_hp_i)
+      hp_i <- tibble::tibble(ID = list_ID,
+                             dplyr::bind_rows(ini_hp_i)
       )
     } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
-      all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+                 all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
       stop(
         "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
         "'data'."
@@ -280,7 +325,9 @@ train_magma <- function(data,
       hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
     } else {
       hp_i <- hp_i %>%
-        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = "ID")
+        dplyr::left_join(hp(NULL,list_ID = hp_i$ID,noise = T),
+                         by = "ID"
+        )
     }
   }
 
@@ -446,16 +493,15 @@ train_magma <- function(data,
     cat("Done!\n \n")
   } else {
     ## Create a variable for directly plotting the mean process' hyper-posterior
-    post$pred <- tibble::tibble(
-      "Input" = post$mean %>% dplyr::pull(.data$Input),
-      "Mean" = post$mean %>% dplyr::pull(.data$Output),
-      "Var" = post$cov %>% diag() %>% as.vector()
+    post$pred <- tibble::tibble(post$mean %>%
+                                  dplyr::rename(Mean = .data$Output),
+                                "Var" = post$cov %>% diag() %>% as.vector()
     )
   }
 
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
-    "data" = data,
+    "data" = data %>% dplyr::select(-.data$Reference),
     "prior_mean" = prior_mean,
     "ini_hp_0" = hp_0_ini,
     "ini_hp_i" = hp_i_ini,
@@ -558,11 +604,8 @@ train_gp <- function(data,
                      kern = "SE",
                      hyperpost = NULL,
                      pen_diag = 1e-10) {
-
   ## Remove possible missing data
   data <- data %>% tidyr::drop_na()
-  ## Extract the reference Input in the data
-  input_obs <- unique(data$Input) %>% sort()
 
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
@@ -572,9 +615,34 @@ train_gp <- function(data,
         "The prediction can only be performed for one individual/task."
       )
     }
-    data <- data %>%
-      dplyr::select(-.data$ID)
+    data <- data %>% dplyr::select(-.data$ID)
   }
+  if (!("Reference" %in% (data %>% names()))) {
+    ## Get input column names
+    names_col <- data %>%
+      dplyr::select(-.data$Output) %>%
+      names()
+  } else {
+    names_col <- data %>%
+      dplyr::select(-.data$Output, -.data$Reference) %>%
+      names()
+  }
+
+  ## Keep 6 significant digits for entries to avoid numerical errors and
+  ## Add a Reference column for identification
+  data <- data %>%
+    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    tidyr::unite("Reference",
+                 tidyselect::all_of(names_col),
+                 sep = ":",
+                 remove = FALSE) %>%
+    dplyr::arrange(.data$Reference)
+
+  ## Extract the union of all reference inputs provided in the training data
+  inputs_obs <- data %>%
+    dplyr::select(-.data$Output) %>%
+    unique()
+  input_obs <- inputs_obs %>% dplyr::pull(.data$Reference)
 
   ## Check whether 'hyperpost' is provided and thus used for Magma prediction
   if (!is.null(hyperpost)) {
@@ -585,9 +653,9 @@ train_gp <- function(data,
       "maximisation. \n \n"
     )
     mean <- hyperpost$mean %>%
-      dplyr::filter(.data$Input %in% input_obs) %>%
-      dplyr::arrange(.data$Input) %>%
-      dplyr::pull(.data$Output)
+      dplyr::filter(.data$Reference %in% input_obs) %>%
+      dplyr::arrange(.data$Reference) %>%
+      dplyr::pull(Output)
 
     post_cov <- hyperpost$cov[
       as.character(input_obs),
@@ -596,6 +664,7 @@ train_gp <- function(data,
   } else {
     ## Set post_cov to 0 if we are not in Magma but in a classic GP training
     post_cov <- 0
+
     ## Extract the values of the hyper-posterior mean at reference Input
     if (prior_mean %>% is.null()) {
       mean <- rep(0, length(input_obs))
@@ -622,12 +691,21 @@ train_gp <- function(data,
         )
       }
     } else if (prior_mean %>% is.function()) {
-      mean <- prior_mean(input_obs)
+      mean <- prior_mean(inputs_obs %>%
+                           dplyr::select(-.data$Reference)
+      )
     } else if (prior_mean %>% is.data.frame()) {
-      if (all(c("Output", "Input") %in% names(prior_mean))) {
+      if (all(c("Output",
+                tidyselect::all_of(names_col))
+              %in% names(prior_mean))) {
         mean <- prior_mean %>%
-          dplyr::filter(.data$Input %in% input_obs) %>%
-          dplyr::arrange(.data$Input) %>%
+          purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+          tidyr::unite("Reference",
+                       tidyselect::all_of(names_col),
+                       sep = ":",
+                       remove = FALSE) %>%
+          dplyr::filter(.data$Reference %in% all_input) %>%
+          dplyr::arrange(.data$Reference) %>%
           dplyr::pull(.data$Output)
 
         if (length(mean) != length(input_obs)) {
@@ -693,8 +771,9 @@ train_gp <- function(data,
 
   ## If something went wrong during the optimization
   if (hp_new %>% is.na() %>% any()) {
-    warning("Training encountered an error and the function returns initial
-    values of the hyperparameters")
+    warning("Training encountered an error and the function returns initial",
+            "values of the hyperparameters"
+    )
     hp_new <- hp
   }
   return(hp_new)
@@ -843,6 +922,7 @@ train_magmaclust <- function(data,
                              n_iter_max = 25,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
+
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("ID", "Output", "Input") %in% names(data))) {
@@ -886,11 +966,40 @@ train_magmaclust <- function(data,
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
   ## Extract the list of different IDs
-  list_ID <- unique(data$ID)
+  list_ID <- data$ID %>% unique()
+
+  ## Get input column names
+  names_col <- data %>%
+    dplyr::select(-.data$ID,-.data$Output) %>%
+    names()
+
+  ## Keep 6 significant digits for entries to avoid numerical errors and
+  ## Add a Reference column for identification
+  data <- data %>% purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
+    tidyr::unite("Reference",
+                 tidyselect::all_of(names_col),
+                 sep=":",
+                 remove = FALSE)
+
+  ## Check that individuals do not have duplicate inputs
+  if(!(setequal(data %>% dplyr::select(-.data$Output),
+                data %>% dplyr::select(-.data$Output) %>% unique()
+                )
+       )
+     ){
+    stop("At least one individual have several Outputs on the same grid point.",
+         " Please read ?train_magma() for further details."
+    )
+  }
+
   ## Extract the union of all reference inputs provided in the training data
-  all_input <- data$Input %>%
+  all_input <- data %>%
+    dplyr::pull(.data$Reference) %>%
+    unique()
+  all_inputs <- data %>%
+    dplyr::select(-.data$ID,-.data$Output) %>%
     unique() %>%
-    sort()
+    dplyr::arrange(.data$Reference)
 
   ## Initialise the individual process' HPs according to user's values
   if (kern_i %>% is.function()) {
@@ -904,8 +1013,11 @@ train_magmaclust <- function(data,
     }
   } else {
     if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(kern_i, list_ID = list_ID,
-                 common_hp = common_hp_i, noise = TRUE)
+      hp_i <- hp(kern_i,
+                 list_ID = list_ID,
+                 common_hp = common_hp_i,
+                 noise = TRUE
+      )
       cat(
         "The 'ini_hp_i' argument has not been specified. Random values of",
         "hyper-parameters for the individual processes are used as",
@@ -922,7 +1034,7 @@ train_magmaclust <- function(data,
         "values have been duplicated for every 'ID' present in the 'data'.\n \n"
       )
     } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
-      all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+                 all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
       stop(
         "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
         "'data'."
@@ -938,7 +1050,11 @@ train_magmaclust <- function(data,
       hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
     } else {
       hp_i <- hp_i %>%
-        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = "ID")
+        dplyr::left_join(hp(NULL,
+                            list_ID = hp_i$ID,
+                            noise = T),
+                         by = "ID"
+        )
     }
   }
 
@@ -954,7 +1070,11 @@ train_magmaclust <- function(data,
     }
   } else {
     if (ini_hp_k %>% is.null()) {
-      hp_k <- hp(kern_k, list_ID = ID_k, common_hp = common_hp_k, noise = F)
+      hp_k <- hp(kern_k,
+                 list_ID = ID_k,
+                 common_hp = common_hp_k,
+                 noise = F
+      )
       cat(
         "The 'ini_hp_k' argument has not been specified. Random values of",
         "hyper-parameters for the mean processes are used as",
@@ -989,7 +1109,8 @@ train_magmaclust <- function(data,
   } else if (prior_mean_k[[1]] %>% is.function()) {
     ## Create a list named by cluster with evaluation of the mean at all Input
     for (k in 1:nb_cluster) {
-      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_input)
+      all_inputs %>% dplyr::select(-.data$Reference)
+      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_inputs)
     }
   } else if (prior_mean_k %>% is.vector()) {
     if (length(prior_mean_k) == nb_cluster) {
@@ -1029,7 +1150,10 @@ train_magmaclust <- function(data,
   seq_elbo <- c()
 
   if (is.null(ini_mixture)) {
-    mixture <- ini_mixture(data, k = nb_cluster, name_clust = ID_k, 50)
+    mixture <- ini_mixture(data,
+                           k = nb_cluster,
+                           name_clust = ID_k,
+                           50)
   }
 
   hp_k[["prop_mixture"]] <- mixture %>%
@@ -1080,15 +1204,15 @@ train_magmaclust <- function(data,
 
     ## VM-Step of MagmaClsut
     new_hp <- vm_step(data,
-      hp_k,
-      hp_i,
-      list_mu_param = post,
-      kern_k,
-      kern_i,
-      m_k,
-      common_hp_k,
-      common_hp_i,
-      pen_diag
+                      hp_k,
+                      hp_i,
+                      list_mu_param = post,
+                      kern_k,
+                      kern_i,
+                      m_k,
+                      common_hp_k,
+                      common_hp_i,
+                      pen_diag
     ) # %>% suppressMessages()
 
     new_hp_k <- new_hp$hp_k
@@ -1198,11 +1322,13 @@ train_magmaclust <- function(data,
   } else {
     ## Create a variable for directly plotting the mean process' hyper-posterior
     floop_pred <- function(k) {
-      tibble::tibble(
-        "Input" = post$mean[[k]] %>% dplyr::pull(.data$Input),
-        "Mean" = post$mean[[k]] %>% dplyr::pull(.data$Output),
-        "Var" = post$cov[[k]] %>% diag() %>% as.vector()
+      tibble::tibble(post$mean[[k]],
+                     "Var" =  post$cov[[k]] %>%
+                       diag() %>%
+                       as.vector()
       ) %>%
+        dplyr::rename("Mean" = .data$Output) %>%
+        dplyr::select(-.data$Reference) %>%
         return()
     }
     post$pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
@@ -1211,7 +1337,7 @@ train_magmaclust <- function(data,
 
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
-    "data" = data,
+    "data" = data %>% dplyr::select(-.data$Reference),
     "nb_cluster" = nb_cluster,
     "prior_mean_k" = prior_mean_k,
     "ini_hp_k" = hp_k_ini,
@@ -1311,12 +1437,31 @@ train_gp_clust <- function(data,
                            n_iter_max = 25,
                            cv_threshold = 1e-3) {
 
-  ## Remove possible missing data
-  data <- data %>% tidyr::drop_na()
+  ## Get input column names
+  if(!("Reference" %in% (names(data)))){
+    names_col <- data %>%
+      dplyr::select(-.data$ID,-.data$Output) %>%
+      names()
+  }else{
+    names_col <- data %>%
+      dplyr::select(-.data$ID,-.data$Output,-.data$Reference) %>%
+      names()
+  }
+
+  ## Keep 6 significant digits for entries to avoid numerical errors and
+  ## Add Reference column if missing
+  data <- data %>%
+    purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
+    tidyr::unite("Reference",
+                 tidyselect::all_of(names_col),
+                 sep=":",
+                 remove = FALSE) %>%
+    tidyr::drop_na()
+
   ## Extract the observed (reference) Input
   input_obs <- data %>%
-    dplyr::arrange(.data$Input) %>%
-    dplyr::pull(.data$Input)
+    dplyr::arrange(.data$Reference) %>%
+    dplyr::pull(.data$Reference)
 
   ## Initialise the individual process' hp according to user's values
   if (kern %>% is.function()) {
@@ -1378,7 +1523,7 @@ train_gp_clust <- function(data,
     )
   }
   ## Check whether 'hyperpost' is evaluated on the correct Input
-  if (!all(input_obs %in% hyperpost$mean[[1]]$Input)) {
+  if (!all(input_obs %in% hyperpost$mean[[1]]$Reference)) {
     stop(
       "The 'hyperpost' argument is not evaluated on the same Input location as",
       "the data. Please see ?hyperposterior_clust to recompute the correct",
@@ -1435,6 +1580,7 @@ train_gp_clust <- function(data,
 
     ## Format the hyper-parameters for optimisation
     par <- hp %>% dplyr::select(-.data$ID)
+
     ## We start with a M-step to take advantage of the initial 'prop_mixture'
     ## M step
     new_hp <- stats::optim(

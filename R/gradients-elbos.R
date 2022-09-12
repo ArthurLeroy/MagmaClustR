@@ -14,13 +14,23 @@
 #'
 #' @examples
 #' TRUE
-gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
+gr_clust_multi_GP <- function(hp,
+                              db,
+                              hyperpost,
+                              kern,
+                              pen_diag) {
   list_hp <- names(hp)
 
   names_k <- hyperpost$mean %>% names()
-  t_i <- db$Input
+  t_i <- db$Reference
   y_i <- db$Output
-  # inputs = db %>% dplyr::select(-.data$Output)
+
+  if("ID" %in% names(db)){
+    inputs <- db %>% dplyr::select(-.data$Output, -.data$ID)
+  } else{
+    inputs <- db %>% dplyr::select(-.data$Output)
+  }
+
   i <- unique(db$ID)
 
   corr1 <- 0
@@ -33,16 +43,16 @@ gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
       dplyr::pull(k)
 
     mean_mu_k <- hyperpost$mean[[k]] %>%
-      dplyr::filter(.data$Input %in% t_i) %>%
+      dplyr::filter(.data$Reference %in% t_i) %>%
       dplyr::pull(.data$Output)
 
     corr1 <- corr1 + tau_i_k * mean_mu_k
     corr2 <- corr2 + tau_i_k *
       (mean_mu_k %*% t(mean_mu_k) +
-        hyperpost$cov[[k]][as.character(t_i), as.character(t_i)])
+         hyperpost$cov[[k]][as.character(t_i), as.character(t_i)])
   }
 
-  inv <- kern_to_inv(t_i, kern, hp, pen_diag)
+  inv <- kern_to_inv(inputs, kern, hp, pen_diag)
   prod_inv <- inv %*% y_i
 
   common_term <- (prod_inv - 2 * inv %*% corr1) %*% t(prod_inv) +
@@ -50,7 +60,7 @@ gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 
   ## Loop over the derivatives of hyper-parameters for computing the gradient
   floop <- function(deriv) {
-    (-1 / 2 * (common_term %*% kern_to_cov(t_i, kern, hp, deriv))) %>%
+    (-1 / 2 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
       diag() %>%
       sum() %>%
       return()
@@ -80,13 +90,13 @@ gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 #' @examples
 #' TRUE
 gr_GP_mod_common_hp_k <- function(
-  hp,
-  db,
-  mean,
-  kern,
-  post_cov,
-  pen_diag
-  ) {
+    hp,
+    db,
+    mean,
+    kern,
+    post_cov,
+    pen_diag
+) {
 
   if ("ID" %in% names(hp)) {
     hp <- hp %>% dplyr::select(-.data$ID)
@@ -97,7 +107,7 @@ gr_GP_mod_common_hp_k <- function(
 
   ## Extract the k-th specific reference Input
   input_k <- db[[1]] %>%
-    dplyr::pull(.data$Input)
+    dplyr::pull(.data$Reference)
   ## Extract the k-th specific inputs (reference + covariates)
   inputs_k <- db[[1]] %>%
     dplyr::select(-.data$Output)
@@ -156,8 +166,12 @@ gr_GP_mod_common_hp_k <- function(
 #'
 #' @examples
 #' TRUE
-gr_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost,
-                                          kern, pen_diag = NULL) {
+gr_clust_multi_GP_common_hp_i <- function(hp,
+                                          db,
+                                          hyperpost,
+                                          kern,
+                                          pen_diag = NULL) {
+
   list_hp <- names(hp)
   names_k <- hyperpost$mean %>% names()
 
@@ -167,7 +181,7 @@ gr_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost,
     ## Extract the i-th specific reference Input
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Input)
+      dplyr::pull(.data$Reference)
     ## Extract the i-th specific inputs (reference + covariates)
     inputs_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
@@ -192,7 +206,7 @@ gr_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost,
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
       mean_mu_k <- hyperpost$mean[[k]] %>%
-        dplyr::filter(.data$Input %in% input_i) %>%
+        dplyr::filter(.data$Reference %in% input_i) %>%
         dplyr::pull(.data$Output)
       corr1 <- corr1 + tau_i_k * mean_mu_k
       corr2 <- corr2 + tau_i_k *

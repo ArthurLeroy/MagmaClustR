@@ -49,11 +49,16 @@
 #'
 #' @examples
 #' TRUE
-kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
+kern_to_cov <- function(input,
+                        kern = "SE",
+                        hp,
+                        deriv = NULL,
+                        input_2 = NULL) {
   ## If a second set of inputs is not provided, only 'input' against itself
   if (input_2 %>% is.null()) {
     input_2 <- input
   }
+
   ## Test whether some input values are duplicated
   if (!(unique(input) %>% identical(input))) {
     warning(
@@ -118,14 +123,14 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
             } else if (s == "PERIO") {
               temp_kern <- perio_kernel
               if (any(deriv %in%
-                c("perio_variance", "perio_lengthscale", "period"))) {
+                      c("perio_variance", "perio_lengthscale", "period"))) {
                 true_deriv <- T
                 past_true_deriv <- T
               }
             } else if (s == "RQ") {
               temp_kern <- rq_kernel
               if (any(deriv %in%
-                c("rq_variance", "rq_lengthscale", "rq_scale"))) {
+                      c("rq_variance", "rq_lengthscale", "rq_scale"))) {
                 true_deriv <- T
                 past_true_deriv <- T
               }
@@ -244,8 +249,9 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
   } else if (is.function(kern)) {
     kernel <- kern
   } else {
-    stop("Error in the 'kern' argument: please use a valid character string, or
-      provide a valid custom kernel function")
+    stop("Error in the 'kern' argument: please use a valid character string, or",
+         "provide a valid custom kernel function"
+    )
   }
 
   # Transform the batches of input into lists
@@ -255,31 +261,49 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
     reference <- as.character(input)
     reference_2 <- as.character(input_2)
   } else {
-    list_input <- split(t(input), rep(1:nrow(input), each = ncol(input)))
-    list_input_2 <- split(t(input_2), rep(1:nrow(input_2), each=ncol(input_2)))
-    if (("Input" %in% colnames(input)) & ("Input" %in% colnames(input_2))) {
+    if (("Reference" %in% colnames(input)) &
+        ("Reference" %in% colnames(input_2))) {
       reference <- input %>%
         tibble::as_tibble() %>%
-        dplyr::pull("Input") %>%
+        dplyr::pull("Reference") %>%
         as.character()
+
+      input <- input %>% dplyr::select(-.data$Reference)
+      list_input <- split(t(input),
+                          rep(1:nrow(input),each = ncol(input))
+      )
 
       reference_2 <- input_2 %>%
         tibble::as_tibble() %>%
-        dplyr::pull("Input") %>%
+        dplyr::pull("Reference") %>%
         as.character()
-    } else {
+
+      input_2 <- input_2 %>% dplyr::select(-.data$Reference)
+      list_input_2 <- split(t(input_2),
+                            rep(1:nrow(input_2), each = ncol(input_2))
+      )
+    } else { ### flag
       reference <- as.character(input[, 1])
       reference_2 <- as.character(input_2[, 1])
+
+      list_input <- split(t(input),
+                          rep(1:nrow(input), each = ncol(input))
+      )
+      list_input_2 <- split(t(input_2),
+                            rep(1:nrow(input_2), each = ncol(input_2))
+      )
     }
   }
 
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
     if (deriv == "noise") {
-      mat <- cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]]) %>%
+      mat <- cpp_noise(as.matrix(input),
+                       as.matrix(input_2),
+                       hp[["noise"]]
+      ) %>%
         `rownames<-`(reference) %>%
         `colnames<-`(reference_2)
-
       return(mat)
     }
   }

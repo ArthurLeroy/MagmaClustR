@@ -23,21 +23,25 @@
 #'
 #' @examples
 #' TRUE
-simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
+simu_indiv_se <- function(ID, inputs, mean, v, l, sigma) {
+  if(is.data.frame(inputs)){
+    len <- length(inputs$Reference)
+  }else{
+    len <- length(inputs)
+  }
   db <- tibble::tibble(
     "ID" = ID,
     "Output" = mvtnorm::rmvnorm(
       1,
-      mean + covariate,
+      mean,
       kern_to_cov(
-        input,
+        input = inputs,
         "SE",
         tibble::tibble(se_variance = v, se_lengthscale = l)
       ) +
-        diag(sigma, length(input), length(input))
+        diag(sigma, len, len)
     ) %>% as.vector(),
-    "Input" = input,
-    "Covariate" = covariate,
+    inputs,
     "se_variance" = v,
     "se_lengthscale" = l,
     "noise" = sigma
@@ -124,185 +128,194 @@ simu_db <- function(M = 10,
                     N = 10,
                     K = 1,
                     covariate = FALSE,
-                    grid = seq(0, 10, 0.05),
+                    grid = seq(0, 10, 0.5),
+                    grid_cov = seq(0, 10, 0.5),
                     common_input = TRUE,
                     common_hp = TRUE,
                     add_hp = FALSE,
                     add_clust = FALSE,
-                    int_mu_v = c(4, 5),
-                    int_mu_l = c(0, 1),
-                    int_i_v = c(1, 2),
-                    int_i_l = c(0, 1),
-                    int_i_sigma = c(0, 0.2),
+                    int_mu_v = c(0, 2),
+                    int_mu_l = c(0, 2),
+                    int_i_v = c(0, 2),
+                    int_i_l = c(0, 2),
+                    int_i_sigma = c(0, 1),
+                    lambda_int = c(20,30),
+                    m_int = c(0,10),
+                    lengthscale_int = c(1,10),
                     m0_slope = c(-5, 5),
-                    m0_intercept = c(-50, 50),
+                    m0_intercept = c(-10, 10),
                     int_covariate = c(-5, 5)) {
-  if (common_input) {
-    t_i <- sample(grid, N, replace = F) %>% sort()
+
+  exponential_mean <- function(x, y, lambda = 1, m1 = 0, m2 = 0, lengthscale = 1){
+    return (lambda * base::exp(-((x-m1)^2 + (y-m2)^2)/lengthscale))
   }
+  if(covariate){
+    t_0_tibble <- tidyr::expand_grid(Input = grid, Covariate = grid_cov) %>%
+      purrr::modify(signif) %>%
+      tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
+      dplyr::arrange(.data$Reference)
 
-  floop_k <- function(k) {
-    m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
-    mu_v <- draw(int_mu_v)
-    mu_l <- draw(int_mu_l)
+    t_0 <- t_0_tibble %>% dplyr::pull(.data$Reference)
 
-    db_0 <- simu_indiv_se(
-      ID = "0",
-      input = grid,
-      covariate = 0,
-      mean = m_0,
-      v = mu_v,
-      l = mu_l,
-      sigma = 0
-    )
-    if (common_hp) {
-      i_v <- draw(int_i_v)
-      i_l <- draw(int_i_l)
-      i_sigma <- draw(int_i_sigma)
+    if (common_input) {
+      t_i_input <- sample(grid, N, replace = F)
+      t_i_covariate <- sample(grid_cov, N, replace = F)
+      t_i_tibble <- tibble::tibble(Input = t_i_input,
+                                   Covariate = t_i_covariate) %>%
+        purrr::modify(signif) %>%
+        tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
+        dplyr::arrange(.data$Reference)
+
+      t_i <- t_i_tibble %>% dplyr::pull(.data$Reference)
+
     }
 
-    floop_i <- function(i, k) {
-      if (!common_input) {
-        t_i <- sample(grid, N, replace = F) %>% sort()
-      }
-      if (!common_hp) {
+    floop_k <- function(k) {
+      m_0 <- exponential_mean(t_0_tibble$Input,
+                              t_0_tibble$Covariate,
+                              lambda = draw(lambda_int),
+                              m1 = draw(m_int),
+                              m2 = draw(m_int),
+                              lengthscale = draw(lengthscale_int))
+      mu_v <- draw(int_mu_v)
+      mu_l <- draw(int_mu_l)
+
+      db_0 <- simu_indiv_se(
+        ID = "0",
+        inputs = t_0_tibble,
+        mean = m_0,
+        v = mu_v,
+        l = mu_l,
+        sigma = 0
+      )
+      if (common_hp) {
         i_v <- draw(int_i_v)
         i_l <- draw(int_i_l)
         i_sigma <- draw(int_i_sigma)
       }
-      mean_i <- db_0 %>%
-        dplyr::filter(.data$Input %in% t_i) %>%
-        dplyr::pull(.data$Output)
 
-      covariate_i <- stats::runif(N, int_covariate[1], int_covariate[2]) %>%
-        round(2)
+      floop_i <- function(i, k) {
+        if (!common_input) {
+          t_i_input <- sample(grid, N, replace = F)
+          t_i_covariate <- sample(grid_cov, N, replace = F)
+          t_i_tibble <- tibble::tibble(Input = t_i_input,
+                                       Covariate = t_i_covariate) %>%
+            purrr::modify(signif) %>%
+            tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
+            dplyr::arrange(.data$Reference)
 
-      if (K > 1) {
-        ID <- paste0("ID", i, "-Clust", k)
-      } else {
-        ID <- as.character(i)
+          t_i <- t_i_tibble %>% dplyr::pull(.data$Reference)
+        }
+        if (!common_hp) {
+          i_v <- draw(int_i_v)
+          i_l <- draw(int_i_l)
+          i_sigma <- draw(int_i_sigma)
+        }
+        mean_i <- db_0 %>%
+          dplyr::filter(.data$Reference %in% t_i) %>%
+          dplyr::pull(.data$Output)
+
+        if (K > 1) {
+          ID <- paste0("ID", i, "-Clust", k)
+        } else {
+          ID <- as.character(i)
+        }
+
+        simu_indiv_se(
+          ID = ID,
+          inputs = t_i_tibble,
+          mean = mean_i,
+          v = i_v,
+          l = i_l,
+          sigma = i_sigma
+        ) %>%
+          return()
+      }
+      db <- sapply(seq_len(M), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
+        dplyr::bind_rows() %>%
+        dplyr::select(-.data$Reference)
+      if (!add_hp) {
+        db <- db %>% dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
       }
 
-      simu_indiv_se(
-        ID = ID,
-        input = t_i,
-        covariate = covariate_i,
-        mean = mean_i,
-        v = i_v,
-        l = i_l,
-        sigma = i_sigma
-      ) %>%
-        return()
-    }
-    db <- sapply(seq_len(M), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
-      dplyr::bind_rows()
-    if (!add_hp) {
-      db <- db %>% dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
+      if (add_clust) {
+        db <- db %>% dplyr::mutate("Cluster" = k)
+      }
+      return(db)
     }
 
-    if (!covariate) {
-      db <- db %>% dplyr::select(-.data$Covariate)
-    }
-
-    if (add_clust) {
-      db <- db %>% dplyr::mutate("Cluster" = k)
-    }
-    return(db)
-  }
-
-  lapply(seq_len(K), floop_k) %>%
-    dplyr::bind_rows() %>%
-    return()
-}
-
-#' Run a k-means algoithm to initialise clusters' allocation
-#'
-#' @param data A tibble containing common Input and associated Output values
-#'   to cluster.
-#' @param k A number of clusters assumed for running the kmeans algorithm.
-#' @param nstart A number, indicating how many re-starts of kmeans are set.
-#' @param summary A boolean, indicating whether we want an outcome summary
-#'
-#' @return A tibble containing the initial clustering obtained through kmeans.
-#'
-#' @keywords internal
-#'
-#' @examples
-#' TRUE
-ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
-  # if (!identical(
-  #   unique(data$Input),
-  #   data %>%
-  #     dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
-  #     dplyr::pull(.data$Input)
-  # )) {
-    floop <- function(i) {
-      obs_i <- data %>%
-        dplyr::filter(.data$ID == i) %>%
-        dplyr::pull(.data$Output)
-      tibble::tibble(
-        "ID" = i,
-        "Input" = seq_len(3),
-        "Output" = c(min(obs_i), mean(obs_i), max(obs_i))
-      ) %>%
-        return()
-    }
-    db_regular <- unique(data$ID) %>%
-      lapply(floop) %>%
+    lapply(seq_len(K), floop_k) %>%
       dplyr::bind_rows() %>%
-      dplyr::select(c(.data$ID, .data$Input, .data$Output))
-  # } else {
-  #   db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
-  # }
+      return()
+  }else{
+    if (common_input) {
+      t_i <- sample(grid, N, replace = F) %>% sort()
+    }
 
-  res <- db_regular %>%
-    tidyr::spread(key = .data$Input, value = .data$Output) %>%
-    dplyr::select(-.data$ID) %>%
-    stats::kmeans(centers = k, nstart = nstart)
+    floop_k <- function(k) {
+      m_0 <- draw(m0_intercept) + draw(m0_slope) * grid
+      mu_v <- draw(int_mu_v)
+      mu_l <- draw(int_mu_l)
 
-  if (summary) {
-    res %>% print()
+      db_0 <- simu_indiv_se(
+        ID = "0",
+        input = grid,
+        mean = m_0,
+        v = mu_v,
+        l = mu_l,
+        sigma = 0
+      ) %>% dplyr::rename(Input = inputs)
+      if (common_hp) {
+        i_v <- draw(int_i_v)
+        i_l <- draw(int_i_l)
+        i_sigma <- draw(int_i_sigma)
+      }
+
+      floop_i <- function(i, k) {
+        if (!common_input) {
+          t_i <- sample(grid, N, replace = F) %>% sort()
+        }
+        if (!common_hp) {
+          i_v <- draw(int_i_v)
+          i_l <- draw(int_i_l)
+          i_sigma <- draw(int_i_sigma)
+        }
+        mean_i <- db_0 %>%
+          dplyr::filter(.data$Input %in% t_i) %>%
+          dplyr::pull(.data$Output)
+
+        if (K > 1) {
+          ID <- paste0("ID", i, "-Clust", k)
+        } else {
+          ID <- as.character(i)
+        }
+
+        simu_indiv_se(
+          ID = ID,
+          input = t_i,
+          mean = mean_i,
+          v = i_v,
+          l = i_l,
+          sigma = i_sigma
+        )  %>%
+          dplyr::rename(Input = inputs) %>%
+          return()
+      }
+      db <- sapply(seq_len(M), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
+        dplyr::bind_rows()
+      if (!add_hp) {
+        db <- db %>% dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
+      }
+
+      if (add_clust) {
+        db <- db %>% dplyr::mutate("Cluster" = k)
+      }
+      return(db)
+    }
+
+    lapply(seq_len(K), floop_k) %>%
+      dplyr::bind_rows() %>%
+      return()
   }
-
-  broom::augment(
-    res,
-    db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)
-  ) %>%
-    dplyr::select(c(.data$ID, .data$.cluster)) %>%
-    dplyr::rename(Cluster_ini = .data$.cluster) %>%
-    dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
-    return()
 }
 
-
-#' Mixture initialisation with kmeans
-#'
-#' Provide an initial kmeans allocation of the individuals/tasks in a dataset
-#' into a definite number of clusters, and return the associated mixture
-#' probabilities.
-#'
-#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
-#'    , \code{Output}.
-#' @param k A number, indicating the number of clusters.
-#' @param name_clust A vector of characters. Each element should correspond to
-#'    the name of one cluster.
-#' @param nstart A number of restart used in the underlying kmeans algorithm
-#'
-#' @return A tibble indicating for each \code{ID} in which cluster it belongs
-#'    after a kmeans initialisation.
-#'
-#' @keywords internal
-#'
-#' @examples
-#' TRUE
-ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
-  db_ini <- ini_kmeans(data, k, nstart) %>%
-    dplyr::mutate(value = 1) %>%
-    tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0)
-
-  if (!is.null(name_clust)) {
-    names(db_ini) <- c("ID", name_clust)
-  }
-
-  return(db_ini)
-}
