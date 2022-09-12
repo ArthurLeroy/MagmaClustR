@@ -1154,6 +1154,9 @@ train_magmaclust <- function(data,
                            k = nb_cluster,
                            name_clust = ID_k,
                            50)
+  }else{
+    ## Check if ini_mixture has the correct format ?
+    mixture <- ini_mixture
   }
 
   hp_k[["prop_mixture"]] <- mixture %>%
