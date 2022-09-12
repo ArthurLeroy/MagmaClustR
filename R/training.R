@@ -1154,9 +1154,17 @@ train_magmaclust <- function(data,
                            k = nb_cluster,
                            name_clust = ID_k,
                            50)
+  }else if(is.data.frame(ini_mixture)){
+    if(!all(c("ID", ID_k) %in% names(ini_mixture))){
+      stop("Wrong format for ini_mixture. Make sure that the number of ",
+           "clusters are the same in both 'train_magma()' and ini_mixture. ",
+           "Please read ?ini_mixture() for further details.")
+    }else {
+      mixture <- ini_mixture
+    }
   }else{
-    ## Check if ini_mixture has the correct format ?
-    mixture <- ini_mixture
+    stop("The 'ini_mixture' argument must be a data frame. Please read ",
+         "?ini_mixture() for further details.")
   }
 
   hp_k[["prop_mixture"]] <- mixture %>%
