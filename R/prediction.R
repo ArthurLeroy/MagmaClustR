@@ -866,6 +866,12 @@ pred_magma <- function(data,
   ) {
     ## Check hyperpost format (in particular presence of all reference Input)
     if (!all(all_input %in% hyperpost$mean$Reference)) {
+      if (trained_model %>% is.null()) {
+        stop(
+          "hyperpost is not evaluated at the correct inputs, please use the ",
+          "trained_model argument instead."
+        )
+      }
       cat(
         "The hyper-posterior distribution of the mean process provided in",
         "'hyperpost' argument isn't evaluated on the expected inputs.\n \n",
@@ -1772,6 +1778,12 @@ pred_magmaclust <- function(data,
 
       ## Check hyperpost format (in particular presence of all reference Input)
       if (!all(all_input %in% hyperpost$mean[[1]]$Reference)) {
+        if (trained_model %>% is.null()) {
+          stop(
+            "hyperpost is not evaluated at the correct inputs, please use the ",
+            "trained_model argument instead."
+          )
+        }
         cat(
           "The hyper-posterior distribution of the mean process provided in",
           "'hyperpost' argument isn't evaluated on the expected inputs.",
