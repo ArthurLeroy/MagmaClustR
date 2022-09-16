@@ -869,7 +869,7 @@ pred_magma <- function(data,
       if (trained_model %>% is.null()) {
         stop(
           "hyperpost is not evaluated at the correct inputs, please use the ",
-          "trained_model argument instead."
+          "'trained_model' argument instead."
         )
       }
       cat(
@@ -1781,7 +1781,7 @@ pred_magmaclust <- function(data,
         if (trained_model %>% is.null()) {
           stop(
             "hyperpost is not evaluated at the correct inputs, please use the ",
-            "trained_model argument instead."
+            "'trained_model' argument instead."
           )
         }
         cat(
