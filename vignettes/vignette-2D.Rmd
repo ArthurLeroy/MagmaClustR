@@ -1,0 +1,214 @@
+---
+title: "Magma with 2-Dimensional data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Magma with 2-Dimensional data}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE}
+knitr::opts_chunk$set(collapse = T, comment = "#>")
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+options(tibble.print_min = 6L, tibble.print_max = 6L)
+knitr::opts_chunk$set(fig.align="center")
+
+```
+
+
+First, we load the libraries we use to handle Magma and our data.
+
+```{r, warning=FALSE}
+library(MagmaClustR)
+library(dplyr)
+```
+
+## Purpose
+
+In Magma (LINK) and MagmaClust (LINK) vignettes, we insist on the fact that our dataset must contain 3 mandatory variables: `ID`, `Input` and `Output`. However, we also point out that both Magma and MagmaClust can handle multi-dimensional inputs. Indeed, we can add as many  additional columns to our model as desired, which will be treated as covariates. Moreover,  there is no constraints on the column names of these additional variables.
+
+Throughout a simulated example, we use Magma to forecast future data for an individual thanks to information shared across individuals. More specifically, we train a model with a dataset which contains 2 explanatory variables : an `Input` and a `Covariate`. Then, we predict a new individual thanks to the multi-task GP and display the result in a 2D map.
+
+
+## Data generation
+
+To explore the features of Magma 2D, we simulate a complete dataset with the `simu_db()` function. We can specify many parameters, such as:
+
+*   the number **K** of underlying clusters in our dataset. Since we do not assume that there are group structures in our data, we set `K = 1`.
+
+*   the number **M** of individuals per cluster. Even if Magma performances improve with respect to the number of training individuals, 30 are enough to get an idea of how the 2D version works. Thus, we specify `M = 31`: 30 individuals for the training, 1 for the prediction.
+
+*   the number **N** of observations per individual. Here, we set `N = 10` to get enough data for the training.
+
+*   the presence / absence of an additional input named `Covariate`. As we want to handle multi-dimensional inputs, we specifiy `covariate = TRUE`. We must also ensure that our covariate is observed at each reference Input.
+
+*   the fact that all individuals share common inputs. Here, we set `common_input = FALSE` to have a full map of (Input, Covariate) instead of a sparse one.
+
+```{r}
+set.seed(3)
+data_dim2 <- simu_db(M = 31, 
+                     N = 10, 
+                     K = 1, 
+                     covariate = TRUE,
+                     common_input = FALSE)
+
+knitr::kable(data_dim2[1:5,])
+```
+
+Once our database is simulated, we need to regularize it thanks to the `regularize_data()` function. We may specify:
+
+  *   the database we want to regularize;
+  *   the `size_grid` argument, which indicates how many points each axis of the grid must contain;
+  *   the `scale` parameter if we want to scale our database before using Magma;
+  *   the `grid_inputs` on which we want to regularize our data. In our case, the function create a specific grid of inputs : for each column of input, it creates a regular sequence from the min of the input values to the max, with a step equal to the `size_grid` parameter.
+  We can also project our data on a specific `grid_inputs` (which may possibly come from the `expand_grid_inputs()` function  ; see **Even prettier graphics** for more details). This grid does not necessarily have the same number of points along all the axes.
+  *   the `summarise_fct` we want to use if same vectors of inputs are associated with different outputs. Here, we choose to take the mean of the different outputs.
+
+
+```{r}
+data_dim2_reg <- regularize_data(data = data_dim2,
+                             size_grid = 20,
+                             scale = FALSE,
+                             grid_inputs = NULL,
+                             summarise_fct = "mean")
+```
+
+Finally, we split our individuals into training and prediction sets.
+
+```{r}
+dim2_train <- data_dim2_reg %>% filter(ID %in% 1:30)
+dim2_pred <- data_dim2_reg %>% filter(ID == 31) 
+```
+
+
+## Classical pipeline
+
+As for unidimensional inputs, the overall process with Magma can be decomposed in 3 main steps: **training, prediction** and **display of results**. We refer to the Magma vignette (LINK) for the complete description of the classical pipeline. Here, the approach is basically the same as with the one-dimensional version :
+
+-   we use the [`train_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html) function to train our model :
+
+
+```{r}
+model_dim2 <- train_magma(data = dim2_train, 
+                          kern_0 = "SE",
+                          kern_i = "SE",
+                          common_hp = TRUE
+                          )
+```
+
+
+-   we perform prediction for a new individual thanks to [`pred_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_magma.html). Here, we do not specify the `grid_inputs` argument; we use the grid generated automatically by `pred_magma()`, ranging between the min and max `Input` and `Covariate` values of our dataset. However, if we want to perform prediction on a specific 2D area, we can create our own `grid_inputs`; see **Even prettier graphics** section for details. 
+
+```{r}
+pred_dim2  <- pred_magma(data = dim2_pred,
+                         trained_model = model_dim2,
+                         plot = FALSE)
+```
+
+-   we display the results with [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html). As this step constitutes the main evolution of the one-dimensional version, we devote to it an entire section below.
+
+
+## Display of results
+
+With the [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html) function, we can display the predicted posterior mean values of `ID = 31`. The prediction is represented as an heatmap of probabilities:
+
+*   the x-axis corresponds to the `Input` column of our dataset; the y-axis, to the `Covariate` column;
+*   each couple of inputs on the x-axis and y-axis is associated with a gradient of colors for the posterior mean values. The darker these posterior means, the higher their values;
+*   the uncertainty is indicated by the transparency of the squares. The narrower the 95% Credible Interval, the more opaque the associated color.
+
+```{r, fig.asp = 0.6, fig.width = 7, out.width = "80%", warning = FALSE}
+plot_gp(pred_gp = pred_dim2,
+        data = dim2_pred) 
+```
+
+
+
+### Even prettier graphics
+
+#### With a specific grid of inputs 
+
+As with the unidimensional version, we can create our own grid of inputs if we want to perform prediction on a specific 2D area (potentially wider than the dataset one). Contrary to the unidimensional version, the `grid_inputs` can no longer be a simple sequence of numbers for which the prediction must be performed, but a 2D grid containing :
+
+  *   on the x-axis, a sequence of `Input` for which we want to perform prediction ; 
+  *   on the y-axis, a sequence of `Covariate` for which we want to perform prediction.
+  
+To create our grid, we use the `create_grid_inputs()` function. We only have to specify a sequence of `Input` and as many covariates as we want. However, we must also ensure that we do not generate too much data points ; we recall that Magma has a cubic complexity, so the execution can be extremely long depending on the number and length of sequences. Therefore, we advise to reduce the length of the Inputs sequences if we want to perform a high dimensional prediction. Moreover, each Input must have the same name as in the data base to avoid errors during the prediction step.
+
+
+
+```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
+grid_inputs_dim2 <- expand_grid_inputs(Input = seq(0,10,0.5), Covariate = seq(0,10,0.5))
+
+pred_dim2  <- pred_magma(data = dim2_pred,
+                         trained_model = model_dim2,
+                         grid_inputs = grid_inputs_dim2,
+                         plot = TRUE)
+```
+
+
+Here, we perform prediction on a `grid_inputs` wider than the one generated automatically by `pred_magma()`. For `Input` values higher than the dataset ones, no observations are available, neither from `ID = 31` nor from the training dataset. Magma behaves as expected, with a slow drifting to the prior mean (here, zero) and an highly increasing variance.
+
+#### Create a 2D GIF
+
+As with 1D Magma, it is possible to create animated representations thanks to [`pred_gif()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_gif.html) and [`plot_gif()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gif.html).
+
+These functions offer dynamic plots by generating GIFs thanks to `gganimate`, an extansion of the `ggplot2` package. Then, we can observe how the prediction evolves as we add more data points to our prediction dataset.
+
+`pred_gif()` and `plot_gif()` functions work the same as `pred_magma()` and `plot_gp()` in the 2D version. Some extra arguments can be customized in `plot_gif()`, like adjusting the GIF speed, saving the plotted GIF, etc...
+
+
+##### Magma 2D VS GP 2D
+
+The MagmaClustR package also provides a prediction with classic GPs in 2D; thus, we can compare Magma and classic GPs predictions.
+
+The graphs below correspond to the 2D dynamic prediction with Magma (first one) and classic GP (second one).
+
+```{r, echo = FALSE, message = FALSE, include = FALSE, eval = FALSE}
+
+model_gp_2D <- train_gp(data = dim2_pred,
+                     kern ="SE")
+
+pred_gp_2D <- pred_gp(data = dim2_pred,
+                   grid_inputs = NULL,
+                   hp = model_gp_2D,
+                   kern = "SE",
+                   plot = FALSE) 
+```
+
+
+```{r, echo = FALSE, message = FALSE, include = FALSE}
+
+pred_gif_magma <- pred_gif(data = dim2_pred,
+                           trained_model = model_dim2,
+                           grid_inputs = grid_inputs_dim2)
+
+pred_gif_GP <- pred_gif(data = dim2_pred,
+                        grid_inputs = grid_inputs_dim2) 
+```
+
+
+```{r, fig.asp = 0.6, fig.width = 7, out.width = "80%", warning = FALSE, message = FALSE, echo = FALSE}
+plot_gif(pred_gp = pred_gif_magma,
+        data = dim2_pred)
+```
+
+```{r, fig.asp = 0.6, fig.width = 7, out.width = "80%", warning = FALSE, message = FALSE, echo = FALSE}
+
+plot_gif(pred_gp = pred_gif_GP,
+        data = dim2_pred)
+
+```
+
+This example highlights the advantage of sharing information accross individuals : with only a few data, Magma correctly finds the underlying process. Adding more data for the individual to predict does not change significantly the prediction. 
+
+On the other hand,  the classic GP struggles to find the shape of the underlying process. With only 2 or 3 data points, it remains far from the original process ; the more we add data, the better the prediction of the classic GP. 

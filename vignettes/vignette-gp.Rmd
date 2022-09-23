@@ -1,0 +1,147 @@
+---
+title: Gaussian Process Regression
+output: html_vignette
+vignette: >
+  %\VignetteIndexEntry{Gaussian Process Regression}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE}
+knitr::opts_chunk$set(collapse = T, comment = "#>")
+options(tibble.print_min = 4L, tibble.print_max = 4L)
+knitr::opts_chunk$set(fig.align="center")
+library(MagmaClustR)
+library(readr)
+library(dplyr)
+library(ggplot2)
+swimmers = read_csv("data/db_100m_freestyle.csv")
+swimmers$ID <- factor(swimmers$ID)
+set.seed(2)
+```
+
+First, we load the libraries we use to handle MagmaClustR and our data.
+
+```{r, eval=FALSE}
+library(MagmaClustR)
+library(dplyr)
+library(ggplot2)
+```
+
+## Classical pipeline
+
+The overall process with GP can be decomposed in 3 main steps: **training, prediction** and **display of results**.
+The corresponding functions are:
+
+-   [`train_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html)
+-   [`pred_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_gp.html)
+-   [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html)
+
+## Data
+
+### Dataset format
+
+Before using `train_gp()`, our data should have a particular format. It must contains 2 columns:
+
+*   `Input`: type `numeric`;
+*   `Output` type `numeric`. 
+
+We must ensure that our columns names and types are as previously introduced.
+
+The data frame can also provide as many covariates (*i.e.* additional columns) as desired, with no constraints on the column names. These covariates are additional explanatory variables of the models that are also observed at each reference `Input`.
+
+
+### Our data
+
+To explore the features of GP in MagmaClustR, we use the `swimmers` dataset provided by the French Swimming Federation (available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_100m_freestyle.csv)).
+
+Our goal is to model the progression curves of swimmers in order to forecast their future performances. Thus, we randomly select a female swimmer from the dataset; let's give her the fictive name Michaela.
+
+The `swimmers` dataset contains 4 columns: `ID`, `Age`, `Performance` and `Gender`.
+Therefore, we need to change the name and type of the columns, and remove `Gender` before using `train_gp()`.
+
+```{r}
+Michaela <- swimmers %>% filter(ID == 1718) %>% 
+  select(-Gender) %>% 
+  rename(Input = Age, Output = Performance)
+```
+
+We display Michaela's performances according to her age to see how her progression curve looks.
+
+```{r fig.asp = 0.65, fig.width = 7, out.width = "80%"}
+ggplot() +
+  geom_point(data = Michaela,
+       mapping = aes(x=Input,y=Output),
+       size = 3,
+       colour = "black") +
+  theme_classic()
+```
+
+## Let's create Michaela's GP
+
+### Training
+
+To have a GP that best fit our data, we must specify some parameters:
+
+*   `prior_mean`: as we have no *a priori* knowledge about the 100m freestyle, we decide to leave the default value for this parameter (*i.e.* zero). However, if we want to take expert advice into account, we can modify the value of `prior_mean` as we wish.
+
+*   `kern`: Relationship between observed data and prediction targets are customizable in the covariance **kernel**.
+Therefore, if we want to have a curve that fits adequatly with our data, we have to choose a suitable covariance kernel.
+In the case of swimmers, we want a smooth progression curve for Michaela; therefore, we specify `kern = "SE"`.
+
+The most commonly used kernels and their properties are shown in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
+Details of available kernels and how to combine them are available in [`help train_gp`](https://arthurleroy.github.io/MagmaClustR/reference/train_gp.html). 
+
+
+```{r}
+model_gp <- train_gp(data = Michaela,
+                     kern = "SE",
+                     prior_mean = 0)
+```
+
+Thanks to `train_gp()`, we obtain the hyper-parameters needed to predict Michaela's GP.
+
+### Michaela's prediction
+
+The arguments `kern` and `mean` remain the same as above. We specify:
+
+*   the hyper-parameters obtained with `train_gp()` in `hp`;
+*   the sequence on which we want to compute our GP in `grid_inputs` . Here, we want to predict Michaela's performances until 15/16 years old, so we set `grid_inputs = seq(11,15.5,0.1)`.
+
+See [`help pred_gp`](https://arthurleroy.github.io/MagmaClustR/reference/pred_gp.html) to get information about the other optional arguments.
+
+```{r}
+pred_gp <- pred_gp(data = Michaela,
+                   kern = "SE",
+                   hp = model_gp,
+                   grid_inputs = seq(11,15.5,0.1),
+                   plot = FALSE) 
+```
+
+
+If we didn't use the `train_gp()` function, we can omit the `hp` parameter; the `pred_gp()` function will automatically create a model with the specified parameters.
+
+
+### Display of results
+
+Finally, we display the Michaela's GP and its 95% associated credibility interval thanks to the `plot_gp()` function. If we want to get a prettier graphic, we can specify `heatmap = TRUE` to display an heatmap of probabilities instead of a 95% credibility interval.
+
+```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
+plot_gp(pred_gp = pred_gp,
+        data = Michaela)
+```
+
+
+Close to Michaela’s observed data ($t \in [ 10, 14 ]$), the classic GP behaves as expected: it remains close to the points and the confidence interval is narrow.
+However, as soon as Michaela’s data lack, the GP drifts to the **prior mean** and uncertainty increases significantly.
+
+
+

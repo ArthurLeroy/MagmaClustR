@@ -655,7 +655,7 @@ train_gp <- function(data,
     mean <- hyperpost$mean %>%
       dplyr::filter(.data$Reference %in% input_obs) %>%
       dplyr::arrange(.data$Reference) %>%
-      dplyr::pull(Output)
+      dplyr::pull(.data$Output)
 
     post_cov <- hyperpost$cov[
       as.character(input_obs),
@@ -704,7 +704,7 @@ train_gp <- function(data,
                        tidyselect::all_of(names_col),
                        sep = ":",
                        remove = FALSE) %>%
-          dplyr::filter(.data$Reference %in% all_input) %>%
+          dplyr::filter(.data$Reference %in% input_obs) %>%
           dplyr::arrange(.data$Reference) %>%
           dplyr::pull(.data$Output)
 

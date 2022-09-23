@@ -474,7 +474,7 @@ hyperposterior <- function(data,
 
     all_inputs <- data %>%
       dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
-      union(grid_inputs) %>%
+      dplyr::union(grid_inputs) %>%
       dplyr::arrange(.data$Reference) %>%
       unique()
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
@@ -839,9 +839,8 @@ pred_magma <- function(data,
       "or a data frame depending on the context. Please read ?pred_gp()."
     )
   }
-
   ## Define the union of all distinct reference Input
-  all_inputs <- union(inputs_obs, inputs_pred) %>%
+  all_inputs <- dplyr::union(inputs_obs, inputs_pred) %>%
     dplyr::arrange(.data$Reference)
   all_input <- all_inputs$Reference
 
@@ -901,12 +900,12 @@ pred_magma <- function(data,
   mean_obs <- hyperpost$mean %>%
     dplyr::filter(.data$Reference %in% input_obs) %>%
     dplyr::arrange(.data$Reference) %>%
-    dplyr::pull(Output)
+    dplyr::pull(.data$Output)
 
   mean_pred <- hyperpost$pred %>%
     dplyr::filter(.data$Reference %in% input_pred) %>%
     dplyr::arrange(.data$Reference) %>%
-    dplyr::pull(Mean)
+    dplyr::pull(.data$Mean)
 
   ## Extract the covariance sub-matrices from the hyper-posterior
   post_cov_obs <- hyperpost$cov[
@@ -1360,7 +1359,7 @@ hyperposterior_clust <- function(data,
 
     all_inputs <- data %>%
       dplyr::select(.data$Reference,tidyselect::all_of(names_col)) %>%
-      union(grid_inputs) %>%
+      dplyr::union(grid_inputs) %>%
       dplyr::arrange(.data$Reference) %>%
       unique()
 
@@ -1379,10 +1378,10 @@ hyperposterior_clust <- function(data,
       "mean functions are thus set to be 0 everywhere.\n \n"
     )
   } else if (prior_mean_k[[1]] %>% is.function()) {
-    m_k <- prior_mean(all_inputs %>% dplyr::select(-.data$Reference))
     ## Create a list named by cluster with evaluation of the mean at all Input
     for (k in 1:nb_cluster) {
-      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_inputs)
+      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_inputs %>%
+                                            dplyr::select(-.data$Reference))
     }
   } else if (prior_mean_k %>% is.vector()) {
     if (length(prior_mean_k) == nb_cluster) {
@@ -1760,7 +1759,7 @@ pred_magmaclust <- function(data,
     )
   }
   ## Define the union of all distinct reference Input
-  all_inputs <- union(inputs_obs, inputs_pred) %>%
+  all_inputs <- dplyr::union(inputs_obs, inputs_pred) %>%
     dplyr::arrange(.data$Reference)
   all_input <- all_inputs$Reference
 
@@ -1943,12 +1942,12 @@ pred_magmaclust <- function(data,
     mean_obs <- hyperpost$mean[[k]] %>%
       dplyr::filter(.data$Reference %in% input_obs) %>%
       dplyr::arrange(.data$Reference) %>%
-      dplyr::pull(Output)
+      dplyr::pull(.data$Output)
 
     mean_pred <- hyperpost$pred[[k]] %>%
       dplyr::filter(.data$Reference %in% input_pred) %>%
       dplyr::arrange(.data$Reference) %>%
-      dplyr::pull(Mean)
+      dplyr::pull(.data$Mean)
 
     ## Extract the covariance sub-matrices from the hyper-posterior
     post_cov_obs <- hyperpost$cov[[k]][

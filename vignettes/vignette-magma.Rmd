@@ -1,0 +1,394 @@
+---
+title: Introduction to Magma
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to Magma}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r, echo = FALSE, message = FALSE, warning=FALSE}
+knitr::opts_chunk$set(collapse = T, comment = "#>")
+options(tibble.print_min = 4L, tibble.print_max = 4L)
+knitr::opts_chunk$set(fig.align="center")
+library(MagmaClustR)
+library(readr)
+library(dplyr)
+library(ggplot2)
+swimmers = read_csv("data/db_100m_freestyle.csv")
+swimmers$ID <- factor(swimmers$ID)
+set.seed(3)
+```
+
+First, we load the libraries we use to handle Magma and our data.
+
+```{r, eval=FALSE}
+library(MagmaClustR)
+library(dplyr)
+library(ggplot2)
+```
+
+
+## Data and purpose
+
+### Context
+
+
+To explore the features of Magma, we use the `swimmers` dataset provided by the French Swimming Federation (available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_100m_freestyle.csv)).
+
+This dataset contains `r length(unique(swimmers %>% filter(Gender==1) %>% pull(ID)))` men and `r length(unique(swimmers %>% filter(Gender==2) %>% pull(ID)))` women, for respectively `r nrow(swimmers %>% filter(Gender==1))` and `r nrow(swimmers %>% filter(Gender==2))` performances in the 100 meters freestyle between 2002 and 2016.
+
+Throughout this `swimmers` example, we use Magma as a decision support tool to detect promising young athletes, which is a classical problem in an elite sport context.
+More specifically, Magma is used to model swimmers' progression curves and forecast their future performances.
+Indeed, a multi-task GPs model offers new perspectives like probabilistic predictions, which provides insights to sport structures for their future decisions.
+
+More generally, our task is to train a model with a large dataset and predict a new individual thanks to shared information.
+
+To get an idea of how our `swimmers` dataset looks, we display the performances of 5 swimmers according to their age.
+Do all the swimmers progress the same, *i.e.* with the same pattern ?
+Do the most successful young swimmers remain the best when they get older ? 
+
+```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
+ggplot2::ggplot(data=swimmers %>% filter(ID %in% 1:5),
+       mapping = ggplot2::aes(x=Age,y=Performance,colour=ID))+
+  ggplot2::geom_point(size=3) +
+  ggplot2::theme_classic() +
+  ggplot2::guides(colour="none")
+```
+
+This plot highlights the sparsity and irregularity of our functional data; swimmers performances are observed irregularly, with some areas containing very few observations (particularly for the younger ages).
+Moreover, it clearly appears that there are different swimmer profiles, especially due to different evolutions of morphology during teen years.
+Therefore, it might be important to take them into account if one wants to improve the quality of talent detection strategies.
+
+### Dataset format
+
+The `swimmers` dataset contains 4 columns: `ID`, `Input`, `Output` and `Gender`.
+In our case, each row represents a performance realised by a swimmer at a given age.
+
+*   The `ID` column is used to identify swimmers (who are anonymized) and study their evolution over time; it must be a character or a factor;
+*   The `Input` (here, `Age`) column corresponds to the swimmer's age and must be numeric;
+*   The `Output` (here, `Performance`) column corresponds to the time realised and must be numeric;
+*   The `Gender` column contains 1 for a male and 2 for a female.
+
+
+```{r}
+knitr::kable(swimmers[1:5,])
+```
+
+Any additional column (such as weight, height, number of training hours ...) would be treated as a covariate, and thus define multi-dimensional inputs.
+
+Before starting to use Magma, we must ensure that :
+
+*   Our dataset contains the columns `ID`, `Input` and `Output`;
+
+*   Their types are as previously introduced.
+
+Therefore, we need to change the name and type of the columns, and remove `Gender`, before using Magma.
+
+## Classical pipeline
+
+The overall process with Magma can be decomposed in 3 main steps: **training, prediction** and **display of results**.
+The corresponding functions are:
+
+-   [`train_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html)
+-   [`pred_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_magma.html)
+-   [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html)
+
+## Let's use Magma on our swimmers
+
+### Data organisation
+
+For the sake of consistency, we split males and females into different datasets: `swimmers_m` and `swimmers_f`. The following explanations focus on the `swimmers_f` one, but we can swap the two datasets without any problem.
+
+```{r}
+swimmers_m <- swimmers %>% filter(Gender == 1) %>%
+    select(-Gender) %>% rename(Input = Age, Output = Performance)
+swimmers_f <- swimmers %>% filter(Gender == 2) %>%
+    select(-Gender) %>% rename(Input = Age, Output = Performance)
+```
+
+Once the data organisation step is done, we randomly select two types of swimmers :
+
+*   those we use to train the model;
+*   the one for whom we predict future performances; let's give her the fictive name Michaela.
+
+Since our dataset is quite large, we randomly select only 20 swimmers for the training step. Even if Magma performances improve with respect to the number of training swimmers, 20 are enough to get a clear idea of how the algorithm works.
+
+
+```{r}
+list_ID <- swimmers_f %>% pull(ID) %>% sample()
+swimmers_train <- swimmers_f %>% filter(ID %in% list_ID[1:20])
+swimmers_pred <- swimmers_f %>% filter(ID == 1718)
+```
+
+
+```{r fig.asp = 0.65, fig.width = 7, out.width = "80%"}
+ggplot2::ggplot(data=swimmers_train,
+       mapping = ggplot2::aes(x=Input,y=Output,colour=ID))+
+  ggplot2::geom_point(size=1.5,alpha=0.3)+
+  ggplot2::geom_point(data = swimmers_pred,
+             size=3,
+             shape=17,
+             color="black") +
+  ggplot2::theme_classic() +
+  ggplot2::guides(colour="none")
+```
+
+
+The triangles correspond to Michaela's performances, whereas the colored dots are the swimmers' data we use for training.
+
+### Training
+
+Once we split the dataset into `train` and `pred`, we can proceed to the training of the model with the `train_magma()` function. Now that we have a good idea of how our data looks, we can specify values for several parameters:
+
+*   `prior_mean`: as we have no *a priori* knowledge about the 100m freestyle, we decide to leave the default value for this parameter (*i.e.* zero). However, if we want to take expert advice into account, we can modify the value of `prior_mean` as we wish.
+
+*   `kernel`: Relationship between observed data and prediction targets are customizable in the covariance **kernels**.
+Therefore, if we want to have a curve that fits adequatly with our data, we have to choose a suitable covariance kernel.
+In the case of swimmers, we can set `kern_0 = "SE"` and `kern_i = "SE"` to bring smoothness to the progression curves.
+
+The most commonly used kernels and their properties are shown in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
+Details of available kernels and how to combine them are available in [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 
+
+*   `common_hp`: here, we assume that the set of hyper-parameters is common to all individuals. Thus, we model a context where individuals represent different trajectories of the same process, whereas different hyper-parameters indicate different covariance structures and thus a more flexible model.
+As for any GP method, initialisation of the hyper-parameters may have a huge influence on the final optimisation  and leads to inadequate prediction for pathological cases.
+
+Other parameters can also be modified; see [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html) for more details.
+
+
+```{r}
+model_train <- train_magma(data = swimmers_train,
+                        kern_0 = "SE",
+                        kern_i = "SE",
+                        common_hp = TRUE)
+```
+
+### Michaela's prediction
+
+As the Magma model is trained, we are now going to predict the evolution of Michaela’s    performances. To perform prediction, we need to specify two main parameters in the `pred_magma()` function:
+
+*   `data`: in our case, data associated to Michaela;
+*   `trained_model`, which corresponds to the model we just trained with the other 20 swimmers.
+
+We recall that we want to detect promising young talents. Therefore, we should predict the evolution of Michaela’s performances between 10 and 20 years, which leads to set `grid_inputs = seq(10,20,0.1)`.
+
+
+```{r}
+pred <- pred_magma(data = swimmers_pred,
+  trained_model = model_train,
+  grid_inputs = seq(10,20,0.1),
+  plot = FALSE)
+```
+
+
+
+### Plots
+
+```{r, echo = FALSE, message = FALSE, include = FALSE}
+model_gp <- train_gp(data=swimmers_pred,
+                     kern="SE")
+pred_gp <- pred_gp(data=swimmers_pred,
+                   grid_inputs = seq(10,20,0.1),
+                   hp = model_gp,
+                   kern = "SE",
+                   plot = FALSE) 
+```
+
+With the [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html) function, we can display the evolution of Michaela’s performances.  In particular, we show:
+
+*  Michaela’s evolution curve (in purple) and the associated 95% credibility interval (in pink);
+
+*   the training data points in the background with `data_train`. Each color corresponds to one swimmer;
+
+*   the mean GP in dotted lines thanks to the `prior_mean` parameter.
+
+#### Magma VS classic GP
+
+The MagmaClustR package also provides a prediction with classic GPs; thus, we can compare Magma and classic GPs predictions. For more details on the GP layout, see [Vignette GPs](Lien). 
+
+The graphs below correspond to Michaela’s performances prediction with Magma (left) and classic GP (right). 
+
+
+```{r, eval = FALSE}
+plot_gp(pred_gp = pred,
+        data = swimmers_pred,
+        prior_mean = model_train$hyperpost$mean,
+        data_train = swimmers_train) +
+  ggplot2::theme_classic()
+```
+
+```{r fig.asp = 0.7, fig.width = 10, out.width = "100%", echo = FALSE,warning=FALSE}
+gg1 <- plot_gp(pred_gp = pred,
+        data = swimmers_pred,
+        prior_mean = model_train$hyperpost$mean,
+        data_train = swimmers_train,
+        alpha_data_train = 0.3) +
+  ggplot2::theme_classic() + 
+  ggplot2::scale_y_continuous(limits = c(-130,120))
+
+gg2 <- plot_gp(pred_gp = pred_gp,
+        data = swimmers_pred,
+        heatmap = FALSE) +
+  ggplot2::theme_classic() + 
+  ggplot2::scale_y_continuous(limits = c(-130,120))
+
+gg1
+gg2
+```
+
+
+3 phases can be distinguished according to the level of information coming from the data: 
+
+*   **first phase**: close to Michaela’s observed data ($t \in [ 11, 14 ]$), the two processes behave similarly. We note a slight increase in the variance for Magma, which is logical since the prediction also takes uncertainty over the **mean GP** into account;
+
+*   **second phase**: on intervals of unobserved timestamps containing data points from the training dataset ($t \in [ 14, 20 ]$), Magma prediction is guided by the information coming from other individuals through the **mean GP**. Thus, the mean trajectory remains coherent and the uncertainty increases only slightly. On the contrary, the simple GP quickly drifts to the prior mean as soon as data lack, and uncertainty increases significantly.
+
+*   **third phase**: where no observations are available, neither from the new individual nor from the training dataset ($t > 20$), Magma behaves as expected, with a slow drifting to the prior mean, with highly increasing variance.
+
+Therefore, the main improvement in prediction brought by Magma lies in the **second phase** thanks to information shared across individuals.
+
+Overall, the multi-task framework provides reliable probabilistic predictions for a new swimmer on a wider range of timestamps, potentially outside of the usual scope of GPs. Furthermore, the uncertainty provided through the predictive posterior distribution offers an adequate degree of caution in a decision-making process.
+
+
+#### Michaela VS Michael
+
+To compare the evolution of both genders, we display the progression curves predicted by Magma for a male swimmer, Michaela (left), and Michael (right). We precise that Michael is also a fictive name; moreover, we randomly select him among the `swimmers_m` dataset.
+
+```{r, echo=FALSE}
+set.seed(9)
+list_ID_m <- swimmers_m %>% pull(ID) %>% sample()
+swimmers_train_m <- swimmers_m %>% filter(ID %in% list_ID_m[1:20])
+swimmers_pred_m <- swimmers_m %>% filter(ID %in% list_ID_m[24])
+```
+
+```{r, echo=FALSE, message=FALSE, include = FALSE}
+model_train_m <- train_magma(data = swimmers_train_m,
+                        kern_0 = "SE",
+                        kern_i = "SE",
+                        common_hp = TRUE)
+```
+
+```{r, echo=FALSE, message=FALSE, include = FALSE}
+pred_m <- pred_magma(data = swimmers_pred_m,
+  trained_model = model_train_m,
+  grid_inputs = seq(10,20,0.1),
+  plot = FALSE)
+```
+
+```{r, echo=FALSE, message=FALSE, include = FALSE}
+pred_f <- pred_magma(data = swimmers_pred,
+  trained_model = model_train,
+  grid_inputs = seq(10,20,0.1),
+  plot = FALSE)
+
+gg3 <- plot_gp(pred_gp = pred_f,
+        data = swimmers_pred,
+        prior_mean = model_train$hyperpost$mean,
+        data_train = swimmers_train,
+        alpha_data_train = 0.3) +
+  ggplot2::theme_classic() + 
+  ggplot2::scale_y_continuous(limits = c(50,101))
+```
+
+```{r fig.asp = 0.7, fig.width = 10, out.width = "100%",echo = FALSE,warning=FALSE}
+
+gg4 <- plot_gp(pred_gp = pred_m,
+        data = swimmers_pred_m,
+        prior_mean = model_train_m$hyperpost$mean,
+        data_train = swimmers_train_m,
+        alpha_data_train = 0.3) +
+  ggplot2::theme_classic() + 
+  ggplot2::scale_y_continuous(limits = c(50,101))
+
+gg3
+gg4
+```
+
+We can note that both genders present similar patterns of progression: a quick improvement of performances at young ages, then a slowdown in progress that can even leads to a stagnation afterwards.
+
+However, while performances are roughly similar in mean trend before the age of 14, they start to differentiate afterwards and then converge to average times with approximately a 5sec gap. Interestingly, the difference between men and women in terms of world records in swimming competitions for the 100m freestyle is currently 4.8sec (46.91 versus 51.71), which is consistent with the difference between convergence times.
+
+
+## Even prettier graphics
+
+### With plot_gp()
+
+In case of 1-dimensional inputs, we can complete the Michaela’s prediction graphs thanks to the `plot_gp()` function. Indeed, if we set `heatmap = TRUE`, we display an heatmap of probabilities instead of a credibility interval. Thus, we get a thorough visual quantification for both the dispersion of the predicted values and the confidence we may grant to each of them.
+
+
+```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
+plot_gp(pred_gp = pred_f,
+        data = swimmers_pred,
+        data_train = swimmers_train,
+        prior_mean = model_train$hyperpost$mean,
+        heatmap = TRUE) +
+  ggplot2::theme_classic()
+```
+
+
+### Create a GIF
+
+If we want to create animated representations, we can use [`pred_gif()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_gif.html) and [`plot_gif()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gif.html) instead of `pred_magma()` and `plot_gp()`. 
+These functions offer dynamic plots by generating GIFs thanks to `gganimate`, an extansion of the `ggplot2` package. Then, we can observe how the prediction evolves as we add more data points to our prediction dataset.
+
+`pred_gif()` and `plot_gif()` functions work the same as `pred_magma()` and `plot_gp()` (except that no `plot` argument is required in `pred_gif()`). Some extra arguments can be customized in `plot_gif()`, like adjusting the GIF speed, saving the plotted GIF, etc...
+
+
+```{r}
+pred_gif  <- pred_gif(data = swimmers_pred,
+  trained_model = model_train,
+  grid_inputs = seq(10,20,0.1))
+```
+
+```{r fig.asp = 0.6, fig.width = 7, out.width = "80%", message=FALSE}
+plot_gif(pred_gp = pred_gif,
+         data = swimmers_pred,
+         data_train = swimmers_train,
+         prior_mean = model_train$hyperpost$mean,
+         alpha_data_train = 0.3)
+```
+
+
+## Generalisation
+
+This example highlights the interest of using a multi-task GP to predict swimmers performances.
+However, these satisfying results do not come from this particular example. For further details, the complete study and experiments are available; see [MAGMA: inference and prediction using multi-task Gaussian processes with common mean](https://link.springer.com/content/pdf/10.1007/s10994-022-06172-1.pdf).
+
+
+## To go further: Magma limits and the MagmaClust upgrade
+
+To underline the main limitation of Magma, we choose to predict the performances of a successful female swimmer of the dataset (under 60sec) instead of Michaela’s. 
+
+```{r, echo=FALSE}
+great_swimmer <- swimmers_f %>% filter(ID == 1327)
+```
+
+```{r, echo=FALSE,include=FALSE}
+pred_great_swimmer <- pred_magma(data = great_swimmer,
+  trained_model = model_train,
+  grid_inputs = seq(10,20,0.1),
+  plot = FALSE)
+```
+
+```{r fig.asp = 0.6, fig.width = 7, out.width = "80%", echo=FALSE}
+plot_gp(pred_gp = pred_great_swimmer,
+        data = great_swimmer,
+        data_train = swimmers_train,
+        prior_mean = model_train$hyperpost$mean %>% filter(Input < 20),
+        heatmap = TRUE)
+```
+
+Due to the high level of our swimmer, all of her performances are far below the mean GP. Thus, when we try to predict her evolution, we may actually underestimate her; indeed, her progression curve increases significantly once she has no data left, until reaches the mean GP. This is a normal behavior since her prediction is guided by the information coming from other individuals, who are less successful than her, through the mean GP. 
+
+This is why enabling cluster-specific mean processes to take into account the different swimmers profiles would be a relevant extension. This enhancement of Magma is actually available with MagmaClust; see the corresponding [vignette](vignette/MagmaClustR.fr) for further information.
+
+
+

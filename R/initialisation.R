@@ -44,7 +44,7 @@ match_closest <- function(x, table, tolerance=Inf, nomatch=NA_integer_) {
 expand_grid_inputs <- function(Input, ...) {
   arguments <- list(Input, ...)
 
-  if (!(arguments %>% every(is.numeric))) {
+  if (!(arguments %>% purrr::every(is.numeric))) {
     stop("The arguments must all be numerical sequences.")
   }
 
@@ -58,7 +58,7 @@ expand_grid_inputs <- function(Input, ...) {
     )
   }
 
-  expand_grid(Input, ...) %>% return()
+  tidyr::expand_grid(Input, ...) %>% return()
 }
 
 #' Regularize a database
@@ -128,7 +128,7 @@ regularize_data <- function(data,
   }
   ## Function to scale columns
   scale_function <- function(data) {
-    (data - mean(data)) / sd(data) %>% return()
+    (data - base::mean(data)) / stats::sd(data) %>% return()
   }
 
   ## Get the Input columns names
@@ -145,7 +145,7 @@ regularize_data <- function(data,
   if (is.null(grid_inputs)) {
     ## Put the data on a grid node
     fct_round <- function(data, size_grid) {
-      round_step <- (max(data) - min(data)) / size_grid
+      round_step <- (base::max(data) - base::min(data)) / size_grid
       data <- data %>%
         plyr::round_any(round_step)
     }
@@ -172,7 +172,7 @@ regularize_data <- function(data,
       }
 
       inputs <- sapply(names_col, round_col) %>%
-        as_tibble()
+        tibble::as_tibble()
       tibble::tibble(ID = data$ID, inputs, Output = data$Output) %>%
         dplyr::group_by_at(c("ID", tidyselect::all_of(names_col))) %>%
         dplyr::summarise_all(summarise_fct) %>%

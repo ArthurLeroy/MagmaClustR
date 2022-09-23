@@ -86,7 +86,10 @@ ve_step <- function(db,
       `colnames<-`(all_input) %>%
       return()
   }
-  cov_k <- sapply(all_of(names(m_k)), floop, simplify = FALSE, USE.NAMES = TRUE)
+  cov_k <- sapply(tidyselect::all_of(names(m_k)),
+                  floop,
+                  simplify = FALSE,
+                  USE.NAMES = TRUE)
 
   ## Update the posterior mean for each cluster ##
 
