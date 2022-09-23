@@ -43,8 +43,7 @@ Imports:
     tidyr,
     tidyselect,
     purrr,
-    plyr,
-    readr
+    plyr
 Suggests: 
     gganimate,
     gifski,
