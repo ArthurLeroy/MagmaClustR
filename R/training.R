@@ -1157,8 +1157,8 @@ train_magmaclust <- function(data,
   }else if(is.data.frame(ini_mixture)){
     if(!all(c("ID", ID_k) %in% names(ini_mixture))){
       stop("Wrong format for ini_mixture. Make sure that the number of ",
-           "clusters are the same in both 'train_magma()' and ini_mixture. ",
-           "Please read ?ini_mixture() for further details.")
+           "clusters are the same both in 'train_magmaclust()' and ",
+           "ini_mixture. Please read ?ini_mixture() for further details.")
     }else {
       mixture <- ini_mixture
     }

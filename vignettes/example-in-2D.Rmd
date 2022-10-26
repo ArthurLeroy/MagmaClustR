@@ -17,18 +17,13 @@ text-align: justify}
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE}
 knitr::opts_chunk$set(collapse = T, comment = "#>")
-```
-
-```{r, echo = FALSE, message = FALSE, warning = FALSE}
 options(tibble.print_min = 6L, tibble.print_max = 6L)
 knitr::opts_chunk$set(fig.align="center")
-
 ```
-
 
 First, we load the libraries we use to handle Magma and our data.
 
-```{r, warning=FALSE}
+```{r message=FALSE, warning=FALSE}
 library(MagmaClustR)
 library(dplyr)
 ```

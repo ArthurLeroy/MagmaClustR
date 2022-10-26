@@ -21,8 +21,8 @@ options(tibble.print_min = 6L, tibble.print_max = 6L)
 knitr::opts_chunk$set(fig.align="center")
 library(MagmaClustR)
 library(dplyr)
-children = read.csv("data/db_gusto_weight.csv")
-children$ID <- factor(as.numeric(factor(children$ID)))
+weight = read.csv("data/db_gusto_weight.csv")
+weight$ID <- factor(as.numeric(factor(weight$ID)))
 
 set.seed(5)
 ```
@@ -40,19 +40,19 @@ library(ggplot2)
 
 ### Context
 
-To explore the features of MagmaClust, we use the `children` dataset available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_gusto_weight.csv). This dataset contains `r length(unique(children %>% filter(sex=="Male") %>% pull(ID)))` boys and `r length(unique(children %>% filter(sex=="Female") %>% pull(ID)))` girls, for a total of `r nrow(children)` children weights.
+To explore the features of MagmaClust, we use the `weight` dataset available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_gusto_weight.csv). This dataset contains `r length(unique(weight %>% filter(sex=="Male") %>% pull(ID)))` boys and `r length(unique(weight %>% filter(sex=="Female") %>% pull(ID)))` girls, for a total of `r nrow(weight)` children weights.
 
-Throughout this `children` example, we use MagmaClust to model children’s evolution curves and forecast their future weight. 
+Throughout this `weight` example, we use MagmaClust to model children’s evolution curves and forecast their future weight. 
 More specifically, we extend the Magma model to take into account the possible presence of group structures in the data (Magma’s Vignette available here [METTRE LIEN](lien)).  We thus introduce a clustering component into the procedure, which is based on gaussian mixtures.  
 Indeed, the combination of a GPs mixture model with a multi-task aspect offers enhanced predictive abilities by sharing information across the individuals through multiple cluster-specific mean processes.
 
 More generally, our task is to train a model with a large dataset and predict a new individual’s weight thanks to shared information within a cluster.
 
-To get an idea of how our `children` dataset looks, we display the weight of 5 children according to their age. Do the children’s weight evolve the same, *i.e.* with the same pattern ?  Can we identify group structures in the data, and thus define weight evolution clusters ?
+To get an idea of how our `weight` dataset looks, we display the weight of 5 children according to their age. Do the children’s weight evolve the same, *i.e.* with the same pattern ?  Can we identify group structures in the data, and thus define weight evolution clusters ?
 
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
-ggplot2::ggplot(data=children %>% filter(ID %in% 1:5),
+ggplot2::ggplot(data=weight %>% filter(ID %in% 1:5),
        mapping = ggplot2::aes(x=Input,y=Output,colour=ID))+
   ggplot2::geom_point(size=3) +
   ggplot2::theme_classic() +
@@ -65,7 +65,7 @@ Overall, it clearly appears that there are different children profiles; some chi
 
 ### Dataset format
 
-The `children` dataset contains 4 columns: `ID`, `sex`, `Input` and `Output`.
+The `weight` dataset contains 4 columns: `ID`, `sex`, `Input` and `Output`.
 In our case, each row represents a child’s weight at a given age.
 
 *   The `ID` column is used to identify children (who are anonymized) and study their evolution over time. It must be a character or a factor;
@@ -80,7 +80,7 @@ In our case, each row represents a child’s weight at a given age.
 
 
 ```{r}
-knitr::kable(children[1:5,])
+knitr::kable(weight[1:5,])
 ```
 
 Any additional column (such as height, morphology, percentage of muscle mass ...) would be treated as a covariate, and thus define multi-dimensional inputs.
@@ -94,7 +94,7 @@ Before starting to use MagmaClust, we must ensure that :
 Therefore, we need to remove the `sex` column before using MagmaClust. 
 
 ```{r}
-children <- children %>% select(-sex)
+weight <- weight %>% select(-sex)
 ```
 
 Moreover, as the children weight is not very different according to the gender between 0 and 5 years old, we do not split males and females into separate datasets. 
@@ -125,17 +125,17 @@ Since our dataset is quite large, we randomly select only 16 children for the tr
 
 ```{r}
 set.seed(10)
-list_ID <- children %>% pull(ID) %>% sample()
-children_train <- children %>% filter(ID %in% list_ID[1:20])
-children_pred <- children %>% filter(ID == 72) %>% filter(Input<20)
+list_ID <- weight %>% pull(ID) %>% sample()
+weight_train <- weight %>% filter(ID %in% list_ID[1:20])
+weight_pred <- weight %>% filter(ID == 72) %>% filter(Input<20)
 ```
 
 
 ```{r fig.asp = 0.65, fig.width = 7, out.width = "80%"}
-ggplot2::ggplot(data = children_train,
+ggplot2::ggplot(data = weight_train,
        mapping = ggplot2::aes(x=Input,y=Output,colour=ID))+
   ggplot2::geom_point(size=1.5,alpha=0.3)+
-  ggplot2::geom_point(data = children_pred,
+  ggplot2::geom_point(data = weight_pred,
              size=3,
              shape=17,
              col="black") +
@@ -153,7 +153,7 @@ Once we split the dataset into `train` and `pred`, we can proceed to the trainin
 *  `nb_cluster`:  as for any clustering method, we have to provide a number *K* of clusters as an hypothesis of the model. Since we do not have a clear idea of the real number of clusters in our subset, we use the `select_nb_clusters()` function; it is a model selection method based on maximising a VBIC criterion that returns the true number of clusters (*K*) within a dataset. Here, we get `nb_cluster = 3`.
 
 ```{r, eval=FALSE}
-selection <- select_nb_cluster(data = children,
+selection <- select_nb_cluster(data = weight,
                   grid_nb_cluster = 1:5,
                   kern_k = "SE",
                   kern_i = "SE")
@@ -180,7 +180,7 @@ Other parameters can also be modified; see [`help train_magmaclust`](https://art
 
 
 ```{r}
-model_clust <- train_magmaclust(data = children_train,
+model_clust <- train_magmaclust(data = weight_train,
                         nb_cluster = 3,
                         kern_k = "SE",
                         kern_i = "SE",
@@ -201,7 +201,7 @@ We recall that we want to study weight curves during childhood. Therefore, we sh
 
 
 ```{r}
-pred_clust <- pred_magmaclust(data = children_pred,
+pred_clust <- pred_magmaclust(data = weight_pred,
   trained_model = model_clust,
   grid_inputs = seq(0,72,0.1),
   plot = FALSE,
@@ -232,29 +232,29 @@ The graphs below correspond to James' weight prediction with MagmaClust (left) a
 
 
 ```{r, echo = FALSE, message = FALSE, include = FALSE}
-model_magma <- train_magma(data = children_train,
+model_magma <- train_magma(data = weight_train,
                         kern_0 = "SE",
                         kern_i = "SE",
                         common_hp = FALSE)
 
-pred_magma <- pred_magma(data=children_pred,
+pred_magma <- pred_magma(data=weight_pred,
                    grid_inputs = seq(0,72,0.1),
                    trained_model = model_magma,
                    plot = FALSE,
                    get_hyperpost = TRUE) 
 
 gg2 <- plot_gp(pred_gp = pred_magma,
-        data = children_pred,
+        data = weight_pred,
         prior_mean = pred_magma$hyperpost$mean,
-        data_train = children_train,
+        data_train = weight_train,
         size_data = 5) + 
   ggplot2::scale_y_continuous(limits = c(0,37))
 
 data_train_with_clust = data_allocate_cluster(model_clust)
 
 gg1 <- plot_magmaclust(pred = pred_clust,
-                data = children_pred,
-                data_train = children_train,
+                data = weight_pred,
+                data_train = weight_train,
                 prior_mean = pred_clust$hyperpost$mean,
                 size_data = 5) + 
   ggplot2::scale_y_continuous(limits = c(0,37))
@@ -263,9 +263,9 @@ gg1 <- plot_magmaclust(pred = pred_clust,
 
 ```{r, eval=FALSE}
 plot_magmaclust(pred = pred_clust,
-                data = children_pred,
+                data = weight_pred,
                 prior_mean = pred_clust$hyperpost$mean,
-                data_train = children_train,
+                data_train = weight_train,
                 size_data = 5)
 ```
 
@@ -307,7 +307,7 @@ data_train_with_clust = data_allocate_cluster(model_clust)
 
 plot_magmaclust(pred = pred_clust,
                 cluster = "all",
-                data = children_pred,
+                data = weight_pred,
                 prior_mean = pred_clust$hyperpost$mean,
                 heatmap = TRUE,
                 y_grid = seq(0,37,0.1),

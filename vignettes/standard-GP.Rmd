@@ -15,24 +15,17 @@ body {
 text-align: justify}
 </style>
 
-```{r, echo = FALSE, message = FALSE, warning=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(collapse = T, comment = "#>")
 options(tibble.print_min = 4L, tibble.print_max = 4L)
 knitr::opts_chunk$set(fig.align="center")
-library(MagmaClustR)
-library(dplyr)
-library(ggplot2)
-swimmers = read.csv("data/db_100m_freestyle.csv")
-swimmers$ID <- factor(swimmers$ID)
-set.seed(2)
 ```
 
-First, we load the libraries we use to handle MagmaClustR and our data.
-
-```{r, eval=FALSE}
+```{r setup}
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
+set.seed(2)
 ```
 
 ## Classical pipeline
@@ -62,7 +55,7 @@ The data frame can also provide as many covariates (*i.e.* additional columns) a
 
 To explore the features of GP in MagmaClustR, we use the `swimmers` dataset provided by the French Swimming Federation (available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_100m_freestyle.csv)).
 
-Our goal is to model the progression curves of swimmers in order to forecast their future performances. Thus, we randomly select a female swimmer from the dataset; let's give her the fictive name Michaela.
+Our goal is to model the progression curves of swimmers in order to forecast their future performances. Thus, we randomly select a female swimmer from the dataset; let's give her the fictive name *Michaela*.
 
 The `swimmers` dataset contains 4 columns: `ID`, `Age`, `Performance` and `Gender`.
 Therefore, we need to change the name and type of the columns, and remove `Gender` before using `train_gp()`.

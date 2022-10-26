@@ -30,7 +30,6 @@ set.seed(3)
 First, we load the libraries we use to handle Magma and our data.
 
 ```{r, eval=FALSE}
-library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
 ```

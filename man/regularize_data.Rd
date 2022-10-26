@@ -43,3 +43,6 @@ A regularized database.
 \description{
 Regularize a database
 }
+\examples{
+TRUE
+}

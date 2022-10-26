@@ -19,3 +19,6 @@ parameters.
 \description{
 Expand a grid of inputs
 }
+\examples{
+TRUE
+}

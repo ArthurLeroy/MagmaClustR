@@ -41,6 +41,7 @@ match_closest <- function(x, table, tolerance=Inf, nomatch=NA_integer_) {
 #' @export
 #'
 #' @examples
+#' TRUE
 expand_grid_inputs <- function(Input, ...) {
   arguments <- list(Input, ...)
 
@@ -61,7 +62,14 @@ expand_grid_inputs <- function(Input, ...) {
   tidyr::expand_grid(Input, ...) %>% return()
 }
 
-#' Regularize a database
+#' Regularise a grid of inputs in a dataset
+#'
+#' Modify the original grid of inputs to make it more 'regular' (in the sense
+#' that the interval between each observation is constant, or corresponds to a
+#' specific pattern defined by the user). In particular, this function can also
+#' be used to summarise several data points into one, at a specific location. In
+#' this case, the output values are averaged according to the 'summarise_fct'
+#' argument.
 #'
 #' @param data A tibble or data frame. Required columns: \code{ID},
 #'    \code{Output}. The \code{ID} column contains the unique names/codes used
@@ -70,27 +78,29 @@ expand_grid_inputs <- function(Input, ...) {
 #'    frame can also provide as many inputs as desired, with no constraints
 #'    on the column names.
 #'
-#' @param size_grid A number which indicates how many points each axis of the
-#'    grid must contain.
+#' @param size_grid A number, which indicates how many points each column of the
+#'    grid must contain. This number is used when no inputs grid is specified by
+#'    the user. See 'grid_inputs' below for details. Default is 30.
 #'
-#' @param scale A boolean. If TRUE, the regularization is performed on
-#'    previously scaled data. If FALSE (default), the regularization is
-#'    performed on original data.
+#' @param scale A boolean. If TRUE, the dataset is scaled to zero mean and
+#'    unit variance in all column. Default is FALSE.
 #'
-#' @param grid_inputs A grid of inputs on which we want to regularize data. If
-#'    NULL (default), the function create a specific grid of inputs : for each
-#'    column of input, it creates a regular sequence from the min of the input
-#'    values to the max, with a step equal to the "size_grid" parameter.
+#' @param grid_inputs A data frame, corresponding to a pre-defined grid of
+#'    inputs according to which we want to regularise a dataset. If
+#'    NULL (default), a dedicated grid of inputs is defined: for each
+#'    input column, a regular sequence is created from the min of the input
+#'    values to the max, with a step equal to the 'size_grid' parameter.
 #'
-#' @param summarise_fct A character or a function. If same vectors of
-#'    inputs are associated with different outputs, the user can choose the new
-#'    value of output among the following functions: min, max, mean, median.
-#'    Another function can be defined ; default is "mean".
+#' @param summarise_fct A character string or a function. If several similar
+#'    inputs are associated with different outputs, the user can choose the
+#'    summarising function for the output among the following: min, max, mean,
+#'    median. A custom function can be defined if necessary. Default is "mean".
 #'
-#' @return A regularized database.
+#' @return A data frame, where input columns have been regularised accordingly.
 #' @export
 #'
 #' @examples
+#' TRUE
 regularize_data <- function(data,
                             size_grid = 30,
                             scale = FALSE,
@@ -182,7 +192,7 @@ regularize_data <- function(data,
   }
 }
 
-#' Run a k-means algoithm to initialise clusters' allocation
+#' Run a k-means algorithm to initialise clusters' allocation
 #'
 #' @param data A tibble containing common Input and associated Output values
 #'   to cluster.

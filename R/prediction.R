@@ -1,6 +1,6 @@
 #' Gaussian Process prediction
 #'
-#' Compute the posterior distribution of a simple GP, using the formalism of
+#' Compute the posterior distribution of a standard GP, using the formalism of
 #' Magma. By providing observed data, the prior mean and covariance
 #' matrix (by defining a kernel and its associated hyper-parameters), the mean
 #' and covariance parameters of the posterior distribution are computed on the
@@ -73,10 +73,10 @@
 #' @examples
 #' TRUE
 pred_gp <- function(data,
+                    grid_inputs = NULL,
                     mean = NULL,
                     hp = NULL,
                     kern = "SE",
-                    grid_inputs = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
                     pen_diag = 1e-10) {
@@ -158,10 +158,11 @@ pred_gp <- function(data,
       tidyr::unite("Reference",
                    tidyselect::all_of(names_col),
                    sep = ":",
-                   remove = FALSE)
+                   remove = FALSE) %>%
+      dplyr::arrange(.data$Reference)
 
-    inputs_pred <- inputs_pred %>% dplyr::arrange(.data$Reference)
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
+
   } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
     if (inputs_obs %>% names() %>% length() == 2) {
@@ -176,7 +177,7 @@ pred_gp <- function(data,
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_magma()."
+        "or a data frame depending on the context. Please read ?pred_gp()."
       )
     }
   } else if (grid_inputs %>% is.data.frame()) {
@@ -684,9 +685,9 @@ hyperposterior <- function(data,
 #' TRUE
 pred_magma <- function(data,
                        trained_model = NULL,
+                       grid_inputs = NULL,
                        hp = NULL,
                        kern = "SE",
-                       grid_inputs = NULL,
                        hyperpost = NULL,
                        get_hyperpost = FALSE,
                        get_full_cov = FALSE,
@@ -1321,7 +1322,8 @@ hyperposterior_clust <- function(data,
     tidyr::unite("Reference",
                  tidyselect::all_of(names_col),
                  sep=":",
-                 remove = FALSE)
+                 remove = FALSE) %>%
+    tidyr::drop_na()
 
   ## Get the number of clusters
   nb_cluster <- hp_k %>%
@@ -1604,10 +1606,10 @@ hyperposterior_clust <- function(data,
 #' TRUE
 pred_magmaclust <- function(data,
                             trained_model = NULL,
+                            grid_inputs = NULL,
                             mixture = NULL,
                             hp = NULL,
                             kern = "SE",
-                            grid_inputs = NULL,
                             hyperpost = NULL,
                             prop_mixture = NULL,
                             get_hyperpost = FALSE,
@@ -1682,7 +1684,8 @@ pred_magmaclust <- function(data,
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_magma()."
+        "or a data frame depending on the context. Please read ",
+        "?pred_magmaclust()."
       )
     }
 
