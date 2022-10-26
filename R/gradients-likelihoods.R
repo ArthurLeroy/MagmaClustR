@@ -78,7 +78,6 @@ gr_GP_mod <- function(hp,
                       kern,
                       post_cov,
                       pen_diag) {
-
   list_hp <- names(hp)
   output <- db$Output
   ## Extract the reference Input

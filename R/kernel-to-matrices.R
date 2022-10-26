@@ -263,28 +263,36 @@ kern_to_cov <- function(input,
   } else {
     if (("Reference" %in% colnames(input)) &
         ("Reference" %in% colnames(input_2))) {
-      reference <- input %>%
-        tibble::as_tibble() %>%
-        dplyr::pull("Reference") %>%
-        as.character()
+      reference <- input$Reference %>% as.character()
 
       input <- input %>% dplyr::select(-.data$Reference)
       list_input <- split(t(input),
                           rep(1:nrow(input),each = ncol(input))
       )
 
-      reference_2 <- input_2 %>%
-        tibble::as_tibble() %>%
-        dplyr::pull("Reference") %>%
-        as.character()
+      reference_2 <- input_2$Reference %>% as.character()
 
       input_2 <- input_2 %>% dplyr::select(-.data$Reference)
+
       list_input_2 <- split(t(input_2),
                             rep(1:nrow(input_2), each = ncol(input_2))
       )
-    } else { ### flag
-      reference <- as.character(input[, 1])
-      reference_2 <- as.character(input_2[, 1])
+    } else {
+      reference <- tidyr::unite(
+        as.data.frame(input),
+        'Reference',
+        tidyselect::everything(),
+        sep = ':') %>%
+        dplyr::pull(.data$Reference) %>%
+        as.character()
+
+      reference_2 <- tidyr::unite(
+        as.data.frame(input_2),
+        'Reference',
+        tidyselect::everything(),
+        sep = ':') %>%
+        dplyr::pull(.data$Reference) %>%
+        as.character()
 
       list_input <- split(t(input),
                           rep(1:nrow(input), each = ncol(input))
