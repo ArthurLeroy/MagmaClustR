@@ -1,6 +1,9 @@
 ---
 title: Introduction to MagmaClust
-output: rmarkdown::html_vignette
+output: 
+   prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
 vignette: >
   %\VignetteIndexEntry{Introduction to MagmaClust}
   %\VignetteEncoding{UTF-8}
@@ -16,20 +19,13 @@ text-align: justify}
 </style>
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE}
-knitr::opts_chunk$set(collapse = T, comment = "#>")
+knitr::opts_chunk$set(dpi=300, collapse = T, comment = "#>")
 options(tibble.print_min = 6L, tibble.print_max = 6L)
 knitr::opts_chunk$set(fig.align="center")
-library(MagmaClustR)
-library(dplyr)
-weight = read.csv("data/db_gusto_weight.csv")
-weight$ID <- factor(as.numeric(factor(weight$ID)))
-
-set.seed(5)
 ```
 
-First, we load the libraries we use to handle MagmaClust and our data.
 
-```{r, eval=FALSE}
+```{r echo = FALSE, message = FALSE}
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
@@ -42,26 +38,29 @@ library(ggplot2)
 
 To explore the features of MagmaClust, we use the `weight` dataset available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_gusto_weight.csv). This dataset contains `r length(unique(weight %>% filter(sex=="Male") %>% pull(ID)))` boys and `r length(unique(weight %>% filter(sex=="Female") %>% pull(ID)))` girls, for a total of `r nrow(weight)` children weights.
 
-Throughout this `weight` example, we use MagmaClust to model children’s evolution curves and forecast their future weight. 
-More specifically, we extend the Magma model to take into account the possible presence of group structures in the data (Magma’s Vignette available here [METTRE LIEN](lien)).  We thus introduce a clustering component into the procedure, which is based on gaussian mixtures.  
-Indeed, the combination of a GPs mixture model with a multi-task aspect offers enhanced predictive abilities by sharing information across the individuals through multiple cluster-specific mean processes.
+Throughout this `weight` follow-up example, we use *MagmaClust* to model and forecast evolution of children’s weight. 
+More specifically, we extend the *Magma* model to take into account the possible presence of group structures in the data (a similar vignette for Magma is available [here](how-to-use-magma.html)). Therefore, a clustering component based on gaussian mixtures extend the procedure.  
+The combination of a GPs mixture model with a multi-task aspect offers enhanced predictive abilities by sharing information across the individuals through multiple cluster-specific mean processes.
 
-More generally, our task is to train a model with a large dataset and predict a new individual’s weight thanks to shared information within a cluster.
+More generally, our aim is to train a model on a dataset containing multiple individuals and predict a new individual’s weight thanks to shared information within clusters.
 
-To get an idea of how our `weight` dataset looks, we display the weight of 5 children according to their age. Do the children’s weight evolve the same, *i.e.* with the same pattern ?  Can we identify group structures in the data, and thus define weight evolution clusters ?
+To get an idea of how our `weight` dataset looks, we display an illustration of observed data for 5 children according to their age. Do the children’s weight evolve the same, *i.e.* with the same pattern?  Can we identify group structures in the data, and thus define appropriate clusters?
 
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
-ggplot2::ggplot(data=weight %>% filter(ID %in% 1:5),
-       mapping = ggplot2::aes(x=Input,y=Output,colour=ID))+
+set.seed(10)
+list_ID <- weight %>% pull(ID) %>% sample()
+
+ggplot2::ggplot(data=weight %>% filter(ID %in% list_ID[1:5]),
+                ggplot2::aes(x=Input,y=Output,colour=factor(ID)))+
   ggplot2::geom_point(size=3) +
   ggplot2::theme_classic() +
   ggplot2::guides(colour="none")
 ```
 
-This plot underlines the regularity of our functional data; children’s weight are observed at the same ages, probably because of regular visits to the pediatrician. However, MagmaClust can also be used in case of irregular grids of `Input` without any change thanks to its shared information feature.
+This plot underlines the regularity of our functional data; he values of weight are observed at the same ages, probably because of regular visits to the pediatrician. Let us note that MagmaClust could also be used in the case of irregular grids of `Input` without any change.
 
-Overall, it clearly appears that there are different children profiles; some children are plump at birth but their weight gain slows down quickly, while others are born thinner but grow rapidly. Therefore, it might be important to take these profiles into account if one wants to improve the quality of weight predictions.
+Overall, it clearly appears that there are different children profiles; some children are plump at birth before their weight gain slows down quickly, while others may born slightly thinner but grow faster. Therefore, it might be important to take these profiles into account if one wants to improve the quality of weight predictions.
 
 ### Dataset format
 
@@ -80,7 +79,7 @@ In our case, each row represents a child’s weight at a given age.
 
 
 ```{r}
-knitr::kable(weight[1:5,])
+knitr::kable(weight)
 ```
 
 Any additional column (such as height, morphology, percentage of muscle mass ...) would be treated as a covariate, and thus define multi-dimensional inputs.
@@ -97,7 +96,7 @@ Therefore, we need to remove the `sex` column before using MagmaClust.
 weight <- weight %>% select(-sex)
 ```
 
-Moreover, as the children weight is not very different according to the gender between 0 and 5 years old, we do not split males and females into separate datasets. 
+Moreover, as the children weight is not particularly affected by the gender between 0 and 5 years old, we retain all individuals in the same dataset.
 
 
 ## Classical pipeline
@@ -109,10 +108,9 @@ The corresponding functions are:
 -   [`pred_magmaclust()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_magmaclust.html)
 -   [`plot_magmaclust()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_magmaclust.html)
 
-## Let's use MagmaClust on our children
+## Apply MagmaClust on the weight database
 
 ### Data organisation
-
 
 Once the data organisation step is done, we randomly select two types of children :
 
@@ -124,16 +122,14 @@ Since our dataset is quite large, we randomly select only 16 children for the tr
 
 
 ```{r}
-set.seed(10)
-list_ID <- weight %>% pull(ID) %>% sample()
 weight_train <- weight %>% filter(ID %in% list_ID[1:20])
-weight_pred <- weight %>% filter(ID == 72) %>% filter(Input<20)
+weight_pred <- weight %>% filter(ID == list_ID[72]) %>% filter(Input<20)
 ```
 
 
 ```{r fig.asp = 0.65, fig.width = 7, out.width = "80%"}
 ggplot2::ggplot(data = weight_train,
-       mapping = ggplot2::aes(x=Input,y=Output,colour=ID))+
+       mapping = ggplot2::aes(x=Input,y=Output,colour=factor(ID)))+
   ggplot2::geom_point(size=1.5,alpha=0.3)+
   ggplot2::geom_point(data = weight_pred,
              size=3,
@@ -149,31 +145,20 @@ The triangles correspond to James’ weights, whereas the colored dots are the c
 
 Once we split the dataset into `train` and `pred`, we can proceed to the training of the model with the `train_magmaclust()` function. Now that we have a good idea of how our data looks, we can specify values for several parameters:
 
-*  `nb_cluster`:  as for any clustering method, we have to provide a number *K* of clusters as an hypothesis of the model. Since we do not have a clear idea of the real number of clusters in our subset, we use the `select_nb_clusters()` function; it is a model selection method based on maximising a VBIC criterion that returns the true number of clusters (*K*) within a dataset. Here, we get `nb_cluster = 3`.
-
-```{r, eval=FALSE}
-selection <- select_nb_cluster(data = weight,
-                  grid_nb_cluster = 1:5,
-                  kern_k = "SE",
-                  kern_i = "SE")
-
-best_nb_clust <- selection$best_k
-```
-
+*  `nb_cluster`:  as for any clustering method, we have to provide a number *K* of clusters as an hypothesis of the model. For illustration purposes, we arbitrarily set $K = 3$ in the following example. However, a dedicated model selection method based on maximising a VBIC criterion is provided in the package as [`select_nb_clusters()`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html).
 
 *   `kern`: the relationship between observed data and prediction targets can be control through the covariance **kernel**.
 Therefore, in order to correctly fit our data, we need to choose a suitable covariance kernel.
 In the case of swimmers, we want a smooth progression curve for Michaela; therefore, we specify `kern = "SE"`.
 
-The most commonly used kernels and their properties are shown in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
+The most commonly used kernels and their properties are discussed in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
 Details of available kernels and how to combine them are available in [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 
-
 
 *   `common_hp_k`: here, we assume that the set of hyper-parameters is the same for each cluster by setting `common_hp_k = TRUE`. Thus, we suppose that all clusters share the same covariance structure. This property implies that the shapes and variations of the curves are assumed to be roughly identical from one cluster to another; the differentiation is mainly due to the mean values.
 
 *  `common_hp_i`: as we want to share information across children, we specify `common_hp_i = TRUE`. If this assumption may appear restrictive at first glance, it actually offers a valuable way to share common patterns between tasks.
 
-As for any GP method, initialisation of the HP may have a huge influence on the final optimisation  and leads to inadequate prediction for pathological cases.
+As for any GP method, initialisation of the HP may have an influence on the final optimisation and leads to inadequate prediction for pathological cases. Therefore, users may explicitly define specific initial values through the dedicated arguments: `ini_hp_k` and `ini_hp_i`.
 
 Other parameters can also be modified; see [`help train_magmaclust`](https://arthurleroy.github.io/MagmaClustR/reference/train_magmaclust.html) for more details.
 
@@ -184,12 +169,12 @@ model_clust <- train_magmaclust(data = weight_train,
                         nb_cluster = 3,
                         kern_k = "SE",
                         kern_i = "SE",
-                        common_hp_k = FALSE,
-                        common_hp_i = FALSE)
+                        common_hp_k = TRUE,
+                        common_hp_i = TRUE)
 ```
 
 
-### James' prediction
+### Prediction for James
 
 As the MagmaClust model is trained, we can predict the evolution of James' weight. To perform prediction, we need to specify two main parameters in the `pred_magmaclust()` function:
 
@@ -316,12 +301,12 @@ plot_magmaclust(pred = pred_clust,
                 size_data = 5)
 ```
 
-## Generalisation
+## Reference
 
 Overall, the multi-task framework combined with clustering method provides reliable probabilistic predictions for a new child on a wide range of timestamps.
-Furthermore, the uncertainty provided through the predictive posterior distribution offers an adequate degree of caution for pediatricians as well as parents. 
+Moreover, the uncertainty provided through the predictive posterior distribution offers an adequate degree of caution to practitioners. 
 
-However, these satisfying results do not come from James’ particular example. For further details, the complete study and experiments are available; see [Cluster-Specific Predictions with Multi-Task Gaussian Processes](https://arxiv.org/pdf/2011.07866.pdf).
+For further details, the complete derivation of the algorithm and experiments are published and available in [Cluster-Specific Predictions with Multi-Task Gaussian Processes](https://arxiv.org/pdf/2011.07866.pdf).
 
 
 

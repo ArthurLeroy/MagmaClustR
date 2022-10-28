@@ -1,6 +1,9 @@
 ---
 title: "Magma with 2-Dimensional data"
-output: rmarkdown::html_vignette
+output:
+   prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
 vignette: >
   %\VignetteIndexEntry{Magma with 2-Dimensional data}
   %\VignetteEncoding{UTF-8}
@@ -16,12 +19,10 @@ text-align: justify}
 </style>
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE}
-knitr::opts_chunk$set(collapse = T, comment = "#>")
+knitr::opts_chunk$set(dpi=300, collapse = T, comment = "#>")
 options(tibble.print_min = 6L, tibble.print_max = 6L)
 knitr::opts_chunk$set(fig.align="center")
 ```
-
-First, we load the libraries we use to handle Magma and our data.
 
 ```{r message=FALSE, warning=FALSE}
 library(MagmaClustR)

@@ -20,7 +20,7 @@ text-align: justify}
 </style>
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-knitr::opts_chunk$set(collapse = T, comment = "#>")
+knitr::opts_chunk$set(dpi=300, collapse = T, comment = "#>")
 options(tibble.print_min = 4L, tibble.print_max = 4L)
 knitr::opts_chunk$set(fig.align="center")
 ```
@@ -47,8 +47,8 @@ The corresponding functions are:
 
 Before using `train_gp()`, our dataset should present a particular format. It must contains those 2 columns:
 
-*   `Input`: type `numeric`,
-*   `Output` type `numeric`. 
+*   `Input`: `numeric`,
+*   `Output`: `numeric`. 
 
 If we fail to ensure that the dataset satisfies those conditions, the algorithm will return an error. 
 
