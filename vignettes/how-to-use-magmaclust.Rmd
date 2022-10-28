@@ -147,7 +147,6 @@ The triangles correspond to James’ weights, whereas the colored dots are the c
 
 ### Training
 
-
 Once we split the dataset into `train` and `pred`, we can proceed to the training of the model with the `train_magmaclust()` function. Now that we have a good idea of how our data looks, we can specify values for several parameters:
 
 *  `nb_cluster`:  as for any clustering method, we have to provide a number *K* of clusters as an hypothesis of the model. Since we do not have a clear idea of the real number of clusters in our subset, we use the `select_nb_clusters()` function; it is a model selection method based on maximising a VBIC criterion that returns the true number of clusters (*K*) within a dataset. Here, we get `nb_cluster = 3`.
@@ -162,8 +161,9 @@ best_nb_clust <- selection$best_k
 ```
 
 
-
-*   `kernel`: Relationship between observed data and prediction targets are customizable in the covariance **kernels**. Therefore, if we want to have a curve that fits our data, we have to choose suitable covariance kernels. In the case of children, we can set `kern_k = SE` and `kern_i = SE` to bring smoothness to the evolution curves.
+*   `kern`: the relationship between observed data and prediction targets can be control through the covariance **kernel**.
+Therefore, in order to correctly fit our data, we need to choose a suitable covariance kernel.
+In the case of swimmers, we want a smooth progression curve for Michaela; therefore, we specify `kern = "SE"`.
 
 The most commonly used kernels and their properties are shown in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
 Details of available kernels and how to combine them are available in [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 

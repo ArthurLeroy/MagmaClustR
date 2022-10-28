@@ -134,7 +134,7 @@ train_magma <- function(data,
 
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
-    if (!all(c("ID", "Output", "Input") %in% names(data))) {
+    if (!all(c("ID", "Output") %in% names(data))) {
       stop(
         "The 'data' argument should be a tibble or a data frame containing ",
         "at least the mandatory column names: 'ID', 'Output' and 'Input'"

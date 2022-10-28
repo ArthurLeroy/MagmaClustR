@@ -1,6 +1,10 @@
 ---
 title: Introduction to Magma
-output: rmarkdown::html_vignette
+output:
+   prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+
 vignette: >
   %\VignetteIndexEntry{Introduction to Magma}
   %\VignetteEncoding{UTF-8}
@@ -19,30 +23,22 @@ text-align: justify}
 knitr::opts_chunk$set(collapse = T, comment = "#>")
 options(tibble.print_min = 4L, tibble.print_max = 4L)
 knitr::opts_chunk$set(fig.align="center")
+```
+
+
+```{r message=FALSE, warning=FALSE}
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
-swimmers = read.csv("data/db_100m_freestyle.csv")
-swimmers$ID <- factor(swimmers$ID)
 set.seed(3)
 ```
 
-First, we load the libraries we use to handle Magma and our data.
 
-```{r, eval=FALSE}
-library(dplyr)
-library(ggplot2)
-```
+## Context
 
+To explore the different features of *Magma*, we use the `swimmers` dataset provided by the French Swimming Federation (available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_100m_freestyle.csv), and studied more thoroughly [here](https://link.springer.com/article/10.1007/s10994-022-06172-1) and [there](https://arxiv.org/abs/2011.07866)).
 
-## Data and purpose
-
-### Context
-
-
-To explore the features of Magma, we use the `swimmers` dataset provided by the French Swimming Federation (available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_100m_freestyle.csv)).
-
-This dataset contains `r length(unique(swimmers %>% filter(Gender==1) %>% pull(ID)))` men and `r length(unique(swimmers %>% filter(Gender==2) %>% pull(ID)))` women, for respectively `r nrow(swimmers %>% filter(Gender==1))` and `r nrow(swimmers %>% filter(Gender==2))` performances in the 100 meters freestyle between 2002 and 2016.
+This dataset gathers competition results in 100m freestyle events between 2002 and 2016 for `r length(unique(swimmers %>% filter(Gender==1) %>% pull(ID)))` men and `r length(unique(swimmers %>% filter(Gender==2) %>% pull(ID)))` women,  and a total of `r nrow(swimmers %>% filter(Gender==1))` and `r nrow(swimmers %>% filter(Gender==2))` performances, respectively.
 
 Throughout this `swimmers` example, we use Magma as a decision support tool to detect promising young athletes, which is a classical problem in an elite sport context.
 More specifically, Magma is used to model swimmers' progression curves and forecast their future performances.
@@ -56,7 +52,7 @@ Do the most successful young swimmers remain the best when they get older ?
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
 ggplot2::ggplot(data=swimmers %>% filter(ID %in% 1:5),
-       mapping = ggplot2::aes(x=Age,y=Performance,colour=ID))+
+       mapping = ggplot2::aes(x=Age,y=Performance,colour=factor(ID)))+
   ggplot2::geom_point(size=3) +
   ggplot2::theme_classic() +
   ggplot2::guides(colour="none")
@@ -100,11 +96,11 @@ The corresponding functions are:
 -   [`pred_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_magma.html)
 -   [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html)
 
-## Let's use Magma on our swimmers
+## Applying Magma on the swimmer dataset
 
 ### Data organisation
 
-For the sake of consistency, we split males and females into different datasets: `swimmers_m` and `swimmers_f`. The following explanations focus on the `swimmers_f` one, but we can swap the two datasets without any problem.
+For the sake of consistency, we split male and female swimmers into different datasets: `swimmers_m` and `swimmers_f`. The following study is dedicated to women performances and thus focus on the `swimmers_f` dataset.
 
 ```{r}
 swimmers_m <- swimmers %>% filter(Gender == 1) %>%
@@ -113,12 +109,12 @@ swimmers_f <- swimmers %>% filter(Gender == 2) %>%
     select(-Gender) %>% rename(Input = Age, Output = Performance)
 ```
 
-Once the data organisation step is done, we randomly select two types of swimmers :
+To continue this data management procedure, the swimmers are allocated into two groups:
 
 *   those we use to train the model;
-*   the one for whom we predict future performances; let's give her the fictive name Michaela.
+*   the one for whom we predict future performances; let's give her the fictive name *Michaela*.
 
-Since our dataset is quite large, we randomly select only 20 swimmers for the training step. Even if Magma performances improve with respect to the number of training swimmers, 20 are enough to get a clear idea of how the algorithm works.
+For computation time reasons in this illustrative example, we randomly select 20 swimmers for training. Even if the performances of *Magma* increase with the number of training individuals, 20 are more than enough to get a clear idea of how the algorithm works.
 
 
 ```{r}
@@ -130,7 +126,7 @@ swimmers_pred <- swimmers_f %>% filter(ID == 1718)
 
 ```{r fig.asp = 0.65, fig.width = 7, out.width = "80%"}
 ggplot2::ggplot(data=swimmers_train,
-       mapping = ggplot2::aes(x=Input,y=Output,colour=ID))+
+       mapping = ggplot2::aes(x=Input,y=Output,colour=factor(ID)))+
   ggplot2::geom_point(size=1.5,alpha=0.3)+
   ggplot2::geom_point(data = swimmers_pred,
              size=3,
@@ -145,21 +141,21 @@ The triangles correspond to Michaela's performances, whereas the colored dots ar
 
 ### Training
 
-Once we split the dataset into `train` and `pred`, we can proceed to the training of the model with the `train_magma()` function. Now that we have a good idea of how our data looks, we can specify values for several parameters:
+It's now time to train the model thanks to `train_magma()`, for which several arguments can be specified:
 
-*   `prior_mean`: as we have no *a priori* knowledge about the 100m freestyle, we decide to leave the default value for this parameter (*i.e.* zero). However, if we want to take expert advice into account, we can modify the value of `prior_mean` as we wish.
+*   `prior_mean`: if we assume no *prior* knowledge about the 100m freestyle, we can decide to leave the default value for this parameter (*i.e.* zero). However, if we want to take expert advice into account, we can modify the value of `prior_mean` accordingly.
 
-*   `kernel`: Relationship between observed data and prediction targets are customizable in the covariance **kernels**.
-Therefore, if we want to have a curve that fits adequatly with our data, we have to choose a suitable covariance kernel.
-In the case of swimmers, we can set `kern_0 = "SE"` and `kern_i = "SE"` to bring smoothness to the progression curves.
+*   `kern`: the relationship between observed data and prediction targets can be control through the covariance **kernel**.
+Therefore, in order to correctly fit our data, we need to choose a suitable covariance kernel.
+In the case of swimmers, we want a smooth progression curve for Michaela; therefore, we specify `kern = "SE"`.
 
-The most commonly used kernels and their properties are shown in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
-Details of available kernels and how to combine them are available in [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 
+The most commonly used kernels and their properties are presented in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
+Details of available kernels and how to combine them  in the package are available in [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 
 
 *   `common_hp`: here, we assume that the set of hyper-parameters is common to all individuals. Thus, we model a context where individuals represent different trajectories of the same process, whereas different hyper-parameters indicate different covariance structures and thus a more flexible model.
-As for any GP method, initialisation of the hyper-parameters may have a huge influence on the final optimisation  and leads to inadequate prediction for pathological cases.
+As for any GP method, initialisation of the hyper-parameters may have an influence on the final optimisation and lead to inadequate prediction for pathological cases.
 
-Other parameters can also be modified; see [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html) for more details.
+Other parameters can also be specified; see [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html) for details.
 
 
 ```{r}
@@ -169,9 +165,9 @@ model_train <- train_magma(data = swimmers_train,
                         common_hp = TRUE)
 ```
 
-### Michaela's prediction
+### Prediction for Michaela
 
-As the Magma model is trained, we are now going to predict the evolution of Michaela’s    performances. To perform prediction, we need to specify two main parameters in the `pred_magma()` function:
+As the Magma model is trained, we are now going to predict the evolution of Michaela’s performances. To perform prediction, we need to specify two main parameters in the `pred_magma()` function:
 
 *   `data`: in our case, data associated to Michaela;
 *   `trained_model`, which corresponds to the model we just trained with the other 20 swimmers.
@@ -186,59 +182,59 @@ pred <- pred_magma(data = swimmers_pred,
   plot = FALSE)
 ```
 
-
-
 ### Plots
 
 ```{r, echo = FALSE, message = FALSE, include = FALSE}
 model_gp <- train_gp(data=swimmers_pred,
                      kern="SE")
 pred_gp <- pred_gp(data=swimmers_pred,
-                   grid_inputs = seq(10,20,0.1),
+                   grid_inputs = seq(10,16,0.1),
                    hp = model_gp,
                    kern = "SE",
                    plot = FALSE) 
 ```
 
-With the [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html) function, we can display the evolution of Michaela’s performances.  In particular, we show:
+With the [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html) function, we can display the evolution of Michaela’s predicted performances in more details. 
 
-*  Michaela’s evolution curve (in purple) and the associated 95% credibility interval (in pink);
-
-*   the training data points in the background with `data_train`. Each color corresponds to one swimmer;
-
-*   the mean GP in dotted lines thanks to the `prior_mean` parameter.
-
-#### Magma VS classic GP
-
-The MagmaClustR package also provides a prediction with classic GPs; thus, we can compare Magma and classic GPs predictions. For more details on the GP layout, see [Vignette GPs](Lien). 
-
-The graphs below correspond to Michaela’s performances prediction with Magma (left) and classic GP (right). 
-
-
-```{r, eval = FALSE}
+```{r}
 plot_gp(pred_gp = pred,
         data = swimmers_pred,
         prior_mean = model_train$hyperpost$mean,
-        data_train = swimmers_train) +
-  ggplot2::theme_classic()
+        data_train = swimmers_train) 
 ```
+In the above figure, we can depict:
 
-```{r fig.asp = 0.7, fig.width = 10, out.width = "100%", echo = FALSE,warning=FALSE}
+*  Michaela’s evolution curve (in purple) and the associated 95% credibility interval (in pink);
+
+*   the training data points in the background with `data_train`. Each colour corresponds to one swimmer;
+
+*   the mean GP as a dashed black line thanks to the `prior_mean` parameter.
+
+#### Magma VS classic GP
+
+The *MagmaClustR* package also provides an implementation of the standard GP regression, which we can compare to *Magma* in this example. For more details on how to fit a single GP, see [Vignette GPs](Lien). 
+
+The graphs below correspond to Michaela’s performances prediction thanks to *Magma* (left) and standard GP (right). 
+
+```{r  echo = FALSE, warning=FALSE, out.width = "50%", fig.show='hold'}
 gg1 <- plot_gp(pred_gp = pred,
         data = swimmers_pred,
         prior_mean = model_train$hyperpost$mean,
         data_train = swimmers_train,
         alpha_data_train = 0.3) +
   ggplot2::theme_classic() + 
-  ggplot2::scale_y_continuous(limits = c(-130,120))
+  ggplot2::scale_y_continuous(limits = c(0,105)) + 
+  ggplot2::scale_x_continuous(limits = c(10,16))
 
 gg2 <- plot_gp(pred_gp = pred_gp,
         data = swimmers_pred,
         heatmap = FALSE) +
   ggplot2::theme_classic() + 
-  ggplot2::scale_y_continuous(limits = c(-130,120))
+  ggplot2::scale_y_continuous(limits = c(0,105))+ 
+  ggplot2::scale_x_continuous(limits = c(10,16))
 
-gg1
+par(mar = c(4, 4, .1, .1))
+gg1 
 gg2
 ```
 

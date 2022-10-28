@@ -2,7 +2,7 @@
 % Please edit documentation in R/initialisation.R
 \name{ini_kmeans}
 \alias{ini_kmeans}
-\title{Run a k-means algoithm to initialise clusters' allocation}
+\title{Run a k-means algorithm to initialise clusters' allocation}
 \usage{
 ini_kmeans(data, k, nstart = 50, summary = FALSE)
 }
@@ -20,7 +20,7 @@ to cluster.}
 A tibble containing the initial clustering obtained through kmeans.
 }
 \description{
-Run a k-means algoithm to initialise clusters' allocation
+Run a k-means algorithm to initialise clusters' allocation
 }
 \examples{
 TRUE

@@ -71,6 +71,7 @@ expand_grid_inputs <- function(Input, ...) {
 #' this case, the output values are averaged according to the 'summarise_fct'
 #' argument.
 #'
+#' @name regularize_data
 #' @param data A tibble or data frame. Required columns: \code{ID},
 #'    \code{Output}. The \code{ID} column contains the unique names/codes used
 #'    to identify each individual/task (or batch of data). The \code{Output}
@@ -78,32 +79,48 @@ expand_grid_inputs <- function(Input, ...) {
 #'    frame can also provide as many inputs as desired, with no constraints
 #'    on the column names.
 #'
-#' @param size_grid A number, which indicates how many points each column of the
-#'    grid must contain. This number is used when no inputs grid is specified by
-#'    the user. See 'grid_inputs' below for details. Default is 30.
-#'
-#' @param scale A boolean. If TRUE, the dataset is scaled to zero mean and
-#'    unit variance in all column. Default is FALSE.
+#' @param size_grid An integer, which indicates the number of equispaced points
+#'    each column must contain. Each original input value will be collapsed to
+#'    the closest point of the new regular grid, and the associated outputs are
+#'    averaged using the 'summarise_fct' function. This argument is used when
+#'    'grid_inputs' is left to 'NULL'. Default value is 30.
 #'
 #' @param grid_inputs A data frame, corresponding to a pre-defined grid of
-#'    inputs according to which we want to regularise a dataset. If
+#'    inputs according to which we want to regularise a dataset (for instance,
+#'    if we want to a data point each year between 0 and 10, we can define
+#'    grid_inputs = seq(0, 10, 1)). If
 #'    NULL (default), a dedicated grid of inputs is defined: for each
 #'    input column, a regular sequence is created from the min of the input
-#'    values to the max, with a step equal to the 'size_grid' parameter.
+#'    values to the max, with a number of equispaced points equal to the
+#'    'size_grid' argument.
 #'
 #' @param summarise_fct A character string or a function. If several similar
 #'    inputs are associated with different outputs, the user can choose the
 #'    summarising function for the output among the following: min, max, mean,
 #'    median. A custom function can be defined if necessary. Default is "mean".
 #'
-#' @return A data frame, where input columns have been regularised accordingly.
+#' @return A data frame, where input columns have been regularised as desired.
 #' @export
 #'
 #' @examples
-#' TRUE
+#' data = tibble::tibble(ID = 1, Input = 0:100, Output = -50:50)
+#'
+#' ## Define a 1D input grid of 10 points
+#' regularize_data(data, size_grid = 10)
+#'
+#' ## Define a 1D custom grid
+#' my_grid = tibble::tibble(Input = c(5, 10, 25, 50, 100))
+#' regularize_data(data, grid_inputs = my_grid)
+#'
+#' ## Define a 2D input grid of 5 points
+#' data_2D = cbind(ID = 1, expand.grid(Input=1:10, Input2=1:10), Output = 1:100)
+#' regularize_data(data_2D, size_grid = 5)
+#'
+#' ## Define a 2D custom input grid
+#' my_grid_2D = tibble::tibble(Input = c(1, 3, 9), Input_2 = c(15, 20))
+#' regularize_data(data_2D, size_grid = 10)
 regularize_data <- function(data,
                             size_grid = 30,
-                            scale = FALSE,
                             grid_inputs = NULL,
                             summarise_fct = base::mean) {
 
@@ -136,26 +153,17 @@ regularize_data <- function(data,
          "a function."
     )
   }
-  ## Function to scale columns
-  scale_function <- function(data) {
-    (data - base::mean(data)) / stats::sd(data) %>% return()
-  }
 
   ## Get the Input columns names
   names_col <- data %>%
     dplyr::select(-.data$ID, -.data$Output) %>%
     names()
 
-  ## Scale the Input columns if required
-  if (scale) {
-    data <- data %>%
-      dplyr::mutate_at(tidyselect::all_of(names_col), scale_function)
-  }
 
   if (is.null(grid_inputs)) {
     ## Put the data on a grid node
     fct_round <- function(data, size_grid) {
-      round_step <- (base::max(data) - base::min(data)) / size_grid
+      round_step <- ((base::max(data) - base::min(data)) / (size_grid - 1))
       data <- data %>%
         plyr::round_any(round_step)
     }
@@ -191,6 +199,10 @@ regularize_data <- function(data,
     }
   }
 }
+
+#' @rdname regularize_data
+#' @export
+regularise_data <- regularize_data
 
 #' Run a k-means algorithm to initialise clusters' allocation
 #'

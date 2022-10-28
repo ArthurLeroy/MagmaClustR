@@ -117,7 +117,8 @@ ve_step <- function(db,
 
     ## Compute the updated mean parameter
     new_mean <- cov_k[[k]] %*% weighted_mean %>% as.vector()
-    tibble::tibble(all_inputs, "Output" = new_mean) %>% return()
+    tibble::tibble(all_inputs,
+                   "Output" = new_mean) %>% return()
   }
   mean_k <- sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
