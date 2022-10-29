@@ -38,21 +38,25 @@ ve_step <- function(db,
                     old_mixture,
                     iter,
                     pen_diag) {
+
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- db %>%
     dplyr::select(-.data$ID,-.data$Output) %>%
-    dplyr::arrange(.data$Reference) %>%
-    unique()
+    unique() %>%
+    dplyr::arrange(.data$Reference)
 
   all_input <- all_inputs %>% dplyr::pull(.data$Reference)
+
+  ## Sort the database according to Reference
+  db <- db %>% dplyr::arrange(.data$Reference, .by_group = TRUE)
 
   prop_mixture_k <- hp_k %>%
     dplyr::pull(.data$prop_mixture, name = .data$ID)
 
+  ## Format a sequence of inputs for all clusters
   t_clust <- tidyr::expand_grid("ID" = names(m_k),
                                 all_inputs
   )
-
 
   ## Compute all the inverse covariance matrices
   list_inv_k <- list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag)

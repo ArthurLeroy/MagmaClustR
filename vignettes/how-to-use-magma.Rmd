@@ -30,6 +30,7 @@ knitr::opts_chunk$set(fig.align="center")
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
+library(gridExtra)
 ```
 
 
@@ -265,7 +266,7 @@ To compare the evolution on both genders, we display below the progression curve
 
 ## Draw a random subset for training and an individual for prediction
 set.seed(9)
-list_ID_m <- swimmers_m %>% pull(ID) %>% sample()
+list_ID_m <- swimmers_m %>% pull(ID) %>% unique() %>% sample()
 swimmers_train_m <- swimmers_m %>% filter(ID %in% list_ID_m[1:20])
 swimmers_pred_m <- swimmers_m %>% filter(ID %in% list_ID_m[24])
 
@@ -312,7 +313,7 @@ We can note that both genders present similar patterns of progression: a quick i
 
 However, while performances are roughly similar in mean trend before the age of 14, they start to differentiate afterwards and then converge to average times with approximately a 5sec gap. Interestingly, the difference between men and women world records in swimming 100m freestyle competitions is currently 4.8sec (46.91 versus 51.71), which is consistent with the difference between convergence times of the two mean processes.
 
-## Even prettier graphs
+## Customise graphs
 
 ### With plot_gp()
 

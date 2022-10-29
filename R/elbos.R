@@ -86,8 +86,12 @@ elbo_GP_mod_common_hp_k <- function( hp,
                                      pen_diag) {
 
   list_ID_k <- names(db)
-  inputs = db[[1]] %>%
-    dplyr::select(-.data$Output)
+
+  if("ID" %in% names(db)){
+    inputs <- db[[1]] %>% dplyr::select(-.data$Output, -.data$ID)
+  } else{
+    inputs <- db[[1]] %>% dplyr::select(-.data$Output)
+  }
 
   inv <- kern_to_inv(inputs, kern, hp, pen_diag)
 
@@ -127,6 +131,7 @@ elbo_clust_multi_GP_common_hp_i <- function(hp,
                                             hyperpost,
                                             kern,
                                             pen_diag) {
+
   names_k <- hyperpost$mean %>% names()
 
   sum_i <- 0

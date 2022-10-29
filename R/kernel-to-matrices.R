@@ -263,21 +263,29 @@ kern_to_cov <- function(input,
   } else {
     if (("Reference" %in% colnames(input)) &
         ("Reference" %in% colnames(input_2))) {
+      ## If the Reference column exists, store it to name rows and columns
       reference <- input$Reference %>% as.character()
 
+      ## Only retain the actual input columns
       input <- input %>% dplyr::select(-.data$Reference)
+
+      ## Format inputs to be used in a subsequent 'outer()' function
       list_input <- split(t(input),
                           rep(1:nrow(input),each = ncol(input))
       )
 
+      ## If the Reference column exists, store it to name rows and columns
       reference_2 <- input_2$Reference %>% as.character()
 
+      ## Only retain the actual input columns
       input_2 <- input_2 %>% dplyr::select(-.data$Reference)
 
+      ## Format inputs to be used in a subsequent 'outer()' function
       list_input_2 <- split(t(input_2),
                             rep(1:nrow(input_2), each = ncol(input_2))
       )
     } else {
+      ## Create the Reference column if absent
       reference <- tidyr::unite(
         as.data.frame(input),
         'Reference',
@@ -294,6 +302,7 @@ kern_to_cov <- function(input,
         dplyr::pull(.data$Reference) %>%
         as.character()
 
+      ## Format inputs to be used in a subsequent 'outer()' function
       list_input <- split(t(input),
                           rep(1:nrow(input), each = ncol(input))
       )
@@ -443,6 +452,7 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
     db_i <- data %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::select(-.data$ID)
+
     ## To avoid throwing an error if 'Output' has already been removed
     if ("Output" %in% names(db_i)) {
       db_i <- db_i %>% dplyr::select(-.data$Output)

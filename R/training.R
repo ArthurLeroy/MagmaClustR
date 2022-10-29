@@ -157,11 +157,11 @@ train_magma <- function(data,
   ## Get input column names
   if (!("Reference" %in% (data %>% names()))) {
     names_col <- data %>%
-      dplyr::select(-.data$ID, -.data$Output) %>%
+      dplyr::select(- c(.data$ID, .data$Output)) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-.data$ID, -.data$Output, -.data$Reference) %>%
+      dplyr::select(- c(.data$ID, .data$Output, .data$Reference)) %>%
       names()
   }
 
@@ -173,7 +173,10 @@ train_magma <- function(data,
                  tidyselect::all_of(names_col),
                  sep = ":",
                  remove = FALSE) %>%
-    dplyr::arrange(.data$Reference)
+    tidyr::drop_na() %>%
+    group_by(.data$ID) %>%
+    dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
+    ungroup()
 
   ## Check that individuals do not have duplicate inputs
   if(!(setequal(data %>% dplyr::select(-.data$Output),
@@ -188,7 +191,7 @@ train_magma <- function(data,
 
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- data %>%
-    dplyr::select(-.data$ID, -.data$Output) %>%
+    dplyr::select(-c(.data$ID, .data$Output)) %>%
     unique()
   all_input <- all_inputs %>% dplyr::pull(.data$Reference)
 
@@ -604,9 +607,6 @@ train_gp <- function(data,
                      kern = "SE",
                      hyperpost = NULL,
                      pen_diag = 1e-10) {
-  ## Remove possible missing data
-  data <- data %>% tidyr::drop_na()
-
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
     if (dplyr::n_distinct(data$ID) > 1) {
@@ -624,7 +624,7 @@ train_gp <- function(data,
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-.data$Output, -.data$Reference) %>%
+      dplyr::select(- c(.data$Output, .data$Reference)) %>%
       names()
   }
 
@@ -636,12 +636,14 @@ train_gp <- function(data,
                  tidyselect::all_of(names_col),
                  sep = ":",
                  remove = FALSE) %>%
+    tidyr::drop_na() %>%
     dplyr::arrange(.data$Reference)
 
   ## Extract the union of all reference inputs provided in the training data
   inputs_obs <- data %>%
     dplyr::select(-.data$Output) %>%
     unique()
+
   input_obs <- inputs_obs %>% dplyr::pull(.data$Reference)
 
   ## Check whether 'hyperpost' is provided and thus used for Magma prediction
@@ -938,6 +940,9 @@ train_magmaclust <- function(data,
     )
   }
 
+  ##Convert all non ID columns to double (implicitly throw error if not numeric)
+  data = data %>% mutate(across(- ID, as.double))
+
   ## Check the number of cluster
   if (nb_cluster %>% is.null()) {
     nb_cluster <- 3
@@ -961,8 +966,6 @@ train_magmaclust <- function(data,
     ID_k <- paste0("K", 1:nb_cluster)
   }
 
-  ## Remove possible missing data
-  data <- data %>% tidyr::drop_na()
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
   ## Extract the list of different IDs
@@ -970,22 +973,24 @@ train_magmaclust <- function(data,
 
   ## Get input column names
   names_col <- data %>%
-    dplyr::select(-.data$ID,-.data$Output) %>%
+    dplyr::select(-c(.data$ID,.data$Output)) %>%
     names()
 
   ## Keep 6 significant digits for entries to avoid numerical errors and
-  ## Add a Reference column for identification
+  ## Add a Reference column for identification and sort according to it
   data <- data %>% purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
     tidyr::unite("Reference",
                  tidyselect::all_of(names_col),
                  sep=":",
-                 remove = FALSE)
+                 remove = FALSE) %>%
+    tidyr::drop_na() %>%
+    group_by(.data$ID) %>%
+    dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
+    ungroup()
 
   ## Check that individuals do not have duplicate inputs
   if(!(setequal(data %>% dplyr::select(-.data$Output),
-                data %>% dplyr::select(-.data$Output) %>% unique()
-                )
-       )
+                data %>% dplyr::select(-.data$Output) %>% unique() ))
      ){
     stop("At least one individual have several Outputs on the same grid point.",
          " Please read ?train_magma() for further details."
@@ -995,9 +1000,11 @@ train_magmaclust <- function(data,
   ## Extract the union of all reference inputs provided in the training data
   all_input <- data %>%
     dplyr::pull(.data$Reference) %>%
-    unique()
+    unique() %>%
+    sort()
+
   all_inputs <- data %>%
-    dplyr::select(-.data$ID,-.data$Output) %>%
+    dplyr::select(-c(.data$ID, .data$Output)) %>%
     unique() %>%
     dplyr::arrange(.data$Reference)
 
@@ -1449,14 +1456,18 @@ train_gp_clust <- function(data,
                            cv_threshold = 1e-3) {
 
   ## Get input column names
-  if(!("Reference" %in% (names(data)))){
+  if("Reference" %in% names(data)){
     names_col <- data %>%
-      dplyr::select(-.data$ID,-.data$Output) %>%
+      dplyr::select(- c(.data$Output, .data$Reference)) %>%
       names()
   }else{
     names_col <- data %>%
-      dplyr::select(-.data$ID,-.data$Output,-.data$Reference) %>%
+      dplyr::select(-.data$Output) %>%
       names()
+  }
+
+  if('ID' %in% names(names_col)){
+    names_col <- names_col %>% dplyr::select(-.data$ID)
   }
 
   ## Keep 6 significant digits for entries to avoid numerical errors and
@@ -1467,7 +1478,8 @@ train_gp_clust <- function(data,
                  tidyselect::all_of(names_col),
                  sep=":",
                  remove = FALSE) %>%
-    tidyr::drop_na()
+    tidyr::drop_na() %>%
+    dplyr::arrange(.data$Reference)
 
   ## Extract the observed (reference) Input
   input_obs <- data %>%

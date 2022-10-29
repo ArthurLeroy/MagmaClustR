@@ -29,6 +29,7 @@ knitr::opts_chunk$set(fig.align="center")
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
+library(gridExtra)
 ```
 
 
@@ -49,7 +50,7 @@ To get an idea of how our `weight` dataset looks, we display an illustration of 
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
 set.seed(10)
-list_ID <- weight %>% pull(ID) %>% sample()
+list_ID <- weight %>% pull(ID) %>% unique() %>% sample()
 
 ggplot2::ggplot(data=weight %>% filter(ID %in% list_ID[1:5]),
                 ggplot2::aes(x=Input,y=Output,colour=factor(ID)))+
@@ -123,7 +124,8 @@ Since our dataset is quite large, we randomly select only 16 children for the tr
 
 ```{r}
 weight_train <- weight %>% filter(ID %in% list_ID[1:20])
-weight_pred <- weight %>% filter(ID == list_ID[72]) %>% filter(Input<20)
+weight_pred <- weight %>% filter(ID == list_ID[323]) %>% filter(Input<20)
+weight_test <- weight %>% filter(ID == list_ID[323]) %>% filter(Input>20)
 ```
 
 
@@ -173,7 +175,6 @@ model_clust <- train_magmaclust(data = weight_train,
                         common_hp_i = TRUE)
 ```
 
-
 ### Prediction for James
 
 As the MagmaClust model is trained, we can predict the evolution of James' weight. To perform prediction, we need to specify two main parameters in the `pred_magmaclust()` function:
@@ -184,13 +185,12 @@ As the MagmaClust model is trained, we can predict the evolution of James' weigh
 We recall that we want to study weight curves during childhood. Therefore, we should predict the evolution of James’ weight between 0 and 6 years (72 months), which leads to set `grid_inputs = seq(0,72,0.1)`.
 
 
-
 ```{r}
 pred_clust <- pred_magmaclust(data = weight_pred,
-  trained_model = model_clust,
-  grid_inputs = seq(0,72,0.1),
-  plot = FALSE,
-  get_hyperpost = TRUE)
+                              trained_model = model_clust,
+                              grid_inputs = seq(0,72,0.1),
+                              plot = FALSE,
+                              get_hyperpost = TRUE)
 ```
 
 Here we specified `get_hyperpost = TRUE` to plot the average GP of each cluster in the `plot_magmaclust()` function.
@@ -199,8 +199,17 @@ However, we do not need it if we only want the prediction of our individual.
 
 ### Plots
 
+With the [`plot_magmaclust()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_magmaclust.html) function, we can display the evolution of James' weight. 
 
-With the [`plot_magmaclust()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_magmaclust.html) function, we can display the evolution of James' weight.  In particular, we show:
+```{r, eval=FALSE}
+plot_magmaclust(pred = pred_clust,
+                data = weight_pred,
+                prior_mean = pred_clust$hyperpost$mean,
+                data_train = weight_train,
+                size_data = 5)
+```
+
+In particular, we show:
 
 *   James' evolution curve in purple;
 
@@ -208,15 +217,43 @@ With the [`plot_magmaclust()`](https://arthurleroy.github.io/MagmaClustR/referen
 
 *   the mean GP of each cluster in dotted lines thanks to the `prior_mean` parameter.
 
+## Customise graphs
+
+We can distinguish 2 cases:
+
+*   James belongs to one of the clusters with probability 1 (or really close). We can then display the associated 95% credibility interval;
+
+*   James has non-null probabilities in several clusters; therefore, its evolution curve is defined as a Gaussian mixture (which is not unimodal in general).
+In this case, we cannot define an associated credibility interval. However, the uncertainty quantification can still be displayed using a heatmap of probabilities. To control the colour pixel ratio of the heatmap, one can define an appropriate vector for the `y_grid` argument.  
+
+We can also display training individuals in the same colour as their most probable cluster by using the [`data_allocate_cluster()`](https://arthurleroy.github.io/MagmaClustR/reference/data_allocate_cluster.html) function beforehand, and specifying the following arguments: `data_train = data_train_with_clust` and `col_clust = TRUE`.
+In order to evaluate the quality of the prediction, we can also represent (in grey below) the true observations for this individual, which we didn't use in the algorithm and kept in the `weight_test` variable for testing purposes.  
+
+
+```{r fig.asp = 0.65, fig.width = 7, out.width = "80%"}
+data_train_with_clust = data_allocate_cluster(model_clust)
+
+plot_magmaclust(pred = pred_clust,
+                cluster = "all",
+                data_train = data_train_with_clust,
+                prior_mean = pred_clust$hyperpost$mean,
+                heatmap = TRUE,
+                y_grid = seq(0,37,0.1),
+                col_clust = TRUE,
+                size_data = 5) + 
+  ggplot2::geom_point(data = weight_test,
+                      ggplot2::aes(x = Input, y = Output),
+                      color = 'grey', size = 3)
+```
 
 #### MagmaClust VS Magma
 
-The MagmaClustR package also provides a prediction with the Magma model; thus, we can compare MagmaClust and Magma predictions. For more details on Magma, see [Vignette Magma](Lien). 
+The MagmaClustR package also provides an implementation for the *Magma* algorithm, allowing us to compare *MagmaClust* and *Magma* predictions. For more details on Magma, see the dedicated [vignette](how-to-use-magma.html). 
 
 The graphs below correspond to James' weight prediction with MagmaClust (left) and Magma (right). 
 
 
-```{r, echo = FALSE, message = FALSE, include = FALSE}
+```{r echo = FALSE, message = FALSE, include = FALSE}
 model_magma <- train_magma(data = weight_train,
                         kern_0 = "SE",
                         kern_i = "SE",
@@ -227,79 +264,42 @@ pred_magma <- pred_magma(data=weight_pred,
                    trained_model = model_magma,
                    plot = FALSE,
                    get_hyperpost = TRUE) 
+```
 
+```{r echo = FALSE, message = FALSE, include = FALSE }
 gg2 <- plot_gp(pred_gp = pred_magma,
         data = weight_pred,
         prior_mean = pred_magma$hyperpost$mean,
         data_train = weight_train,
         size_data = 5) + 
+  ggplot2::geom_point(data = weight_test,
+                      ggplot2::aes(x = Input, y = Output),
+                      color = 'grey', size = 3) +
   ggplot2::scale_y_continuous(limits = c(0,37))
 
 data_train_with_clust = data_allocate_cluster(model_clust)
 
 gg1 <- plot_magmaclust(pred = pred_clust,
                 data = weight_pred,
-                data_train = weight_train,
+                data_train = data_train_with_clust,
                 prior_mean = pred_clust$hyperpost$mean,
+                heatmap = TRUE,
+                y_grid = seq(3,36,0.1),
+                col_clust = TRUE,
                 size_data = 5) + 
+  ggplot2::geom_point(data = weight_test,
+                      ggplot2::aes(x = Input, y = Output),
+                      color = 'grey', size = 3) +
   ggplot2::scale_y_continuous(limits = c(0,37))
-```
 
-
-```{r, eval=FALSE}
-plot_magmaclust(pred = pred_clust,
-                data = weight_pred,
-                prior_mean = pred_clust$hyperpost$mean,
-                data_train = weight_train,
-                size_data = 5)
-```
-
-
-
-```{r fig.asp = 0.7, fig.width = 10, out.width = "100%", echo = FALSE,warning=FALSE}
-gg1
-gg2
+gridExtra::grid.arrange(gg1, gg2, ncol = 2)
 ```
 
 
 On intervals of unobserved timestamps containing data points from the training dataset ($t \in ]20, 72]$), Magma takes advantage of its multi-task component to share knowledge across individuals by estimating a relevant mean process.
 However, this unique mean process appears unable to account for the group structures among children, although adequately recovering the dispersion of their weight.
-Thus, MagmaClust brings a significant improvement in mean prediction thanks to its gaussian mixtures feature (through the multiple mean processes)
+Thus, *MagmaClust* brings a significant improvement in mean prediction thanks to its Gaussian mixtures feature (through the multiple mean processes)
 
-However, difference of prediction performances between Magma and MagmaClust depends highly on the structure of our data (*is it fuzzy or well-seperated?*), as well as on the initialisation.
-
-We can notice oscillations in the average GPs of the clusters, which comes from several things:
-
-  * The data itself contains oscillations;
-  * We took `SE` kernels, which favor oscillations;
-  * Data is observed only at particular time points.
-  
-
-## Even prettier graphics
-
-We can distinguish 2 cases:
-
-*   Michaela belongs to one of the clusters with a probability of 1. We can then display the associated 95% credibility interval;
-
-*   Michaela belongs to several clusters; therefore, its evolution curve is a mixture of gaussians.
-In this case, there is no associated credibility interval. However, a heatmap of probabilities is available if we want to estimate the "most likely" areas for the curve.
-
-We can also display training individuals in the same color as their cluster mean GP by using the [`data_allocate_cluster()`](https://arthurleroy.github.io/MagmaClustR/reference/data_allocate_cluster.html) function. We also specify the arguments `data_train = data_train_with_clust` and `col_clust = TRUE`.
-
-
-```{r fig.asp = 0.65, fig.width = 7, out.width = "80%"}
-data_train_with_clust = data_allocate_cluster(model_clust)
-
-plot_magmaclust(pred = pred_clust,
-                cluster = "all",
-                data = weight_pred,
-                prior_mean = pred_clust$hyperpost$mean,
-                heatmap = TRUE,
-                y_grid = seq(0,37,0.1),
-                data_train = data_train_with_clust,
-                col_clust = TRUE,
-                size_data = 5)
-```
 
 ## Reference
 

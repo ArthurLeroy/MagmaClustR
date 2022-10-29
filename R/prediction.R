@@ -92,6 +92,7 @@ pred_gp <- function(data,
     data <- data %>%
       dplyr::select(-.data$ID)
   }
+
   if (!("Reference" %in% (data %>% names()))) {
     ## Get input column names
     names_col <- data %>%
@@ -99,7 +100,7 @@ pred_gp <- function(data,
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-.data$Output, -.data$Reference) %>%
+      dplyr::select(- c(.data$Output, .data$Reference)) %>%
       names()
   }
 
@@ -436,11 +437,11 @@ hyperposterior <- function(data,
   ## Get input column names
   if (!("Reference" %in% (names(data)))) {
     names_col <- data %>%
-      dplyr::select(-.data$ID, -.data$Output) %>%
+      dplyr::select(- c(.data$ID, .data$Output)) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-.data$ID, -.data$Output, -.data$Reference) %>%
+      dplyr::select(- c(.data$ID, .data$Output, .data$Reference)) %>%
       names()
   }
 
@@ -451,7 +452,11 @@ hyperposterior <- function(data,
     tidyr::unite("Reference",
                  tidyselect::all_of(names_col),
                  sep = ":",
-                 remove = FALSE)
+                 remove = FALSE) %>%
+    tidyr::drop_na() %>%
+    group_by(.data$ID) %>%
+    dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
+    ungroup()
 
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
@@ -471,13 +476,15 @@ hyperposterior <- function(data,
       tidyr::unite("Reference",
                    tidyselect::all_of(names_col),
                    sep = ":",
-                   remove = FALSE)
+                   remove = FALSE) %>%
+      dplyr::arrange(.data$Reference)
 
     all_inputs <- data %>%
       dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
       dplyr::union(grid_inputs) %>%
-      dplyr::arrange(.data$Reference) %>%
-      unique()
+      unique() %>%
+      dplyr::arrange(.data$Reference)
+
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
   }
 
@@ -693,27 +700,27 @@ pred_magma <- function(data,
                        get_full_cov = FALSE,
                        plot = TRUE,
                        pen_diag = 1e-10) {
-  if (!("Reference" %in% (data %>% names()))) {
-    ## Get input column names
-    if("ID" %in% names(data)){
+
+  ## Remove the 'ID' column if present
+  if ("ID" %in% names(data)) {
+    if (dplyr::n_distinct(data$ID) > 1) {
+      stop(
+        "Problem in the 'ID' column: different values are not allowed. ",
+        "The prediction can only be performed for one individual/task."
+      )
+    }
+    data <- data %>% dplyr::select(-.data$ID)
+  }
+
+  ## Get input column names
+  if ("Reference" %in% names(data)) {
       names_col <- data %>%
-        dplyr::select(-.data$ID, -.data$Output) %>%
+        dplyr::select(- c(.data$Output, .data$Reference)) %>%
         names()
-    }else{
+  } else {
       names_col <- data %>%
         dplyr::select(-.data$Output) %>%
         names()
-    }
-  } else {
-    if("ID" %in% names(data)){
-      names_col <- data %>%
-        dplyr::select(-.data$ID, -.data$Output, -.data$Reference) %>%
-        names()
-    }else{
-      names_col <- data %>%
-        dplyr::select(-.data$Output, -.data$Reference) %>%
-        names()
-    }
   }
 
   ## Keep 6 significant digits for entries to avoid numerical errors
@@ -723,8 +730,8 @@ pred_magma <- function(data,
                  tidyselect::all_of(names_col),
                  sep = ":",
                  remove = FALSE) %>%
-    dplyr::arrange(.data$Reference) %>%
-    tidyr::drop_na()
+    tidyr::drop_na() %>%
+    dplyr::arrange(.data$Reference)
 
   ## Extract the observed Output (data points)
   data_obs <- data %>%
@@ -737,17 +744,6 @@ pred_magma <- function(data,
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
     dplyr::select(-.data$Output)
-
-  ## Remove the 'ID' column if present
-  if ("ID" %in% names(data)) {
-    inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
-    if (dplyr::n_distinct(data$ID) > 1) {
-      stop(
-        "Problem in the 'ID' column: different values are not allowed. ",
-        "The prediction can only be performed for one individual/task."
-      )
-    }
-  }
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
@@ -783,10 +779,11 @@ pred_magma <- function(data,
       tidyr::unite("Reference",
                    tidyselect::all_of(names_col),
                    sep = ":",
-                   remove = FALSE)
+                   remove = FALSE) %>%
+      dplyr::arrange(.data$Reference)
 
-    inputs_pred <- inputs_pred %>% dplyr::arrange(.data$Reference)
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
+
   } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
     if (inputs_obs %>% names() %>% length() == 2) {
@@ -799,7 +796,9 @@ pred_magma <- function(data,
         "Reference" = input_temp %>% as.character()
       ) %>%
         dplyr::arrange(.data$Reference)
+
       input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
+
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
@@ -807,6 +806,7 @@ pred_magma <- function(data,
       )
     }
   } else if (grid_inputs %>% is.data.frame()) {
+
     grid_inputs <- grid_inputs %>%
       purrr::modify_at(tidyselect::all_of(names_col), signif)
     if (!("Reference" %in% (grid_inputs %>% names()))) {
@@ -1303,27 +1303,28 @@ hyperposterior_clust <- function(data,
                                  prior_mean_k = NULL,
                                  grid_inputs = NULL,
                                  pen_diag = 1e-10) {
-
   ## Get input column names
-  if(!("Reference" %in% (names(data)))){
+  if("Reference" %in% names(data)){
     names_col <- data %>%
-      dplyr::select(-.data$ID,-.data$Output) %>%
+      dplyr::select(-c(.data$ID,.data$Output,.data$Reference)) %>%
       names()
   }else{
     names_col <- data %>%
-      dplyr::select(-.data$ID,-.data$Output,-.data$Reference) %>%
+      dplyr::select(-c(.data$ID,.data$Output)) %>%
       names()
   }
   ## Keep 6 significant digits for entries to avoid numerical errors and
   ## Add Reference column if missing
-
   data <- data %>%
     purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
     tidyr::unite("Reference",
                  tidyselect::all_of(names_col),
                  sep=":",
                  remove = FALSE) %>%
-    tidyr::drop_na()
+    tidyr::drop_na() %>%
+    group_by(.data$ID) %>%
+    dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
+    ungroup()
 
   ## Get the number of clusters
   nb_cluster <- hp_k %>%
@@ -1357,7 +1358,8 @@ hyperposterior_clust <- function(data,
       tidyr::unite("Reference",
                    tidyselect::all_of(names_col),
                    sep=":",
-                   remove = FALSE)
+                   remove = FALSE) %>%
+      dplyr::arrange(.data$Reference)
 
     all_inputs <- data %>%
       dplyr::select(.data$Reference,tidyselect::all_of(names_col)) %>%
@@ -1617,40 +1619,7 @@ pred_magmaclust <- function(data,
                             plot = TRUE,
                             pen_diag = 1e-10) {
 
-  if(!("Reference" %in% (data %>% names()))){
-    ## Get input column names
-    names_col <- data %>%
-      dplyr::select(-.data$ID,-.data$Output) %>%
-      names()
-  }else{
-    names_col <- data %>%
-      dplyr::select(-.data$ID,-.data$Output,-.data$Reference) %>%
-      names()
-  }
-
-  ## Keep 6 significant digits for entries to avoid numerical errors
-  data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep=":",
-                 remove = FALSE) %>%
-    dplyr::arrange(.data$Reference) %>%
-    tidyr::drop_na()
-
-  ## Extract the observed Output (data points)
-  data_obs <- data %>%
-    dplyr::pull(.data$Output)
-
-  ## Extract the observed (reference) Input
-  input_obs <- data %>%
-    dplyr::pull(.data$Reference)
-
-  ## Extract the observed inputs (reference Input + covariates)
-  inputs_obs <- data %>%
-    dplyr::select(-.data$Output)
-
-  ## Remove the 'ID' column if present
+  ## Add an 'ID' column if present
   if ("ID" %in% names(data)) {
     if (dplyr::n_distinct(data$ID) > 1) {
       stop(
@@ -1659,8 +1628,6 @@ pred_magmaclust <- function(data,
       )
     }
 
-    ## Collect all the Inputs
-    inputs_obs <- inputs_obs %>% dplyr::select(-.data$ID)
     ## Get 'ID' of the individual to predict
     ID_data <- unique(data$ID)
   } else {
@@ -1668,6 +1635,39 @@ pred_magmaclust <- function(data,
     ID_data <- "ID_pred"
     data <- data %>% dplyr::mutate("ID" = "ID_pred", .before = 1)
   }
+
+  if("Reference" %in% names(data)){
+    ## Get input column names
+    names_col <- data %>%
+      dplyr::select(- c(.data$ID, .data$Output, .data$Reference)) %>%
+      names()
+  }else{
+    names_col <- data %>%
+      dplyr::select(- c(.data$ID, .data$Output)) %>%
+      names()
+  }
+
+  ## Keep 6 significant digits for entries to avoid numerical errors
+  data <- data %>%
+    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    tidyr::unite("Reference",
+                 tidyselect::all_of(names_col),
+                 sep=":",
+                 remove = FALSE) %>%
+    tidyr::drop_na() %>%
+    dplyr::arrange(.data$Reference)
+
+  ## Extract the observed Output (data points)
+  data_obs <- data %>%
+    dplyr::pull(.data$Output)
+
+  ## Extract the Reference
+  input_obs <- data %>%
+    dplyr::pull(.data$Reference)
+
+  ## Extract the observed inputs (reference Input + covariates)
+  inputs_obs <- data %>%
+    dplyr::select(- c(.data$ID, .data$Output))
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
@@ -1700,10 +1700,11 @@ pred_magmaclust <- function(data,
       tidyr::unite("Reference",
                    tidyselect::all_of(names_col),
                    sep=":",
-                   remove = FALSE)
+                   remove = FALSE) %>%
+      dplyr::arrange(.data$Reference)
 
-    inputs_pred <- inputs_pred %>% dplyr::arrange(.data$Reference)
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
+
   }else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
     if (ncol(inputs_obs) == 2) {

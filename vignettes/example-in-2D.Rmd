@@ -31,10 +31,9 @@ library(dplyr)
 
 ## Purpose
 
-In Magma (LINK) and MagmaClust (LINK) vignettes, we insist on the fact that our dataset must contain 3 mandatory variables: `ID`, `Input` and `Output`. However, we also point out that both Magma and MagmaClust can handle multi-dimensional inputs. Indeed, we can add as many  additional columns to our model as desired, which will be treated as covariates. Moreover,  there is no constraints on the column names of these additional variables.
+In [Magma](how-to-use-magmaclust.html) and [MagmaClust](how-to-use-magmaclust.html) vignettes, we emphasise on the fact that a dataset must contain at least 3 mandatory columns: `ID`, `Input` and `Output`. However, let us point out that both *Magma* and *MagmaClust* can also handle multi-dimensional inputs. Notice that there are no constraints on the names of the additional input columns (except for the name *Reference* that is used internally in the code and should be strictly avoided).
 
-Throughout a simulated example, we use Magma to forecast future data for an individual thanks to information shared across individuals. More specifically, we train a model with a dataset which contains 2 explanatory variables : an `Input` and a `Covariate`. Then, we predict a new individual thanks to the multi-task GP and display the result in a 2D map.
-
+Throughout the following synthetic example, Magma is used to tackle a 2-dimensional forecasting problem. More specifically, the model is trained with a dataset that contains 2 input variables, namely `Input` and `Covariate`.
 
 ## Data generation
 
