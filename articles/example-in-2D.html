@@ -51,7 +51,7 @@
     <a class="dropdown-item" href="../articles/example-in-2D.html">Multi-dimensional inputs in Magma</a>
     <a class="dropdown-item" href="../articles/how-to-use-magma.html">How to use Magma</a>
     <a class="dropdown-item" href="../articles/how-to-use-magmaclust.html">How to use MagmaClust</a>
-    <a class="dropdown-item" href="../articles/standard-GP.html">Gaussian Process Regression</a>
+    <a class="dropdown-item" href="../articles/standard-GP.html">Gaussian Process regression</a>
   </div>
 </li>
 <li class="nav-item">
@@ -83,16 +83,12 @@
       <img src="../logo.png" class="logo" alt=""><h1>Multi-dimensional inputs in Magma</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/ArthurLeroy/MagmaClustR/blob/HEAD/vignettes/example-in-2D.Rmd" class="external-link"><code>vignettes/example-in-2D.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/ArthurLeroy/MagmaClustR/blob/HEAD/vignettes/articles/example-in-2D.Rmd" class="external-link"><code>vignettes/articles/example-in-2D.Rmd</code></a></small>
       <div class="d-none name"><code>example-in-2D.Rmd</code></div>
     </div>
 
     
     
-<style>
-body {
-text-align: justify}
-</style>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ArthurLeroy/MagmaClustR" class="external-link">MagmaClustR</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
@@ -271,15 +267,15 @@ text-align: justify}
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 16.75 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 23.17 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1113.11341 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 12.68 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 19.78 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1078.94609 --- Convergence ratio = 0.03167</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 12.96 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 17.54 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1078.43701 --- Convergence ratio = 0.00047</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -359,8 +355,8 @@ text-align: justify}
 </h5>
 <p>The MagmaClustR package also provides a prediction with classic GPs in 2D; thus, we can compare Magma and classic GPs predictions.</p>
 <p>The graphs below correspond to the 2D dynamic prediction with Magma (first one) and classic GP (second one).</p>
-<p><img src="../../../../../../tmp/Rtmp63cnxZ/file4bd31e18aee1/articles/example-in-2D_files/figure-html/unnamed-chunk-13-1.gif" width="80%" style="display: block; margin: auto;"></p>
-<p><img src="../../../../../../tmp/Rtmp63cnxZ/file4bd31e18aee1/articles/example-in-2D_files/figure-html/unnamed-chunk-14-1.gif" width="80%" style="display: block; margin: auto;"></p>
+<p><img src="../../../../../../../tmp/Rtmpu4v7EZ/file458657060574/articles/example-in-2D_files/figure-html/unnamed-chunk-13-1.gif" width="80%" style="display: block; margin: auto;"></p>
+<p><img src="../../../../../../../tmp/Rtmpu4v7EZ/file458657060574/articles/example-in-2D_files/figure-html/unnamed-chunk-14-1.gif" width="80%" style="display: block; margin: auto;"></p>
 <p>This example highlights the advantage of sharing information across individuals: even before seeing any data, Magma provides an already accurate mean process. As we add more data for the individual of interest, the uncertainty of predictions slightly decreases, although the main trend remains mainly similar.</p>
 <p>On the other hand, the classic GP struggles to find the shape of the underlying process. On unobserved regions of the graph, the prediction remains far from the original process. As expected, though, the more data we add, the better becomes the prediction with standard GP.</p>
 </div>

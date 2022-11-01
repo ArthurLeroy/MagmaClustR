@@ -51,7 +51,7 @@
     <a class="dropdown-item" href="../articles/example-in-2D.html">Multi-dimensional inputs in Magma</a>
     <a class="dropdown-item" href="../articles/how-to-use-magma.html">How to use Magma</a>
     <a class="dropdown-item" href="../articles/how-to-use-magmaclust.html">How to use MagmaClust</a>
-    <a class="dropdown-item" href="../articles/standard-GP.html">Gaussian Process Regression</a>
+    <a class="dropdown-item" href="../articles/standard-GP.html">Gaussian Process regression</a>
   </div>
 </li>
 <li class="nav-item">
@@ -83,16 +83,12 @@
       <img src="../logo.png" class="logo" alt=""><h1>How to use Magma</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/ArthurLeroy/MagmaClustR/blob/HEAD/vignettes/how-to-use-magma.Rmd" class="external-link"><code>vignettes/how-to-use-magma.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/ArthurLeroy/MagmaClustR/blob/HEAD/vignettes/articles/how-to-use-magma.Rmd" class="external-link"><code>vignettes/articles/how-to-use-magma.Rmd</code></a></small>
       <div class="d-none name"><code>how-to-use-magma.Rmd</code></div>
     </div>
 
     
     
-<style>
-body {
-text-align: justify}
-</style>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ArthurLeroy/MagmaClustR" class="external-link">MagmaClustR</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
@@ -251,23 +247,23 @@ text-align: justify}
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 23.34 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 30.98 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1305.80337 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 14.74 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 21.43 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1239.20987 --- Convergence ratio = 0.05374</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 8.24 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 12.21 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1227.60614 --- Convergence ratio = 0.00945</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 11.56 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 14.27 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1225.0287 --- Convergence ratio = 0.0021</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 5: 10.48 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 5: 12.94 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1224.85158 --- Convergence ratio = 0.00014</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -352,19 +348,19 @@ text-align: justify}
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 27.18 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 38.96 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1430.09995 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 9.03 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 11.15 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1411.71147 --- Convergence ratio = 0.01303</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 9.19 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 11.2 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1409.43696 --- Convergence ratio = 0.00161</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 13.55 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 18.83 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1408.19978 --- Convergence ratio = 0.00088</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -421,7 +417,7 @@ text-align: justify}
 <span>         data_train <span class="op">=</span> <span class="va">swimmers_train</span>,</span>
 <span>         prior_mean <span class="op">=</span> <span class="va">model</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span>,</span>
 <span>         alpha_data_train <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span></span></code></pre></div>
-<p><img src="../../../../../../tmp/Rtmp63cnxZ/file4bd31e18aee1/articles/how-to-use-magma_files/figure-html/unnamed-chunk-18-1.gif" width="80%" style="display: block; margin: auto;"></p>
+<p><img src="../../../../../../../tmp/Rtmpu4v7EZ/file458657060574/articles/how-to-use-magma_files/figure-html/unnamed-chunk-18-1.gif" width="80%" style="display: block; margin: auto;"></p>
 </div>
 </div>
 <div class="section level2">
