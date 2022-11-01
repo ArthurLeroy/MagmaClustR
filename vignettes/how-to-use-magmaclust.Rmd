@@ -1,9 +1,6 @@
 ---
 title: How to use MagmaClust
-output: 
-   prettydoc::html_pretty:
-    theme: leonids
-    highlight: github
+output: html_vignette
 vignette: >
   %\VignetteIndexEntry{Introduction to MagmaClust}
   %\VignetteEncoding{UTF-8}
@@ -38,7 +35,7 @@ library(gridExtra)
 To explore the features of MagmaClust, we use the `weight` dataset available [here](https://github.com/ArthurLeroy/MAGMAclust/blob/master/Real_Data_Study/Data/db_gusto_weight.csv), coming from the GUSTO cohort study (https://www.gusto.sg/) and more thoroughly studied [here](https://arxiv.org/abs/2011.07866)). This dataset contains `r nrow(weight)` weight measurements of Singaporean children (`r length(unique(weight %>% filter(sex=="Male") %>% pull(ID)))` boys and `r length(unique(weight %>% filter(sex=="Female") %>% pull(ID)))` girls, respectively). 
 
 Throughout this example, we use *MagmaClust* to model and forecast evolution of children’s weight during early childhood. 
-This extension of the *Magma* model has been proposed to take into account the presence of group structures in within data (a similar vignette for Magma is available [here](how-to-use-magma.html)) to enhance predictions. 
+This extension of the *Magma* model has been proposed to take into account the presence of group structures in within data (a similar vignette for Magma is available [here](https://arthurleroy.github.io/MagmaClustR/articles/how-to-use-magma.html)) to enhance predictions. 
 
 More generally, our aim is to train a model on a dataset containing multiple individuals and predict a new individual’s weight thanks to shared information within clusters.
 
@@ -237,7 +234,7 @@ plot_magmaclust(pred = pred_clust,
 
 #### MagmaClust vs Magma
 
-The MagmaClustR package also provides an implementation for the *Magma* algorithm, allowing us to compare *MagmaClust* and *Magma* predictions. For more details on Magma, see the dedicated [vignette](how-to-use-magma.html). 
+The MagmaClustR package also provides an implementation for the *Magma* algorithm, allowing us to compare *MagmaClust* and *Magma* predictions. For more details on Magma, see the dedicated [vignette](https://arthurleroy.github.io/MagmaClustR/articles/how-to-use-magma.html). 
 
 The graphs below correspond to James' weight prediction with MagmaClust (left) and Magma (right). 
 

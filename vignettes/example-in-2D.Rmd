@@ -1,9 +1,6 @@
 ---
 title: "Multi-dimensional inputs in Magma"
-output:
-   prettydoc::html_pretty:
-    theme: leonids
-    highlight: github
+output: html_vignette
 vignette: >
   %\VignetteIndexEntry{Magma with 2-Dimensional data}
   %\VignetteEncoding{UTF-8}
@@ -32,7 +29,7 @@ library(ggplot2)
 
 ## Purpose
 
-In [Magma](how-to-use-magmaclust.html) and [MagmaClust](how-to-use-magmaclust.html) vignettes, it has been emphasised that, to be processed within `MagmaClustR`, a dataset must contain at least 3 mandatory columns: `ID`, `Input` and `Output`. However, let us point out that both *Magma* and *MagmaClust* can also handle multi-dimensional inputs. Notice that there are no constraints on the names of the additional input columns (except for the name *Reference* that is used internally in the code and should be **strictly** avoided).
+In [Magma](https://arthurleroy.github.io/MagmaClustR/articles/how-to-use-magmaclust.html) and [MagmaClust](https://arthurleroy.github.io/MagmaClustR/articles/how-to-use-magmaclust.html) vignettes, it has been emphasised that, to be processed within `MagmaClustR`, a dataset must contain at least 3 mandatory columns: `ID`, `Input` and `Output`. However, let us point out that both *Magma* and *MagmaClust* can also handle multi-dimensional inputs. Notice that there are no constraints on the names of the additional input columns (except for the name *Reference* that is used internally in the code and should be **strictly** avoided).
 
 Throughout the following synthetic example, the *Magma* algorithm is applied to tackle a 2-dimensional forecasting problem. More specifically, the model is trained on a dataset that contains 2 input variables, namely `Input` and `Covariate`.
 
@@ -108,7 +105,7 @@ dim2_pred <- data_dim2 %>% filter(ID == 31)
 
 ## Training and prediction in 2-D
 
-The overall process of *Magma* remains identical as in the 1-D case, and can be decomposed in 3 main steps: **training, prediction** and **plotting of results**. We refer to the [Magma vignette](how-to-use-magmaclust.html) for the complete description of the classical pipeline:
+The overall process of *Magma* remains identical as in the 1-D case, and can be decomposed in 3 main steps: **training, prediction** and **plotting of results**. We refer to the [Magma vignette](https://arthurleroy.github.io/MagmaClustR/articles/how-to-use-magmaclust.html) for the complete description of the classical pipeline:
 - we call the [`train_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html) function to train our model:
 
 ```{r}

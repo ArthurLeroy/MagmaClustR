@@ -194,8 +194,8 @@ simu_db <- function(M = 10,
         Covariate = t_0_tibble$Covariate) %>%
         purrr::modify(signif) %>%
         tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
-        mutate(Output =  exponential_mean(Input,
-                                          Covariate,
+        dplyr::mutate(Output =  exponential_mean(.data$Input,
+                                          .data$Covariate,
                                           lambda = draw(lambda_int),
                                           m1 = draw(m_int),
                                           m2 = draw(m_int),

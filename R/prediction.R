@@ -454,9 +454,9 @@ hyperposterior <- function(data,
                  sep = ":",
                  remove = FALSE) %>%
     tidyr::drop_na() %>%
-    group_by(.data$ID) %>%
+    dplyr::group_by(.data$ID) %>%
     dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
-    ungroup()
+    dplyr::ungroup()
 
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
@@ -1322,9 +1322,9 @@ hyperposterior_clust <- function(data,
                  sep=":",
                  remove = FALSE) %>%
     tidyr::drop_na() %>%
-    group_by(.data$ID) %>%
+    dplyr::group_by(.data$ID) %>%
     dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
-    ungroup()
+    dplyr::ungroup()
 
   ## Get the number of clusters
   nb_cluster <- hp_k %>%

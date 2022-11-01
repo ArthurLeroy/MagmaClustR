@@ -1,10 +1,6 @@
 ---
 title: How to use Magma
-output:
-   prettydoc::html_pretty:
-    theme: leonids
-    highlight: github
-
+output: html_vignette
 vignette: >
   %\VignetteIndexEntry{Introduction to Magma}
   %\VignetteEncoding{UTF-8}
@@ -386,4 +382,4 @@ plot_gp(pred_gp = pred_great_swimmer,
 
 Due to the high level of this swimmer, all of her performances are far below the mean GP. Thus, when we try to predict her future evolution, we may actually underestimate her potential; indeed, her progression curve increases significantly once she has no data left, until it reaches the mean process. Although, this behaviour is expected since the prediction is guided by the information coming from other individuals (through the mean process) who are less successful than her, the method could benefit from accounting for differences between individual in the training dataset. 
 
-This is why enabling cluster-specific mean processes to take into account different swimmers profiles would be a relevant extension. This enhancement of *Magma* corresponds to the *MagmaClust* algorithm; see the corresponding [vignette](how-to-use-magmaclust.html) for further information.
+This is why enabling cluster-specific mean processes to take into account different swimmers profiles would be a relevant extension. This enhancement of *Magma* corresponds to the *MagmaClust* algorithm; see the corresponding [vignette](https://arthurleroy.github.io/MagmaClustR/articles/how-to-use-magmaclust.html) for further information.

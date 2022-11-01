@@ -68,11 +68,11 @@ regularize_data(data, size_grid = 10)
 my_grid = tibble::tibble(Input = c(5, 10, 25, 50, 100))
 regularize_data(data, grid_inputs = my_grid)
 
-## Define a 2D input grid of 5 points
+## Define a 2D input grid of 5x5 points
 data_2D = cbind(ID = 1, expand.grid(Input=1:10, Input2=1:10), Output = 1:100)
 regularize_data(data_2D, size_grid = 5)
 
 ## Define a 2D custom input grid
-my_grid_2D = tibble::tibble(Input = c(1, 3, 9), Input_2 = c(15, 20))
-regularize_data(data_2D, size_grid = 10)
+my_grid_2D = MagmaClustR::expand_grid_inputs(c(2, 4, 8), 'Input2' = c(3, 5))
+regularize_data(data_2D, grid_inputs = my_grid_2D)
 }

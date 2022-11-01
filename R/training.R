@@ -174,9 +174,9 @@ train_magma <- function(data,
                  sep = ":",
                  remove = FALSE) %>%
     tidyr::drop_na() %>%
-    group_by(.data$ID) %>%
+    dplyr::group_by(.data$ID) %>%
     dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
-    ungroup()
+    dplyr::ungroup()
 
   ## Check that individuals do not have duplicate inputs
   if(!(setequal(data %>% dplyr::select(-.data$Output),
@@ -308,7 +308,7 @@ train_magma <- function(data,
       )
     } else if (!("ID" %in% names(ini_hp_i))) {
       ## Create a full tibble of common HPs if the column ID is not specified
-      hp_i <- tibble::tibble(ID = list_ID,
+      hp_i <- tibble::tibble('ID' = list_ID,
                              dplyr::bind_rows(ini_hp_i)
       )
     } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
@@ -941,7 +941,7 @@ train_magmaclust <- function(data,
   }
 
   ##Convert all non ID columns to double (implicitly throw error if not numeric)
-  data = data %>% mutate(across(- ID, as.double))
+  data = data %>% dplyr::mutate(dplyr::across(- .data$ID, as.double))
 
   ## Check the number of cluster
   if (nb_cluster %>% is.null()) {
@@ -984,9 +984,9 @@ train_magmaclust <- function(data,
                  sep=":",
                  remove = FALSE) %>%
     tidyr::drop_na() %>%
-    group_by(.data$ID) %>%
+    dplyr::group_by(.data$ID) %>%
     dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
-    ungroup()
+    dplyr::ungroup()
 
   ## Check that individuals do not have duplicate inputs
   if(!(setequal(data %>% dplyr::select(-.data$Output),
@@ -1090,7 +1090,7 @@ train_magmaclust <- function(data,
     } else if (!("ID" %in% names(ini_hp_k))) {
       ## Create a full tibble of common HPs if the column ID is not specified
       hp_k <- tibble::tibble(
-        ID = ID_k,
+        'ID' = ID_k,
         dplyr::bind_rows(ini_hp_k)
       )
       cat(

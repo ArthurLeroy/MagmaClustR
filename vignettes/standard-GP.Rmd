@@ -1,10 +1,6 @@
 ---
 title: Gaussian Process Regression
-output:
-   prettydoc::html_pretty:
-    theme: leonids
-    highlight: github
-
+output: html_vignette
 vignette: >
   %\VignetteIndexEntry{Gaussian Process Regression}
   %\VignetteEncoding{UTF-8}
@@ -92,7 +88,7 @@ Therefore, in order to correctly fit our data, we need to choose a suitable cova
 In the case of swimmers, we want a smooth progression curve for Michaela; therefore, we specify `kern = "SE"`.
 
 The most commonly used kernels and their properties are covered in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
-Details of available kernels and how to combine them in *MagmaClustR* are available in [`help train_gp`](https://arthurleroy.github.io/MagmaClustR/reference/train_gp.html). 
+Details of available kernels and how to combine them in *MagmaClustR* are available in [`help(train_gp)`](https://arthurleroy.github.io/MagmaClustR/reference/train_gp.html). 
 
 
 ```{r}
@@ -111,7 +107,7 @@ The arguments `kern` and `mean` remain the same as above. We now need to specify
 *   the hyper-parameters obtained with `train_gp()` in `hp`;
 *   the input values on which we want to evaluate our GP in `grid_inputs`. Here, we want to predict Michaela's performances until 15/16 years old, so we set `grid_inputs = seq(11, 15.5, 0.1)`.
 
-See [`help pred_gp`](https://arthurleroy.github.io/MagmaClustR/reference/pred_gp.html) to get information about the other optional arguments.
+See [`help(pred_gp)`](https://arthurleroy.github.io/MagmaClustR/reference/pred_gp.html) to get information about the other optional arguments.
 
 ```{r}
 pred_gp <- pred_gp(data = Michaela,

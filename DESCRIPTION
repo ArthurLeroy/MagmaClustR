@@ -1,12 +1,15 @@
 Package: MagmaClustR
 Title: Clustering and Prediction using Multi-Task Gaussian Processes with
     Common Mean
-Version: 1.0.0
+Version: 1.1.0
 Authors@R: c(
-    person("Arthur", "Leroy", , "arthur.leroy.pro@gmail.com", role = c("aut", "cre"),
+    person("Arthur", "Leroy", , "arthur.leroy.pro@gmail.com",
+           role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-0806-8934")),
+    person("Pierre", "Latouche", , "pierre.latouche@gmail.com", role = "aut"),
     person("Pierre", "Pathé", , "pathepierre@gmail.com", role = "ctb"),
-    person("Pierre", "Latouche", , "pierre.latouche@gmail.com", role = "aut")
+    person("Alexia", "Grenouilla", , "grenouil@insa-toulouse.fr", role = "ctb"),
+    person("Hugo", "Lelievre", , "lelievre@insa-toulouse.fr", role = "ctb")
   )
 Description: An implementation for the multi-task Gaussian processes with common 
     mean framework. Two main algorithms, called 'Magma' and 'MagmaClust', 
@@ -36,14 +39,14 @@ Imports:
     magrittr,
     methods,
     mvtnorm,
+    plyr,
+    purrr,
     Rcpp,
     rlang,
     stats,
     tibble,
     tidyr,
-    tidyselect,
-    purrr,
-    plyr
+    tidyselect
 Suggests: 
     gganimate,
     gifski,
@@ -60,6 +63,5 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.0
-VignetteBuilder: knitr
 Depends: 
     R (>= 2.10)
