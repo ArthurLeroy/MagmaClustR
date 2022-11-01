@@ -27,9 +27,11 @@ test_that("kern_to_cov() works for vector inputs", {
       res[i, j] <- se_kernel(input[i, ], input[j, ], hp)
     }
   }
+
+  ref = paste(input$Input, Cov1 = input$Cov1, sep=":")
   res <- res %>%
-    `rownames<-`(input$Input) %>%
-    `colnames<-`(input$Input)
+    `rownames<-`(ref) %>%
+    `colnames<-`(ref)
 
   kern_to_cov(input, "SE", hp) %>% expect_equal(res)
 })
@@ -55,8 +57,10 @@ test_that("1D-matrix and vector work the same", {
 
 test_that("dimension names are correct", {
   hp <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
-  df <- data.frame(Input = c(5, 6, 7), Cov1 = c(2, 3, 4))
-  df2 <- data.frame(Cov1 = c(2, 3, 4), Input = c(5, 6, 7))
+  df <- data.frame(Input = c(5, 6, 7), Cov1 = c(2, 3, 4),
+                   Reference = c('5:2', '6:3', '7:4'))
+  df2 <- data.frame(Cov1 = c(2, 3, 4), Reference = c('5:2', '6:3', '7:4'),
+                    Input = c(5, 6, 7))
   df3 <- data.frame(c(5, 6, 7), c(2, 3, 4))
   df4 <- data.frame(fu = c(5, 6, 7), blob = c(2, 3, 4))
 

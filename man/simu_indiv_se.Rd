@@ -2,18 +2,15 @@
 % Please edit documentation in R/simulate-data.R
 \name{simu_indiv_se}
 \alias{simu_indiv_se}
-\title{Simulate a batch a data}
+\title{Simulate a batch of data}
 \usage{
-simu_indiv_se(ID, input, covariate, mean, v, l, sigma)
+simu_indiv_se(ID, input, mean, v, l, sigma)
 }
 \arguments{
 \item{ID}{An identification code, whether numeric or character.}
 
 \item{input}{A vector of numbers. The input variable that is used as
 'reference' for input and outputs.}
-
-\item{covariate}{A vector of numbers. An additional input variable, observed
-along with each reference input.}
 
 \item{mean}{A vector of numbers. Prior mean values of the GP.}
 
@@ -28,7 +25,7 @@ A tibble containing a batch of output data along with input and
 additional information for a simulated individual.
 }
 \description{
-Simulate a batch a output data, corresponding to one individual, coming from
+Simulate a batch of output data, corresponding to one individual, coming from
 a GP with a the Squared Exponential kernel as covariance structure, and
 specified hyper-parameters and input.
 }

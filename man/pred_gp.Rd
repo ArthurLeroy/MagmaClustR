@@ -90,7 +90,7 @@ in which the tibble described above is defined as 'pred' and the full
 posterior covariance matrix is defined as 'cov'.
 }
 \description{
-Compute the posterior distribution of a simple GP, using the formalism of
+Compute the posterior distribution of a standard GP, using the formalism of
 Magma. By providing observed data, the prior mean and covariance
 matrix (by defining a kernel and its associated hyper-parameters), the mean
 and covariance parameters of the posterior distribution are computed on the

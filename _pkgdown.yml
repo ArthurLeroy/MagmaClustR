@@ -1,4 +1,5 @@
 url: https://arthurleroy.github.io/MagmaClustR/
 template:
   bootstrap: 5
+  bootswatch: minty
 

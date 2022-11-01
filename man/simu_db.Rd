@@ -10,6 +10,7 @@ simu_db(
   K = 1,
   covariate = FALSE,
   grid = seq(0, 10, 0.05),
+  grid_cov = seq(0, 10, 0.5),
   common_input = TRUE,
   common_hp = TRUE,
   add_hp = FALSE,
@@ -19,9 +20,11 @@ simu_db(
   int_i_v = c(1, 2),
   int_i_l = c(0, 1),
   int_i_sigma = c(0, 0.2),
+  lambda_int = c(30, 40),
+  m_int = c(0, 10),
+  lengthscale_int = c(30, 40),
   m0_slope = c(-5, 5),
-  m0_intercept = c(-50, 50),
-  int_covariate = c(-5, 5)
+  m0_intercept = c(-50, 50)
 )
 }
 \arguments{
@@ -36,6 +39,9 @@ include an additional input covariate named 'Covariate'.}
 
 \item{grid}{A vector of numbers defining a grid of observations
 (i.e. the reference inputs).}
+
+\item{grid_cov}{A vector of numbers defining a grid of observations
+(i.e. the covariate reference inputs).}
 
 \item{common_input}{A logical value indicating whether the reference inputs
 are common to all individual.}
@@ -66,14 +72,20 @@ kernel.}
 \item{int_i_sigma}{A vector of 2 numbers, defining an interval of admissible
 values for the noise hyper-parameter.}
 
+\item{lambda_int}{A vector of 2 numbers, defining an interval of admissible
+values for the lambda parameter of the 2D exponential.}
+
+\item{m_int}{A vector of 2 numbers, defining an interval of admissible
+values for the mean of the 2D exponential.}
+
+\item{lengthscale_int}{A vector of 2 numbers, defining an interval of
+admissible values for the lengthscale parameter of the 2D exponential.}
+
 \item{m0_slope}{A vector of 2 numbers, defining an interval of admissible
 values for the slope of m0.}
 
 \item{m0_intercept}{A vector of 2 numbers, defining an interval of admissible
 values for the intercept of m0.}
-
-\item{int_covariate}{A vector of 2 numbers, defining an interval of
-admissible values for the covariate inputs.}
 }
 \value{
 A full dataset of simulated training data.

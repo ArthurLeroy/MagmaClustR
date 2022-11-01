@@ -29,10 +29,14 @@ e_step <- function(db,
                    hp_0,
                    hp_i,
                    pen_diag) {
-  all_input <- unique(db$Input) %>% sort()
+  ## Extract the union of all reference inputs provided in the training data
+  all_inputs <- db %>%
+    dplyr::select(-.data$ID, -.data$Output) %>%
+    unique() %>%
+    dplyr::arrange(.data$Reference)
 
   ## Compute all the inverse covariance matrices
-  inv_0 <- kern_to_inv(all_input, kern_0, hp_0, pen_diag)
+  inv_0 <- kern_to_inv(all_inputs, kern_0, hp_0, pen_diag)
   list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)
   ## Create a named list of Output values for all individuals
   list_output_i <- base::split(db$Output, list(db$ID))
@@ -50,8 +54,12 @@ e_step <- function(db,
 
   post_cov <- post_inv %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
-    `rownames<-`(all_input) %>%
-    `colnames<-`(all_input)
+    `rownames<-`(all_inputs %>%
+                   dplyr::pull(.data$Reference)
+    ) %>%
+    `colnames<-`(all_inputs %>%
+                   dplyr::pull(.data$Reference)
+    )
   ##############################################
 
   ## Update the posterior mean ##
@@ -71,9 +79,8 @@ e_step <- function(db,
   ##############################################
 
   ## Format the mean parameter of the hyper-posterior distribution
-  tib_mean <- tibble::tibble(
-    "Input" = all_input,
-    "Output" = post_mean
+  tib_mean <- tibble::tibble(all_inputs,
+                             "Output" = post_mean
   )
   list(
     "mean" = tib_mean,
@@ -117,8 +124,17 @@ e_step <- function(db,
 #'
 #' @examples
 #' TRUE
-m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
-                   post_mean, post_cov, common_hp, pen_diag) {
+m_step <- function(db,
+                   m_0,
+                   kern_0,
+                   kern_i,
+                   old_hp_0,
+                   old_hp_i,
+                   post_mean,
+                   post_cov,
+                   common_hp,
+                   pen_diag) {
+
   list_ID <- unique(db$ID)
   list_hp_0 <- old_hp_0 %>% names()
   list_hp_i <- old_hp_i %>%
@@ -182,10 +198,10 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
       ## Extract the i-th specific inputs
       input_i <- db %>%
         dplyr::filter(.data$ID == i) %>%
-        dplyr::pull(.data$Input)
+        dplyr::pull(.data$Reference)
       ## Extract the mean values associated with the i-th specific inputs
       post_mean_i <- post_mean %>%
-        dplyr::filter(.data$Input %in% input_i) %>%
+        dplyr::filter(.data$Reference %in% input_i) %>%
         dplyr::pull(.data$Output)
       ## Extract the covariance values associated with the i-th specific inputs
       post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
@@ -214,7 +230,10 @@ m_step <- function(db, m_0, kern_0, kern_i, old_hp_0, old_hp_i,
         tibble::as_tibble_row() %>%
         return()
     }
-    new_hp_i <- sapply(list_ID, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
+    new_hp_i <- sapply(list_ID,
+                       floop,
+                       simplify = FALSE,
+                       USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest(cols = .data$value)
   }

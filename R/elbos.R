@@ -15,13 +15,24 @@
 #'
 #' @examples
 #' TRUE
-elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
+elbo_clust_multi_GP <- function(hp,
+                                db,
+                                hyperpost,
+                                kern,
+                                pen_diag) {
+
   names_k <- hyperpost$mean %>% names()
-  t_i <- db$Input
+  t_i <- db$Reference
   y_i <- db$Output
   i <- unique(db$ID)
 
-  inv <- kern_to_inv(t_i, kern, hp, pen_diag)
+  if("ID" %in% names(db)){
+    inputs <- db %>% dplyr::select(-.data$Output, -.data$ID)
+  } else{
+    inputs <- db %>% dplyr::select(-.data$Output)
+  }
+
+  inv <- kern_to_inv(inputs, kern, hp, pen_diag)
 
   ## classic Gaussian centred log likelihood
   LL_norm <- -dmnorm(y_i, rep(0, length(y_i)), inv, log = T)
@@ -35,12 +46,12 @@ elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(k)
     mean_mu_k <- hyperpost$mean[[k]] %>%
-      dplyr::filter(.data$Input %in% t_i) %>%
+      dplyr::filter(.data$Reference %in% t_i) %>%
       dplyr::pull(.data$Output)
     corr1 <- corr1 + tau_i_k * mean_mu_k
     corr2 <- corr2 + tau_i_k *
       (mean_mu_k %*% t(mean_mu_k) +
-        hyperpost$cov[[k]][as.character(t_i), as.character(t_i)])
+         hyperpost$cov[[k]][as.character(t_i), as.character(t_i)])
   }
 
   (LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2)) %>% return()
@@ -67,21 +78,22 @@ elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 #'
 #' @examples
 #' TRUE
-elbo_GP_mod_common_hp_k <- function(
-  hp,
-  db,
-  mean,
-  kern,
-  post_cov,
-  pen_diag
-  ) {
+elbo_GP_mod_common_hp_k <- function( hp,
+                                     db,
+                                     mean,
+                                     kern,
+                                     post_cov,
+                                     pen_diag) {
 
   list_ID_k <- names(db)
-  # t_k = db[[1]] %>% dplyr::pull(.data$Input)
-  t_k <- db[[1]] %>%
-    dplyr::pull(.data$Input)
 
-  inv <- kern_to_inv(t_k, kern, hp, pen_diag)
+  if("ID" %in% names(db)){
+    inputs <- db[[1]] %>% dplyr::select(-.data$Output, -.data$ID)
+  } else{
+    inputs <- db[[1]] %>% dplyr::select(-.data$Output)
+  }
+
+  inv <- kern_to_inv(inputs, kern, hp, pen_diag)
 
   LL_norm <- 0
   cor_term <- 0
@@ -114,7 +126,12 @@ elbo_GP_mod_common_hp_k <- function(
 #'
 #' @examples
 #' TRUE
-elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
+elbo_clust_multi_GP_common_hp_i <- function(hp,
+                                            db,
+                                            hyperpost,
+                                            kern,
+                                            pen_diag) {
+
   names_k <- hyperpost$mean %>% names()
 
   sum_i <- 0
@@ -123,7 +140,7 @@ elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
     ## Extract the i-th specific reference Input
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Input)
+      dplyr::pull(.data$Reference)
     ## Extract the i-th specific inputs (reference + covariates)
     inputs_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
@@ -148,7 +165,7 @@ elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
       mean_mu_k <- hyperpost$mean[[k]] %>%
-        dplyr::filter(.data$Input %in% input_i) %>%
+        dplyr::filter(.data$Reference %in% input_i) %>%
         dplyr::pull(.data$Output)
       corr1 <- corr1 + tau_i_k * mean_mu_k
       corr2 <- corr2 + tau_i_k *
@@ -216,7 +233,7 @@ elbo_monitoring_VEM <- function(hp_k,
   floop2 <- function(i) {
     t_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Input)
+      dplyr::pull(.data$Reference)
 
     elbo_clust_multi_GP(
       hp_i[hp_i$ID == i, ],
@@ -257,6 +274,7 @@ elbo_monitoring_VEM <- function(hp_k,
 
     return(sum_tau + det)
   }
+
   sum_corr_k <- sapply(names(m_k), floop3) %>% sum()
 
   return(-sum_ll_k - sum_ll_i + sum_corr_k)

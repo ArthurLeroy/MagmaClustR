@@ -19,11 +19,17 @@
 #'
 #' @examples
 #' TRUE
-gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
+gr_GP <- function(hp,
+                  db,
+                  mean,
+                  kern,
+                  post_cov,
+                  pen_diag) {
+
   list_hp <- names(hp)
   output <- db$Output
   ## Extract the reference Input
-  input <- db$Input
+  input <- db$Reference
   ## Extract the input variables (reference Input + Covariates)
   inputs <- db %>% dplyr::select(-.data$Output)
 
@@ -66,11 +72,16 @@ gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @examples
 #' TRUE
-gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
+gr_GP_mod <- function(hp,
+                      db,
+                      mean,
+                      kern,
+                      post_cov,
+                      pen_diag) {
   list_hp <- names(hp)
   output <- db$Output
   ## Extract the reference Input
-  input <- db$Input
+  input <- db$Reference
   ## Extract the input variables (reference Input + Covariates)
   inputs <- db %>% dplyr::select(-.data$Output)
 
@@ -113,15 +124,20 @@ gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @examples
 #' TRUE
-gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
-  list_hp <- names(hp)
+gr_GP_mod_common_hp <- function(hp,
+                                db,
+                                mean,
+                                kern,
+                                post_cov,
+                                pen_diag) {
 
+  list_hp <- names(hp)
   ## Loop over individuals to compute the sum of log-Likelihoods
   funloop <- function(i) {
     ## Extract the i-th specific reference Input
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Input)
+      dplyr::pull(.data$Reference)
     ## Extract the i-th specific inputs (reference + covariates)
     inputs_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
@@ -132,10 +148,12 @@ gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
       dplyr::pull(.data$Output)
     ## Extract the mean values associated with the i-th specific inputs
     mean_i <- mean %>%
-      dplyr::filter(.data$Input %in% input_i) %>%
+      dplyr::filter(.data$Reference %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
+    post_cov_i <- post_cov[as.character(input_i),
+                           as.character(input_i)
+    ]
 
     ## Compute the term common to all partial derivatives
     inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
@@ -191,8 +209,8 @@ gr_sum_logL_GP_clust <- function(hp,
                                  pen_diag) {
   ## Extract the observed (reference) Input
   input_obs <- db %>%
-    dplyr::arrange(.data$Input) %>%
-    dplyr::pull(.data$Input)
+    dplyr::arrange(.data$Reference) %>%
+    dplyr::pull(.data$Reference)
   ## Remove 'ID' if present in 'db'
   if ("ID" %in% names(db)) {
     db <- db %>% dplyr::select(-.data$ID)
@@ -202,7 +220,7 @@ gr_sum_logL_GP_clust <- function(hp,
   floop <- function(k) {
     tau_k <- mixture[[k]]
     mean_k <- mean[[k]] %>%
-      dplyr::filter(.data$Input %in% input_obs) %>%
+      dplyr::filter(.data$Reference %in% input_obs) %>%
       dplyr::pull(.data$Output)
 
     cov_k <- post_cov[[k]][

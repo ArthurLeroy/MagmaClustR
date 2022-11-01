@@ -38,12 +38,24 @@ ve_step <- function(db,
                     old_mixture,
                     iter,
                     pen_diag) {
+
+  ## Extract the union of all reference inputs provided in the training data
+  all_inputs <- db %>%
+    dplyr::select(-.data$ID,-.data$Output) %>%
+    unique() %>%
+    dplyr::arrange(.data$Reference)
+
+  all_input <- all_inputs %>% dplyr::pull(.data$Reference)
+
+  ## Sort the database according to Reference
+  db <- db %>% dplyr::arrange(.data$Reference, .by_group = TRUE)
+
   prop_mixture_k <- hp_k %>%
     dplyr::pull(.data$prop_mixture, name = .data$ID)
-  all_input <- unique(db$Input) %>% sort()
-  t_clust <- tibble::tibble(
-    "ID" = rep(names(m_k), each = length(all_input)),
-    "Input" = rep(all_input, length(m_k))
+
+  ## Format a sequence of inputs for all clusters
+  t_clust <- tidyr::expand_grid("ID" = names(m_k),
+                                all_inputs
   )
 
   ## Compute all the inverse covariance matrices
@@ -78,7 +90,10 @@ ve_step <- function(db,
       `colnames<-`(all_input) %>%
       return()
   }
-  cov_k <- sapply(names(m_k), floop, simplify = FALSE, USE.NAMES = TRUE)
+  cov_k <- sapply(tidyselect::all_of(names(m_k)),
+                  floop,
+                  simplify = FALSE,
+                  USE.NAMES = TRUE)
 
   ## Update the posterior mean for each cluster ##
 
@@ -106,7 +121,8 @@ ve_step <- function(db,
 
     ## Compute the updated mean parameter
     new_mean <- cov_k[[k]] %*% weighted_mean %>% as.vector()
-    tibble::tibble("Input" = all_input, "Output" = new_mean) %>% return()
+    tibble::tibble(all_inputs,
+                   "Output" = new_mean) %>% return()
   }
   mean_k <- sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
@@ -182,6 +198,7 @@ vm_step <- function(db,
                     common_hp_k,
                     common_hp_i,
                     pen_diag) {
+
   list_ID_k <- names(m_k)
   list_ID_i <- unique(db$ID)
 
@@ -379,7 +396,7 @@ update_mixture <- function(db,
     ## Extract the i-th specific Input
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Input)
+      dplyr::pull(.data$Reference)
     ## Extract the i-th specific hyper-parameters
     hp_i <- hp %>%
       dplyr::filter(.data$ID == i)
@@ -396,7 +413,7 @@ update_mixture <- function(db,
       vec_prop[c_k] <- prop_mixture[[k]]
       ## Extract the mean values associated with the i-th specific inputs
       mean_k_i <- mean_k[[k]] %>%
-        dplyr::filter(.data$Input %in% input_i) %>%
+        dplyr::filter(.data$Reference %in% input_i) %>%
         dplyr::pull(.data$Output)
       ## Extract the covariance values associated with the i-th specific inputs
       cov_k_i <- cov_k[[k]][as.character(input_i), as.character(input_i)]
@@ -409,11 +426,10 @@ update_mixture <- function(db,
         cov_k_i,
         pen_diag
       )
-
-      # if(is.na(mat_elbo[c_k,c_i])){print(i)} Detect the failing ID
     }
     c_k <- 0
   }
+
   ## We need to use the 'log-sum-exp' trick: exp(x - max(x))/sum exp(x - max(x))
   ## to remain numerically stable
   mat_L <- mat_elbo %>% apply(2, function(x) exp(x - max(x)))
