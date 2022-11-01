@@ -267,15 +267,15 @@
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 23.17 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 22.4 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1113.11341 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 19.78 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 15.72 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1078.94609 --- Convergence ratio = 0.03167</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 17.54 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 16.12 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1078.43701 --- Convergence ratio = 0.00047</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -355,8 +355,8 @@
 </h5>
 <p>The MagmaClustR package also provides a prediction with classic GPs in 2D; thus, we can compare Magma and classic GPs predictions.</p>
 <p>The graphs below correspond to the 2D dynamic prediction with Magma (first one) and classic GP (second one).</p>
-<p><img src="../../../../../../../tmp/Rtmpu4v7EZ/file458657060574/articles/example-in-2D_files/figure-html/unnamed-chunk-13-1.gif" width="80%" style="display: block; margin: auto;"></p>
-<p><img src="../../../../../../../tmp/Rtmpu4v7EZ/file458657060574/articles/example-in-2D_files/figure-html/unnamed-chunk-14-1.gif" width="80%" style="display: block; margin: auto;"></p>
+<p><img src="../../../../../../../tmp/RtmprohQv0/file458679ee7fa6/articles/example-in-2D_files/figure-html/unnamed-chunk-13-1.gif" width="80%" style="display: block; margin: auto;"></p>
+<p><img src="../../../../../../../tmp/RtmprohQv0/file458679ee7fa6/articles/example-in-2D_files/figure-html/unnamed-chunk-14-1.gif" width="80%" style="display: block; margin: auto;"></p>
 <p>This example highlights the advantage of sharing information across individuals: even before seeing any data, Magma provides an already accurate mean process. As we add more data for the individual of interest, the uncertainty of predictions slightly decreases, although the main trend remains mainly similar.</p>
 <p>On the other hand, the classic GP struggles to find the shape of the underlying process. On unobserved regions of the graph, the prediction remains far from the original process. As expected, though, the more data we add, the better becomes the prediction with standard GP.</p>
 </div>
