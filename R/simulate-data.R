@@ -1,14 +1,12 @@
-#' Simulate a batch a data
+#' Simulate a batch of data
 #'
-#' Simulate a batch a output data, corresponding to one individual, coming from
+#' Simulate a batch of output data, corresponding to one individual, coming from
 #' a GP with a the Squared Exponential kernel as covariance structure, and
 #' specified hyper-parameters and input.
 #'
 #' @param ID An identification code, whether numeric or character.
 #' @param input A vector of numbers. The input variable that is used as
 #'  'reference' for input and outputs.
-#' @param covariate A vector of numbers. An additional input variable, observed
-#'  along with each reference input.
 #' @param mean A vector of numbers. Prior mean values of the GP.
 #' @param v A number. The variance hyper-parameter of the SE kernel.
 #' @param l A number. The lengthscale hyper-parameter of the SE kernel.
@@ -23,13 +21,14 @@
 #'
 #' @examples
 #' TRUE
-simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
+simu_indiv_se <- function(ID, input, mean, v, l, sigma) {
   if(is.data.frame(input)){
     db <- tibble::tibble(
       "ID" = ID,
+      input,
       "Output" = mvtnorm::rmvnorm(
         1,
-        mean + covariate,
+        mean,
         kern_to_cov(
           input,
           "SE",
@@ -37,7 +36,6 @@ simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
         ) +
           diag(sigma, length(input$Reference), length(input$Reference))
       ) %>% as.vector(),
-      input,
       "se_variance" = v,
       "se_lengthscale" = l,
       "noise" = sigma
@@ -45,9 +43,10 @@ simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
   }else{
     db <- tibble::tibble(
       "ID" = ID,
+      "Input" = input,
       "Output" = mvtnorm::rmvnorm(
         1,
-        mean + covariate,
+        mean,
         kern_to_cov(
           input,
           "SE",
@@ -55,8 +54,6 @@ simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
         ) +
           diag(sigma, length(input), length(input))
       ) %>% as.vector(),
-      "Input" = input,
-      "Covariate" = covariate,
       "se_variance" = v,
       "se_lengthscale" = l,
       "noise" = sigma
@@ -64,7 +61,6 @@ simu_indiv_se <- function(ID, input, covariate, mean, v, l, sigma) {
   }
   return(db)
 }
-
 
 #' Draw a number
 #'
@@ -125,14 +121,12 @@ draw <- function(int) {
 #'    values for the lambda parameter of the 2D exponential.
 #' @param m_int A vector of 2 numbers, defining an interval of admissible
 #'    values for the mean of the 2D exponential.
-#' @param lengthscale_int A vector of 2 numbers, defining an interval of admissible
-#'    values for the lengthscale parameter of the 2D exponential.
+#' @param lengthscale_int A vector of 2 numbers, defining an interval of
+#'    admissible values for the lengthscale parameter of the 2D exponential.
 #' @param m0_intercept A vector of 2 numbers, defining an interval of admissible
 #'    values for the intercept of m0.
 #' @param m0_slope A vector of 2 numbers, defining an interval of admissible
 #'    values for the slope of m0.
-#' @param int_covariate A vector of 2 numbers, defining an interval of
-#'    admissible values for the covariate inputs.
 #'
 #' @return A full dataset of simulated training data.
 #' @export
@@ -164,14 +158,13 @@ simu_db <- function(M = 10,
                     int_i_v = c(1, 2),
                     int_i_l = c(0, 1),
                     int_i_sigma = c(0, 0.2),
-                    lambda_int = c(20,30),
+                    lambda_int = c(30,40),
                     m_int = c(0,10),
-                    lengthscale_int = c(10,20),
+                    lengthscale_int = c(30, 40),
                     m0_slope = c(-5, 5),
-                    m0_intercept = c(-50, 50),
-                    int_covariate = c(-5, 5)) {
+                    m0_intercept = c(-50, 50)) {
   if(covariate){
-    exponential_mean <- function(x, y, lambda = 1, m1 = 0, m2 = 0, lengthscale = 1){
+    exponential_mean <- function(x, y, lambda, m1, m2, lengthscale){
       return (lambda * base::exp(-((x-m1)^2 + (y-m2)^2)/lengthscale))
     }
     t_0_tibble <- tidyr::expand_grid(Input = grid, Covariate = grid_cov) %>%
@@ -195,24 +188,19 @@ simu_db <- function(M = 10,
     }
 
     floop_k <- function(k) {
-      m_0 <- exponential_mean(t_0_tibble$Input,
-                                t_0_tibble$Covariate,
-                                lambda = draw(lambda_int),
-                                m1 = draw(m_int),
-                                m2 = draw(m_int),
-                                lengthscale = draw(lengthscale_int))
-      mu_v <- draw(int_mu_v)
-      mu_l <- draw(int_mu_l)
 
-      db_0 <- simu_indiv_se(
-          ID = "0",
-          input = t_0_tibble,
-          covariate = 0,
-          mean = m_0,
-          v = mu_v,
-          l = mu_l,
-          sigma = 0
-        )
+      m_0 <- tibble::tibble(
+        Input = t_0_tibble$Input,
+        Covariate = t_0_tibble$Covariate) %>%
+        purrr::modify(signif) %>%
+        tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
+        mutate(Output =  exponential_mean(Input,
+                                          Covariate,
+                                          lambda = draw(lambda_int),
+                                          m1 = draw(m_int),
+                                          m2 = draw(m_int),
+                                          lengthscale = draw(lengthscale_int)))
+
         if (common_hp) {
           i_v <- draw(int_i_v)
           i_l <- draw(int_i_l)
@@ -236,7 +224,7 @@ simu_db <- function(M = 10,
             i_l <- draw(int_i_l)
             i_sigma <- draw(int_i_sigma)
           }
-          mean_i <- db_0 %>%
+          mean_i <- m_0 %>%
             dplyr::filter(.data$Reference %in% t_i) %>%
             dplyr::pull(.data$Output)
 
@@ -249,7 +237,6 @@ simu_db <- function(M = 10,
           simu_indiv_se(
             ID = ID,
             input = t_i_tibble,
-            covariate = 0,
             mean = mean_i,
             v = i_v,
             l = i_l,
@@ -257,11 +244,13 @@ simu_db <- function(M = 10,
           ) %>%
             return()
         }
-        db <- sapply(seq_len(M), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
+
+        db <- sapply(seq_len(M), floop_i, k = k,simplify = F, USE.NAMES = T) %>%
           dplyr::bind_rows() %>%
           dplyr::select(-.data$Reference)
         if (!add_hp) {
-          db <- db %>% dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
+          db <- db %>%
+            dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
         }
 
         if (add_clust) {
@@ -286,7 +275,6 @@ simu_db <- function(M = 10,
       db_0 <- simu_indiv_se(
         ID = "0",
         input = grid,
-        covariate = 0,
         mean = m_0,
         v = mu_v,
         l = mu_l,
@@ -311,9 +299,6 @@ simu_db <- function(M = 10,
           dplyr::filter(.data$Input %in% t_i) %>%
           dplyr::pull(.data$Output)
 
-        covariate_i <- stats::runif(N, int_covariate[1], int_covariate[2]) %>%
-          round(2)
-
         if (K > 1) {
           ID <- paste0("ID", i, "-Clust", k)
         } else {
@@ -323,7 +308,6 @@ simu_db <- function(M = 10,
         simu_indiv_se(
           ID = ID,
           input = t_i,
-          covariate = covariate_i,
           mean = mean_i,
           v = i_v,
           l = i_l,
@@ -333,12 +317,9 @@ simu_db <- function(M = 10,
       }
       db <- sapply(seq_len(M), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
         dplyr::bind_rows()
+
       if (!add_hp) {
         db <- db %>% dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
-      }
-
-      if (!covariate) {
-        db <- db %>% dplyr::select(-.data$Covariate)
       }
 
       if (add_clust) {

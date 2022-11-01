@@ -90,7 +90,7 @@ expand_grid_inputs <- function(Input, ...) {
 #'    if we want to a data point each year between 0 and 10, we can define
 #'    grid_inputs = seq(0, 10, 1)). If
 #'    NULL (default), a dedicated grid of inputs is defined: for each
-#'    input column, a regular sequence is created from the min of the input
+#'    input column, a regular sequence is created from the min input
 #'    values to the max, with a number of equispaced points equal to the
 #'    'size_grid' argument.
 #'
@@ -191,7 +191,8 @@ regularize_data <- function(data,
 
       inputs <- sapply(names_col, round_col) %>%
         tibble::as_tibble()
-      tibble::tibble(ID = data$ID, inputs, Output = data$Output) %>%
+
+      tibble::tibble(ID = data$ID, Output = data$Output, inputs) %>%
         dplyr::group_by_at(c("ID", tidyselect::all_of(names_col))) %>%
         dplyr::summarise_all(summarise_fct) %>%
         dplyr::ungroup() %>%

@@ -1,5 +1,5 @@
 ---
-title: Introduction to Magma
+title: How to use Magma
 output:
    prettydoc::html_pretty:
     theme: leonids
@@ -46,9 +46,9 @@ Indeed, a multi-task GPs model offers new perspectives like probabilistic predic
 
 More generally, our task is to train a model with a large dataset and predict a new individual thanks to shared information.
 
-To get an idea of how our `swimmers` dataset looks, we display the performances of 5 swimmers according to their age.
-Do all the swimmers progress the same, *i.e.* with the same pattern ?
-Do the most successful young swimmers remain the best when they get older ? 
+To get a better idea of the `swimmers` dataset content, we display the performances of 5 swimmers according to their age.
+Do all the swimmers progress the same, *i.e.* with the same pattern?
+Do the most successful young swimmers remain the best when they get older? Those are the kind of questions we aim to tackle in the following. 
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
 ggplot2::ggplot(data=swimmers %>% filter(ID %in% 1:5),
@@ -64,32 +64,27 @@ Therefore, it might be important to take them into account if one wants to impro
 
 ### Dataset format
 
-The `swimmers` dataset contains 4 columns: `ID`, `Input`, `Output` and `Gender`.
-In our case, each row represents a performance realised by a swimmer at a given age.
+The `swimmers` dataset contains 4 columns: `ID`, `Age`, `Performance` and `Gender`. Each row represents a performance realised by a swimmer at a given age. More specifically, each column contains:
 
-*   The `ID` column is used to identify swimmers (who are anonymized) and study their evolution over time; it must be a character or a factor;
-*   The `Input` (here, `Age`) column corresponds to the swimmer's age and must be numeric;
-*   The `Output` (here, `Performance`) column corresponds to the time realised and must be numeric;
-*   The `Gender` column contains 1 for a male and 2 for a female.
-
+- `ID`, the identifying number associated with each swimmer;
+- `Age`, the age of the swimmer at the moment of the performance;
+- `Performance`, the chronometric performance on a 100m freestyle (in seconds);
+- `Gender`, a number indicating the competitive gender of the swimmer (1 corresponds to men and 2 to women).
 
 ```{r}
 knitr::kable(swimmers[1:5,])
 ```
 
-Any additional column (such as weight, height, number of training hours ...) would be treated as a covariate, and thus define multi-dimensional inputs.
+If new variables (such as weight, height, number of training hours ...)  would have been observed, any additional column would be treated as a covariate, and thus result in a model with multi-dimensional inputs.
 
-Before starting to use Magma, we must ensure that :
-
-*   Our dataset contains the columns `ID`, `Input` and `Output`;
-
-*   Their types are as previously introduced.
-
-Therefore, we need to change the name and type of the columns, and remove `Gender`, before using Magma.
+Before starting to use *Magma*, we must ensure that our dataset contains at least the three following mandatory columns with adequate type:
+- `ID`: `character` or `factor`;
+- `Input`: `numeric`;
+- `Output`: `numeric`.
 
 ## Classical pipeline
 
-The overall process with Magma can be decomposed in 3 main steps: **training, prediction** and **display of results**.
+The overall process of the *Magma* algorithm can be decomposed in 3 main steps: **training, prediction** and **plotting the results**.
 The corresponding functions are:
 
 -   [`train_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html)
@@ -102,11 +97,16 @@ The corresponding functions are:
 
 For the sake of consistency, we split male and female swimmers into different datasets: `swimmers_m` and `swimmers_f`. The following study is dedicated to women performances and thus focus on the `swimmers_f` dataset.
 
+In addition, we need to change the name of the input and output columns as indicated before, and remove the `Gender` one.
+
 ```{r}
 swimmers_m <- swimmers %>% filter(Gender == 1) %>%
-    select(-Gender) %>% rename(Input = Age, Output = Performance)
+  select(-Gender) %>% 
+  rename(Input = Age, Output = Performance)
+
 swimmers_f <- swimmers %>% filter(Gender == 2) %>%
-    select(-Gender) %>% rename(Input = Age, Output = Performance)
+  select(-Gender) %>%
+  rename(Input = Age, Output = Performance)
 ```
 
 To continue this data management procedure, the swimmers are allocated into two groups:
@@ -114,7 +114,7 @@ To continue this data management procedure, the swimmers are allocated into two 
 *   those we use to train the model;
 *   the one for whom we predict future performances; let's give her the fictive name *Michaela*.
 
-For computation time reasons in this illustrative example, we randomly select 20 swimmers for training. Even if the performances of *Magma* increase with the number of training individuals, 20 are more than enough to get a clear idea of how the algorithm works.
+To limit computation time in this illustrative example, we randomly select 20 swimmers for training. Even if the performances of *Magma* increase with the number of training individuals, 20 are more than enough to get a clear idea of how the algorithm works.
 
 
 ```{r}
@@ -138,7 +138,7 @@ ggplot2::ggplot(data=swimmers_train,
 ```
 
 
-The triangles correspond to Michaela's performances, whereas the colored dots are the swimmers data we use for training.
+The triangles correspond to Michaela's performances, whereas the coloured dots represent the swimmers data we use for training.
 
 ### Training
 
@@ -150,17 +150,18 @@ It's now time to train the model thanks to `train_magma()`, for which several ar
 Therefore, in order to correctly fit our data, we need to choose a suitable covariance kernel.
 In the case of swimmers, we want a smooth progression curve for Michaela; therefore, we specify `kern = "SE"`.
 
-The most commonly used kernels and their properties are presented in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
-Details of available kernels and how to combine them  in the package are available in [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 
+The most commonly used kernels and their properties are discussed in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
+Details of available kernels and how to combine them  in the package are available in [`help(train_magma)`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 
 
 *   `common_hp`: here, we assume that the set of hyper-parameters is common to all individuals. Thus, we model a context where individuals represent different trajectories of the same process, whereas different hyper-parameters indicate different covariance structures and thus a more flexible model.
 
 As for any GP method, initialisation of the hyper-parameters may have an influence on the final optimisation and lead to inadequate prediction for pathological cases. Therefore, users may explicitly define specific initial values through the dedicated `ini_hp` argument.
 
-Other parameters can also be specified; see [`help train_magma`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html) for details.
+Other parameters can also be specified; see [`help(train_magma)`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html) for details.
 
 
 ```{r}
+set.seed(3)
 model <- train_magma(data = swimmers_train,
                      kern_0 = "SE",
                      kern_i = "SE",
@@ -169,7 +170,7 @@ model <- train_magma(data = swimmers_train,
 
 ### Prediction for Michaela
 
-As the Magma model is trained, we are now going to predict the evolution of Michaela’s performances. To perform prediction, we need to specify two main parameters in the `pred_magma()` function:
+As the *Magma* model is trained,  we can now predict to predict the evolution of Michaela’s performances. To perform prediction, we need to specify two main parameters in the `pred_magma()` function:
 
 *   `data`: in our case, the sub-dataset containing Michaela's current performances;
 *   `trained_model`, which corresponds to the model we just trained with the other 20 swimmers.
@@ -188,7 +189,7 @@ pred <- pred_magma(data = swimmers_pred,
 
 The [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html) function can be used to depict the evolution of Michaela’s predicted performances. 
 
-```{r}
+```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
 plot_gp(pred_gp = pred,
         data = swimmers_pred,
         prior_mean = model$hyperpost$mean,
@@ -198,7 +199,7 @@ In the above figure, we can observe:
 
 *  the prediction curve (purple line) and its associated 95% credibility interval (pink band);
 
-*   the training data points in the background with `data_train`. Each colour corresponds to one swimmer;
+*   the training data points in the background (displayed through `data_train`). Each colour corresponds to one swimmer;
 
 *   the trained mean process as a dashed black line coming from the `prior_mean` parameter.
 
@@ -209,6 +210,7 @@ The *MagmaClustR* package also provides an implementation of the standard GP reg
 The graphs below correspond to predictions of Michaela’s performances between 10 and 23 years, according to *Magma* (left) and standard GP (right). 
 
 ```{r, echo = FALSE, message = FALSE, include = FALSE}
+set.seed(3)
 model_gp <- train_gp(data=swimmers_pred,
                      kern="SE")
 pred_gp <- pred_gp(data=swimmers_pred,
@@ -284,6 +286,7 @@ pred_m <- pred_magma(data = swimmers_pred_m,
 ```
 
 ```{r, echo=FALSE, message=FALSE, include = FALSE}
+set.seed(9)
 pred_f <- pred_magma(data = swimmers_pred,
   trained_model = model,
   grid_inputs = seq(10,20,0.1),

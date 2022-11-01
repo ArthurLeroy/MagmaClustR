@@ -20,12 +20,11 @@ simu_db(
   int_i_v = c(1, 2),
   int_i_l = c(0, 1),
   int_i_sigma = c(0, 0.2),
-  lambda_int = c(20, 30),
+  lambda_int = c(30, 40),
   m_int = c(0, 10),
-  lengthscale_int = c(10, 20),
+  lengthscale_int = c(30, 40),
   m0_slope = c(-5, 5),
-  m0_intercept = c(-50, 50),
-  int_covariate = c(-5, 5)
+  m0_intercept = c(-50, 50)
 )
 }
 \arguments{
@@ -79,17 +78,14 @@ values for the lambda parameter of the 2D exponential.}
 \item{m_int}{A vector of 2 numbers, defining an interval of admissible
 values for the mean of the 2D exponential.}
 
-\item{lengthscale_int}{A vector of 2 numbers, defining an interval of admissible
-values for the lengthscale parameter of the 2D exponential.}
+\item{lengthscale_int}{A vector of 2 numbers, defining an interval of
+admissible values for the lengthscale parameter of the 2D exponential.}
 
 \item{m0_slope}{A vector of 2 numbers, defining an interval of admissible
 values for the slope of m0.}
 
 \item{m0_intercept}{A vector of 2 numbers, defining an interval of admissible
 values for the intercept of m0.}
-
-\item{int_covariate}{A vector of 2 numbers, defining an interval of
-admissible values for the covariate inputs.}
 }
 \value{
 A full dataset of simulated training data.

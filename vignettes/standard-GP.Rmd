@@ -29,7 +29,6 @@ knitr::opts_chunk$set(fig.align="center")
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
-set.seed(2)
 ```
 
 ## Classical pipeline
@@ -97,6 +96,7 @@ Details of available kernels and how to combine them in *MagmaClustR* are availa
 
 
 ```{r}
+set.seed(2)
 model_gp <- train_gp(data = Michaela,
                      kern = "SE",
                      prior_mean = 0)

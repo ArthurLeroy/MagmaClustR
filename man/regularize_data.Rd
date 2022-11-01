@@ -2,12 +2,19 @@
 % Please edit documentation in R/initialisation.R
 \name{regularize_data}
 \alias{regularize_data}
+\alias{regularise_data}
 \title{Regularise a grid of inputs in a dataset}
 \usage{
 regularize_data(
   data,
   size_grid = 30,
-  scale = FALSE,
+  grid_inputs = NULL,
+  summarise_fct = base::mean
+)
+
+regularise_data(
+  data,
+  size_grid = 30,
   grid_inputs = NULL,
   summarise_fct = base::mean
 )
@@ -20,18 +27,20 @@ column specifies the observed values (the response variable). The data
 frame can also provide as many inputs as desired, with no constraints
 on the column names.}
 
-\item{size_grid}{A number, which indicates how many points each column of the
-grid must contain. This number is used when no inputs grid is specified by
-the user. See 'grid_inputs' below for details. Default is 30.}
-
-\item{scale}{A boolean. If TRUE, the dataset is scaled to zero mean and
-unit variance in all column. Default is FALSE.}
+\item{size_grid}{An integer, which indicates the number of equispaced points
+each column must contain. Each original input value will be collapsed to
+the closest point of the new regular grid, and the associated outputs are
+averaged using the 'summarise_fct' function. This argument is used when
+'grid_inputs' is left to 'NULL'. Default value is 30.}
 
 \item{grid_inputs}{A data frame, corresponding to a pre-defined grid of
-inputs according to which we want to regularise a dataset. If
+inputs according to which we want to regularise a dataset (for instance,
+if we want to a data point each year between 0 and 10, we can define
+grid_inputs = seq(0, 10, 1)). If
 NULL (default), a dedicated grid of inputs is defined: for each
-input column, a regular sequence is created from the min of the input
-values to the max, with a step equal to the 'size_grid' parameter.}
+input column, a regular sequence is created from the min input
+values to the max, with a number of equispaced points equal to the
+'size_grid' argument.}
 
 \item{summarise_fct}{A character string or a function. If several similar
 inputs are associated with different outputs, the user can choose the
@@ -39,7 +48,7 @@ summarising function for the output among the following: min, max, mean,
 median. A custom function can be defined if necessary. Default is "mean".}
 }
 \value{
-A data frame, where input columns have been regularised accordingly.
+A data frame, where input columns have been regularised as desired.
 }
 \description{
 Modify the original grid of inputs to make it more 'regular' (in the sense
@@ -50,5 +59,20 @@ this case, the output values are averaged according to the 'summarise_fct'
 argument.
 }
 \examples{
-TRUE
+data = tibble::tibble(ID = 1, Input = 0:100, Output = -50:50)
+
+## Define a 1D input grid of 10 points
+regularize_data(data, size_grid = 10)
+
+## Define a 1D custom grid
+my_grid = tibble::tibble(Input = c(5, 10, 25, 50, 100))
+regularize_data(data, grid_inputs = my_grid)
+
+## Define a 2D input grid of 5 points
+data_2D = cbind(ID = 1, expand.grid(Input=1:10, Input2=1:10), Output = 1:100)
+regularize_data(data_2D, size_grid = 5)
+
+## Define a 2D custom input grid
+my_grid_2D = tibble::tibble(Input = c(1, 3, 9), Input_2 = c(15, 20))
+regularize_data(data_2D, size_grid = 10)
 }
