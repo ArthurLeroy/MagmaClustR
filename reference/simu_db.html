@@ -12,11 +12,11 @@ controlling the data generation."><meta property="og:image" content="https://art
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
     
 
-    <nav class="navbar fixed-top navbar-light navbar-expand-lg bg-light"><div class="container">
+    <nav class="navbar fixed-top navbar-dark navbar-expand-lg bg-primary"><div class="container">
     
     <a class="navbar-brand me-2" href="../index.html">MagmaClustR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,15 @@ controlling the data generation."><meta property="og:image" content="https://art
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item">
   <a class="nav-link" href="../reference/index.html">Reference</a>
+</li>
+<li class="nav-item dropdown">
+  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
+  <div class="dropdown-menu" aria-labelledby="dropdown-articles">
+    <a class="dropdown-item" href="../articles/example-in-2D.html">Multi-dimensional inputs in Magma</a>
+    <a class="dropdown-item" href="../articles/how-to-use-magma.html">How to use Magma</a>
+    <a class="dropdown-item" href="../articles/how-to-use-magmaclust.html">How to use MagmaClust</a>
+    <a class="dropdown-item" href="../articles/standard-GP.html">Gaussian Process Regression</a>
+  </div>
 </li>
 <li class="nav-item">
   <a class="nav-link" href="../news/index.html">Changelog</a>
@@ -66,6 +75,7 @@ controlling the data generation.</p>
 <span>  K <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  covariate <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  grid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span>, <span class="fl">0.05</span><span class="op">)</span>,</span>
+<span>  grid_cov <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span>, <span class="fl">0.5</span><span class="op">)</span>,</span>
 <span>  common_input <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  common_hp <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  add_hp <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -75,9 +85,11 @@ controlling the data generation.</p>
 <span>  int_i_v <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>,</span>
 <span>  int_i_l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  int_i_sigma <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.2</span><span class="op">)</span>,</span>
+<span>  lambda_int <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">30</span>, <span class="fl">40</span><span class="op">)</span>,</span>
+<span>  m_int <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span><span class="op">)</span>,</span>
+<span>  lengthscale_int <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">30</span>, <span class="fl">40</span><span class="op">)</span>,</span>
 <span>  m0_slope <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">5</span>, <span class="fl">5</span><span class="op">)</span>,</span>
-<span>  m0_intercept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">50</span>, <span class="fl">50</span><span class="op">)</span>,</span>
-<span>  int_covariate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">5</span>, <span class="fl">5</span><span class="op">)</span></span>
+<span>  m0_intercept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">50</span>, <span class="fl">50</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -103,6 +115,11 @@ include an additional input covariate named 'Covariate'.</p></dd>
 <dt>grid</dt>
 <dd><p>A vector of numbers defining a grid of observations
 (i.e. the reference inputs).</p></dd>
+
+
+<dt>grid_cov</dt>
+<dd><p>A vector of numbers defining a grid of observations
+(i.e. the covariate reference inputs).</p></dd>
 
 
 <dt>common_input</dt>
@@ -152,6 +169,21 @@ kernel.</p></dd>
 values for the noise hyper-parameter.</p></dd>
 
 
+<dt>lambda_int</dt>
+<dd><p>A vector of 2 numbers, defining an interval of admissible
+values for the lambda parameter of the 2D exponential.</p></dd>
+
+
+<dt>m_int</dt>
+<dd><p>A vector of 2 numbers, defining an interval of admissible
+values for the mean of the 2D exponential.</p></dd>
+
+
+<dt>lengthscale_int</dt>
+<dd><p>A vector of 2 numbers, defining an interval of
+admissible values for the lengthscale parameter of the 2D exponential.</p></dd>
+
+
 <dt>m0_slope</dt>
 <dd><p>A vector of 2 numbers, defining an interval of admissible
 values for the slope of m0.</p></dd>
@@ -160,11 +192,6 @@ values for the slope of m0.</p></dd>
 <dt>m0_intercept</dt>
 <dd><p>A vector of 2 numbers, defining an interval of admissible
 values for the intercept of m0.</p></dd>
-
-
-<dt>int_covariate</dt>
-<dd><p>A vector of 2 numbers, defining an interval of
-admissible values for the covariate inputs.</p></dd>
 
 </dl></div>
     <div class="section level2">

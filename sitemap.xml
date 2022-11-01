@@ -10,6 +10,21 @@
     <loc>https://arthurleroy.github.io/MagmaClustR/LICENSE.html</loc>
   </url>
   <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/articles/example-in-2D.html</loc>
+  </url>
+  <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/articles/how-to-use-magma.html</loc>
+  </url>
+  <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/articles/how-to-use-magmaclust.html</loc>
+  </url>
+  <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/articles/index.html</loc>
+  </url>
+  <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/articles/standard-GP.html</loc>
+  </url>
+  <url>
     <loc>https://arthurleroy.github.io/MagmaClustR/authors.html</loc>
   </url>
   <url>
@@ -47,6 +62,9 @@
   </url>
   <url>
     <loc>https://arthurleroy.github.io/MagmaClustR/reference/elbo_monitoring_VEM.html</loc>
+  </url>
+  <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/reference/expand_grid_inputs.html</loc>
   </url>
   <url>
     <loc>https://arthurleroy.github.io/MagmaClustR/reference/gr_GP.html</loc>
@@ -151,6 +169,9 @@
     <loc>https://arthurleroy.github.io/MagmaClustR/reference/proba_max_cluster.html</loc>
   </url>
   <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/reference/regularize_data.html</loc>
+  </url>
+  <url>
     <loc>https://arthurleroy.github.io/MagmaClustR/reference/rq_kernel.html</loc>
   </url>
   <url>
@@ -172,6 +193,9 @@
     <loc>https://arthurleroy.github.io/MagmaClustR/reference/sum_logL_GP_clust.html</loc>
   </url>
   <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/reference/swimmers.html</loc>
+  </url>
+  <url>
     <loc>https://arthurleroy.github.io/MagmaClustR/reference/train_gp.html</loc>
   </url>
   <url>
@@ -191,5 +215,8 @@
   </url>
   <url>
     <loc>https://arthurleroy.github.io/MagmaClustR/reference/vm_step.html</loc>
+  </url>
+  <url>
+    <loc>https://arthurleroy.github.io/MagmaClustR/reference/weight.html</loc>
   </url>
 </urlset>

@@ -6,11 +6,11 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
     
 
-    <nav class="navbar fixed-top navbar-light navbar-expand-lg bg-light"><div class="container">
+    <nav class="navbar fixed-top navbar-dark navbar-expand-lg bg-primary"><div class="container">
     
     <a class="navbar-brand me-2" href="../index.html">MagmaClustR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,6 +20,15 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item">
   <a class="nav-link" href="../reference/index.html">Reference</a>
+</li>
+<li class="nav-item dropdown">
+  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
+  <div class="dropdown-menu" aria-labelledby="dropdown-articles">
+    <a class="dropdown-item" href="../articles/example-in-2D.html">Multi-dimensional inputs in Magma</a>
+    <a class="dropdown-item" href="../articles/how-to-use-magma.html">How to use Magma</a>
+    <a class="dropdown-item" href="../articles/how-to-use-magmaclust.html">How to use MagmaClust</a>
+    <a class="dropdown-item" href="../articles/standard-GP.html">Gaussian Process Regression</a>
+  </div>
 </li>
 <li class="active nav-item">
   <a class="nav-link" href="../news/index.html">Changelog</a>
@@ -46,26 +55,36 @@
 
     <div class="section level2"><h2 class="pkg-version" data-toc-text="development version" id="magmaclustr-development-version">MagmaClustR (development version)<a class="anchor" aria-label="anchor" href="#magmaclustr-development-version"></a></h2></div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.0.1" id="magmaclustr-101">MagmaClustR 1.0.1<a class="anchor" aria-label="anchor" href="#magmaclustr-101"></a></h2><p class="text-muted">CRAN release: 2022-08-29</p>
+<h2 class="pkg-version" data-toc-text="1.1.0" id="magmaclustr-110">MagmaClustR 1.1.0<a class="anchor" aria-label="anchor" href="#magmaclustr-110"></a></h2>
 <div class="section level3">
-<h3 id="major-1-0-1">Major<a class="anchor" aria-label="anchor" href="#major-1-0-1"></a></h3>
-<ul><li>Remove the package ‘optimr’ dependency and switch to base ‘optim()’ function</li>
-<li>Increase convergence tolerance in ‘optim()’, which was too slow</li>
+<h3 id="major-1-1-0">Major<a class="anchor" aria-label="anchor" href="#major-1-1-0"></a></h3>
+<ul><li>Provide 4 vignettes explaining in details how the different features of MagmaClustR work on practical examples.</li>
+<li>Implement expand_grid_inputs() to help creating customised n-dimensional input grids on which to evaluate the GP.</li>
+<li>Implement regularize_data() to project a dataset on a specific input grid, (possibly to control the size of the resulting covariance matrices and the associated running time).</li>
+<li>Add an internal ‘Reference’ column to datasets, to provide an adequate identifier for multidimensional inputs.</li>
+<li>Implement a new version of simu_db() to generate more realistic 2-D datasets.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="minor-1-0-1">Minor<a class="anchor" aria-label="anchor" href="#minor-1-0-1"></a></h3>
-<ul><li>Fix the warnings about the absolute value function in the Cpp code</li>
-<li>Remove error message in ‘train_magmaclust()’ when common_hp_k = FALSE</li>
-<li>Change the default intervals for hyper-parameters in ‘simu_db()’</li>
-<li>Automatically remove rows with missing data</li>
-<li>Change position of the ‘grid_inputs’ argument in prediction functions</li>
-<li>Remove the internal functions from the index documentation</li>
-<li>Fix ‘ID’ in hyperposterior() and hyperposterior_clust() when not character</li>
+<h3 id="minor-1-1-0">Minor<a class="anchor" aria-label="anchor" href="#minor-1-1-0"></a></h3>
+<ul><li>Round inputs to 6 significant digits to avoid numerical errors.</li>
+<li>Generalise the creation of a grid in any dimension when ‘grid_inputs’ is not specified in the prediction functions.</li>
 </ul></div>
 </div>
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0.1" id="magmaclustr-101">MagmaClustR 1.0.1<a class="anchor" aria-label="anchor" href="#magmaclustr-101"></a></h2><p class="text-muted">CRAN release: 2022-08-29</p>
+<div class="section level3">
+<h3 id="major-1-0-1">Major<a class="anchor" aria-label="anchor" href="#major-1-0-1"></a></h3>
+<p><em>Remove the package ‘optimr’ dependency and switch to base ‘optim()’ function </em>Increase convergence tolerance in ‘optim()’, which was too slow</p>
+</div>
+<div class="section level3">
+<h3 id="minor-1-0-1">Minor<a class="anchor" aria-label="anchor" href="#minor-1-0-1"></a></h3>
+<p><em>Fix the warnings about the absolute value function in the Cpp code </em>Remove error message in ‘train_magmaclust()’ when common_hp_k = FALSE <em>Change the default intervals for hyper-parameters in ‘simu_db()’ </em>Automatically remove rows with missing data <em>Change position of the ‘grid_inputs’ argument in prediction functions </em>Remove the internal functions from the index documentation *Fix ‘ID’ in hyperposterior() and hyperposterior_clust() when not character</p>
+</div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.0" id="magmaclustr-100">MagmaClustR 1.0.0<a class="anchor" aria-label="anchor" href="#magmaclustr-100"></a></h2><p class="text-muted">CRAN release: 2022-06-06</p>
-<ul><li>Initial release</li></ul></div>
+<p>Initial release</p>
+</div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside></div>
 

@@ -63,11 +63,11 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
     
 
-    <nav class="navbar fixed-top navbar-light navbar-expand-lg bg-light"><div class="container">
+    <nav class="navbar fixed-top navbar-dark navbar-expand-lg bg-primary"><div class="container">
     
     <a class="navbar-brand me-2" href="index.html">MagmaClustR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.0</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,6 +78,15 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item">
   <a class="nav-link" href="reference/index.html">Reference</a>
+</li>
+<li class="nav-item dropdown">
+  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
+  <div class="dropdown-menu" aria-labelledby="dropdown-articles">
+    <a class="dropdown-item" href="articles/example-in-2D.html">Multi-dimensional inputs in Magma</a>
+    <a class="dropdown-item" href="articles/how-to-use-magma.html">How to use Magma</a>
+    <a class="dropdown-item" href="articles/how-to-use-magmaclust.html">How to use MagmaClust</a>
+    <a class="dropdown-item" href="articles/standard-GP.html">Gaussian Process Regression</a>
+  </div>
 </li>
 <li class="nav-item">
   <a class="nav-link" href="news/index.html">Changelog</a>
@@ -142,17 +151,18 @@
 <span><span class="co">#&gt; # A tibble: 110 x 3</span></span>
 <span><span class="co">#&gt;    ID    Output Input</span></span>
 <span><span class="co">#&gt;    &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt;</span></span>
-<span><span class="co">#&gt;  1 1      -14.7  0   </span></span>
-<span><span class="co">#&gt;  2 1      -15.7  0.7 </span></span>
-<span><span class="co">#&gt;  3 1      -11.1  1   </span></span>
-<span><span class="co">#&gt;  4 1      -19.3  1.5 </span></span>
-<span><span class="co">#&gt;  5 1      -16.5  1.7 </span></span>
-<span><span class="co">#&gt;  6 1      -33.5  5.2 </span></span>
-<span><span class="co">#&gt;  7 1      -42.2  7   </span></span>
-<span><span class="co">#&gt;  8 1      -48.9  7.1 </span></span>
-<span><span class="co">#&gt;  9 1      -50.5  8.05</span></span>
-<span><span class="co">#&gt; 10 1      -45.0  9.65</span></span>
-<span><span class="co">#&gt; # ... with 100 more rows</span></span></code></pre></div>
+<span><span class="co">#&gt;  1 1      -56.9  0   </span></span>
+<span><span class="co">#&gt;  2 1      -57.4  0.7 </span></span>
+<span><span class="co">#&gt;  3 1      -53.1  1   </span></span>
+<span><span class="co">#&gt;  4 1      -62.8  1.5 </span></span>
+<span><span class="co">#&gt;  5 1      -60.2  1.7 </span></span>
+<span><span class="co">#&gt;  6 1      -81.4  5.2 </span></span>
+<span><span class="co">#&gt;  7 1      -96.2  7   </span></span>
+<span><span class="co">#&gt;  8 1     -102.   7.1 </span></span>
+<span><span class="co">#&gt;  9 1      -96.4  8.05</span></span>
+<span><span class="co">#&gt; 10 1      -86.4  9.65</span></span>
+<span><span class="co">#&gt; # ... with 100 more rows</span></span>
+<span><span class="co">#&gt; # i Use `print(n = ...)` to see more rows</span></span></code></pre></div>
 <p>As displayed above, any dataset processed in MagmaClustR should provide columns named <code>ID</code>, <code>Input</code>, and <code>Output</code>. Any additional column would be treated as a covariate (and thus define multi-dimensional inputs).</p>
 </div>
 <div class="section level3">
@@ -166,17 +176,21 @@
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 1.25 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 8.23 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the likelihood: -405.89184 --- Convergence ratio = Inf</span></span>
+<span><span class="co">#&gt; Value of the likelihood: -434.32317 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 0.87 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 4.91 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the likelihood: -392.1544 --- Convergence ratio = 0.03503</span></span>
+<span><span class="co">#&gt; Value of the likelihood: -401.89388 --- Convergence ratio = 0.08069</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 0.86 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 4.18 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the likelihood: -391.88908 --- Convergence ratio = 0.00068</span></span>
+<span><span class="co">#&gt; Value of the likelihood: -400.50342 --- Convergence ratio = 0.00347</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 3.53 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -400.21465 --- Convergence ratio = 0.00072</span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The EM algorithm successfully converged, training is completed. </span></span>
 <span><span class="co">#&gt; </span></span>
@@ -210,7 +224,8 @@
 <p><img src="reference/figures/README-display_Magma-1.png" width="80%" style="display: block; margin: auto;"></p>
 <p>Additionally, it is also possible to create animated representations by using functions that generate GIFs. For instance, below, the true testing points have been represented as red dots and we can observe how the prediction evolves as we add more data points to our prediction dataset.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">pred_gif</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/pred_gif.html">pred_gif</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">magma_pred</span>,</span>
+<code class="sourceCode R"><span></span>
+<span><span class="va">pred_gif</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/pred_gif.html">pred_gif</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">magma_pred</span>,</span>
 <span>                      trained_model <span class="op">=</span> <span class="va">model</span>,</span>
 <span>                      grid_inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span>, <span class="fl">0.01</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  =&gt; 1 =&gt; 2 =&gt; 3 =&gt; 4 =&gt; 5 =&gt; 6 =&gt; 7</span></span>
@@ -233,7 +248,8 @@
 <h3 id="data-generation-1">Data generation<a class="anchor" aria-label="anchor" href="#data-generation-1"></a>
 </h3>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">## Simulate a dataset containing 3 clusters of 4 individuals, each observed at 10 input locations</span></span>
+<code class="sourceCode R"><span></span>
+<span><span class="co">## Simulate a dataset containing 3 clusters of 4 individuals, each observed at 10 input locations</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span> </span>
 <span><span class="va">data_magmaclust</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/simu_db.html">simu_db</a></span><span class="op">(</span>M <span class="op">=</span> <span class="fl">4</span>, N <span class="op">=</span> <span class="fl">10</span>, K <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> </span>
 <span><span class="co">## Split individuals into training and prediction sets, and define test points</span></span>
@@ -246,17 +262,18 @@
 <span><span class="co">#&gt; # A tibble: 120 x 3</span></span>
 <span><span class="co">#&gt;    ID         Output Input</span></span>
 <span><span class="co">#&gt;    &lt;chr&gt;       &lt;dbl&gt; &lt;dbl&gt;</span></span>
-<span><span class="co">#&gt;  1 ID1-Clust1 -11.1   0.25</span></span>
-<span><span class="co">#&gt;  2 ID1-Clust1  -7.64  0.8 </span></span>
-<span><span class="co">#&gt;  3 ID1-Clust1  -4.91  2   </span></span>
-<span><span class="co">#&gt;  4 ID1-Clust1 -13.2   4.2 </span></span>
-<span><span class="co">#&gt;  5 ID1-Clust1 -14.3   4.6 </span></span>
-<span><span class="co">#&gt;  6 ID1-Clust1 -13.0   6.2 </span></span>
-<span><span class="co">#&gt;  7 ID1-Clust1 -14.1   6.75</span></span>
-<span><span class="co">#&gt;  8 ID1-Clust1 -20.3   7.95</span></span>
-<span><span class="co">#&gt;  9 ID1-Clust1 -14.5   8.85</span></span>
-<span><span class="co">#&gt; 10 ID1-Clust1 -12.2   9.85</span></span>
-<span><span class="co">#&gt; # ... with 110 more rows</span></span></code></pre></div>
+<span><span class="co">#&gt;  1 ID1-Clust1  -47.0  0.25</span></span>
+<span><span class="co">#&gt;  2 ID1-Clust1  -39.5  0.8 </span></span>
+<span><span class="co">#&gt;  3 ID1-Clust1  -29.7  2   </span></span>
+<span><span class="co">#&gt;  4 ID1-Clust1  -38.7  4.2 </span></span>
+<span><span class="co">#&gt;  5 ID1-Clust1  -43.4  4.6 </span></span>
+<span><span class="co">#&gt;  6 ID1-Clust1  -53.6  6.2 </span></span>
+<span><span class="co">#&gt;  7 ID1-Clust1  -57.5  6.75</span></span>
+<span><span class="co">#&gt;  8 ID1-Clust1  -64.9  7.95</span></span>
+<span><span class="co">#&gt;  9 ID1-Clust1  -53.3  8.85</span></span>
+<span><span class="co">#&gt; 10 ID1-Clust1  -42.7  9.85</span></span>
+<span><span class="co">#&gt; # ... with 110 more rows</span></span>
+<span><span class="co">#&gt; # i Use `print(n = ...)` to see more rows</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="training-and-prediction-with-magmaclust">Training and prediction with MagmaClust<a class="anchor" aria-label="anchor" href="#training-and-prediction-with-magmaclust"></a>
@@ -271,17 +288,21 @@
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 1: 11.31 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 1: 44.73 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the elbo: -405.4094 --- Convergence ratio = Inf</span></span>
+<span><span class="co">#&gt; Value of the elbo: -454.05837 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 2: 5.29 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 2: 14.69 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the elbo: -384.40578 --- Convergence ratio = 0.05464</span></span>
+<span><span class="co">#&gt; Value of the elbo: -409.05605 --- Convergence ratio = 0.11002</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 3: 5.46 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 3: 14.16 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the elbo: -384.09759 --- Convergence ratio = 8e-04</span></span>
+<span><span class="co">#&gt; Value of the elbo: -408.61253 --- Convergence ratio = 0.00109</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 4: 14.46 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the elbo: -408.20937 --- Convergence ratio = 0.00099</span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The EM algorithm successfully converged, training is completed. </span></span>
 <span><span class="co">#&gt; </span></span>
@@ -312,7 +333,8 @@
 <span>                col_clust <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                prior_mean <span class="op">=</span> <span class="va">model_clust</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span>,</span>
 <span>                y_grid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">60</span>, <span class="fl">0.5</span><span class="op">)</span>,</span>
-<span>                heatmap <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> </span></code></pre></div>
+<span>                heatmap <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> </span>
+<span><span class="co">#&gt; The mixture probability of the cluster K3 is 1. Therefore, the predictive distribution is Gaussian and the associated credible interval can be displayed.</span></span></code></pre></div>
 <p><img src="reference/figures/README-display_MagmaClust-1.png" width="80%" style="display: block; margin: auto;"></p>
 </div>
 </div>
@@ -337,17 +359,18 @@
 <span><span class="co">#&gt; # A tibble: 110 x 4</span></span>
 <span><span class="co">#&gt;    ID    Output Input Covariate</span></span>
 <span><span class="co">#&gt;    &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt;     &lt;dbl&gt;</span></span>
-<span><span class="co">#&gt;  1 1     -11.1   0.25     -2   </span></span>
-<span><span class="co">#&gt;  2 1      -7.64  0.8       1.94</span></span>
-<span><span class="co">#&gt;  3 1      -4.91  2         4.64</span></span>
-<span><span class="co">#&gt;  4 1     -13.2   4.2      -3.7 </span></span>
-<span><span class="co">#&gt;  5 1     -14.3   4.6      -4.24</span></span>
-<span><span class="co">#&gt;  6 1     -13.0   6.2       0.68</span></span>
-<span><span class="co">#&gt;  7 1     -14.1   6.75      0.55</span></span>
-<span><span class="co">#&gt;  8 1     -20.3   7.95     -4.38</span></span>
-<span><span class="co">#&gt;  9 1     -14.5   8.85      1.74</span></span>
-<span><span class="co">#&gt; 10 1     -12.2   9.85      4.14</span></span>
-<span><span class="co">#&gt; # ... with 100 more rows</span></span></code></pre></div>
+<span><span class="co">#&gt;  1 1      -47.0  0.25     -2   </span></span>
+<span><span class="co">#&gt;  2 1      -39.5  0.8       1.94</span></span>
+<span><span class="co">#&gt;  3 1      -29.7  2         4.64</span></span>
+<span><span class="co">#&gt;  4 1      -38.7  4.2      -3.7 </span></span>
+<span><span class="co">#&gt;  5 1      -43.4  4.6      -4.24</span></span>
+<span><span class="co">#&gt;  6 1      -53.6  6.2       0.68</span></span>
+<span><span class="co">#&gt;  7 1      -57.5  6.75      0.55</span></span>
+<span><span class="co">#&gt;  8 1      -64.9  7.95     -4.38</span></span>
+<span><span class="co">#&gt;  9 1      -53.3  8.85      1.74</span></span>
+<span><span class="co">#&gt; 10 1      -42.7  9.85      4.14</span></span>
+<span><span class="co">#&gt; # ... with 100 more rows</span></span>
+<span><span class="co">#&gt; # i Use `print(n = ...)` to see more rows</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="training-and-prediction-with-magma-1">Training and prediction with Magma<a class="anchor" aria-label="anchor" href="#training-and-prediction-with-magma-1"></a>
@@ -360,21 +383,89 @@
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 5.63 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 14.17 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the likelihood: -243.32274 --- Convergence ratio = Inf</span></span>
+<span><span class="co">#&gt; Value of the likelihood: -547.76188 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 2.52 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 9.5 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the likelihood: -232.15988 --- Convergence ratio = 0.04808</span></span>
+<span><span class="co">#&gt; Value of the likelihood: -494.5156 --- Convergence ratio = 0.10767</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 2.05 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 11.98 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the likelihood: -231.72461 --- Convergence ratio = 0.00188</span></span>
+<span><span class="co">#&gt; Value of the likelihood: -466.4102 --- Convergence ratio = 0.06026</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 2.01 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 9.24 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; Value of the likelihood: -231.68917 --- Convergence ratio = 0.00015</span></span>
+<span><span class="co">#&gt; Value of the likelihood: -449.17074 --- Convergence ratio = 0.03838</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 5: 5 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -435.574 --- Convergence ratio = 0.03122</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 6: 5.4 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -426.56255 --- Convergence ratio = 0.02113</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 7: 5.17 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -421.25636 --- Convergence ratio = 0.0126</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 8: 5.15 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -417.61643 --- Convergence ratio = 0.00872</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 9: 5.11 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -415.16894 --- Convergence ratio = 0.0059</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 10: 4.99 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -413.38881 --- Convergence ratio = 0.00431</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 11: 4.8 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -411.98102 --- Convergence ratio = 0.00342</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 12: 4.25 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -410.94035 --- Convergence ratio = 0.00253</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 13: 4.25 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -409.99426 --- Convergence ratio = 0.00231</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 14: 4.25 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -409.21728 --- Convergence ratio = 0.0019</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 15: 4.35 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -408.47281 --- Convergence ratio = 0.00182</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 16: 4.33 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -407.67549 --- Convergence ratio = 0.00196</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 17: 4.42 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -406.49068 --- Convergence ratio = 0.00291</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 18: 4.67 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -405.14487 --- Convergence ratio = 0.00332</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 19: 4.22 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -404.58873 --- Convergence ratio = 0.00137</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 20: 4.31 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -403.83303 --- Convergence ratio = 0.00187</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; EM algorithm, step 21: 4.51 seconds </span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Value of the likelihood: -403.49586 --- Convergence ratio = 0.00084</span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The EM algorithm successfully converged, training is completed. </span></span>
 <span><span class="co">#&gt; </span></span>
@@ -388,7 +479,11 @@
 <span><span class="co">#&gt; The 'prior_mean' argument has not been specified. The hyper-prior mean function is thus set to be 0 everywhere.</span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Done!</span></span>
-<span><span class="co">#&gt; </span></span></code></pre></div>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Warning: Raster pixels are placed at uneven horizontal intervals and will be</span></span>
+<span><span class="co">#&gt; shifted. Consider using geom_tile() instead.</span></span>
+<span><span class="co">#&gt; Warning: Raster pixels are placed at uneven vertical intervals and will be</span></span>
+<span><span class="co">#&gt; shifted. Consider using geom_tile() instead.</span></span></code></pre></div>
 <p><img src="reference/figures/README-train_and_predict_Magma_in_2-D-1.png" width="80%" style="display: block; margin: auto;"></p>
 </div>
 </div>
