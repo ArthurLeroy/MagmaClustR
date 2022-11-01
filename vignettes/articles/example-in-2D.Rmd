@@ -1,19 +1,6 @@
 ---
 title: "Multi-dimensional inputs in Magma"
-output: html_vignette
-vignette: >
-  %\VignetteIndexEntry{Magma with 2-Dimensional data}
-  %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
-editor_options: 
-  markdown: 
-    wrap: sentence
 ---
-
-<style>
-body {
-text-align: justify}
-</style>
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE}
 knitr::opts_chunk$set(dpi=300, collapse = T, comment = "#>")

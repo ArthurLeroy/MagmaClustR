@@ -50,7 +50,7 @@ Here is a basic example on how to simulate a dataset with the adequate format, t
 ```{r generate data Magma}
 library(MagmaClustR)
 ## Simulate a dataset with 11 individuals, each observed at 10 input locations
-set.seed(28)
+set.seed(17)
 data_magma <- simu_db(M = 11, N = 10, common_input = FALSE)
 ## Split individuals into training and prediction sets, and define test points
 magma_train <- data_magma %>% subset(ID %in% 1:10)
@@ -109,10 +109,9 @@ Here is a basic example on how to simulate a dataset with the adequate format, t
 ### Data generation
 
 ```{r generate data MagmaClust}
-
 ## Simulate a dataset containing 3 clusters of 4 individuals, each observed at 10 input locations
 set.seed(4) 
-data_magmaclust <- simu_db(M = 4, N = 10, K = 3) 
+data_magmaclust <- simu_db(M = 4, N = 10, K = 3, common_input = FALSE) 
 ## Split individuals into training and prediction sets, and define test points
 list_ID = unique(data_magmaclust$ID)
 magmaclust_train <- data_magmaclust %>% subset(ID %in% list_ID[1:11])
@@ -149,7 +148,7 @@ plot_magmaclust(pred = pred_clust,
                 data_train = data_train_with_clust,
                 col_clust = TRUE,
                 prior_mean = model_clust$hyperpost$mean,
-                y_grid = seq(-15, 40, 0.5),
+                y_grid = seq(10, 55, 0.5),
                 heatmap = TRUE) 
 ```
 
@@ -159,7 +158,6 @@ Although unidimensional-input problems are easier to visualise, both Magma and M
 
 ### Data generation
 ```{r generate data 2-D}
-library(MagmaClustR)
 ## Dataset with 11 individuals, 10 reference input locations and a covariate
 set.seed(5) 
 data_dim2 <- simu_db(M = 11, N = 10, covariate = TRUE) 
@@ -172,7 +170,7 @@ data_dim2
 
 ### Training and prediction with Magma 
 
-```{r train_and_predict_Magma_in_2-D, message=FALSE}
+```{r train_and_predict_Magma_in_2-D, message=FALSE, warning=FALSE}
 model_dim2 <- train_magma(data = dim2_train)
 
 pred_dim2  <- pred_magma(data = dim2_pred,

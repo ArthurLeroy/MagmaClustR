@@ -1,19 +1,6 @@
 ---
-title: Gaussian Process Regression
-output: html_vignette
-vignette: >
-  %\VignetteIndexEntry{Gaussian Process Regression}
-  %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
-editor_options: 
-  markdown: 
-    wrap: sentence
+title: "Gaussian Process regression"
 ---
-
-<style>
-body {
-text-align: justify}
-</style>
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(dpi=300, collapse = T, comment = "#>")

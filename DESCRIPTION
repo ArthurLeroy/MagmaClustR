@@ -50,7 +50,6 @@ Imports:
 Suggests: 
     gganimate,
     gifski,
-    gridExtra,
     knitr,
     plotly,
     png,

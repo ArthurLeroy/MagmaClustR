@@ -1,19 +1,6 @@
 ---
-title: How to use Magma
-output: html_vignette
-vignette: >
-  %\VignetteIndexEntry{Introduction to Magma}
-  %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
-editor_options: 
-  markdown: 
-    wrap: sentence
+title: "How to use Magma"
 ---
-
-<style>
-body {
-text-align: justify}
-</style>
 
 ```{r, echo = FALSE, message = FALSE, warning=FALSE}
 knitr::opts_chunk$set(dpi=300, collapse = T, comment = "#>")

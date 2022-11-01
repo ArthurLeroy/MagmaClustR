@@ -58,7 +58,7 @@ format, then train a Magma model and use it to perform predictions.
 ``` r
 library(MagmaClustR)
 ## Simulate a dataset with 11 individuals, each observed at 10 input locations
-set.seed(28)
+set.seed(17)
 data_magma <- simu_db(M = 11, N = 10, common_input = FALSE)
 ## Split individuals into training and prediction sets, and define test points
 magma_train <- data_magma %>% subset(ID %in% 1:10)
@@ -67,20 +67,19 @@ magma_test <- data_magma %>% subset(ID == 11) %>% tail(3)
 
 data_magma
 #> # A tibble: 110 x 3
-#>    ID    Output Input
-#>    <chr>  <dbl> <dbl>
-#>  1 1      -56.9  0   
-#>  2 1      -57.4  0.7 
-#>  3 1      -53.1  1   
-#>  4 1      -62.8  1.5 
-#>  5 1      -60.2  1.7 
-#>  6 1      -81.4  5.2 
-#>  7 1      -96.2  7   
-#>  8 1     -102.   7.1 
-#>  9 1      -96.4  8.05
-#> 10 1      -86.4  9.65
+#>    ID    Input Output
+#>    <chr> <dbl>  <dbl>
+#>  1 1      1.3  -20.7 
+#>  2 1      2.65 -24.2 
+#>  3 1      2.8  -24.4 
+#>  4 1      3.3  -25.6 
+#>  5 1      3.8  -23.9 
+#>  6 1      5    -11.4 
+#>  7 1      6.1   -4.97
+#>  8 1      6.35  -4.35
+#>  9 1      7.55  -6.63
+#> 10 1      9.8   -8.68
 #> # ... with 100 more rows
-#> # i Use `print(n = ...)` to see more rows
 ```
 
 As displayed above, any dataset processed in MagmaClustR should provide
@@ -97,21 +96,21 @@ model <- train_magma(data = magma_train, common_hp = F)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 8.23 seconds 
+#> EM algorithm, step 1: 5.18 seconds 
 #>  
-#> Value of the likelihood: -434.32317 --- Convergence ratio = Inf
+#> Value of the likelihood: -313.47546 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 4.91 seconds 
+#> EM algorithm, step 2: 2.7 seconds 
 #>  
-#> Value of the likelihood: -401.89388 --- Convergence ratio = 0.08069
+#> Value of the likelihood: -303.47668 --- Convergence ratio = 0.03295
 #>  
-#> EM algorithm, step 3: 4.18 seconds 
+#> EM algorithm, step 3: 2.51 seconds 
 #>  
-#> Value of the likelihood: -400.50342 --- Convergence ratio = 0.00347
+#> Value of the likelihood: -302.84575 --- Convergence ratio = 0.00208
 #>  
-#> EM algorithm, step 4: 3.53 seconds 
+#> EM algorithm, step 4: 2.04 seconds 
 #>  
-#> Value of the likelihood: -400.21465 --- Convergence ratio = 0.00072
+#> Value of the likelihood: -302.56379 --- Convergence ratio = 0.00093
 #>  
 #> The EM algorithm successfully converged, training is completed. 
 #> 
@@ -187,10 +186,9 @@ clustering and predictions.
 ### Data generation
 
 ``` r
-
 ## Simulate a dataset containing 3 clusters of 4 individuals, each observed at 10 input locations
-set.seed(2) 
-data_magmaclust <- simu_db(M = 4, N = 10, K = 3) 
+set.seed(4) 
+data_magmaclust <- simu_db(M = 4, N = 10, K = 3, common_input = FALSE) 
 ## Split individuals into training and prediction sets, and define test points
 list_ID = unique(data_magmaclust$ID)
 magmaclust_train <- data_magmaclust %>% subset(ID %in% list_ID[1:11])
@@ -199,20 +197,19 @@ magmaclust_test <- data_magmaclust %>% subset(ID == list_ID[12]) %>% tail(5)
 
 data_magmaclust
 #> # A tibble: 120 x 3
-#>    ID         Output Input
-#>    <chr>       <dbl> <dbl>
-#>  1 ID1-Clust1  -47.0  0.25
-#>  2 ID1-Clust1  -39.5  0.8 
-#>  3 ID1-Clust1  -29.7  2   
-#>  4 ID1-Clust1  -38.7  4.2 
-#>  5 ID1-Clust1  -43.4  4.6 
-#>  6 ID1-Clust1  -53.6  6.2 
-#>  7 ID1-Clust1  -57.5  6.75
-#>  8 ID1-Clust1  -64.9  7.95
-#>  9 ID1-Clust1  -53.3  8.85
-#> 10 ID1-Clust1  -42.7  9.85
+#>    ID         Input Output
+#>    <chr>      <dbl>  <dbl>
+#>  1 ID1-Clust1  0.2   32.4 
+#>  2 ID1-Clust1  0.7   28.8 
+#>  3 ID1-Clust1  2.05   6.62
+#>  4 ID1-Clust1  2.1    5.46
+#>  5 ID1-Clust1  3.15  -5.44
+#>  6 ID1-Clust1  5.3  -16.5 
+#>  7 ID1-Clust1  6.4  -24.7 
+#>  8 ID1-Clust1  7.35 -31.4 
+#>  9 ID1-Clust1  7.5  -32.4 
+#> 10 ID1-Clust1  8.95 -42.7 
 #> # ... with 110 more rows
-#> # i Use `print(n = ...)` to see more rows
 ```
 
 ### Training and prediction with MagmaClust
@@ -227,21 +224,29 @@ model_clust <- train_magmaclust(data = magmaclust_train)
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 44.73 seconds 
+#> VEM algorithm, step 1: 20.02 seconds 
 #>  
-#> Value of the elbo: -454.05837 --- Convergence ratio = Inf
+#> Value of the elbo: -712.16808 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 14.69 seconds 
+#> VEM algorithm, step 2: 12.18 seconds 
 #>  
-#> Value of the elbo: -409.05605 --- Convergence ratio = 0.11002
+#> Value of the elbo: -635.70636 --- Convergence ratio = 0.12028
 #>  
-#> VEM algorithm, step 3: 14.16 seconds 
+#> VEM algorithm, step 3: 14.54 seconds 
 #>  
-#> Value of the elbo: -408.61253 --- Convergence ratio = 0.00109
+#> Value of the elbo: -623.0371 --- Convergence ratio = 0.02033
 #>  
-#> VEM algorithm, step 4: 14.46 seconds 
+#> VEM algorithm, step 4: 10.76 seconds 
 #>  
-#> Value of the elbo: -408.20937 --- Convergence ratio = 0.00099
+#> Value of the elbo: -619.56266 --- Convergence ratio = 0.00561
+#>  
+#> VEM algorithm, step 5: 8.23 seconds 
+#>  
+#> Value of the elbo: -618.50147 --- Convergence ratio = 0.00172
+#>  
+#> VEM algorithm, step 6: 10.46 seconds 
+#>  
+#> Value of the elbo: -617.95297 --- Convergence ratio = 0.00089
 #>  
 #> The EM algorithm successfully converged, training is completed. 
 #> 
@@ -275,9 +280,9 @@ plot_magmaclust(pred = pred_clust,
                 data_train = data_train_with_clust,
                 col_clust = TRUE,
                 prior_mean = model_clust$hyperpost$mean,
-                y_grid = seq(0, 60, 0.5),
+                y_grid = seq(10, 55, 0.5),
                 heatmap = TRUE) 
-#> The mixture probability of the cluster K3 is 1. Therefore, the predictive distribution is Gaussian and the associated credible interval can be displayed.
+#> The mixture probability of the cluster K1 is 1. Therefore, the predictive distribution is Gaussian and the associated credible interval can be displayed.
 ```
 
 <img src="man/figures/README-display_MagmaClust-1.png" width="80%" style="display: block; margin: auto;" />
@@ -291,31 +296,28 @@ desired in the model.
 ### Data generation
 
 ``` r
-library(MagmaClustR)
 ## Dataset with 11 individuals, 10 reference input locations and a covariate
-set.seed(2) 
+set.seed(5) 
 data_dim2 <- simu_db(M = 11, N = 10, covariate = TRUE) 
 ## Split individuals into training and prediction sets, and define test points
 dim2_train <- data_dim2 %>% subset(ID %in% 1:10)
-dim2_pred <- data_dim2 %>% subset(ID == 11) %>% head(5)
-dim2_test <- data_dim2 %>% subset(ID == 11) %>% tail(5)
+dim2_pred <- data_dim2 %>% subset(ID == 11)
 
 data_dim2
 #> # A tibble: 110 x 4
-#>    ID    Output Input Covariate
-#>    <chr>  <dbl> <dbl>     <dbl>
-#>  1 1      -47.0  0.25     -2   
-#>  2 1      -39.5  0.8       1.94
-#>  3 1      -29.7  2         4.64
-#>  4 1      -38.7  4.2      -3.7 
-#>  5 1      -43.4  4.6      -4.24
-#>  6 1      -53.6  6.2       0.68
-#>  7 1      -57.5  6.75      0.55
-#>  8 1      -64.9  7.95     -4.38
-#>  9 1      -53.3  8.85      1.74
-#> 10 1      -42.7  9.85      4.14
+#>    ID    Input Covariate Output
+#>    <chr> <dbl>     <dbl>  <dbl>
+#>  1 1      1.85       4.5  21.3 
+#>  2 1      2.85       8.5   5.21
+#>  3 1      2          4    24.8 
+#>  4 1      3.25       7    12.3 
+#>  5 1      3.5        2.5  37.0 
+#>  6 1      5.3        5.5  20.0 
+#>  7 1      6.5        5    20.8 
+#>  8 1      6          2    34.1 
+#>  9 1      7.3        9.5   5.18
+#> 10 1      9.2        7.5   7.20
 #> # ... with 100 more rows
-#> # i Use `print(n = ...)` to see more rows
 ```
 
 ### Training and prediction with Magma
@@ -328,89 +330,21 @@ model_dim2 <- train_magma(data = dim2_train)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 14.17 seconds 
+#> EM algorithm, step 1: 5.42 seconds 
 #>  
-#> Value of the likelihood: -547.76188 --- Convergence ratio = Inf
+#> Value of the likelihood: -247.66608 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 9.5 seconds 
+#> EM algorithm, step 2: 5.39 seconds 
 #>  
-#> Value of the likelihood: -494.5156 --- Convergence ratio = 0.10767
+#> Value of the likelihood: -217.29028 --- Convergence ratio = 0.13979
 #>  
-#> EM algorithm, step 3: 11.98 seconds 
+#> EM algorithm, step 3: 3.04 seconds 
 #>  
-#> Value of the likelihood: -466.4102 --- Convergence ratio = 0.06026
+#> Value of the likelihood: -216.11346 --- Convergence ratio = 0.00545
 #>  
-#> EM algorithm, step 4: 9.24 seconds 
+#> EM algorithm, step 4: 3.04 seconds 
 #>  
-#> Value of the likelihood: -449.17074 --- Convergence ratio = 0.03838
-#>  
-#> EM algorithm, step 5: 5 seconds 
-#>  
-#> Value of the likelihood: -435.574 --- Convergence ratio = 0.03122
-#>  
-#> EM algorithm, step 6: 5.4 seconds 
-#>  
-#> Value of the likelihood: -426.56255 --- Convergence ratio = 0.02113
-#>  
-#> EM algorithm, step 7: 5.17 seconds 
-#>  
-#> Value of the likelihood: -421.25636 --- Convergence ratio = 0.0126
-#>  
-#> EM algorithm, step 8: 5.15 seconds 
-#>  
-#> Value of the likelihood: -417.61643 --- Convergence ratio = 0.00872
-#>  
-#> EM algorithm, step 9: 5.11 seconds 
-#>  
-#> Value of the likelihood: -415.16894 --- Convergence ratio = 0.0059
-#>  
-#> EM algorithm, step 10: 4.99 seconds 
-#>  
-#> Value of the likelihood: -413.38881 --- Convergence ratio = 0.00431
-#>  
-#> EM algorithm, step 11: 4.8 seconds 
-#>  
-#> Value of the likelihood: -411.98102 --- Convergence ratio = 0.00342
-#>  
-#> EM algorithm, step 12: 4.25 seconds 
-#>  
-#> Value of the likelihood: -410.94035 --- Convergence ratio = 0.00253
-#>  
-#> EM algorithm, step 13: 4.25 seconds 
-#>  
-#> Value of the likelihood: -409.99426 --- Convergence ratio = 0.00231
-#>  
-#> EM algorithm, step 14: 4.25 seconds 
-#>  
-#> Value of the likelihood: -409.21728 --- Convergence ratio = 0.0019
-#>  
-#> EM algorithm, step 15: 4.35 seconds 
-#>  
-#> Value of the likelihood: -408.47281 --- Convergence ratio = 0.00182
-#>  
-#> EM algorithm, step 16: 4.33 seconds 
-#>  
-#> Value of the likelihood: -407.67549 --- Convergence ratio = 0.00196
-#>  
-#> EM algorithm, step 17: 4.42 seconds 
-#>  
-#> Value of the likelihood: -406.49068 --- Convergence ratio = 0.00291
-#>  
-#> EM algorithm, step 18: 4.67 seconds 
-#>  
-#> Value of the likelihood: -405.14487 --- Convergence ratio = 0.00332
-#>  
-#> EM algorithm, step 19: 4.22 seconds 
-#>  
-#> Value of the likelihood: -404.58873 --- Convergence ratio = 0.00137
-#>  
-#> EM algorithm, step 20: 4.31 seconds 
-#>  
-#> Value of the likelihood: -403.83303 --- Convergence ratio = 0.00187
-#>  
-#> EM algorithm, step 21: 4.51 seconds 
-#>  
-#> Value of the likelihood: -403.49586 --- Convergence ratio = 0.00084
+#> Value of the likelihood: -216.02699 --- Convergence ratio = 4e-04
 #>  
 #> The EM algorithm successfully converged, training is completed. 
 #> 
@@ -425,10 +359,6 @@ pred_dim2  <- pred_magma(data = dim2_pred,
 #>  
 #> Done!
 #> 
-#> Warning: Raster pixels are placed at uneven horizontal intervals and will be
-#> shifted. Consider using geom_tile() instead.
-#> Warning: Raster pixels are placed at uneven vertical intervals and will be
-#> shifted. Consider using geom_tile() instead.
 ```
 
 <img src="man/figures/README-train_and_predict_Magma_in_2-D-1.png" width="80%" style="display: block; margin: auto;" />

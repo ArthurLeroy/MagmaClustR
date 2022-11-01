@@ -1,13 +1,5 @@
 ---
-title: How to use MagmaClust
-output: html_vignette
-vignette: >
-  %\VignetteIndexEntry{Introduction to MagmaClust}
-  %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
-editor_options: 
-  markdown: 
-    wrap: sentence
+title: "How to use MagmaClust"
 ---
 
 <style>
