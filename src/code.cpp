@@ -42,7 +42,7 @@ NumericMatrix cpp_perio(
     for (int r2 = 0; r2 < nrow2; r2++) {
       double total = 0;
       for (int c12 = 0; c12 < ncol; c12++) {
-        total += pow(sin(M_PI/exp(period)*abs(m1(r1, c12)-m2(r2, c12))),2);
+        total += pow(sin(M_PI/exp(period) * fabs(m1(r1, c12)-m2(r2, c12))),2);
       }
       out(r1, r2) = total;
     }
@@ -66,7 +66,7 @@ NumericMatrix cpp_perio_deriv(
       for (int r2 = 0; r2 < nrow2; r2++) {
         double total = 0;
         for (int c12 = 0; c12 < ncol; c12++) {
-          double angle = M_PI/exp(period) * abs(m1(r1, c12) - m2(r2, c12));
+          double angle = M_PI/exp(period) * fabs(m1(r1, c12) - m2(r2, c12));
           total += 2 * sin(angle) * cos(angle) * angle;
         }
         out(r1, r2) = total;
@@ -100,7 +100,7 @@ NumericMatrix cpp_prod(NumericMatrix m1, NumericMatrix m2) {
         return out;
 }
 
-// Function used to speed-up computations of derivatives of the periodic kernel
+// Function used to speed-up computations when adding noise to the kernel
 // [[Rcpp::export]]
 NumericMatrix cpp_noise(
             NumericMatrix m1,
@@ -118,7 +118,7 @@ NumericMatrix cpp_noise(
               double value = 0;
 
               for (int c12 = 0; c12 < ncol; c12++) {
-                diff += abs(m1(r1, c12) - m2(r2, c12));
+                diff += fabs(m1(r1, c12) - m2(r2, c12));
               }
 
               if(diff < 0.000001){
