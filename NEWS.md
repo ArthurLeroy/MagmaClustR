@@ -3,8 +3,8 @@
 # MagmaClustR 1.1.0
 
 ## Major
-* Provide 4 vignettes explaining in details how the different features of MagmaClustR work on practical examples. 
-* Implement expand_grid_inputs() to help creating customised n-dimensional input
+* Provide 4 vignettes explaining in detail how the different features of MagmaClustR work on practical examples. 
+* Implement expand_grid_inputs() to help create customised n-dimensional input
 grids on which to evaluate the GP.
 * Implement regularize_data() to project a dataset on a specific input grid,
 (possibly to control the size of the resulting covariance matrices and the associated running time).
