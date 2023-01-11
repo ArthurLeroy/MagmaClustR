@@ -45,10 +45,10 @@ Cluster-Specific Predictions with Multi-Task Gaussian Processes.
 
 \subsection{Simulate a dataset, train and predict with Magma \cr}{
 
-set.seed(42) \cr
+set.seed(4242) \cr
 data_magma <- simu_db(M = 11, N = 10, K = 1) \cr
 magma_train <- data_magma \%>\% subset(ID \%in\% 1:10) \cr
-magma_test <- data_magma \%>\% subset(ID == 11) \%>\% head(5) \cr
+magma_test <- data_magma \%>\% subset(ID == 11) \%>\% head(7) \cr
 
 magma_model <- train_magma(data = magma_train) \cr
 magma_pred  <- pred_magma(data = magma_test, trained_model = magma_model,
@@ -57,7 +57,7 @@ grid_inputs = seq(0, 10, 0.01)) \cr
 
 \subsection{Simulate a dataset, train and predict with MagmaClust \cr}{
 
-set.seed(42) \cr
+set.seed(4242) \cr
 data_magmaclust <- simu_db(M = 4, N = 10, K = 3) \cr
 list_ID = unique(data_magmaclust$ID) \cr
 magmaclust_train <- data_magmaclust \%>\% subset(ID \%in\% list_ID[1:11]) \cr
