@@ -8,7 +8,7 @@ Authors@R: c(
            comment = c(ORCID = "0000-0003-0806-8934")),
     person("Pierre", "Latouche", , "pierre.latouche@gmail.com", role = "aut"),
     person("Pierre", "Pathé", , "pathepierre@gmail.com", role = "ctb"),
-    person("Alexia", "Grenouilla", , "grenouil@insa-toulouse.fr", role = "ctb"),
+    person("Alexia", "Grenouillat", , "grenouil@insa-toulouse.fr", role = "ctb"),
     person("Hugo", "Lelievre", , "lelievre@insa-toulouse.fr", role = "ctb")
   )
 Description: An implementation for the multi-task Gaussian processes with common 
