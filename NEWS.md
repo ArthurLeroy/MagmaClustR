@@ -1,5 +1,11 @@
 # MagmaClustR (development version)
 
+# MagmaClustR 1.1.1
+
+## Minor
+* Fix an issue regarding deprecation of .data in 'tidyselect'
+* Fix a unit testing issue
+
 # MagmaClustR 1.1.0
 
 ## Major

@@ -13,7 +13,7 @@ knitr::opts_chunk$set(fig.align="center")
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
-library(gridExtra)
+if(rlang::is_installed("gridExtra")){library(gridExtra)}
 ```
 
 
@@ -225,7 +225,12 @@ gg2 <- plot_gp(pred_gp = pred_gp,
   ggplot2::scale_y_continuous(limits = c(-130,120))+ 
   ggplot2::scale_x_continuous(limits = c(10,23))
 
-gridExtra::grid.arrange(gg1, gg2, ncol = 2)
+if(rlang::is_installed("gridExtra")){
+  gridExtra::grid.arrange(gg1, gg2, ncol = 2)
+} else {
+  gg1 
+  gg2
+}
 
 ```
 
@@ -292,7 +297,12 @@ gg4 <- plot_gp(pred_gp = pred_m,
         alpha_data_train = 0.3) +
   ggplot2::scale_y_continuous(limits = c(50,101))
 
-gridExtra::grid.arrange(gg3, gg4, ncol = 2)
+if(rlang::is_installed("gridExtra")){
+  gridExtra::grid.arrange(gg3, gg4, ncol = 2)
+} else {
+  gg3
+  gg4
+}
 ```
 
 We can note that both genders present similar patterns of progression: a quick improvement of performances at young ages, then a slowdown in progress that can even leads to a stagnation afterwards.
