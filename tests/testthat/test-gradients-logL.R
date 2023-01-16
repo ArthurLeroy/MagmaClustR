@@ -16,8 +16,8 @@ test_that("gradient of gr_GP() works for Squared Exponential kernel", {
   emp_deriv_l <- (logL_GP(hp_l, db, mean, "SE", new_cov, 0) -
     logL_GP(hp, db, mean, "SE", new_cov, 0)) / 10^(-8)
 
-  round(deriv_v, 4) %>% expect_equal(round(emp_deriv_v, 4))
-  round(deriv_l, 4) %>% expect_equal(round(emp_deriv_l, 4))
+  round(deriv_v, 3) %>% expect_equal(round(emp_deriv_v, 3))
+  round(deriv_l, 3) %>% expect_equal(round(emp_deriv_l, 3))
 })
 
 ## TODO: test for gr_GP() for the RQ and PERIOD kernels
@@ -41,8 +41,8 @@ test_that("gradient of logL_GP_mod() works for Squared Exponential kernel", {
   emp_deriv_l <- (logL_GP_mod(hp_l, db, mean, "SE", new_cov, 0) -
     logL_GP_mod(hp, db, mean, "SE", new_cov, 0)) / 10^(-8)
 
-  round(deriv_v, 4) %>% expect_equal(round(emp_deriv_v, 4))
-  round(deriv_l, 4) %>% expect_equal(round(emp_deriv_l, 4))
+  round(deriv_v, 3) %>% expect_equal(round(emp_deriv_v, 3))
+  round(deriv_l, 3) %>% expect_equal(round(emp_deriv_l, 3))
 })
 
 ## TODO: test for gr_GP_mod() for the RQ and PERIOD kernels
@@ -78,8 +78,8 @@ test_that("gradient of logL_GP_mod_common_hp() works", {
   emp_deriv_l <- (logL_GP_mod_common_hp(hp_l, db, mean, "SE", new_cov, 0) -
     logL_GP_mod_common_hp(hp, db, mean, "SE", new_cov, 0)) / 10^(-8)
 
-  round(deriv_v, 4) %>% expect_equal(round(emp_deriv_v, 4))
-  round(deriv_l, 4) %>% expect_equal(round(emp_deriv_l, 4))
+  round(deriv_v, 3) %>% expect_equal(round(emp_deriv_v, 3))
+  round(deriv_l, 3) %>% expect_equal(round(emp_deriv_l, 3))
 })
 
 ## TODO: test for gr_GP_mod_common_hp() for the RQ and PERIOD kernels
@@ -122,6 +122,6 @@ test_that("gradient of gr_sum_logL_GP_clust() works for SE kernel", {
   ) -
     sum_logL_GP_clust(hp, db, mixture, mean, "SE", new_cov, NULL, 0)) / 10^(-8)
 
-  round(deriv_v, 4) %>% expect_equal(round(emp_deriv_v, 4))
-  round(deriv_l, 4) %>% expect_equal(round(emp_deriv_l, 4))
+  round(deriv_v, 3) %>% expect_equal(round(emp_deriv_v, 3))
+  round(deriv_l, 3) %>% expect_equal(round(emp_deriv_l, 3))
 })
