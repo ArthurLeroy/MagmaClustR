@@ -1,12 +1,12 @@
-pandoc: 2.7.3
-pkgdown: 2.0.6
+pandoc: 2.19.2
+pkgdown: 2.0.7
 pkgdown_sha: ~
 articles:
   example-in-2D: example-in-2D.html
   how-to-use-magma: how-to-use-magma.html
   how-to-use-magmaclust: how-to-use-magmaclust.html
   standard-GP: standard-GP.html
-last_built: 2022-11-02T16:13Z
+last_built: 2023-01-16T15:20Z
 urls:
   reference: https://arthurleroy.github.io/MagmaClustR/reference
   article: https://arthurleroy.github.io/MagmaClustR/articles
