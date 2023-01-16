@@ -1454,7 +1454,6 @@ train_gp_clust <- function(data,
                            pen_diag = 1e-10,
                            n_iter_max = 25,
                            cv_threshold = 1e-3) {
-
   ## Get input column names
   if("Reference" %in% names(data)){
     names_col <- data %>%
@@ -1466,8 +1465,8 @@ train_gp_clust <- function(data,
       names()
   }
 
-  if('ID' %in% names(names_col)){
-    names_col <- names_col %>% dplyr::select(-.data$ID)
+  if('ID' %in% names_col){
+    names_col <- names_col[!names_col == 'ID']
   }
 
   ## Keep 6 significant digits for entries to avoid numerical errors and
