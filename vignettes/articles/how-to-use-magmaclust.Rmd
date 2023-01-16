@@ -18,7 +18,7 @@ knitr::opts_chunk$set(fig.align="center")
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
-library(gridExtra)
+if(rlang::is_installed("gridExtra")){library(gridExtra)}
 ```
 ## Data and purpose
 
@@ -273,7 +273,12 @@ gg1 <- plot_magmaclust(pred = pred_clust,
                       color = 'grey', size = 3) +
   ggplot2::scale_y_continuous(limits = c(0,37))
 
-gridExtra::grid.arrange(gg1, gg2, ncol = 2)
+if(rlang::is_installed("gridExtra")){
+  gridExtra::grid.arrange(gg1, gg2, ncol = 2)
+} else {
+  gg1
+  gg2
+}
 ```
 
 
