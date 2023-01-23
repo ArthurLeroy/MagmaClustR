@@ -28,7 +28,8 @@
 #'
 #' Arthur Leroy, Pierre Latouche, Benjamin Guedj, and Servane Gey. \cr
 #' Cluster-Specific Predictions with Multi-Task Gaussian Processes.
-#' *PREPRINT*, Nov. 2020, \url{https://arxiv.org/abs/2011.07866}
+#' *Journal of Machine Learning Research*, 2023,
+#' \url{https://jmlr.org/papers/v24/20-1321.html}
 #'
 #' @section Examples:
 #'
