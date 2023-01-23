@@ -232,7 +232,7 @@ The graphs below correspond to James' weight prediction with MagmaClust (left) a
 
 
 ```{r echo = FALSE, message = FALSE, include = FALSE}
-set.seed(10)
+set.seed(11)
 model_magma <- train_magma(data = weight_train,
                         kern_0 = "SE",
                         kern_i = "SE",
@@ -291,5 +291,5 @@ In this example, *MagmaClust* offers a significant improvement in this long term
 Overall, the multi-task framework combined with a clustering component provided by *MagmaClust* offers reliable probabilistic predictions for a new individual (child in our example) on a wide range of timestamps.
 Moreover, the uncertainty quantification inherent to GP-based methods allows practitioners to maintain an adequate degree of caution in their decision making process.  
 
-For further details, the complete derivation of the algorithm and experiments are published and available in [Cluster-Specific Predictions with Multi-Task Gaussian Processes](https://arxiv.org/pdf/2011.07866.pdf).
+For further details, the complete derivation of the algorithm and experiments are published and available in [Cluster-Specific Predictions with Multi-Task Gaussian Processes](https://jmlr.org/papers/v24/20-1321.html).
 
