@@ -1,5 +1,8 @@
 # MagmaClustR (development version)
 
+# Minor 
+* Fix a bug occurring in pred_magmaclust() for a 'trained_model' with hp_i = FALSE
+
 # MagmaClustR 1.1.1
 
 ## Minor
