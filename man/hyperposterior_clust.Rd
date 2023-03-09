@@ -5,18 +5,25 @@
 \title{Compute the hyper-posterior distribution for each cluster in MagmaClust}
 \usage{
 hyperposterior_clust(
-  data,
-  mixture,
-  hp_k,
-  hp_i,
-  kern_k,
-  kern_i,
+  trained_model = NULL,
+  data = NULL,
+  mixture = NULL,
+  hp_k = NULL,
+  hp_i = NULL,
+  kern_k = NULL,
+  kern_i = NULL,
   prior_mean_k = NULL,
   grid_inputs = NULL,
   pen_diag = 1e-10
 )
 }
 \arguments{
+\item{trained_model}{A list, containing  the information coming from a
+Magma model, previously trained using the \code{\link{train_magma}}
+function. If \code{trained_model} is not provided, the arguments
+\code{data}, \code{mixture}, \code{hp_k}, \code{hp_i}, \code{kern_k}, and
+\code{kern_i} are all required.}
+
 \item{data}{A tibble or data frame. Required columns: \code{ID}, \code{Input}
 , \code{Output}. Additional columns for covariates can be specified.
 The \code{ID} column contains the unique names/codes used to identify each
@@ -27,16 +34,21 @@ reference for the observations (e.g. time for longitudinal data). The
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference \code{Input}.}
+each reference \code{Input}. Recovered from \code{trained_model} if not
+provided.}
 
 \item{mixture}{A tibble or data frame, indicating the mixture probabilities
-of each cluster for each individual. Required column: \code{ID}.}
+of each cluster for each individual. Required column: \code{ID}.
+Recovered from \code{trained_model} if not
+provided.}
 
 \item{hp_k}{A tibble or data frame of hyper-parameters
-associated with \code{kern_k}.}
+associated with \code{kern_k}. Recovered from \code{trained_model} if not
+provided.}
 
 \item{hp_i}{A tibble or data frame of hyper-parameters
-associated with \code{kern_i}.}
+associated with \code{kern_i}. Recovered from \code{trained_model} if not
+provided.}
 
 \item{kern_k}{A kernel function, associated with the mean GPs.
 Several popular kernels
@@ -54,11 +66,13 @@ For combining kernels, simply provide a formula as a character string
 where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
 elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
-'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not). Recovered from
+\code{trained_model} if not provided.
 }}
 
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
-"LIN", PERIO" and "RQ" are also available here)}
+"LIN", PERIO" and "RQ" are also available here). Recovered from
+\code{trained_model} if not provided.}
 
 \item{prior_mean_k}{The set of hyper-prior mean parameters (m_k) for the K
 mean GPs, one value for each cluster.
@@ -98,8 +112,8 @@ Recompute the E-step of the VEM algorithm in MagmaClust for a new set of
 reference \code{Input}. Once training is completed, it can be necessary to
 evaluate the hyper-posterior distributions of the mean processes at specific
 locations, for which we want to make predictions. This process is directly
-implemented in the \code{\link{pred_magmaclust}} function but for the user
-might want to use \code{hyperpost_clust} for a tailored control 'by hand' of
+implemented in the \code{\link{pred_magmaclust}} function but the user
+might want to use \code{hyperpost_clust} for a tailored control of
 the prediction procedure.
 }
 \examples{

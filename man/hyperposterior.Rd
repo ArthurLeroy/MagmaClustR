@@ -5,17 +5,24 @@
 \title{Compute the hyper-posterior distribution in Magma}
 \usage{
 hyperposterior(
-  data,
-  hp_0,
-  hp_i,
-  kern_0,
-  kern_i,
+  trained_model = NULL,
+  data = NULL,
+  hp_0 = NULL,
+  hp_i = NULL,
+  kern_0 = NULL,
+  kern_i = NULL,
   prior_mean = NULL,
   grid_inputs = NULL,
   pen_diag = 1e-10
 )
 }
 \arguments{
+\item{trained_model}{A list, containing  the information coming from a
+Magma model, previously trained using the \code{\link{train_magma}}
+function. If \code{trained_model} is not provided, the arguments
+\code{data}, \code{hp_0}, \code{hp_i}, \code{kern_0}, and \code{kern_i}
+are all required.}
+
 \item{data}{A tibble or data frame. Required columns: 'Input',
 'Output'. Additional columns for covariates can be specified.
 The 'Input' column should define the variable that is used as
@@ -24,13 +31,16 @@ reference for the observations (e.g. time for longitudinal data). The
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference 'Input'.}
+each reference 'Input'. Recovered from \code{trained_model} if not
+provided.}
 
 \item{hp_0}{A named vector, tibble or data frame of hyper-parameters
-associated with \code{kern_0}.}
+associated with \code{kern_0}. Recovered from \code{trained_model} if not
+provided.}
 
 \item{hp_i}{A tibble or data frame of hyper-parameters
-associated with \code{kern_i}.}
+associated with \code{kern_i}. Recovered from \code{trained_model} if not
+provided.}
 
 \item{kern_0}{A kernel function, associated with the mean GP.
 Several popular kernels
@@ -48,11 +58,13 @@ For combining kernels, simply provide a formula as a character string
 where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
 elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
-'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not). Recovered from
+\code{trained_model} if not provided.
 }}
 
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
-"PERIO" and "RQ" are aso available here)}
+"PERIO" and "RQ" are aso available here). Recovered from
+\code{trained_model} if not provided.}
 
 \item{prior_mean}{Hyper-prior mean parameter of the mean GP. This argument,
 can be specified under various formats, such as:
