@@ -362,6 +362,11 @@ pred_gp <- function(data,
 #' key component for making prediction in Magma, and is required in the function
 #' \code{\link{pred_magma}}.
 #'
+#' @param trained_model A list, containing  the information coming from a
+#'    Magma model, previously trained using the \code{\link{train_magma}}
+#'    function. If \code{trained_model} is not provided, the arguments
+#'    \code{data}, \code{hp_0}, \code{hp_i}, \code{kern_0}, and \code{kern_i}
+#'    are all required.
 #' @param data A tibble or data frame. Required columns: 'Input',
 #'    'Output'. Additional columns for covariates can be specified.
 #'    The 'Input' column should define the variable that is used as
@@ -370,11 +375,14 @@ pred_gp <- function(data,
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'.
+#'    each reference 'Input'. Recovered from \code{trained_model} if not
+#'    provided.
 #' @param hp_0 A named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern_0}.
+#'    associated with \code{kern_0}. Recovered from \code{trained_model} if not
+#'    provided.
 #' @param hp_i A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}.
+#'    associated with \code{kern_i}. Recovered from \code{trained_model} if not
+#'    provided.
 #' @param kern_0 A kernel function, associated with the mean GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -390,9 +398,11 @@ pred_gp <- function(data,
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
-#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not). Recovered from
+#'    \code{trained_model} if not provided.
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
-#'    "PERIO" and "RQ" are aso available here)
+#'    "PERIO" and "RQ" are aso available here). Recovered from
+#'    \code{trained_model} if not provided.
 #' @param prior_mean Hyper-prior mean parameter of the mean GP. This argument,
 #'    can be specified under various formats, such as:
 #'    - NULL (default). The hyper-prior mean would be set to 0 everywhere.
@@ -426,14 +436,34 @@ pred_gp <- function(data,
 #'
 #' @examples
 #' TRUE
-hyperposterior <- function(data,
-                           hp_0,
-                           hp_i,
-                           kern_0,
-                           kern_i,
+hyperposterior <- function(trained_model = NULL,
+                           data = NULL,
+                           hp_0 = NULL,
+                           hp_i = NULL,
+                           kern_0 = NULL,
+                           kern_i = NULL,
                            prior_mean = NULL,
                            grid_inputs = NULL,
                            pen_diag = 1e-10) {
+  ## Check whether a model trained by train_magma() is provided
+  if(trained_model %>% is.null()){
+    ## Check whether all mandatory arguments are present otherwise
+    if(is.null(data)|is.null(hp_0)|is.null(hp_i)|
+       is.null(kern_0)|is.null(kern_i)){
+      stop(
+        "If no 'trained_model' argument is provided, the arguments 'data', ",
+        "'hp_0', 'hp_i' 'kern_0', and 'kern_i' are all required."
+      )
+      }
+  } else {
+    ## For each argument, retrieve the value from 'trained_model' if missing
+    if(data %>% is.null()){data = trained_model$ini_args$data}
+    if(hp_0 %>% is.null()){hp_0 = trained_model$hp_0}
+    if(hp_i %>% is.null()){hp_i = trained_model$hp_i}
+    if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_0}
+    if(kern_i %>% is.null()){kern_i = trained_model$ini_args$kern_i}
+  }
+
   ## Get input column names
   if (!("Reference" %in% (names(data)))) {
     names_col <- data %>%
@@ -1223,10 +1253,15 @@ pred_gif <- function(data,
 #' reference \code{Input}. Once training is completed, it can be necessary to
 #' evaluate the hyper-posterior distributions of the mean processes at specific
 #' locations, for which we want to make predictions. This process is directly
-#' implemented in the \code{\link{pred_magmaclust}} function but for the user
-#' might want to use \code{hyperpost_clust} for a tailored control 'by hand' of
+#' implemented in the \code{\link{pred_magmaclust}} function but the user
+#' might want to use \code{hyperpost_clust} for a tailored control of
 #' the prediction procedure.
 #'
+#' @param trained_model A list, containing  the information coming from a
+#'    Magma model, previously trained using the \code{\link{train_magma}}
+#'    function. If \code{trained_model} is not provided, the arguments
+#'    \code{data}, \code{mixture}, \code{hp_k}, \code{hp_i}, \code{kern_k}, and
+#'    \code{kern_i} are all required.
 #' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    , \code{Output}. Additional columns for covariates can be specified.
 #'    The \code{ID} column contains the unique names/codes used to identify each
@@ -1237,13 +1272,18 @@ pred_gif <- function(data,
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference \code{Input}.
+#'    each reference \code{Input}. Recovered from \code{trained_model} if not
+#'    provided.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
 #'     of each cluster for each individual. Required column: \code{ID}.
+#'     Recovered from \code{trained_model} if not
+#'     provided.
 #' @param hp_k A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_k}.
+#'    associated with \code{kern_k}. Recovered from \code{trained_model} if not
+#'    provided.
 #' @param hp_i A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}.
+#'    associated with \code{kern_i}. Recovered from \code{trained_model} if not
+#'    provided.
 #' @param kern_k A kernel function, associated with the mean GPs.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -1259,9 +1299,11 @@ pred_gif <- function(data,
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
-#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not). Recovered from
+#'    \code{trained_model} if not provided.
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
-#'    "LIN", PERIO" and "RQ" are also available here)
+#'    "LIN", PERIO" and "RQ" are also available here). Recovered from
+#'    \code{trained_model} if not provided.
 #' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
 #'    mean GPs, one value for each cluster.
 #'    cluster. This argument can be specified under various formats, such as:
@@ -1294,15 +1336,36 @@ pred_gif <- function(data,
 #'
 #' @examples
 #' TRUE
-hyperposterior_clust <- function(data,
-                                 mixture,
-                                 hp_k,
-                                 hp_i,
-                                 kern_k,
-                                 kern_i,
+hyperposterior_clust <- function(trained_model = NULL,
+                                 data = NULL,
+                                 mixture = NULL,
+                                 hp_k = NULL,
+                                 hp_i = NULL,
+                                 kern_k = NULL,
+                                 kern_i = NULL,
                                  prior_mean_k = NULL,
                                  grid_inputs = NULL,
                                  pen_diag = 1e-10) {
+  ## Check whether a model trained by train_magma() is provided
+  if(trained_model %>% is.null()){
+    ## Check whether all mandatory arguments are present otherwise
+    if(is.null(data)|is.null(hp_k)|is.null(hp_i)|is.null(mixture)|
+       is.null(kern_k)|is.null(kern_i)){
+      stop(
+        "If no 'trained_model' argument is provided, the arguments 'data', ",
+        "'mixture', 'hp_k', 'hp_i' 'kern_k', and 'kern_i' are all required."
+      )
+    }
+  } else {
+    ## For each argument, retrieve the value from 'trained_model' if missing
+    if(data %>% is.null()){data = trained_model$ini_args$data}
+    if(mixture %>% is.null()){mixture = trained_model$hyperpost$mixture}
+    if(hp_k %>% is.null()){hp_k = trained_model$hp_k}
+    if(hp_i %>% is.null()){hp_i = trained_model$hp_i}
+    if(kern_k %>% is.null()){kern_k = trained_model$ini_args$kern_k}
+    if(kern_i %>% is.null()){kern_i = trained_model$ini_args$kern_i}
+  }
+
   ## Get input column names
   if("Reference" %in% names(data)){
     names_col <- data %>%
