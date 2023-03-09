@@ -76,11 +76,12 @@ key component for making prediction in Magma, and is required in the function
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">hyperposterior</span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  <span class="va">hp_0</span>,</span>
-<span>  <span class="va">hp_i</span>,</span>
-<span>  <span class="va">kern_0</span>,</span>
-<span>  <span class="va">kern_i</span>,</span>
+<span>  trained_model <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  hp_0 <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  hp_i <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  kern_0 <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  kern_i <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  prior_mean <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  grid_inputs <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pen_diag <span class="op">=</span> <span class="fl">1e-10</span></span>
@@ -89,7 +90,15 @@ key component for making prediction in Magma, and is required in the function
 
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
-    <dl><dt>data</dt>
+    <dl><dt>trained_model</dt>
+<dd><p>A list, containing  the information coming from a
+Magma model, previously trained using the <code><a href="train_magma.html">train_magma</a></code>
+function. If <code>trained_model</code> is not provided, the arguments
+<code>data</code>, <code>hp_0</code>, <code>hp_i</code>, <code>kern_0</code>, and <code>kern_i</code>
+are all required.</p></dd>
+
+
+<dt>data</dt>
 <dd><p>A tibble or data frame. Required columns: 'Input',
 'Output'. Additional columns for covariates can be specified.
 The 'Input' column should define the variable that is used as
@@ -98,17 +107,20 @@ reference for the observations (e.g. time for longitudinal data). The
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference 'Input'.</p></dd>
+each reference 'Input'. Recovered from <code>trained_model</code> if not
+provided.</p></dd>
 
 
 <dt>hp_0</dt>
 <dd><p>A named vector, tibble or data frame of hyper-parameters
-associated with <code>kern_0</code>.</p></dd>
+associated with <code>kern_0</code>. Recovered from <code>trained_model</code> if not
+provided.</p></dd>
 
 
 <dt>hp_i</dt>
 <dd><p>A tibble or data frame of hyper-parameters
-associated with <code>kern_i</code>.</p></dd>
+associated with <code>kern_i</code>. Recovered from <code>trained_model</code> if not
+provided.</p></dd>
 
 
 <dt>kern_0</dt>
@@ -126,13 +138,15 @@ For combining kernels, simply provide a formula as a character string
 where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
 elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
-'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).</p></li>
+'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not). Recovered from
+<code>trained_model</code> if not provided.</p></li>
 </ul></dd>
 
 
 <dt>kern_i</dt>
 <dd><p>A kernel function, associated with the individual GPs. ("SE",
-"PERIO" and "RQ" are aso available here)</p></dd>
+"PERIO" and "RQ" are aso available here). Recovered from
+<code>trained_model</code> if not provided.</p></dd>
 
 
 <dt>prior_mean</dt>
