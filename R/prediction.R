@@ -462,6 +462,7 @@ hyperposterior <- function(trained_model = NULL,
     if(hp_i %>% is.null()){hp_i = trained_model$hp_i}
     if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_0}
     if(kern_i %>% is.null()){kern_i = trained_model$ini_args$kern_i}
+    if(prior_mean %>% is.null()){prior_mean = trained_model$ini_args$prior_mean}
   }
 
   ## Get input column names
@@ -1364,6 +1365,9 @@ hyperposterior_clust <- function(trained_model = NULL,
     if(hp_i %>% is.null()){hp_i = trained_model$hp_i}
     if(kern_k %>% is.null()){kern_k = trained_model$ini_args$kern_k}
     if(kern_i %>% is.null()){kern_i = trained_model$ini_args$kern_i}
+    if(prior_mean_k %>% is.null()){
+      prior_mean_k = trained_model$ini_args$prior_mean_k
+      }
   }
 
   ## Get input column names
