@@ -138,7 +138,7 @@ Details of available kernels and how to combine them are available in [`help(tra
 
 As for any GP method, initialisation of the HP may have an influence on the final optimisation and leads to inadequate prediction for pathological cases. Therefore, users may explicitly define specific initial values through the dedicated arguments: `ini_hp_k` and `ini_hp_i`.
 
-Other parameters can also be specified; see [`help (rain_magmaclust)`](https://arthurleroy.github.io/MagmaClustR/reference/train_magmaclust.html) for details.
+Other parameters can also be specified; see [`help (train_magmaclust)`](https://arthurleroy.github.io/MagmaClustR/reference/train_magmaclust.html) for details.
 
 
 
