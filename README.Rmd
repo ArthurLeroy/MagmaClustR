@@ -26,7 +26,7 @@ The *MagmaClustR* package implements two main algorithms, called Magma (*Leroy e
 
 Leroy, A., Latouche, P., Guedj, B., Gey, S. MAGMA: inference and prediction using multi-task Gaussian processes with common mean. *Mach Learn* **111**, 1821–1849 (2022). https://doi.org/10.1007/s10994-022-06172-1
 
-Leroy, A., Latouche, P., Guedj, B., & Gey, S. Cluster-Specific Predictions with Multi-Task Gaussian Processes. *arXiv preprint* (2020). https://arxiv.org/abs/2011.07866
+Leroy, A., Latouche, P., Guedj, B., & Gey, S. Cluster-Specific Predictions with Multi-Task Gaussian Processes. *JMLR* 24(5):1−49, (2023). https://www.jmlr.org/papers/v24/20-1321.html
 
 ## Installation
 
