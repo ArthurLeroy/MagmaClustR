@@ -414,8 +414,9 @@ pred_gp <- function(data,
 #'    - A tibble or data frame. Required columns: Input, Output. The Input
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
-#' @param grid_inputs A vector, indicating the grid of additional reference
-#'    inputs on which the mean process' hyper-posterior should be evaluated.
+#' @param grid_inputs A vector or a data frame, indicating the grid of
+#'    additional reference inputs on which the mean process' hyper-posterior
+#'    should be evaluated.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
@@ -501,6 +502,12 @@ hyperposterior <- function(trained_model = NULL,
       "will only be evaluated on observed Input from 'data'.\n \n"
     )
   } else {
+
+    ## If 'grid_input' is a vector, convert to the correct format
+    if(grid_inputs %>% is.vector()){
+      grid_inputs <- tibble::tibble('Input' = grid_inputs)
+    }
+
     ## Define the union among all reference Inputs and a specified grid
     grid_inputs <- grid_inputs %>%
       purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
@@ -1316,8 +1323,9 @@ pred_gif <- function(data,
 #'    - A list of functions. Each function is associated with one cluster. These
 #'    functions are all evaluated at all \code{Input} values, to provide
 #'    specific hyper-prior mean vectors for each cluster.
-#' @param grid_inputs A vector, indicating the grid of additional reference
-#'    inputs on which the mean process' hyper-posterior should be evaluated.
+#' @param grid_inputs A vector or a data frame, indicating the grid of
+#'    additional reference inputs on which the mean process' hyper-posterior
+#'    should be evaluated.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
@@ -1419,6 +1427,11 @@ hyperposterior_clust <- function(trained_model = NULL,
     )
 
   } else {
+    ## If 'grid_input' is a vector, convert to the correct format
+    if(grid_inputs %>% is.vector()){
+      grid_inputs <- tibble::tibble('Input' = grid_inputs)
+    }
+
     ## Define the union among all reference Inputs and a specified grid
     grid_inputs <- grid_inputs %>%
       purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
