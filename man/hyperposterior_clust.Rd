@@ -88,8 +88,9 @@ functions are all evaluated at all \code{Input} values, to provide
 specific hyper-prior mean vectors for each cluster.
 }}
 
-\item{grid_inputs}{A vector, indicating the grid of additional reference
-inputs on which the mean process' hyper-posterior should be evaluated.}
+\item{grid_inputs}{A vector or a data frame, indicating the grid of
+additional reference inputs on which the mean process' hyper-posterior
+should be evaluated.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}

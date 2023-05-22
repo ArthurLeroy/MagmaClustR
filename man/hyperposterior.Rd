@@ -80,8 +80,9 @@ values should include at least the same values as in the \code{data}
 argument.
 }}
 
-\item{grid_inputs}{A vector, indicating the grid of additional reference
-inputs on which the mean process' hyper-posterior should be evaluated.}
+\item{grid_inputs}{A vector or a data frame, indicating the grid of
+additional reference inputs on which the mean process' hyper-posterior
+should be evaluated.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}

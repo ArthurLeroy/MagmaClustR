@@ -29,8 +29,8 @@ Learn* **111**, 1821–1849 (2022).
 <https://doi.org/10.1007/s10994-022-06172-1>
 
 Leroy, A., Latouche, P., Guedj, B., & Gey, S. Cluster-Specific
-Predictions with Multi-Task Gaussian Processes. *arXiv preprint* (2020).
-<https://arxiv.org/abs/2011.07866>
+Predictions with Multi-Task Gaussian Processes. *JMLR* 24(5):1−49,
+(2023). <https://www.jmlr.org/papers/v24/20-1321.html>
 
 ## Installation
 
@@ -79,7 +79,7 @@ data_magma
 #>  8 1      6.35  -4.35
 #>  9 1      7.55  -6.63
 #> 10 1      9.8   -8.68
-#> # ... with 100 more rows
+#> # i 100 more rows
 ```
 
 As displayed above, any dataset processed in MagmaClustR should provide
@@ -96,19 +96,19 @@ model <- train_magma(data = magma_train, common_hp = F)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 5.18 seconds 
+#> EM algorithm, step 1: 7.86 seconds 
 #>  
 #> Value of the likelihood: -313.47546 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 2.7 seconds 
+#> EM algorithm, step 2: 4.38 seconds 
 #>  
 #> Value of the likelihood: -303.47668 --- Convergence ratio = 0.03295
 #>  
-#> EM algorithm, step 3: 2.51 seconds 
+#> EM algorithm, step 3: 3.1 seconds 
 #>  
 #> Value of the likelihood: -302.84575 --- Convergence ratio = 0.00208
 #>  
-#> EM algorithm, step 4: 2.04 seconds 
+#> EM algorithm, step 4: 2.9 seconds 
 #>  
 #> Value of the likelihood: -302.56379 --- Convergence ratio = 0.00093
 #>  
@@ -209,7 +209,7 @@ data_magmaclust
 #>  8 ID1-Clust1  7.35 -31.4 
 #>  9 ID1-Clust1  7.5  -32.4 
 #> 10 ID1-Clust1  8.95 -42.7 
-#> # ... with 110 more rows
+#> # i 110 more rows
 ```
 
 ### Training and prediction with MagmaClust
@@ -224,27 +224,27 @@ model_clust <- train_magmaclust(data = magmaclust_train)
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 20.02 seconds 
+#> VEM algorithm, step 1: 20.35 seconds 
 #>  
 #> Value of the elbo: -712.16808 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 12.18 seconds 
+#> VEM algorithm, step 2: 11.52 seconds 
 #>  
 #> Value of the elbo: -635.70636 --- Convergence ratio = 0.12028
 #>  
-#> VEM algorithm, step 3: 14.54 seconds 
+#> VEM algorithm, step 3: 19.46 seconds 
 #>  
 #> Value of the elbo: -623.0371 --- Convergence ratio = 0.02033
 #>  
-#> VEM algorithm, step 4: 10.76 seconds 
+#> VEM algorithm, step 4: 9.89 seconds 
 #>  
 #> Value of the elbo: -619.56266 --- Convergence ratio = 0.00561
 #>  
-#> VEM algorithm, step 5: 8.23 seconds 
+#> VEM algorithm, step 5: 7.93 seconds 
 #>  
 #> Value of the elbo: -618.50147 --- Convergence ratio = 0.00172
 #>  
-#> VEM algorithm, step 6: 10.46 seconds 
+#> VEM algorithm, step 6: 7.68 seconds 
 #>  
 #> Value of the elbo: -617.95297 --- Convergence ratio = 0.00089
 #>  
@@ -317,7 +317,7 @@ data_dim2
 #>  8 1      6          2    34.1 
 #>  9 1      7.3        9.5   5.18
 #> 10 1      9.2        7.5   7.20
-#> # ... with 100 more rows
+#> # i 100 more rows
 ```
 
 ### Training and prediction with Magma
@@ -330,19 +330,19 @@ model_dim2 <- train_magma(data = dim2_train)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 5.42 seconds 
+#> EM algorithm, step 1: 6.02 seconds 
 #>  
 #> Value of the likelihood: -247.66608 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 5.39 seconds 
+#> EM algorithm, step 2: 5.71 seconds 
 #>  
 #> Value of the likelihood: -217.29028 --- Convergence ratio = 0.13979
 #>  
-#> EM algorithm, step 3: 3.04 seconds 
+#> EM algorithm, step 3: 3.44 seconds 
 #>  
 #> Value of the likelihood: -216.11346 --- Convergence ratio = 0.00545
 #>  
-#> EM algorithm, step 4: 3.04 seconds 
+#> EM algorithm, step 4: 3.59 seconds 
 #>  
 #> Value of the likelihood: -216.02699 --- Convergence ratio = 4e-04
 #>  
