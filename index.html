@@ -119,7 +119,7 @@
 
 <p>The <em>MagmaClustR</em> package implements two main algorithms, called Magma (<em>Leroy et al., 2022</em>) and MagmaClust (<em>Leroy et al., 2020</em>), using a multi-task Gaussian processes (GP) model to perform predictions for supervised learning problems. Applications involving functional data, such as multiple time series, are particularly well-handled. Theses approaches leverage the learning of cluster-specific mean processes, which are common across similar tasks, to provide enhanced prediction performances (even far from data points) at a linear computational cost (in the number of tasks). MagmaClust is a generalisation of Magma where the tasks are simultaneously clustered into groups, each being associated to a specific mean process. User-oriented functions in the package are decomposed into training, prediction and plotting functions. Some basic features of standard GPs are also implemented.</p>
 <p>Leroy, A., Latouche, P., Guedj, B., Gey, S. MAGMA: inference and prediction using multi-task Gaussian processes with common mean. <em>Mach Learn</em> <strong>111</strong>, 1821–1849 (2022). <a href="https://doi.org/10.1007/s10994-022-06172-1" class="external-link uri">https://doi.org/10.1007/s10994-022-06172-1</a></p>
-<p>Leroy, A., Latouche, P., Guedj, B., &amp; Gey, S. Cluster-Specific Predictions with Multi-Task Gaussian Processes. <em>arXiv preprint</em> (2020). <a href="https://arxiv.org/abs/2011.07866" class="external-link uri">https://arxiv.org/abs/2011.07866</a></p>
+<p>Leroy, A., Latouche, P., Guedj, B., &amp; Gey, S. Cluster-Specific Predictions with Multi-Task Gaussian Processes. <em>JMLR</em> 24(5):1−49, (2023). <a href="https://www.jmlr.org/papers/v24/20-1321.html" class="external-link uri">https://www.jmlr.org/papers/v24/20-1321.html</a></p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -162,7 +162,7 @@
 <span><span class="co">#&gt;  8 1      6.35  -4.35</span></span>
 <span><span class="co">#&gt;  9 1      7.55  -6.63</span></span>
 <span><span class="co">#&gt; 10 1      9.8   -8.68</span></span>
-<span><span class="co">#&gt; # ... with 100 more rows</span></span></code></pre></div>
+<span><span class="co">#&gt; # i 100 more rows</span></span></code></pre></div>
 <p>As displayed above, any dataset processed in MagmaClustR should provide columns named <code>ID</code>, <code>Input</code>, and <code>Output</code>. Any additional column would be treated as a covariate (and thus define multi-dimensional inputs).</p>
 </div>
 <div class="section level3">
@@ -176,19 +176,19 @@
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 5.18 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 7.86 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -313.47546 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 2.7 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 4.38 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -303.47668 --- Convergence ratio = 0.03295</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 2.51 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 3.1 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -302.84575 --- Convergence ratio = 0.00208</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 2.04 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 2.9 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -302.56379 --- Convergence ratio = 0.00093</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -271,7 +271,7 @@
 <span><span class="co">#&gt;  8 ID1-Clust1  7.35 -31.4 </span></span>
 <span><span class="co">#&gt;  9 ID1-Clust1  7.5  -32.4 </span></span>
 <span><span class="co">#&gt; 10 ID1-Clust1  8.95 -42.7 </span></span>
-<span><span class="co">#&gt; # ... with 110 more rows</span></span></code></pre></div>
+<span><span class="co">#&gt; # i 110 more rows</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="training-and-prediction-with-magmaclust">Training and prediction with MagmaClust<a class="anchor" aria-label="anchor" href="#training-and-prediction-with-magmaclust"></a>
@@ -286,27 +286,27 @@
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 1: 20.02 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 1: 20.35 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -712.16808 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 2: 12.18 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 2: 11.52 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -635.70636 --- Convergence ratio = 0.12028</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 3: 14.54 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 3: 19.46 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -623.0371 --- Convergence ratio = 0.02033</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 4: 10.76 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 4: 9.89 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -619.56266 --- Convergence ratio = 0.00561</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 5: 8.23 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 5: 7.93 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -618.50147 --- Convergence ratio = 0.00172</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 6: 10.46 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 6: 7.68 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -617.95297 --- Convergence ratio = 0.00089</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -373,7 +373,7 @@
 <span><span class="co">#&gt;  8 1      6          2    34.1 </span></span>
 <span><span class="co">#&gt;  9 1      7.3        9.5   5.18</span></span>
 <span><span class="co">#&gt; 10 1      9.2        7.5   7.20</span></span>
-<span><span class="co">#&gt; # ... with 100 more rows</span></span></code></pre></div>
+<span><span class="co">#&gt; # i 100 more rows</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="training-and-prediction-with-magma-1">Training and prediction with Magma<a class="anchor" aria-label="anchor" href="#training-and-prediction-with-magma-1"></a>
@@ -386,19 +386,19 @@
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 5.42 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 6.02 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -247.66608 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 5.39 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 5.71 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -217.29028 --- Convergence ratio = 0.13979</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 3.04 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 3.44 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -216.11346 --- Convergence ratio = 0.00545</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 3.04 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 3.59 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -216.02699 --- Convergence ratio = 4e-04</span></span>
 <span><span class="co">#&gt;  </span></span>
