@@ -32,6 +32,6 @@
 #'   \item{Input}{Age in months}
 #'   \item{Output}{Weight in kilograms}
 #' }
-#' @source <https://gustodatavault.sg/>
+#' @source <https://www.gusto.sg/>
 "weight"
 
