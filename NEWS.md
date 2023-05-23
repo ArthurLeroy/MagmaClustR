@@ -2,7 +2,7 @@
 
 # MagmaClustR 1.1.2
 
-# Minor 
+## Minor 
 * Fix a bug occurring in pred_magmaclust() for a 'trained_model' with hp_i = FALSE
 * Simplify the use of hyperposterior() and hyperposterior_clust() by providing a 'trained_model' argument.
 
