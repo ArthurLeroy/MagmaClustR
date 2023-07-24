@@ -1,5 +1,10 @@
 # MagmaClustR (development version)
 
+## Minor 
+
+* Add an option to generate multiple curves from sample_gp()
+* Fix a bug when the 'Reference' column is present when using plot_gp() 
+
 # MagmaClustR 1.1.2
 
 ## Minor 

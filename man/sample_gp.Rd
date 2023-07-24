@@ -6,6 +6,7 @@
 \usage{
 sample_gp(
   pred_gp,
+  nb_samples = 5,
   x_input = NULL,
   data = NULL,
   data_train = NULL,
@@ -20,6 +21,10 @@ sample_gp(
 \code{\link{pred_magma}} or \code{\link{pred_gp}} functions. Required
 columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
 present in case of multi-dimensional inputs.}
+
+\item{nb_samples}{A number, indicating the number of samples to be drawn from
+the predictive posterior distribution. For two-dimensional graphs, only
+one sample can be displayed.}
 
 \item{x_input}{A vector of character strings, indicating which input should
 be displayed. If NULL(default) the 'Input' column is used for the x-axis.

@@ -170,9 +170,14 @@ plot_gp <- function(pred_gp,
     )
   }
 
-  ## Remove 'ID' column is present
+  ## Remove 'ID' column if present
   if ("ID" %in% names(pred)) {
     pred <- pred %>% dplyr::select(-.data$ID)
+  }
+
+  ## Remove 'Reference' column if present
+  if ("Reference" %in% names(pred)) {
+    pred <- pred %>% dplyr::select(-.data$Reference)
   }
 
   ## Remove the 'Index' column if the prediction comes from 'pred_gif()'
@@ -395,6 +400,9 @@ plot_gp <- function(pred_gp,
 #'    \code{\link{pred_magma}} or \code{\link{pred_gp}} functions. Required
 #'    columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
 #'    present in case of multi-dimensional inputs.
+#' @param nb_samples A number, indicating the number of samples to be drawn from
+#'    the predictive posterior distribution. For two-dimensional graphs, only
+#'    one sample can be displayed.
 #' @param x_input A vector of character strings, indicating which input should
 #'    be displayed. If NULL(default) the 'Input' column is used for the x-axis.
 #'    If providing a 2-dimensional vector, the corresponding columns are used
@@ -423,6 +431,7 @@ plot_gp <- function(pred_gp,
 #' @examples
 #' TRUE
 sample_gp <- function(pred_gp,
+                      nb_samples = 5,
                       x_input = NULL,
                       data = NULL,
                       data_train = NULL,
@@ -449,13 +458,22 @@ sample_gp <- function(pred_gp,
   mean <- pred_gp$pred %>% dplyr::pull(.data$Mean)
   cov <- pred_gp$cov
 
-  sample <-
-    tibble::tibble("Output" = mvtnorm::rmvnorm(1, mean, cov) %>%
-                     as.vector()) %>%
-    dplyr::bind_cols(inputs)
+  sample <- mvtnorm::rmvnorm(nb_samples, mean, cov) %>%
+    t() %>%
+    tibble::as_tibble() %>%
+    dplyr::bind_cols(inputs) %>%
+    tidyr::pivot_longer(- names(inputs),
+                        names_to= "Sample",
+                        values_to = "Output")
+
 
   ## Display a heatmap if inputs are 2D
   if (ncol(inputs) == 2) {
+    ## Extract only one sample when displaying in 2D
+    sample <- sample %>%
+      dplyr::filter(.data$Sample == unique(sample$Sample)[1]) %>%
+      dplyr::select(- .data$Sample)
+
     gg <- ggplot2::ggplot() +
       ggplot2::geom_raster(
         data = sample,
@@ -497,10 +515,12 @@ sample_gp <- function(pred_gp,
         data = sample,
         ggplot2::aes_string(
           x = names(inputs)[1],
-          y = "Output"
-        ),
-        color = "#DB15C1"
-      )
+          y = "Output",
+          col = "Sample"
+        )
+      ) +
+      ggplot2::guides(col = "none")
+
     ## Display the training data if provided
     if (!is.null(data_train)) {
       gg <- gg + ggplot2::geom_point(
@@ -515,6 +535,7 @@ sample_gp <- function(pred_gp,
       ) +
         ggplot2::guides(color = "none")
     }
+
     ## Display the observed data if provided
     if (!is.null(data)) {
       gg <- gg + ggplot2::geom_point(
@@ -527,46 +548,7 @@ sample_gp <- function(pred_gp,
         shape = 18
       )
     }
-  } else {
-    warning(
-      "Impossible to display inputs with dimensions greater than 2. The graph ",
-      "then simply uses 'Input' as x_axis and 'Output' as y-axis. "
-    )
-    sample <- tibble::tibble(
-      "Input" = input,
-      "Output" = mvtnorm::rmvnorm(1, mean, cov) %>% as.vector()
-    )
-    gg <- ggplot2::ggplot() +
-      ggplot2::geom_line(
-        data = sample,
-        ggplot2::aes(x = .data$Input, y = .data$Output),
-        color = "#DB15C1"
-      )
 
-    ## Display the training data if provided
-    if (!is.null(data_train)) {
-      gg <- gg + ggplot2::geom_point(
-        data = data_train,
-        ggplot2::aes(
-          x = .data$Input,
-          y = .data$Output,
-          col = .data$ID
-        ),
-        size = size_data_train,
-        alpha = alpha_data_train
-      ) +
-        ggplot2::guides(color = "none")
-    }
-    ## Display the observed data if provided
-    if (!is.null(data)) {
-      gg <- gg +
-        ggplot2::geom_point(
-          data = data,
-          ggplot2::aes(x = .data$Input, y = .data$Output),
-          size = size_data,
-          shape = 18
-        )
-    }
     ## Display the (hyper-)prior mean process if provided
     if (!is.null(prior_mean)) {
       if (names(inputs)[1] %in% names(prior_mean)) {
@@ -585,6 +567,12 @@ sample_gp <- function(pred_gp,
         )
       }
     }
+
+  } else {
+    stop(
+      "Impossible to display inputs with dimensions greater than 2. Please ",
+      "provide two elements or less in the 'x_axis' argument."
+    )
   }
 
   (gg + ggplot2::theme_classic()) %>%
