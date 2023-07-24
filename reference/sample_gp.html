@@ -68,6 +68,7 @@ heatmap.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">sample_gp</span><span class="op">(</span></span>
 <span>  <span class="va">pred_gp</span>,</span>
+<span>  nb_samples <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  x_input <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data_train <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -85,6 +86,12 @@ heatmap.</p>
 <code><a href="pred_magma.html">pred_magma</a></code> or <code><a href="pred_gp.html">pred_gp</a></code> functions. Required
 columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
 present in case of multi-dimensional inputs.</p></dd>
+
+
+<dt>nb_samples</dt>
+<dd><p>A number, indicating the number of samples to be drawn from
+the predictive posterior distribution. For two-dimensional graphs, only
+one sample can be displayed.</p></dd>
 
 
 <dt>x_input</dt>
