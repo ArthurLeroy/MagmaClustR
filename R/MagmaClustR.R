@@ -55,7 +55,5 @@
 #' magmaclust_pred  <- pred_magmaclust(data = magmaclust_test, \cr
 #'   trained_model = magmaclust_model, grid_inputs = seq(0, 10, 0.01)) \cr
 #'
-#' @docType package
 #' @name MagmaClustR
-NULL
-#> NULL
+"_PACKAGE"

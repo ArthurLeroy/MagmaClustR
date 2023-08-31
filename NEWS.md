@@ -4,6 +4,7 @@
 
 * Add an option to generate multiple curves from sample_gp()
 * Fix a bug when the 'Reference' column is present when using plot_gp() 
+* Fix the '\docType{package}' bug in roxygen2
 
 # MagmaClustR 1.1.2
 
