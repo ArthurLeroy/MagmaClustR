@@ -390,6 +390,10 @@ plot_gp <- function(pred_gp,
     return()
 }
 
+#' @rdname plot_gp
+#' @export
+plot_magma <- plot_gp
+
 #' Display realisations from a posterior GP
 #'
 #' A realisation of a posterior GP distribution is drawn and displayed.
