@@ -396,14 +396,18 @@ plot_magma <- plot_gp
 
 #' Display realisations from a posterior GP
 #'
-#' A realisation of a posterior GP distribution is drawn and displayed.
+#' Display samples drawn from a posterior GP distribution.
 #' According to the dimension of the inputs, the graph may be a curve or a
 #' heatmap.
 #'
+#' @param samples A tibble or data frame, containing the samples generated from
+#'    a GP prediction. Required columns: \code{Input}, \code{Sample},
+#'    \code{Output}.  This argument is needed if \code{pred_gp} is missing.
 #' @param pred_gp A tibble or data frame, typically coming from
 #'    \code{\link{pred_magma}} or \code{\link{pred_gp}} functions. Required
-#'    columns: 'Input', 'Mean', 'Var'. Additional covariate columns may be
-#'    present in case of multi-dimensional inputs.
+#'    columns: \code{Input}, \code{Mean}, \code{Var}. Additional covariate
+#'    columns may be present in case of multi-dimensional inputs. This argument
+#'    is needed if \code{samples} is missing.
 #' @param nb_samples A number, indicating the number of samples to be drawn from
 #'    the predictive posterior distribution. For two-dimensional graphs, only
 #'    one sample can be displayed.
@@ -434,53 +438,54 @@ plot_magma <- plot_gp
 #'
 #' @examples
 #' TRUE
-sample_gp <- function(pred_gp,
-                      nb_samples = 5,
-                      x_input = NULL,
-                      data = NULL,
-                      data_train = NULL,
-                      prior_mean = NULL,
-                      size_data = 3,
-                      size_data_train = 1,
-                      alpha_data_train = 0.5) {
-  if (is.data.frame(pred_gp) | !is.list(pred_gp)) {
-    stop(
-      "The 'pred_gp' argument should be a list containing 'pred' and 'cov' ",
-      "elements. Consider re-running the prediction function using the ",
-      "argument 'get_full_cov' = TRUE."
-    )
+plot_samples <- function(samples = NULL,
+                         pred_gp = NULL,
+                         nb_samples = 50,
+                         x_input = NULL,
+                         data = NULL,
+                         data_train = NULL,
+                         prior_mean = NULL,
+                         size_data = 3,
+                         size_data_train = 1,
+                         alpha_data_train = 0.5) {
+
+  ## Check samples availability or draw samples from the prediction
+  if(is.null(samples)){
+    ## Check whether 'pred_gp' exists
+    if(is.null(pred_gp)){
+      stop("Either 'sample' or 'pred_gp' is needed as an argument.")
+    }
+
+    ## Check 'pred_gp' format
+    if (is.data.frame(pred_gp) | !is.list(pred_gp)) {
+      stop(
+        "The 'pred_gp' argument should be a list containing 'pred' and 'cov' ",
+        "elements. Consider re-running the prediction function using the ",
+        "argument 'get_full_cov' = TRUE."
+      )
+    }
+
+    samples = sample_gp(pred_gp = pred_gp, nb_samples = nb_samples)
+
   }
+
   ## Get the inputs that should be used
   if (x_input %>% is.null()) {
-    inputs <- pred_gp$pred %>% dplyr::select(-c(.data$Mean, .data$Var))
+    inputs <- samples %>% dplyr::select(-c(.data$Sample, .data$Output))
   } else {
-    inputs <- pred_gp$pred[x_input]
+    inputs <- samples[x_input]
   }
-
-  ## Extract the predictions for further displaying
-  input <- pred_gp$pred %>% dplyr::pull(.data$Input)
-  mean <- pred_gp$pred %>% dplyr::pull(.data$Mean)
-  cov <- pred_gp$cov
-
-  sample <- mvtnorm::rmvnorm(nb_samples, mean, cov) %>%
-    t() %>%
-    tibble::as_tibble() %>%
-    dplyr::bind_cols(inputs) %>%
-    tidyr::pivot_longer(- names(inputs),
-                        names_to= "Sample",
-                        values_to = "Output")
-
 
   ## Display a heatmap if inputs are 2D
   if (ncol(inputs) == 2) {
     ## Extract only one sample when displaying in 2D
-    sample <- sample %>%
-      dplyr::filter(.data$Sample == unique(sample$Sample)[1]) %>%
+    samples <- samples %>%
+      dplyr::filter(.data$Sample == unique(samples$Sample)[1]) %>%
       dplyr::select(- .data$Sample)
 
     gg <- ggplot2::ggplot() +
       ggplot2::geom_raster(
-        data = sample,
+        data = samples,
         ggplot2::aes_string(
           x = names(inputs)[1],
           y = names(inputs)[2],
@@ -507,21 +512,16 @@ sample_gp <- function(pred_gp,
       )
     }
   } else if (ncol(inputs) == 1) {
-    if (dplyr::n_distinct(inputs) != nrow(inputs)) {
-      warning(
-        "Some values on the x-axis appear multiple times, probably resulting ",
-        "in an incorrect graphical representation. Please consider ",
-        "recomputing predictions for more adequate inputs. "
-      )
-    }
     gg <- ggplot2::ggplot() +
       ggplot2::geom_line(
-        data = sample,
+        data = samples,
         ggplot2::aes_string(
           x = names(inputs)[1],
           y = "Output",
-          col = "Sample"
-        )
+          group = "Sample"
+        ),
+        color = "#FA9FB5",
+        alpha = 0.3
       ) +
       ggplot2::guides(col = "none")
 
@@ -549,7 +549,7 @@ sample_gp <- function(pred_gp,
           y = "Output"
         ),
         size = size_data,
-        shape = 18
+        shape = 20
       )
     }
 

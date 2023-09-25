@@ -2125,7 +2125,7 @@ pred_magmaclust <- function(data,
   }
   ## Check whether posterior covariance should be returned
   if (get_full_cov) {
-    res[["full_cov"]] <- full_cov
+    res[["cov"]] <- full_cov
   }
 
   ## Display the graph of the prediction if expected
