@@ -88,6 +88,8 @@ function or the full heatmap of probabilities (more informative but slower).</p>
 <span>  prior_mean <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  y_grid <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  heatmap <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  samples <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  nb_samples <span class="op">=</span> <span class="fl">50</span>,</span>
 <span>  prob_CI <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  size_data <span class="op">=</span> <span class="fl">3</span>,</span>
 <span>  size_data_train <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -160,10 +162,23 @@ between the min and max 'Output' values contained in <code>pred</code>.</p></dd>
 
 
 <dt>heatmap</dt>
-<dd><p>A logical value indicating whether the GP prediction should be
+<dd><p>A logical value indicating whether the GP mixture should be
 represented as a heatmap of probabilities for 1-dimensional inputs. If
 FALSE (default), the mean curve (and associated Credible Interval if
 available) are displayed.</p></dd>
+
+
+<dt>samples</dt>
+<dd><p>A logical value indicating whether the GP mixture should be
+represented as a collection of samples drawn from the posterior. If
+FALSE (default), the mean curve (and associated Credible Interval if
+available) are displayed.</p></dd>
+
+
+<dt>nb_samples</dt>
+<dd><p>A number, indicating the number of samples to be drawn from
+the predictive posterior distribution. For two-dimensional graphs, only
+one sample can be displayed.</p></dd>
 
 
 <dt>prob_CI</dt>

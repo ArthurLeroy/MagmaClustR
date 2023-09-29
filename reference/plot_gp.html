@@ -74,6 +74,24 @@ probabilities.</p>
 <span>  prior_mean <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  y_grid <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  heatmap <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  samples <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  nb_samples <span class="op">=</span> <span class="fl">50</span>,</span>
+<span>  prob_CI <span class="op">=</span> <span class="fl">0.95</span>,</span>
+<span>  size_data <span class="op">=</span> <span class="fl">3</span>,</span>
+<span>  size_data_train <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  alpha_data_train <span class="op">=</span> <span class="fl">0.5</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">plot_magma</span><span class="op">(</span></span>
+<span>  <span class="va">pred_gp</span>,</span>
+<span>  x_input <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data_train <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  prior_mean <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  y_grid <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  heatmap <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  samples <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  nb_samples <span class="op">=</span> <span class="fl">50</span>,</span>
 <span>  prob_CI <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  size_data <span class="op">=</span> <span class="fl">3</span>,</span>
 <span>  size_data_train <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -132,6 +150,19 @@ FALSE (default), the mean curve and associated Credible Interval are
 displayed.</p></dd>
 
 
+<dt>samples</dt>
+<dd><p>A logical value indicating whether the GP prediction should be
+represented as a collection of samples drawn from the posterior. If
+FALSE (default), the mean curve and associated Credible Interval are
+displayed.</p></dd>
+
+
+<dt>nb_samples</dt>
+<dd><p>A number, indicating the number of samples to be drawn from
+the predictive posterior distribution. For two-dimensional graphs, only
+one sample can be displayed.</p></dd>
+
+
 <dt>prob_CI</dt>
 <dd><p>A number between 0 and 1 (default is 0.95), indicating the
 level of the Credible Interval associated with the posterior mean curve.
@@ -159,7 +190,8 @@ of the <code>data_train</code> points.</p></dd>
 <p>Visualisation of a Magma or GP prediction (optional: display data
 points, training data points and the prior mean function). For 1-D
 inputs, the prediction is represented as a mean curve and its associated
-95%  Credible Interval, or as a heatmap of probabilities if
+95%  Credible Interval, as a collection of samples drawn from the
+posterior if <code>samples</code> = TRUE, or as a heatmap of probabilities if
 <code>heatmap</code> = TRUE. For 2-D inputs, the prediction is represented as a
 heatmap, where each couple of inputs on the x-axis and y-axis are
 associated with a gradient of colours for the posterior mean values,
