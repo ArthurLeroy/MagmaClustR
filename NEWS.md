@@ -1,5 +1,10 @@
 # MagmaClustR (development version)
 
+## Major
+
+* Add new functions sample_gp() and sample_magmaclust() to sample from the posteriors predictions of GPs, Magma, and MagmaClust
+* Propose a new visualisation based on posterior samples instead of Credible Intervals for both plot_gp() and plot_magmaclust()
+
 ## Minor 
 
 * Add an option to generate multiple curves from sample_gp()
@@ -10,7 +15,7 @@
 # MagmaClustR 1.1.2
 
 ## Minor 
-* Fix a bug occurring in pred_magmaclust() for a 'trained_model' with hp_i = FALSE
+* Fix a bug occurring in pred_magmaclust() for a 'trained_model' with hp_i=FALSE
 * Simplify the use of hyperposterior() and hyperposterior_clust() by providing a 'trained_model' argument.
 
 # MagmaClustR 1.1.1

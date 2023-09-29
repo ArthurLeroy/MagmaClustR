@@ -14,6 +14,8 @@ plot_magmaclust(
   prior_mean = NULL,
   y_grid = NULL,
   heatmap = FALSE,
+  samples = FALSE,
+  nb_samples = 50,
   prob_CI = 0.95,
   size_data = 3,
   size_data_train = 1,
@@ -67,10 +69,19 @@ probabilities should be computed for heatmaps of 1-dimensional
 predictions. If NULL (default), a vector of length 50 is defined, ranging
 between the min and max 'Output' values contained in \code{pred}.}
 
-\item{heatmap}{A logical value indicating whether the GP prediction should be
+\item{heatmap}{A logical value indicating whether the GP mixture should be
 represented as a heatmap of probabilities for 1-dimensional inputs. If
 FALSE (default), the mean curve (and associated Credible Interval if
 available) are displayed.}
+
+\item{samples}{A logical value indicating whether the GP mixture should be
+represented as a collection of samples drawn from the posterior. If
+FALSE (default), the mean curve (and associated Credible Interval if
+available) are displayed.}
+
+\item{nb_samples}{A number, indicating the number of samples to be drawn from
+the predictive posterior distribution. For two-dimensional graphs, only
+one sample can be displayed.}
 
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
 level of the Credible Interval associated with the posterior mean curve.

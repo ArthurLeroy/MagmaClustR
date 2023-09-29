@@ -2,6 +2,7 @@
 % Please edit documentation in R/plot-functions.R
 \name{plot_gp}
 \alias{plot_gp}
+\alias{plot_magma}
 \title{Plot Magma or GP predictions}
 \usage{
 plot_gp(
@@ -12,6 +13,24 @@ plot_gp(
   prior_mean = NULL,
   y_grid = NULL,
   heatmap = FALSE,
+  samples = FALSE,
+  nb_samples = 50,
+  prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5
+)
+
+plot_magma(
+  pred_gp,
+  x_input = NULL,
+  data = NULL,
+  data_train = NULL,
+  prior_mean = NULL,
+  y_grid = NULL,
+  heatmap = FALSE,
+  samples = FALSE,
+  nb_samples = 50,
   prob_CI = 0.95,
   size_data = 3,
   size_data_train = 1,
@@ -54,6 +73,15 @@ represented as a heatmap of probabilities for 1-dimensional inputs. If
 FALSE (default), the mean curve and associated Credible Interval are
 displayed.}
 
+\item{samples}{A logical value indicating whether the GP prediction should be
+represented as a collection of samples drawn from the posterior. If
+FALSE (default), the mean curve and associated Credible Interval are
+displayed.}
+
+\item{nb_samples}{A number, indicating the number of samples to be drawn from
+the predictive posterior distribution. For two-dimensional graphs, only
+one sample can be displayed.}
+
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
 level of the Credible Interval associated with the posterior mean curve.
 If this this argument is set to 1, the Credible Interval is not displayed.}
@@ -70,7 +98,8 @@ of the \code{data_train} points.}
 Visualisation of a Magma or GP prediction (optional: display data
 points, training data points and the prior mean function). For 1-D
 inputs, the prediction is represented as a mean curve and its associated
-95\%  Credible Interval, or as a heatmap of probabilities if
+95\%  Credible Interval, as a collection of samples drawn from the
+posterior if \code{samples} = TRUE, or as a heatmap of probabilities if
 \code{heatmap} = TRUE. For 2-D inputs, the prediction is represented as a
 heatmap, where each couple of inputs on the x-axis and y-axis are
 associated with a gradient of colours for the posterior mean values,

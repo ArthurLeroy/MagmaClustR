@@ -34,7 +34,7 @@ sample_gp = function(
   #Draw samples and format the tibble
   mvtnorm::rmvnorm(nb_samples, mean, cov) %>%
     t() %>%
-    tibble::as_tibble() %>%
+    tibble::as_tibble(.name_repair = NULL) %>%
     dplyr::bind_cols(inputs) %>%
     tidyr::pivot_longer(- names(inputs) ,
                         names_to= "Sample",
@@ -87,7 +87,7 @@ sample_magmaclust = function(
   #Draw samples and format the tibble
   mvtnorm::rmvnorm(nb_samples, mean, cov) %>%
     t() %>%
-    tibble::as_tibble() %>%
+    tibble::as_tibble(.names_repair = NULL) %>%
     dplyr::bind_cols(inputs) %>%
     tidyr::pivot_longer(- names(inputs) ,
                         names_to= "Sample",
@@ -100,7 +100,7 @@ sample_magmaclust = function(
     lapply(floop) %>%
     dplyr::bind_rows() %>%
     dplyr::group_by(.data$Sample, .data$Input) %>%
-    dplyr::summarise('Output' = sum(Proba * Output)) %>%
+    dplyr::summarise('Output' = sum(.data$Proba * .data$Output)) %>%
     dplyr::ungroup() %>%
     return()
 }
