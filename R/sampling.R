@@ -3,7 +3,6 @@
 #' @param pred_gp A list, typically coming from
 #'    \code{\link{pred_magma}} or \code{\link{pred_gp}} functions, with argument
 #'    'get_full_cov = TRUE'. Required elements: \code{pred}, \code{cov}.
-#'    This argument is needed if \code{samples} is missing.
 #' @param nb_samples A number, indicating the number of samples to be drawn from
 #'    the predictive posterior distribution. For two-dimensional graphs, only
 #'    one sample can be displayed.
@@ -52,7 +51,6 @@ sample_magma <- sample_gp
 #' @param pred_clust A list, typically coming from
 #'    \code{\link{pred_magmaclust}}, with argument get_full_cov = TRUE'.
 #'    Required elements: \code{pred}, \code{cov}, \code{mixture}.
-#'    This argument is needed if \code{samples} is missing.
 #' @param nb_samples A number, indicating the number of samples to be drawn from
 #'    the predictive posterior distribution. For two-dimensional graphs, only
 #'    one sample can be displayed.
