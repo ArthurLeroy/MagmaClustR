@@ -9,8 +9,7 @@ sample_magmaclust(pred_clust, nb_samples = 50)
 \arguments{
 \item{pred_clust}{A list, typically coming from
 \code{\link{pred_magmaclust}}, with argument get_full_cov = TRUE'.
-Required elements: \code{pred}, \code{cov}, \code{mixture}.
-This argument is needed if \code{samples} is missing.}
+Required elements: \code{pred}, \code{cov}, \code{mixture}.}
 
 \item{nb_samples}{A number, indicating the number of samples to be drawn from
 the predictive posterior distribution. For two-dimensional graphs, only

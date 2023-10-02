@@ -12,8 +12,7 @@ sample_magma(pred_gp, nb_samples = 50)
 \arguments{
 \item{pred_gp}{A list, typically coming from
 \code{\link{pred_magma}} or \code{\link{pred_gp}} functions, with argument
-'get_full_cov = TRUE'. Required elements: \code{pred}, \code{cov}.
-This argument is needed if \code{samples} is missing.}
+'get_full_cov = TRUE'. Required elements: \code{pred}, \code{cov}.}
 
 \item{nb_samples}{A number, indicating the number of samples to be drawn from
 the predictive posterior distribution. For two-dimensional graphs, only
