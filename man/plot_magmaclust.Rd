@@ -16,6 +16,8 @@ plot_magmaclust(
   heatmap = FALSE,
   samples = FALSE,
   nb_samples = 50,
+  plot_mean = TRUE,
+  alpha_samples = 0.3,
   prob_CI = 0.95,
   size_data = 3,
   size_data_train = 1,
@@ -82,6 +84,11 @@ available) are displayed.}
 \item{nb_samples}{A number, indicating the number of samples to be drawn from
 the predictive posterior distribution. For two-dimensional graphs, only
 one sample can be displayed.}
+
+\item{plot_mean}{A logical value, indicating whether the mean prediction
+should be displayed on the graph when \code{samples = TRUE}.}
+
+\item{alpha_samples}{A number, controlling transparency of the sample curves.}
 
 \item{prob_CI}{A number between 0 and 1 (default is 0.95), indicating the
 level of the Credible Interval associated with the posterior mean curve.

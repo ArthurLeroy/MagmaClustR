@@ -4,7 +4,14 @@
 \alias{plot_samples}
 \title{Display realisations from a (mixture of) GP prediction}
 \usage{
-plot_samples(pred = NULL, samples = NULL, nb_samples = 50, x_input = NULL)
+plot_samples(
+  pred = NULL,
+  samples = NULL,
+  nb_samples = 50,
+  x_input = NULL,
+  plot_mean = TRUE,
+  alpha_samples = 0.3
+)
 }
 \arguments{
 \item{pred}{A list, typically coming from \code{\link{pred_gp}},
@@ -26,6 +33,11 @@ should be displayed in the case of multidimensional inputs. If
 NULL(default) the Input' column is used for the x-axis. If providing a
 2-dimensional vector, the corresponding columns are used for the x-axis
 and the y-axis.}
+
+\item{plot_mean}{A logical value, indicating whether the mean prediction
+should be displayed on the graph.}
+
+\item{alpha_samples}{A number, controlling transparency of the sample curves.}
 }
 \value{
 Graph of samples drawn from a posterior distribution of a GP,

@@ -101,6 +101,9 @@ plot_db <- function(data, cluster = FALSE, legend = FALSE) {
 #' @param nb_samples A number, indicating the number of samples to be drawn from
 #'    the predictive posterior distribution. For two-dimensional graphs, only
 #'    one sample can be displayed.
+#' @param plot_mean A logical value, indicating whether the mean prediction
+#'    should be displayed on the graph when \code{samples = TRUE}.
+#' @param alpha_samples A number, controlling transparency of the sample curves.
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
 #'    If this this argument is set to 1, the Credible Interval is not displayed.
@@ -135,6 +138,8 @@ plot_gp <- function(pred_gp,
                     heatmap = FALSE,
                     samples = FALSE,
                     nb_samples = 50,
+                    plot_mean = TRUE,
+                    alpha_samples = 0.3,
                     prob_CI = 0.95,
                     size_data = 3,
                     size_data_train = 1,
@@ -232,7 +237,9 @@ plot_gp <- function(pred_gp,
       gg <- plot_samples(
         pred = pred_gp,
         x_input = x_input,
-        nb_samples = nb_samples)
+        nb_samples = nb_samples,
+        plot_mean = plot_mean,
+        alpha_samples = alpha_samples)
 
     } else {
       ## Add the 'Index' column if the prediction comes from 'pred_gif()'
@@ -342,7 +349,9 @@ plot_gp <- function(pred_gp,
       gg <- plot_samples(
         pred = pred_gp,
         x_input = x_input,
-        nb_samples = nb_samples)
+        nb_samples = nb_samples,
+        plot_mean = plot_mean,
+        alpha_samples = alpha_samples)
 
     } else {
       ## Display a classic curve otherwise
@@ -443,6 +452,9 @@ plot_magma <- plot_gp
 #'    NULL(default) the Input' column is used for the x-axis. If providing a
 #'    2-dimensional vector, the corresponding columns are used for the x-axis
 #'    and the y-axis.
+#' @param plot_mean A logical value, indicating whether the mean prediction
+#'    should be displayed on the graph.
+#' @param alpha_samples A number, controlling transparency of the sample curves.
 #'
 #' @return Graph of samples drawn from a posterior distribution of a GP,
 #'    Magma, or MagmaClust prediction.
@@ -453,7 +465,9 @@ plot_magma <- plot_gp
 plot_samples <- function(pred = NULL,
                          samples = NULL,
                          nb_samples = 50,
-                         x_input = NULL
+                         x_input = NULL,
+                         plot_mean = TRUE,
+                         alpha_samples = 0.3
                          ) {
 
   ## Check samples availability or draw samples from the prediction
@@ -473,10 +487,14 @@ plot_samples <- function(pred = NULL,
     }
 
     ## Check whether 'pred' is a GP/Magma or a MagmaClust prediction
-    if ('mixture' %in% names(pred)){
+    if ('mixture_pred' %in% names(pred)){
       samples = sample_magmaclust(pred_clust = pred, nb_samples = nb_samples)
+
+      mean_pred = pred$mixture_pred
     } else {
       samples = sample_gp(pred_gp = pred, nb_samples = nb_samples)
+
+      mean_pred = pred$pred
     }
   }
 
@@ -516,9 +534,22 @@ plot_samples <- function(pred = NULL,
           group = "Sample"
         ),
         color = "#FA9FB5",
-        alpha = 0.3
+        alpha = alpha_samples
       ) +
       ggplot2::guides(group = "none")
+
+    if(plot_mean){
+      if(is.null(pred)){
+        warning("The 'pred' argument is needed to display the mean prediction.")
+      } else {
+        gg = gg + ggplot2::geom_line(
+          data = mean_pred,
+          ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
+          color = "#DB15C1"
+        )
+      }
+
+    }
   } else {
     stop(
       "Impossible to display inputs with dimensions greater than 2. Please ",
@@ -709,6 +740,9 @@ plot_gif <- function(pred_gp,
 #' @param nb_samples A number, indicating the number of samples to be drawn from
 #'    the predictive posterior distribution. For two-dimensional graphs, only
 #'    one sample can be displayed.
+#' @param plot_mean A logical value, indicating whether the mean prediction
+#'    should be displayed on the graph when \code{samples = TRUE}.
+#' @param alpha_samples A number, controlling transparency of the sample curves.
 #' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
 #'    level of the Credible Interval associated with the posterior mean curve.
 #'    If this this argument is set to 1, the Credible Interval is not displayed.
@@ -747,10 +781,13 @@ plot_magmaclust <- function(pred_clust,
                             heatmap = FALSE,
                             samples = FALSE,
                             nb_samples = 50,
+                            plot_mean = TRUE,
+                            alpha_samples = 0.3,
                             prob_CI = 0.95,
                             size_data = 3,
                             size_data_train = 1,
-                            alpha_data_train = 0.5) {
+                            alpha_data_train = 0.5
+                            ) {
 
   ## Check prob_CI format
   if (prob_CI < 0 | prob_CI > 1) {
@@ -840,7 +877,9 @@ plot_magmaclust <- function(pred_clust,
     gg <- plot_samples(
       pred = pred_clust,
       nb_samples = nb_samples,
-      x_input = x_input
+      x_input = x_input,
+      plot_mean = plot_mean,
+      alpha_samples = alpha_samples
       )
 
     ## Display the observed data if provided
