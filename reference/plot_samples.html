@@ -66,7 +66,14 @@ may represent curves or a heatmap.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_samples</span><span class="op">(</span>pred <span class="op">=</span> <span class="cn">NULL</span>, samples <span class="op">=</span> <span class="cn">NULL</span>, nb_samples <span class="op">=</span> <span class="fl">50</span>, x_input <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_samples</span><span class="op">(</span></span>
+<span>  pred <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  samples <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  nb_samples <span class="op">=</span> <span class="fl">50</span>,</span>
+<span>  x_input <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  plot_mean <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  alpha_samples <span class="op">=</span> <span class="fl">0.3</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -97,6 +104,15 @@ should be displayed in the case of multidimensional inputs. If
 NULL(default) the Input' column is used for the x-axis. If providing a
 2-dimensional vector, the corresponding columns are used for the x-axis
 and the y-axis.</p></dd>
+
+
+<dt>plot_mean</dt>
+<dd><p>A logical value, indicating whether the mean prediction
+should be displayed on the graph.</p></dd>
+
+
+<dt>alpha_samples</dt>
+<dd><p>A number, controlling transparency of the sample curves.</p></dd>
 
 </dl></div>
     <div class="section level2">

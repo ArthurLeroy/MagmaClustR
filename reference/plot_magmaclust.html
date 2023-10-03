@@ -90,6 +90,8 @@ function or the full heatmap of probabilities (more informative but slower).</p>
 <span>  heatmap <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  samples <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  nb_samples <span class="op">=</span> <span class="fl">50</span>,</span>
+<span>  plot_mean <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  alpha_samples <span class="op">=</span> <span class="fl">0.3</span>,</span>
 <span>  prob_CI <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  size_data <span class="op">=</span> <span class="fl">3</span>,</span>
 <span>  size_data_train <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -179,6 +181,15 @@ available) are displayed.</p></dd>
 <dd><p>A number, indicating the number of samples to be drawn from
 the predictive posterior distribution. For two-dimensional graphs, only
 one sample can be displayed.</p></dd>
+
+
+<dt>plot_mean</dt>
+<dd><p>A logical value, indicating whether the mean prediction
+should be displayed on the graph when <code>samples = TRUE</code>.</p></dd>
+
+
+<dt>alpha_samples</dt>
+<dd><p>A number, controlling transparency of the sample curves.</p></dd>
 
 
 <dt>prob_CI</dt>
