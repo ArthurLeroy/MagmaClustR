@@ -70,7 +70,7 @@ that are specified through the 'grid_inputs' argument.</p>
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">pred_magma</span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  trained_model <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  grid_inputs <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  hp <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -94,7 +94,8 @@ reference for the observations (e.g. time for longitudinal data). The
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference 'Input'.</p></dd>
+each reference 'Input'. If NULL, the mean process from
+<code>trained_model</code> is returned as a generic prediction.</p></dd>
 
 
 <dt>trained_model</dt>
