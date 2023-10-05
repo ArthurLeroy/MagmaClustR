@@ -5,7 +5,7 @@
 \title{Gaussian Process prediction}
 \usage{
 pred_gp(
-  data,
+  data = NULL,
   grid_inputs = NULL,
   mean = NULL,
   hp = NULL,
@@ -24,7 +24,7 @@ reference for the observations (e.g. time for longitudinal data). The
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference 'Input'.}
+each reference 'Input'. If NULL, the prior GP is returned.}
 
 \item{grid_inputs}{The grid of inputs (reference Input and covariates) values
 on which the GP should be evaluated. Ideally, this argument should be a
@@ -40,7 +40,6 @@ various formats, such as:
 \itemize{
 \item NULL (default). The mean would be set to 0 everywhere.
 \item A number. The mean would be a constant function.
-\item A function. This function is defined as the mean.
 \item A tibble or data frame. Required columns: Input, Output. The Input
 values should include at least the same values as in the \code{data}
 argument.

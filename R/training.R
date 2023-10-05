@@ -499,7 +499,8 @@ train_magma <- function(data,
     post$pred <- tibble::tibble(post$mean %>%
                                   dplyr::rename(Mean = .data$Output),
                                 "Var" = post$cov %>% diag() %>% as.vector()
-    )
+    ) %>%
+      dplyr::select(- .data$Reference)
   }
 
   ## Create an history list of the initial arguments of the function

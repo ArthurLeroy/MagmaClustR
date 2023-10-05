@@ -16,7 +16,7 @@
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'.
+#'    each reference 'Input'. If NULL, the prior GP is returned.
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
 #'    tibble or a data frame, providing the same columns as \code{data}, except
@@ -29,7 +29,6 @@
 #'    various formats, such as:
 #'    - NULL (default). The mean would be set to 0 everywhere.
 #'    - A number. The mean would be a constant function.
-#'    - A function. This function is defined as the mean.
 #'    - A tibble or data frame. Required columns: Input, Output. The Input
 #'     values should include at least the same values as in the \code{data}
 #'     argument.
@@ -72,7 +71,7 @@
 #'
 #' @examples
 #' TRUE
-pred_gp <- function(data,
+pred_gp <- function(data = NULL,
                     grid_inputs = NULL,
                     mean = NULL,
                     hp = NULL,
@@ -80,6 +79,29 @@ pred_gp <- function(data,
                     get_full_cov = FALSE,
                     plot = TRUE,
                     pen_diag = 1e-10) {
+
+  ## Create a dummy dataset if no data is provided
+  if(data %>% is.null()){
+    data = tibble::tibble(
+      'ID' = 'ID_pred',
+      'Input' = c(0,10),
+      'Output' = c(0,0)
+      )
+
+    ## Draw random hyper-parameters if not provided
+    if(hp %>% is.null()){
+      hp = hp(kern = kern, noise = TRUE)
+      cat(
+        "The 'hp' argument has not been specified. Random hyper-parameters",
+        "values have been drawn.\n \n"
+      )
+    }
+
+    ## Create a boolean to remember no data were provided
+    no_data = TRUE
+  } else {
+    no_data = FALSE
+  }
 
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
@@ -238,9 +260,6 @@ pred_gp <- function(data,
         "?pred_gp() for details."
       )
     }
-  } else if (mean %>% is.function()) {
-    mean_obs <- mean(inputs_obs)
-    mean_pred <- mean(inputs_pred)
   } else if (mean %>% is.data.frame()) {
     if (all(c("Output", "Input") %in% names(mean))) {
       mean_obs <- mean %>%
@@ -329,6 +348,14 @@ pred_gp <- function(data,
 
   ## Compute the posterior covariance matrix
   pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
+
+  ## If no data were originally provided, return the GP prior as a prediction
+  if(no_data){
+    pred_mean = mean_pred
+    pred_cov = cov_pred
+
+    data = c()
+  }
 
   ## Create a tibble of values and associated uncertainty from a GP prediction
   pred_gp <- tibble::tibble(
@@ -636,7 +663,9 @@ hyperposterior <- function(trained_model = NULL,
   pred <- tibble::tibble(all_inputs,
                          "Mean" = post_mean,
                          "Var" = post_cov %>% diag() %>% as.vector()
-  )
+  ) %>%
+    dplyr::select(- .data$Reference)
+
   list(
     "mean" = mean,
     "cov" = post_cov,
@@ -661,7 +690,8 @@ hyperposterior <- function(trained_model = NULL,
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'.
+#'    each reference 'Input'. If NULL, the mean process from
+#'    \code{trained_model} is returned as a generic prediction.
 #' @param trained_model A list, containing  the information coming from a
 #'    Magma model, previously trained using the \code{\link{train_magma}}
 #'    function.
@@ -728,7 +758,7 @@ hyperposterior <- function(trained_model = NULL,
 #'
 #' @examples
 #' TRUE
-pred_magma <- function(data,
+pred_magma <- function(data = NULL,
                        trained_model = NULL,
                        grid_inputs = NULL,
                        hp = NULL,
@@ -738,6 +768,45 @@ pred_magma <- function(data,
                        get_full_cov = FALSE,
                        plot = TRUE,
                        pen_diag = 1e-10) {
+
+  ## Return the mean process if no data is provided
+  if(data %>% is.null()){
+    ## Check whether trained_model is provided
+    if(trained_model %>% is.null()){
+      stop(
+        "If 'data' is not provided, the 'trained_model' argument is needed ",
+        "to provide the mean process as a generic prediction."
+      )
+    }
+    else{
+      ## Return the mean process as a generic prediction
+      if(grid_inputs %>% is.null()){
+        hyperpost = trained_model$hyperpost
+
+      } else{
+        ## Recompute the mean process at the required inputs if necessary
+        hyperpost = hyperposterior(
+          trained_model = trained_model,
+          grid_inputs = grid_inputs
+          )
+      }
+
+      pred = hyperpost$pred
+
+      ## Display the graph of the prediction if expected
+      if (plot) {
+        plot_gp(pred) %>%
+          print()
+      }
+
+      ## Check whether the full posterior covariance should be returned
+      if (get_full_cov) {
+        pred <- list("pred" = pred, "cov" = hyperpost$cov)
+      }
+
+      return(pred)
+    }
+  }
 
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
@@ -941,10 +1010,10 @@ pred_magma <- function(data,
     dplyr::arrange(.data$Reference) %>%
     dplyr::pull(.data$Output)
 
-  mean_pred <- hyperpost$pred %>%
+  mean_pred <- hyperpost$mean %>%
     dplyr::filter(.data$Reference %in% input_pred) %>%
     dplyr::arrange(.data$Reference) %>%
-    dplyr::pull(.data$Mean)
+    dplyr::pull(.data$Output)
 
   ## Extract the covariance sub-matrices from the hyper-posterior
   post_cov_obs <- hyperpost$cov[
@@ -1570,9 +1639,9 @@ hyperposterior_clust <- function(trained_model = NULL,
                    "Var" = cov_k[[k]] %>% diag() %>% as.vector()
     ) %>%
       dplyr::rename("Mean" = .data$Output) %>%
+      dplyr::select(- .data$Reference) %>%
       return()
   }
-
   pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
 
   list("mean" = mean_k, "cov" = cov_k, "mixture" = mixture, "pred" = pred) %>%
@@ -1599,7 +1668,8 @@ hyperposterior_clust <- function(trained_model = NULL,
 #'    variable). The data frame can also provide as many covariates as desired,
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'.
+#'    each reference 'Input'. If NULL, the mixture of mean processes from
+#'    \code{trained_model} is returned as a generic prediction.
 #' @param trained_model A list, containing  the information coming from a
 #'    MagmaClust model, previously trained using the
 #'    \code{\link{train_magmaclust}} function. If \code{trained_model} is set to
@@ -1686,7 +1756,7 @@ hyperposterior_clust <- function(trained_model = NULL,
 #'
 #' @examples
 #' TRUE
-pred_magmaclust <- function(data,
+pred_magmaclust <- function(data = NULL,
                             trained_model = NULL,
                             grid_inputs = NULL,
                             mixture = NULL,
@@ -1698,6 +1768,94 @@ pred_magmaclust <- function(data,
                             get_full_cov = FALSE,
                             plot = TRUE,
                             pen_diag = 1e-10) {
+
+  ## Return the mean process if no data is provided
+  if(data %>% is.null()){
+    ## Check whether trained_model is provided
+    if(trained_model %>% is.null()){
+      stop(
+        "If 'data' is not provided, the 'trained_model' argument is needed ",
+        "to provide the mixture of mean processes as a generic prediction."
+      )
+    }
+    else{
+      ## Return the mean process as a generic prediction
+      if(grid_inputs %>% is.null()){
+        hyperpost = trained_model$hyperpost
+
+      } else{
+        ## Recompute the mean process at the required inputs if necessary
+        hyperpost = hyperposterior_clust(
+          trained_model = trained_model,
+          grid_inputs = grid_inputs
+        )
+      }
+
+      names_k = hyperpost$pred %>% names()
+
+      ## Compute the generic mixture weights
+      mixture = hyperpost$mixture %>%
+        dplyr::select(- .data$ID) %>%
+        dplyr::summarise(dplyr::across(tidyselect::everything(), mean)) %>%
+        dplyr::mutate('ID' = 'ID_pred', .before = 1)
+
+      ## Add the ID and Proba columns to 'pred'
+      floop_k = function(k){
+        hyperpost$pred[[k]] %>%
+          dplyr::mutate(
+            'ID' = 'ID_pred',
+            'Proba' = mixture[[k]],
+            .before = 1
+          ) %>%
+          return()
+      }
+      pred_k = sapply(names_k, floop_k, simplify = FALSE, USE.NAMES = TRUE)
+
+      ## Compute the mixture mean and variance of predictions
+      mixture_mean <- 0
+      for (k in names_k)
+      {
+        proba_k <- mixture %>% dplyr::pull(k)
+        mixture_mean = mixture_mean + proba_k * pred_k[[k]]$Mean
+      }
+
+      mixture_var <- 0
+      for (k in names_k)
+      {
+        proba_k <- mixture %>% dplyr::pull(k)
+        ## Cov(mixture) = Sum_k{ tau_k * (C_k + (m_k - m)(m_k - m)T) }
+        mixture_var <- mixture_var +
+          proba_k * (pred_k[[k]]$Var + (pred_k[[k]]$Mean - mixture_mean)^2)
+      }
+
+      ## Create the mixture of GPs prediction
+      mixture_pred <- pred_k[[names_k[1]]] %>%
+        dplyr::mutate(
+        "Mean" = mixture_mean,
+        "Var" = mixture_var %>% as.vector()
+        ) %>%
+        dplyr::select(- .data$Proba)
+
+      ## Define the list to return with the correct format
+      pred <- list(
+        "pred" = pred_k,
+        'mixture' = mixture,
+        'mixture_pred' = mixture_pred)
+
+      ## Display the graph of the prediction if expected
+      if (plot) {
+        plot_magmaclust(pred) %>%
+          print()
+      }
+
+      ## Check whether the full posterior covariance should be returned
+      if (get_full_cov) {
+        pred[["cov"]] = hyperpost$cov
+      }
+
+       return(pred)
+    }
+  }
 
   ## Add an 'ID' column if present
   if ("ID" %in% names(data)) {
@@ -2028,10 +2186,10 @@ pred_magmaclust <- function(data,
       dplyr::arrange(.data$Reference) %>%
       dplyr::pull(.data$Output)
 
-    mean_pred <- hyperpost$pred[[k]] %>%
+    mean_pred <- hyperpost$mean[[k]] %>%
       dplyr::filter(.data$Reference %in% input_pred) %>%
       dplyr::arrange(.data$Reference) %>%
-      dplyr::pull(.data$Mean)
+      dplyr::pull(.data$Output)
 
     ## Extract the covariance sub-matrices from the hyper-posterior
     post_cov_obs <- hyperpost$cov[[k]][

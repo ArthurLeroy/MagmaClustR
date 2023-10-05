@@ -5,7 +5,7 @@
 \title{Magma prediction}
 \usage{
 pred_magma(
-  data,
+  data = NULL,
   trained_model = NULL,
   grid_inputs = NULL,
   hp = NULL,
@@ -26,7 +26,8 @@ reference for the observations (e.g. time for longitudinal data). The
 variable). The data frame can also provide as many covariates as desired,
 with no constraints on the column names. These covariates are additional
 inputs (explanatory variables) of the models that are also observed at
-each reference 'Input'.}
+each reference 'Input'. If NULL, the mean process from
+\code{trained_model} is returned as a generic prediction.}
 
 \item{trained_model}{A list, containing  the information coming from a
 Magma model, previously trained using the \code{\link{train_magma}}
