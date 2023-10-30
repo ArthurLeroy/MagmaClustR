@@ -470,12 +470,13 @@ plot_samples <- function(pred = NULL,
                          alpha_samples = 0.3
                          ) {
 
-  ## Check samples availability or draw samples from the prediction
-  if(is.null(samples)){
-    ## Check whether 'pred' exists
-    if(is.null(pred)){
+  ## Check whether 'samples' or 'pred' exist
+  if(is.null(samples) & is.null(pred) ){
       stop("Either 'sample' or 'pred' is needed as an argument.")
-    }
+  }
+
+  ## If provided, check format of 'pred' and extract the mixture prediction
+  if(!is.null(pred)){
 
     ## Check 'pred' format
     if (!(is.list(pred) & ('cov' %in% names(pred))) ) {
@@ -488,11 +489,20 @@ plot_samples <- function(pred = NULL,
 
     ## Check whether 'pred' is a GP/Magma or a MagmaClust prediction
     if ('mixture_pred' %in% names(pred)){
-      samples = sample_magmaclust(pred_clust = pred, nb_samples = nb_samples)
+
+      ## If 'samples' is not provided, draw new samples
+      if(is.null(samples)){
+        samples = sample_magmaclust(pred_clust = pred, nb_samples = nb_samples)
+      }
 
       mean_pred = pred$mixture_pred
+
     } else {
-      samples = sample_gp(pred_gp = pred, nb_samples = nb_samples)
+
+      ## If 'samples' is not provided, draw new samples
+      if(is.null(samples)){
+        samples = sample_gp(pred_gp = pred, nb_samples = nb_samples)
+      }
 
       mean_pred = pred$pred
     }

@@ -13,6 +13,7 @@
 * Fix the '\docType{package}' bug in roxygen2
 * Add 'plot_magma()' as a duplicated name for 'plot_gp()'
 * Remove the useless 'Reference' column in the prediction of the mean processes
+* Fix a bug when both 'pred' and 'samples' are provided in plot_samples()
 
 # MagmaClustR 1.1.2
 
