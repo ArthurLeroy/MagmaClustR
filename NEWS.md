@@ -2,7 +2,7 @@
 
 ## Major
 
-* Add new functions sample_gp() and sample_magmaclust() to sample from the posteriors predictions of GPs, Magma, and MagmaClust
+* Add new functions sample_gp() and sample_magmaclust() to sample from the posterior predictions of GPs, Magma, and MagmaClust
 * Propose a new visualisation based on posterior samples instead of Credible Intervals for both plot_gp() and plot_magmaclust()
 * Allow pred_*() functions to be used without providing the 'data' argument by returning the mean processes (or priors) as generic predictions. 
 
