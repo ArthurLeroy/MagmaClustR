@@ -33,7 +33,7 @@
     
     <a class="navbar-brand me-2" href="../index.html">MagmaClustR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -217,7 +217,7 @@ are:</p>
 <ul>
 <li><a href="https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html"><code>train_magma()</code></a></li>
 <li><a href="https://arthurleroy.github.io/MagmaClustR/reference/pred_magma.html"><code>pred_magma()</code></a></li>
-<li><a href="https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html"><code>plot_gp()</code></a></li>
+<li><a href="https://arthurleroy.github.io/MagmaClustR/reference/plot_magma.html"><code>plot_magma()</code></a></li>
 </ul>
 </div>
 <div class="section level2">
@@ -319,25 +319,25 @@ for details.</p>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 9.28 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 8.48 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1306.74731 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 5.54 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 5.23 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1240.53711 --- Convergence ratio = 0.05337</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 3.17 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 2.96 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1228.4203 --- Convergence ratio = 0.00986</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 4.1 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 4 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1225.61283 --- Convergence ratio = 0.00229</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Warning in train_magma(data = swimmers_train, kern_0 = "SE", kern_i = "SE", :</span></span>
 <span><span class="co">#&gt; The likelihood descreased. Possible numerical issues.</span></span>
-<span><span class="co">#&gt; EM algorithm, step 5: 4.04 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 5: 3.9 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1225.6443 --- Convergence ratio = -3e-05</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -381,14 +381,14 @@ forecast of interest.</p>
 <div class="section level3">
 <h3 id="plots">Plots<a class="anchor" aria-label="anchor" href="#plots"></a>
 </h3>
-<p>The <a href="https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html"><code>plot_gp()</code></a>
+<p>The <a href="https://arthurleroy.github.io/MagmaClustR/reference/plot_magma.html"><code>plot_magma()</code></a>
 function can be used to depict the evolution of Michaela’s predicted
 performances.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_gp.html">plot_gp</a></span><span class="op">(</span>pred_gp <span class="op">=</span> <span class="va">pred</span>,</span>
-<span>        data <span class="op">=</span> <span class="va">swimmers_pred</span>,</span>
-<span>        prior_mean <span class="op">=</span> <span class="va">model</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span>,</span>
-<span>        data_train <span class="op">=</span> <span class="va">swimmers_train</span><span class="op">)</span> </span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_gp.html">plot_magma</a></span><span class="op">(</span>pred_gp <span class="op">=</span> <span class="va">pred</span>,</span>
+<span>           data <span class="op">=</span> <span class="va">swimmers_pred</span>,</span>
+<span>           prior_mean <span class="op">=</span> <span class="va">model</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span>,</span>
+<span>           data_train <span class="op">=</span> <span class="va">swimmers_train</span><span class="op">)</span> </span></code></pre></div>
 <p><img src="how-to-use-magma_files/figure-html/unnamed-chunk-10-1.png" width="80%" style="display: block; margin: auto;">
 In the above figure, we can observe:</p>
 <ul>
@@ -465,19 +465,19 @@ swimmer, called Michael (right) and randomly selected within
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 10.4 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 9.77 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1429.93441 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 3.37 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 3.21 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1411.28576 --- Convergence ratio = 0.01321</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 4.32 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 4.2 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1409.42677 --- Convergence ratio = 0.00132</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 4.95 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 4.5 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1409.17453 --- Convergence ratio = 0.00018</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -515,22 +515,53 @@ mean processes.</p>
 <h2 id="customise-graphs">Customise graphs<a class="anchor" aria-label="anchor" href="#customise-graphs"></a>
 </h2>
 <div class="section level3">
-<h3 id="with-plot_gp">With plot_gp()<a class="anchor" aria-label="anchor" href="#with-plot_gp"></a>
+<h3 id="with-plot_magma">With plot_magma()<a class="anchor" aria-label="anchor" href="#with-plot_magma"></a>
 </h3>
 <p>In case of 1-dimensional inputs, we can depict Michaela’s prediction
-graphs thanks to the <code><a href="../reference/plot_gp.html">plot_gp()</a></code> function. Indeed, if by
+graphs thanks to the <code><a href="../reference/plot_gp.html">plot_magma()</a></code> function. Indeed, if by
 setting the argument <code>heatmap = TRUE</code>, we can display a
 heatmap of probabilities instead using a 95% credibility interval. Doing
 so, we get a thorough visual quantification for both the dispersion of
 the predicted values and the confidence we may grant to each of
 them.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_gp.html">plot_gp</a></span><span class="op">(</span>pred_gp <span class="op">=</span> <span class="va">pred_f</span>,</span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_gp.html">plot_magma</a></span><span class="op">(</span>pred_gp <span class="op">=</span> <span class="va">pred_f</span>,</span>
 <span>        data <span class="op">=</span> <span class="va">swimmers_pred</span>,</span>
 <span>        data_train <span class="op">=</span> <span class="va">swimmers_train</span>,</span>
 <span>        prior_mean <span class="op">=</span> <span class="va">model</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span>,</span>
 <span>        heatmap <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="how-to-use-magma_files/figure-html/unnamed-chunk-16-1.png" width="80%" style="display: block; margin: auto;"></p>
+<p>Another convenient visualisation of uncertainty exists in the package
+by displaying <strong>samples</strong> drawn from the predictive
+posterior distribution. To draw those samples, you first need to keep
+the full posterior covariance matrix by specifying the argument
+<code>get_full_cov = TRUE</code> when calling
+<code><a href="../reference/pred_magma.html">pred_magma()</a></code>.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pred_with_cov</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/pred_magma.html">pred_magma</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">swimmers_pred</span>,</span>
+<span>                            trained_model <span class="op">=</span> <span class="va">model</span>,</span>
+<span>                            get_full_cov <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>                            grid_inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">10</span>,<span class="fl">20</span>,<span class="fl">0.1</span><span class="op">)</span>,</span>
+<span>                            plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; The hyper-posterior distribution of the mean process provided in 'hyperpost' argument isn't evaluated on the expected inputs.</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt;  Start evaluating the hyper-posterior on the correct inputs...</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; The 'prior_mean' argument has not been specified. The hyper-prior mean function is thus set to be 0 everywhere.</span></span>
+<span><span class="co">#&gt;  </span></span>
+<span><span class="co">#&gt; Done!</span></span>
+<span><span class="co">#&gt; </span></span></code></pre></div>
+<p>Then, by leveraging the <code>samples = TRUE</code> argument of
+<code><a href="../reference/plot_gp.html">plot_magma()</a></code>, we can now draw and display sample curves,
+representing a set of probable functions considering the observed data
+that we provided.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_gp.html">plot_magma</a></span><span class="op">(</span>pred_gp <span class="op">=</span> <span class="va">pred_with_cov</span>,</span>
+<span>           data <span class="op">=</span> <span class="va">swimmers_pred</span>,</span>
+<span>           data_train <span class="op">=</span> <span class="va">swimmers_train</span>,</span>
+<span>           prior_mean <span class="op">=</span> <span class="va">model</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span>,</span>
+<span>           samples <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p><img src="how-to-use-magma_files/figure-html/unnamed-chunk-18-1.png" width="80%" style="display: block; margin: auto;"></p>
 </div>
 <div class="section level3">
 <h3 id="create-a-gif">Create a GIF<a class="anchor" aria-label="anchor" href="#create-a-gif"></a>
@@ -538,28 +569,28 @@ them.</p>
 <p>If we want to create animated representations, please use the <a href="https://arthurleroy.github.io/MagmaClustR/reference/pred_gif.html"><code>pred_gif()</code></a>
 and <a href="https://arthurleroy.github.io/MagmaClustR/reference/plot_gif.html"><code>plot_gif()</code></a>
 functions, instead of <code><a href="../reference/pred_magma.html">pred_magma()</a></code> and
-<code><a href="../reference/plot_gp.html">plot_gp()</a></code>. These functions offer dynamic plots by
+<code><a href="../reference/plot_gp.html">plot_magma()</a></code>. These functions offer dynamic plots by
 generating GIFs thanks to the <code>gganimate</code> package. Such
 graphs exhibit how the GP prediction evolves as we observe more data
 points.</p>
 <p><code><a href="../reference/pred_gif.html">pred_gif()</a></code> and <code><a href="../reference/plot_gif.html">plot_gif()</a></code> functions work
-the same as <code><a href="../reference/pred_magma.html">pred_magma()</a></code> and <code><a href="../reference/plot_gp.html">plot_gp()</a></code> (except
-that no <code>plot</code> argument is required in
+the same as <code><a href="../reference/pred_magma.html">pred_magma()</a></code> and <code><a href="../reference/plot_gp.html">plot_magma()</a></code>
+(except that no <code>plot</code> argument is required in
 <code><a href="../reference/pred_gif.html">pred_gif()</a></code>). Some extra arguments can be customized in
 <code><a href="../reference/plot_gif.html">plot_gif()</a></code>, like adjusting the GIF speed, saving the
 plotted GIF (see <code>?gganimate</code> for details)</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pred_gif</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/pred_gif.html">pred_gif</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">swimmers_pred</span>,</span>
-<span>  trained_model <span class="op">=</span> <span class="va">model</span>,</span>
-<span>  grid_inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">10</span>,<span class="fl">20</span>,<span class="fl">0.1</span><span class="op">)</span><span class="op">)</span></span>
+<span>                      trained_model <span class="op">=</span> <span class="va">model</span>,</span>
+<span>                      grid_inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">10</span>,<span class="fl">20</span>,<span class="fl">0.1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  =&gt; 1 =&gt; 2 =&gt; 3 =&gt; 4 =&gt; 5 =&gt; 6 =&gt; 7 =&gt; 8 =&gt; 9 =&gt; 10 =&gt; 11 =&gt; 12 =&gt; 13 =&gt; 14 =&gt; 15 =&gt; 16 =&gt; 17</span></span></code></pre></div>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_gif.html">plot_gif</a></span><span class="op">(</span>pred_gp <span class="op">=</span> <span class="va">pred_gif</span>,</span>
 <span>         data <span class="op">=</span> <span class="va">swimmers_pred</span>,</span>
 <span>         data_train <span class="op">=</span> <span class="va">swimmers_train</span>,</span>
 <span>         prior_mean <span class="op">=</span> <span class="va">model</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span>,</span>
 <span>         alpha_data_train <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span></span></code></pre></div>
-<p><img src="../../docs/articles/how-to-use-magma_files/figure-html/unnamed-chunk-18-1.gif" width="80%" style="display: block; margin: auto;"></p>
+<p><img src="../../docs/articles/how-to-use-magma_files/figure-html/unnamed-chunk-20-1.gif" width="80%" style="display: block; margin: auto;"></p>
 </div>
 </div>
 <div class="section level2">
@@ -578,7 +609,7 @@ mean</a>.</p>
 <p>To underline the main limitation of Magma, we now propose to predict
 the performances of an elite female swimmer in the dataset (under 60sec)
 instead of Michaela’s.</p>
-<p><img src="how-to-use-magma_files/figure-html/unnamed-chunk-21-1.png" width="80%" style="display: block; margin: auto;"></p>
+<p><img src="how-to-use-magma_files/figure-html/unnamed-chunk-23-1.png" width="80%" style="display: block; margin: auto;"></p>
 <p>Due to the high level of this swimmer, all of her performances are
 far below the mean GP. Thus, when we try to predict her future
 evolution, we may actually underestimate her potential; indeed, her
