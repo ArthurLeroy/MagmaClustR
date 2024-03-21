@@ -1,6 +1,11 @@
 # MagmaClustR (development version)
 
 ## Major
+## Minor
+
+# MagmaClustR 1.2.0
+
+## Major
 
 * Add new functions sample_gp() and sample_magmaclust() to sample from the posterior predictions of GPs, Magma, and MagmaClust
 * Propose a new visualisation based on posterior samples instead of Credible Intervals for both plot_gp() and plot_magmaclust()

@@ -18,7 +18,9 @@ knitr::opts_chunk$set(
 # MagmaClustR <img src="man/figures/logo.png" align="right" width="120" />
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/ArthurLeroy/MagmaClustR/workflows/R-CMD-check/badge.svg)](https://github.com/ArthurLeroy/MagmaClustR/actions)
+[![R-CMD-check](https://github.com/ArthurLeroy/MagmaClustR/actions/workflows/R-CMD-check.yaml/badge.svg?branch=master)](https://github.com/ArthurLeroy/MagmaClustR/actions/workflows/R-CMD-check.yaml)
+[![CRAN status](https://www.r-pkg.org/badges/version/MagmaClustR)](https://CRAN.R-project.org/package=MagmaClustR)
+[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 [![codecov](https://codecov.io/gh/ArthurLeroy/MagmaClustR/branch/master/graph/badge.svg?token=KH7SOKOLKX)](https://app.codecov.io/gh/ArthurLeroy/MagmaClustR)
 <!-- badges: end -->
 

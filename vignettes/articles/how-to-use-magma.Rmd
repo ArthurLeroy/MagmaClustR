@@ -72,7 +72,7 @@ The corresponding functions are:
 
 -   [`train_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html)
 -   [`pred_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_magma.html)
--   [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html)
+-   [`plot_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_magma.html)
 
 ## Applying Magma on the swimmer dataset
 
@@ -170,13 +170,13 @@ pred <- pred_magma(data = swimmers_pred,
 
 ### Plots
 
-The [`plot_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gp.html) function can be used to depict the evolution of Michaela’s predicted performances. 
+The [`plot_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_magma.html) function can be used to depict the evolution of Michaela’s predicted performances. 
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
-plot_gp(pred_gp = pred,
-        data = swimmers_pred,
-        prior_mean = model$hyperpost$mean,
-        data_train = swimmers_train) 
+plot_magma(pred_gp = pred,
+           data = swimmers_pred,
+           prior_mean = model$hyperpost$mean,
+           data_train = swimmers_train) 
 ```
 In the above figure, we can observe:
 
@@ -211,7 +211,7 @@ pred <- pred_magma(data = swimmers_pred,
 
 
 ```{r  echo = FALSE, warning=FALSE, out.width = "100%", fig.show='hold'}
-gg1 <- plot_gp(pred_gp = pred,
+gg1 <- plot_magma(pred_gp = pred,
         data = swimmers_pred,
         prior_mean = model$hyperpost$mean,
         data_train = swimmers_train,
@@ -219,7 +219,7 @@ gg1 <- plot_gp(pred_gp = pred,
   ggplot2::scale_y_continuous(limits = c(-130,120))+ 
   ggplot2::scale_x_continuous(limits = c(10,23))
 
-gg2 <- plot_gp(pred_gp = pred_gp,
+gg2 <- plot_magma(pred_gp = pred_gp,
         data = swimmers_pred,
         heatmap = FALSE) +
   ggplot2::scale_y_continuous(limits = c(-130,120))+ 
@@ -280,7 +280,7 @@ pred_f <- pred_magma(data = swimmers_pred,
   grid_inputs = seq(10,20,0.1),
   plot = FALSE)
 
-gg3 <- plot_gp(pred_gp = pred_f,
+gg3 <- plot_magma(pred_gp = pred_f,
         data = swimmers_pred,
         prior_mean = model$hyperpost$mean,
         data_train = swimmers_train,
@@ -290,7 +290,7 @@ gg3 <- plot_gp(pred_gp = pred_f,
 
 ```{r fig.asp = 0.7, fig.width = 10, out.width = "100%",echo = FALSE,warning=FALSE}
 
-gg4 <- plot_gp(pred_gp = pred_m,
+gg4 <- plot_magma(pred_gp = pred_m,
         data = swimmers_pred_m,
         prior_mean = model_m$hyperpost$mean,
         data_train = swimmers_train_m,
@@ -311,32 +311,51 @@ However, while performances are roughly similar in mean trend before the age of 
 
 ## Customise graphs
 
-### With plot_gp()
+### With plot_magma()
 
-In case of 1-dimensional inputs, we can depict Michaela’s prediction graphs thanks to the `plot_gp()` function. Indeed, if by setting the argument `heatmap = TRUE`, we can display a heatmap of probabilities instead using a 95% credibility interval. Doing so, we get a thorough visual quantification for both the dispersion of the predicted values and the confidence we may grant to each of them.
+In case of 1-dimensional inputs, we can depict Michaela’s prediction graphs thanks to the `plot_magma()` function. Indeed, if by setting the argument `heatmap = TRUE`, we can display a heatmap of probabilities instead using a 95% credibility interval. Doing so, we get a thorough visual quantification for both the dispersion of the predicted values and the confidence we may grant to each of them.
 
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
-plot_gp(pred_gp = pred_f,
+plot_magma(pred_gp = pred_f,
         data = swimmers_pred,
         data_train = swimmers_train,
         prior_mean = model$hyperpost$mean,
         heatmap = TRUE)
 ```
 
+Another convenient visualisation of uncertainty exists in the package by displaying **samples** drawn from the predictive posterior distribution. To draw those samples, you first need to keep the full posterior covariance matrix by specifying the argument `get_full_cov = TRUE` when calling `pred_magma()`.
+
+```{r message=FALSE, warning=FALSE}
+pred_with_cov <- pred_magma(data = swimmers_pred,
+                            trained_model = model,
+                            get_full_cov = TRUE,
+                            grid_inputs = seq(10,20,0.1),
+                            plot = FALSE)
+```
+
+Then, by leveraging the `samples = TRUE` argument of `plot_magma()`, we can now draw and display sample curves, representing a set of probable functions considering the observed data that we provided. 
+
+```{r fig.asp=0.6, fig.width=7, message=FALSE, warning=FALSE, out.width="80%"}
+plot_magma(pred_gp = pred_with_cov,
+           data = swimmers_pred,
+           data_train = swimmers_train,
+           prior_mean = model$hyperpost$mean,
+           samples = TRUE)
+```
 
 ### Create a GIF
 
-If we want to create animated representations, please use the  [`pred_gif()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_gif.html) and [`plot_gif()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gif.html) functions, instead of `pred_magma()` and `plot_gp()`. 
+If we want to create animated representations, please use the  [`pred_gif()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_gif.html) and [`plot_gif()`](https://arthurleroy.github.io/MagmaClustR/reference/plot_gif.html) functions, instead of `pred_magma()` and `plot_magma()`. 
 These functions offer dynamic plots by generating GIFs thanks to the `gganimate` package. Such graphs exhibit how the GP prediction evolves as we observe more data points.
 
-`pred_gif()` and `plot_gif()` functions work the same as `pred_magma()` and `plot_gp()` (except that no `plot` argument is required in `pred_gif()`). Some extra arguments can be customized in `plot_gif()`, like adjusting the GIF speed, saving the plotted GIF (see `?gganimate` for details)
+`pred_gif()` and `plot_gif()` functions work the same as `pred_magma()` and `plot_magma()` (except that no `plot` argument is required in `pred_gif()`). Some extra arguments can be customized in `plot_gif()`, like adjusting the GIF speed, saving the plotted GIF (see `?gganimate` for details)
 
 
 ```{r}
 pred_gif  <- pred_gif(data = swimmers_pred,
-  trained_model = model,
-  grid_inputs = seq(10,20,0.1))
+                      trained_model = model,
+                      grid_inputs = seq(10,20,0.1))
 ```
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%", message=FALSE}
@@ -364,17 +383,17 @@ great_swimmer <- swimmers_f %>% filter(ID == 1327)
 
 ```{r, echo=FALSE,include=FALSE}
 pred_great_swimmer <- pred_magma(data = great_swimmer,
-  trained_model = model,
-  grid_inputs = seq(10,20,0.1),
-  plot = FALSE)
+                                 trained_model = model,
+                                 grid_inputs = seq(10,20,0.1),
+                                 plot = FALSE)
 ```
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%", echo=FALSE}
-plot_gp(pred_gp = pred_great_swimmer,
-        data = great_swimmer,
-        data_train = swimmers_train,
-        prior_mean = model$hyperpost$mean %>% filter(Input < 20),
-        heatmap = TRUE)
+plot_magma(pred_gp = pred_great_swimmer,
+           data = great_swimmer,
+           data_train = swimmers_train,
+           prior_mean = model$hyperpost$mean %>% filter(Input < 20),
+           heatmap = TRUE)
 ```
 
 Due to the high level of this swimmer, all of her performances are far below the mean GP. Thus, when we try to predict her future evolution, we may actually underestimate her potential; indeed, her progression curve increases significantly once she has no data left, until it reaches the mean process. Although, this behaviour is expected since the prediction is guided by the information coming from other individuals (through the mean process) who are less successful than her, the method could benefit from accounting for differences between individual in the training dataset. 
