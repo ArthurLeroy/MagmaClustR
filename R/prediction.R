@@ -1137,10 +1137,25 @@ pred_magma <- function(data = NULL,
 
   ## Display the graph of the prediction if expected
   if (plot) {
-    plot_gp(pred_gp,
+    ## Check whether training data are available
+    if (trained_model %>% is.null()) {
+      data_train <- NULL
+    } else {
+      data_train <- trained_model$ini_args$data
+    }
+
+    ## Add 'cov' to display samples
+    res <- list("pred" = pred_gp)
+    res[["cov"]] <- pred_cov
+
+    ## Plot results
+    plot_gp(res,
             data = data,
+            data_train = data_train,
             prior_mean = hyperpost$mean %>%
-              dplyr::select(-.data$Reference)) %>%
+              dplyr::select(-.data$Reference),
+            samples = TRUE
+            ) %>%
       print()
   }
 
@@ -2294,12 +2309,17 @@ pred_magmaclust <- function(data = NULL,
     } else {
       data_train <- trained_model$ini_args$data
     }
+
+    ## Add 'cov' to display samples
+    res[["cov"]] <- full_cov
+
     ## Plot the mixture-of-GPs prediction
     plot_magmaclust(
       res,
       data = data,
       data_train = data_train,
-      prior_mean = hyperpost$mean
+      prior_mean = hyperpost$mean,
+      samples = TRUE
     ) %>%
       print()
   }

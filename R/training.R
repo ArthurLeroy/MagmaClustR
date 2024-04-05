@@ -926,6 +926,14 @@ train_magmaclust <- function(data,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
 
+  ## Stop and send to train_magma() if nb_cluster == 1
+  if(nb_cluster < 2){
+    stop(
+      "MagmaClust with one cluster is equivalent to Magma. Please use the ",
+      "train_magma() function instead of train_magmaclust(nb_cluster = 1)."
+    )
+  }
+
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("ID", "Output", "Input") %in% names(data))) {

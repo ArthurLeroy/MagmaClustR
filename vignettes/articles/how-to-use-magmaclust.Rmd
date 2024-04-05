@@ -123,7 +123,7 @@ The triangles correspond to James’ weight at different ages, whereas the colou
 
 It's now time to train the model thanks to `train_magmaclust()`, for which several arguments can be specified:
 
-*  `nb_cluster`:  as for any clustering method, we have to provide a number *K* of clusters as an hypothesis of the model. For illustration purposes, we arbitrarily set $K = 3$ in the following example. However, a dedicated model selection method based on maximising a VBIC criterion is provided in the package as [`select_nb_clusters()`](https://arthurleroy.github.io/MagmaClustR/reference/select_nb_clusters.html).
+*  `nb_cluster`:  as for any clustering method, we have to provide a number *K* of clusters as an hypothesis of the model. For illustration purposes, we arbitrarily set $K = 3$ in the following example. However, a dedicated model selection method based on maximising a VBIC criterion is provided in the package as [`select_nb_cluster()`](https://arthurleroy.github.io/MagmaClustR/reference/select_nb_cluster.html).
 
 *   `kern`: the relationship between observed data and prediction targets can be control through the covariance **kernel**.
 Therefore, in order to correctly fit our data, we need to choose a suitable covariance kernel.
