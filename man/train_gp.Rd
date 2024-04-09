@@ -43,7 +43,9 @@ associated with the \code{kern} of the new individual/task.
 The columns should be named according to the hyper-parameters that are
 used in \code{kern}. In cases where the model includes a noise term,
 \code{ini_hp} should contain an additional 'noise' column. If NULL
-(default), random values are used as initialisation.}
+(default), random values are used as initialisation. The \code{\link{hp}}
+function can be used to draw  custom hyper-parameters with the correct
+format.}
 
 \item{kern}{A kernel function, defining the covariance structure of the GP.
 Several popular kernels

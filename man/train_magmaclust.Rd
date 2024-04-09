@@ -57,14 +57,16 @@ associated with \code{kern_k}, the mean process' kernel.
 Required column : \code{ID}. The \code{ID} column contains the unique
 names/codes used to identify each cluster. The other columns
 should be named according to the hyper-parameters that are used in
-\code{kern_k}.}
+\code{kern_k}. The \code{\link{hp}} function can be used to draw
+custom hyper-parameters with the correct format.}
 
 \item{ini_hp_i}{A tibble or data frame of hyper-parameters
 associated with \code{kern_i}, the individual processes' kernel.
 Required column : \code{ID}. The \code{ID} column contains the unique
 names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
-\code{kern_i}.}
+\code{kern_i}. The \code{\link{hp}} function can be used to draw
+custom hyper-parameters with the correct format.}
 
 \item{kern_k}{A kernel function, associated with the mean GPs.
 Several popular kernels

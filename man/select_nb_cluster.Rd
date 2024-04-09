@@ -42,10 +42,12 @@ procedure.}
 that will be tested for the number of clusters.}
 
 \item{ini_hp_k}{A tibble or data frame of hyper-parameters associated with
-\code{kern_k}.}
+\code{kern_k}. The \code{\link{hp}} function can be used to draw
+custom hyper-parameters with the correct format.}
 
 \item{ini_hp_i}{A tibble or data frame of hyper-parameters associated with
-\code{kern_i}.}
+\code{kern_i}. The \code{\link{hp}} function can be used to draw
+custom hyper-parameters with the correct format.db}
 
 \item{kern_k}{A kernel function associated to the mean processes.}
 

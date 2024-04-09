@@ -100,19 +100,19 @@ model <- train_magma(data = magma_train, common_hp = F)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 6.85 seconds 
+#> EM algorithm, step 1: 12.96 seconds 
 #>  
 #> Value of the likelihood: -313.47546 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 3 seconds 
+#> EM algorithm, step 2: 5.4 seconds 
 #>  
 #> Value of the likelihood: -303.47668 --- Convergence ratio = 0.03295
 #>  
-#> EM algorithm, step 3: 2.75 seconds 
+#> EM algorithm, step 3: 5.65 seconds 
 #>  
 #> Value of the likelihood: -302.84575 --- Convergence ratio = 0.00208
 #>  
-#> EM algorithm, step 4: 2.64 seconds 
+#> EM algorithm, step 4: 5.41 seconds 
 #>  
 #> Value of the likelihood: -302.56379 --- Convergence ratio = 0.00093
 #>  
@@ -228,27 +228,27 @@ model_clust <- train_magmaclust(data = magmaclust_train)
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 11.99 seconds 
+#> VEM algorithm, step 1: 21.09 seconds 
 #>  
 #> Value of the elbo: -712.16808 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 7.4 seconds 
+#> VEM algorithm, step 2: 13.02 seconds 
 #>  
 #> Value of the elbo: -635.70636 --- Convergence ratio = 0.12028
 #>  
-#> VEM algorithm, step 3: 8.2 seconds 
+#> VEM algorithm, step 3: 15 seconds 
 #>  
 #> Value of the elbo: -623.0371 --- Convergence ratio = 0.02033
 #>  
-#> VEM algorithm, step 4: 5.81 seconds 
+#> VEM algorithm, step 4: 11.27 seconds 
 #>  
 #> Value of the elbo: -619.56266 --- Convergence ratio = 0.00561
 #>  
-#> VEM algorithm, step 5: 5.29 seconds 
+#> VEM algorithm, step 5: 10.36 seconds 
 #>  
 #> Value of the elbo: -618.50147 --- Convergence ratio = 0.00172
 #>  
-#> VEM algorithm, step 6: 5.44 seconds 
+#> VEM algorithm, step 6: 10.39 seconds 
 #>  
 #> Value of the elbo: -617.95297 --- Convergence ratio = 0.00089
 #>  
@@ -334,19 +334,19 @@ model_dim2 <- train_magma(data = dim2_train)
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 4.91 seconds 
+#> EM algorithm, step 1: 6.71 seconds 
 #>  
 #> Value of the likelihood: -247.66608 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 4.52 seconds 
+#> EM algorithm, step 2: 8.73 seconds 
 #>  
 #> Value of the likelihood: -217.29028 --- Convergence ratio = 0.13979
 #>  
-#> EM algorithm, step 3: 2.75 seconds 
+#> EM algorithm, step 3: 5.63 seconds 
 #>  
 #> Value of the likelihood: -216.11346 --- Convergence ratio = 0.00545
 #>  
-#> EM algorithm, step 4: 3.12 seconds 
+#> EM algorithm, step 4: 5.42 seconds 
 #>  
 #> Value of the likelihood: -216.02699 --- Convergence ratio = 4e-04
 #>  

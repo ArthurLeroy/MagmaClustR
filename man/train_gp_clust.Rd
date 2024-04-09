@@ -32,7 +32,9 @@ is a number between 0 and 1, corresponding to the mixture
 proportions.}
 
 \item{ini_hp}{A tibble or data frame of hyper-parameters
-associated with \code{kern}, the individual process kernel.}
+associated with \code{kern}, the individual process kernel. The
+\code{\link{hp}} function can be used to draw custom hyper-parameters with
+the correct format.}
 
 \item{kern}{A kernel function, defining the covariance structure of the GP.
 Several popular kernels
@@ -47,7 +49,7 @@ Radial Basis Function or Gaussian kernel),
 \item "RQ": the Rational Quadratic kernel.
 Compound kernels can be created as sums or products of the above kernels.
 For combining kernels, simply provide a formula as a character string
-where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
+where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
 elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).

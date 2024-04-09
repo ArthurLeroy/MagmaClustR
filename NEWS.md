@@ -6,6 +6,7 @@
 * Remove the useless messages when using samples=T in plotting functions
 * Create an error when users try train_magmaclust(nb_cluster = 1)
 * Make samples = T the default plot when using prediction functions
+* Add mention of the 'hp()' function to the documentation
 
 # MagmaClustR 1.2.0
 

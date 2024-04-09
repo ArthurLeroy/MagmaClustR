@@ -34,7 +34,8 @@
 #'    associated with \code{kern_0}, the mean process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters
 #'    that are used in \code{kern_0}. If NULL (default), random values are used
-#'    as initialisation.
+#'    as initialisation. The \code{\link{hp}} function can be used to draw
+#'    custom hyper-parameters with the correct format.
 #' @param ini_hp_i A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}, the individual processes' kernel.
 #'    Required column : \code{ID}. The \code{ID} column contains the unique
@@ -42,7 +43,9 @@
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_i}. Compared to \code{ini_hp_0} should contain an additional
 #'    'noise' column to initialise the noise hyper-parameter of the model. If
-#'     NULL (default), random values are used as initialisation.
+#'     NULL (default), random values are used as initialisation. The
+#'     \code{\link{hp}} function can be used to draw custom hyper-parameters
+#'     with the correct format.
 #' @param kern_0 A kernel function, associated with the mean GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -567,7 +570,9 @@ train_magma <- function(data,
 #'    The columns should be named according to the hyper-parameters that are
 #'    used in \code{kern}. In cases where the model includes a noise term,
 #'    \code{ini_hp} should contain an additional 'noise' column. If NULL
-#'    (default), random values are used as initialisation.
+#'    (default), random values are used as initialisation. The \code{\link{hp}}
+#'    function can be used to draw  custom hyper-parameters with the correct
+#'    format.
 #' @param kern A kernel function, defining the covariance structure of the GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -823,13 +828,15 @@ train_gp <- function(data,
 #'    Required column : \code{ID}. The \code{ID} column contains the unique
 #'    names/codes used to identify each cluster. The other columns
 #'    should be named according to the hyper-parameters that are used in
-#'    \code{kern_k}.
+#'    \code{kern_k}. The \code{\link{hp}} function can be used to draw
+#'    custom hyper-parameters with the correct format.
 #' @param ini_hp_i A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}, the individual processes' kernel.
 #'    Required column : \code{ID}. The \code{ID} column contains the unique
 #'    names/codes used to identify each individual/task. The other columns
 #'    should be named according to the hyper-parameters that are used in
-#'    \code{kern_i}.
+#'    \code{kern_i}. The \code{\link{hp}} function can be used to draw
+#'    custom hyper-parameters with the correct format.
 #' @param kern_k A kernel function, associated with the mean GPs.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -927,11 +934,13 @@ train_magmaclust <- function(data,
                              fast_approx = FALSE) {
 
   ## Stop and send to train_magma() if nb_cluster == 1
-  if(nb_cluster < 2){
-    stop(
-      "MagmaClust with one cluster is equivalent to Magma. Please use the ",
-      "train_magma() function instead of train_magmaclust(nb_cluster = 1)."
-    )
+  if(!is.null(nb_cluster)){
+    if(nb_cluster < 2){
+      stop(
+        "MagmaClust with one cluster is equivalent to Magma. Please use the ",
+        "train_magma() function instead of train_magmaclust(nb_cluster = 1)."
+      )
+    }
   }
 
   ## Check for the correct format of the training data
@@ -1416,7 +1425,9 @@ train_magmaclust <- function(data,
 #'    is a number between 0 and 1, corresponding to the mixture
 #'    proportions.
 #' @param ini_hp A tibble or data frame of hyper-parameters
-#'    associated with \code{kern}, the individual process kernel.
+#'    associated with \code{kern}, the individual process kernel. The
+#'    \code{\link{hp}} function can be used to draw custom hyper-parameters with
+#'     the correct format.
 #' @param kern A kernel function, defining the covariance structure of the GP.
 #'    Several popular kernels
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
@@ -1429,7 +1440,7 @@ train_magmaclust <- function(data,
 #'    - "RQ": the Rational Quadratic kernel.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
-#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
@@ -1755,9 +1766,11 @@ train_gp_clust <- function(data,
 #' @param grid_nb_cluster A vector of integer, corresponding to grid of values
 #'    that will be tested for the number of clusters.
 #' @param ini_hp_k A tibble or data frame of hyper-parameters associated with
-#'    \code{kern_k}.
+#'    \code{kern_k}. The \code{\link{hp}} function can be used to draw
+#'    custom hyper-parameters with the correct format.
 #' @param ini_hp_i A tibble or data frame of hyper-parameters associated with
-#'    \code{kern_i}.
+#'    \code{kern_i}. The \code{\link{hp}} function can be used to draw
+#'    custom hyper-parameters with the correct format.db
 #' @param kern_k A kernel function associated to the mean processes.
 #' @param kern_i A kernel function associated to the individuals/tasks.
 #' @param plot A boolean indicating whether the plot of V-BIC values for all

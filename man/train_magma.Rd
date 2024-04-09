@@ -50,7 +50,8 @@ argument.
 associated with \code{kern_0}, the mean process' kernel. The
 columns/elements should be named according to the hyper-parameters
 that are used in \code{kern_0}. If NULL (default), random values are used
-as initialisation.}
+as initialisation. The \code{\link{hp}} function can be used to draw
+custom hyper-parameters with the correct format.}
 
 \item{ini_hp_i}{A tibble or data frame of hyper-parameters
 associated with \code{kern_i}, the individual processes' kernel.
@@ -59,7 +60,9 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 \code{kern_i}. Compared to \code{ini_hp_0} should contain an additional
 'noise' column to initialise the noise hyper-parameter of the model. If
-NULL (default), random values are used as initialisation.}
+NULL (default), random values are used as initialisation. The
+\code{\link{hp}} function can be used to draw custom hyper-parameters
+with the correct format.}
 
 \item{kern_0}{A kernel function, associated with the mean GP.
 Several popular kernels
