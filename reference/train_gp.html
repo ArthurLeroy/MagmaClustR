@@ -122,7 +122,9 @@ associated with the <code>kern</code> of the new individual/task.
 The columns should be named according to the hyper-parameters that are
 used in <code>kern</code>. In cases where the model includes a noise term,
 <code>ini_hp</code> should contain an additional 'noise' column. If NULL
-(default), random values are used as initialisation.</p></dd>
+(default), random values are used as initialisation. The <code><a href="hp.html">hp</a></code>
+function can be used to draw  custom hyper-parameters with the correct
+format.</p></dd>
 
 
 <dt>kern</dt>

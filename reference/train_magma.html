@@ -129,7 +129,8 @@ argument.</p></li>
 associated with <code>kern_0</code>, the mean process' kernel. The
 columns/elements should be named according to the hyper-parameters
 that are used in <code>kern_0</code>. If NULL (default), random values are used
-as initialisation.</p></dd>
+as initialisation. The <code><a href="hp.html">hp</a></code> function can be used to draw
+custom hyper-parameters with the correct format.</p></dd>
 
 
 <dt>ini_hp_i</dt>
@@ -140,7 +141,9 @@ names/codes used to identify each individual/task. The other columns
 should be named according to the hyper-parameters that are used in
 <code>kern_i</code>. Compared to <code>ini_hp_0</code> should contain an additional
 'noise' column to initialise the noise hyper-parameter of the model. If
-NULL (default), random values are used as initialisation.</p></dd>
+NULL (default), random values are used as initialisation. The
+<code><a href="hp.html">hp</a></code> function can be used to draw custom hyper-parameters
+with the correct format.</p></dd>
 
 
 <dt>kern_0</dt>
