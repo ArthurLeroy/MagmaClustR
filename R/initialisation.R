@@ -72,12 +72,13 @@ expand_grid_inputs <- function(Input, ...) {
 #' argument.
 #'
 #' @name regularize_data
-#' @param data A tibble or data frame. Required columns: \code{ID},
+#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
 #'    \code{Output}. The \code{ID} column contains the unique names/codes used
-#'    to identify each individual/task (or batch of data). The \code{Output}
-#'    column specifies the observed values (the response variable). The data
-#'    frame can also provide as many inputs as desired, with no constraints
-#'    on the column names.
+#'    to identify each individual/task (or batch of data). The \code{Input}
+#'    column corresponds to observed locations (an explanatory variable).
+#'    The \code{Output} column specifies the associated observed values (the
+#'    response variable). The data frame can also provide as many additional
+#'    inputs as desired, with no constraints on the column names.
 #'
 #' @param size_grid An integer, which indicates the number of equispaced points
 #'    each column must contain. Each original input value will be collapsed to
@@ -86,12 +87,11 @@ expand_grid_inputs <- function(Input, ...) {
 #'    'grid_inputs' is left to 'NULL'. Default value is 30.
 #'
 #' @param grid_inputs A data frame, corresponding to a pre-defined grid of
-#'    inputs according to which we want to regularise a dataset (for instance,
-#'    if we want to a data point each year between 0 and 10, we can define
-#'    grid_inputs = seq(0, 10, 1)). If
-#'    NULL (default), a dedicated grid of inputs is defined: for each
-#'    input column, a regular sequence is created from the min input
-#'    values to the max, with a number of equispaced points equal to the
+#'    inputs according to which we want to regularise a dataset. Column names
+#'    must be similar to those appearing in \code{data}. If
+#'    NULL (default), a default grid of inputs is defined: for each
+#'    input column in \code{data}, a regular sequence is created from the min
+#'    to the max values, with a number of equispaced points being equal to the
 #'    'size_grid' argument.
 #'
 #' @param summarise_fct A character string or a function. If several similar
@@ -176,7 +176,7 @@ regularize_data <- function(data,
       return()
   } else {
     if (!(setequal(names(grid_inputs), names_col))) {
-      stop("Input column names in grid_inputs must be the same as in data.")
+      stop("Input column names in 'grid_inputs' must be the same as in data.")
     } else {
       round_col <- function(col_name) {
         vector_input <- data %>% dplyr::pull(col_name)
