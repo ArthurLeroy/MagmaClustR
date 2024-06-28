@@ -31,7 +31,10 @@ sample_gp = function(
   cov <- pred_gp$cov
 
   #Draw samples and format the tibble
-  mvtnorm::rmvnorm(nb_samples, mean, cov) %>%
+  mvtnorm::rmvnorm(n = nb_samples,
+                   mean = mean,
+                   sigma = cov,
+                   checkSymmetry = FALSE) %>%
     t() %>%
     magrittr::set_colnames(1:nb_samples) %>%
     tibble::as_tibble() %>%
@@ -84,7 +87,7 @@ sample_magmaclust = function(
   weight <- pred_clust$mixture[[k]]
 
   #Draw samples and format the tibble
-  mvtnorm::rmvnorm(nb_samples, mean, cov) %>%
+  mvtnorm::rmvnorm(nb_samples, mean, cov, checkSymmetry = FALSE) %>%
     t() %>%
     magrittr::set_colnames(1:nb_samples) %>%
     tibble::as_tibble() %>%

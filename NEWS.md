@@ -3,10 +3,20 @@
 ## Major
 
 ## Minor
+
+# MagmaClustR 1.2.1
+
+## Major
+* Make 'get_full_cov = T' the default option when using pred_magmaclust()
+
+## Minor
 * Remove the useless messages when using samples=T in plotting functions
 * Create an error when users try train_magmaclust(nb_cluster = 1)
-* Make samples = T the default plot when using prediction functions
+* Make 'samples = T' the default plot when using prediction functions
 * Add mention of the 'hp()' function to the documentation
+* Fix Warning message when plotting clusters with exact same posterior probability
+* Display plots for the generic (no data provided) prediction that are condistent with classic ones
+* Disable the symmetry check when generating posterior samples for predictions
 
 # MagmaClustR 1.2.0
 

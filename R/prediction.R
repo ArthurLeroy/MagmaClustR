@@ -349,6 +349,7 @@ pred_gp <- function(data = NULL,
   ## Compute the posterior covariance matrix
   pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
 
+
   ## If no data were originally provided, return the GP prior as a prediction
   if(no_data){
     pred_mean = mean_pred
@@ -367,17 +368,18 @@ pred_gp <- function(data = NULL,
 
   ## Display the graph of the prediction if expected
   if (plot) {
-    plot_gp(pred_gp,
-            data = data
+    plot_gp(
+      list('pred' = pred_gp, 'cov' = pred_cov),
+      data = data,
+      samples = TRUE
     ) %>% print()
   }
 
   ## Add the posterior covariance matrix in the results if expected
   if (get_full_cov) {
-    list("pred" = pred_gp, "cov" = pred_cov) %>% return()
-  } else {
-    pred_gp %>% return()
+    pred_gp = list('pred' = pred_gp, 'cov' = pred_cov)
   }
+  return(pred_gp)
 }
 
 #' Compute the hyper-posterior distribution in Magma
@@ -793,9 +795,24 @@ pred_magma <- function(data = NULL,
 
       pred = hyperpost$pred
 
+
       ## Display the graph of the prediction if expected
       if (plot) {
-        plot_gp(pred) %>%
+
+        data_train <- trained_model$ini_args$data
+
+        ## Add 'cov' to display samples
+        res <- list("pred" = pred)
+        res[["cov"]] <- hyperpost$cov
+
+        ## Plot results
+        plot_gp(res,
+                data = data,
+                data_train = data_train,
+                prior_mean = hyperpost$mean %>%
+                  dplyr::select(-.data$Reference),
+                samples = TRUE
+        ) %>%
           print()
       }
 
@@ -1780,7 +1797,7 @@ pred_magmaclust <- function(data = NULL,
                             hyperpost = NULL,
                             prop_mixture = NULL,
                             get_hyperpost = FALSE,
-                            get_full_cov = FALSE,
+                            get_full_cov = TRUE,
                             plot = TRUE,
                             pen_diag = 1e-10) {
 
@@ -1859,13 +1876,25 @@ pred_magmaclust <- function(data = NULL,
 
       ## Display the graph of the prediction if expected
       if (plot) {
-        plot_magmaclust(pred) %>%
+
+        data_train <- trained_model$ini_args$data
+
+        ## Add 'cov' to display samples
+        pred[["cov"]] <- hyperpost$cov
+
+        ## Plot the mixture-of-GPs prediction
+        plot_magmaclust(
+          pred,
+          data_train = data_train,
+          prior_mean = hyperpost$mean,
+          samples = TRUE
+        ) %>%
           print()
       }
 
-      ## Check whether the full posterior covariance should be returned
-      if (get_full_cov) {
-        pred[["cov"]] = hyperpost$cov
+      ## Check whether posterior covariance should be returned
+      if (!get_full_cov) {
+        pred[["cov"]] <- NULL
       }
 
        return(pred)
@@ -2296,10 +2325,9 @@ pred_magmaclust <- function(data = NULL,
   if (get_hyperpost) {
     res[["hyperpost"]] <- hyperpost
   }
-  ## Check whether posterior covariance should be returned
-  if (get_full_cov) {
-    res[["cov"]] <- full_cov
-  }
+
+  ## Add 'cov' to display samples
+  res[["cov"]] <- full_cov
 
   ## Display the graph of the prediction if expected
   if (plot) {
@@ -2310,9 +2338,6 @@ pred_magmaclust <- function(data = NULL,
       data_train <- trained_model$ini_args$data
     }
 
-    ## Add 'cov' to display samples
-    res[["cov"]] <- full_cov
-
     ## Plot the mixture-of-GPs prediction
     plot_magmaclust(
       res,
@@ -2322,6 +2347,11 @@ pred_magmaclust <- function(data = NULL,
       samples = TRUE
     ) %>%
       print()
+  }
+
+  ## Check whether posterior covariance should be returned
+  if (!get_full_cov) {
+    res[["cov"]] <- NULL
   }
 
   return(res)

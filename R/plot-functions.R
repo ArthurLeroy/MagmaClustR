@@ -830,7 +830,7 @@ plot_magmaclust <- function(pred_clust,
   if (cluster == "all") {
     ## Check whether one cluster's proba is 1 (or really close)
     max_clust <- proba_max_cluster(mixture)
-    if (round(max_clust$Proba, 3) == 1) {
+    if (round(max_clust$Proba[1], 3) == 1) {
       cluster <- max_clust$Cluster
       cat(
         "The mixture probability of the cluster", cluster, "is 1. Therefore,",

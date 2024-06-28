@@ -1,7 +1,7 @@
 Package: MagmaClustR
 Title: Clustering and Prediction using Multi-Task Gaussian Processes with
     Common Mean
-Version: 1.2.0
+Version: 1.2.1
 Authors@R: c(
     person("Arthur", "Leroy", , "arthur.leroy.pro@gmail.com",
            role = c("aut", "cre"),

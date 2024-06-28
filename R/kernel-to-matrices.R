@@ -543,6 +543,35 @@ chol_inv_jitter <- function(mat, pen_diag){
     )
 }
 
+#' Round a matrix to make if symmetric
+#'
+#' If a matrix is non-symmetric due to numerical errors, round with a decreasing
+#' number of digits until the matrix becomes symmetric.
+#'
+#' @param mat A matrix, possibly non-symmetric.
+#' @param digits A number, the starting number of digits to round from if
+#'    \code{mat} is not symmetric
+#'
+#' @return A matrix, rounded approximation of \code{mat} that is symmetric.
+#'
+#' @keywords internal
+#'
+#' @examples
+#' TRUE
+check_symmetric <- function(mat, digits = 10){
+
+  if(mat %>% isSymmetric()) {
+    return(mat)
+  }
+  else {
+    ## Round matrix to remove numerical errors and make it symmetric
+    mat <- round(x = mat, digits = digits)
+
+    ## Recursive loop
+    check_symmetric(mat, digits-1)
+  }
+}
+
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib MagmaClustR, .registration = TRUE
 NULL

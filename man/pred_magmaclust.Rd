@@ -14,7 +14,7 @@ pred_magmaclust(
   hyperpost = NULL,
   prop_mixture = NULL,
   get_hyperpost = FALSE,
-  get_full_cov = FALSE,
+  get_full_cov = TRUE,
   plot = TRUE,
   pen_diag = 1e-10
 )
