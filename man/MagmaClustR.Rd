@@ -2,8 +2,8 @@
 % Please edit documentation in R/MagmaClustR.R
 \docType{package}
 \name{MagmaClustR}
-\alias{MagmaClustR}
 \alias{MagmaClustR-package}
+\alias{MagmaClustR}
 \title{MagmaClustR : Clustering and Prediction using Multi-Task Gaussian Processes}
 \description{
 The \strong{MagmaClustR} package implements two main algorithms, called

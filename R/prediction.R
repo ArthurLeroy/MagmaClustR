@@ -805,13 +805,16 @@ pred_magma <- function(data = NULL,
         res <- list("pred" = pred)
         res[["cov"]] <- hyperpost$cov
 
+        ## Display samples only in 1D and Credible Interval otherwise
+        display_samples = dplyr::if_else(ncol(pred) == 3, TRUE, FALSE)
+
         ## Plot results
         plot_gp(res,
                 data = data,
                 data_train = data_train,
                 prior_mean = hyperpost$mean %>%
                   dplyr::select(-.data$Reference),
-                samples = TRUE
+                samples = display_samples
         ) %>%
           print()
       }

@@ -136,7 +136,7 @@ As with the unidimensional version, we can create our own grid of inputs if we w
   *   on the x-axis, a sequence of `Input` for which we want to perform prediction ; 
   *   on the y-axis, a sequence of `Covariate` for which we want to perform prediction.
   
-To create our grid, we use the `create_grid_inputs()` function. We only have to specify a sequence of `Input` and as many covariates as we want. However, we must also ensure that we do not generate too much data points ; we recall that Magma has a cubic complexity, so the execution can be extremely long depending on the number and length of sequences. Therefore, we advise to reduce the length of the Inputs sequences if we want to perform a high dimensional prediction. Moreover, each Input must have the same name as in the data base to avoid errors during the prediction step.
+To create our grid, we use the `expand_grid_inputs()` function. We only have to specify a sequence of `Input` and as many covariates as we want. However, we must also ensure that we do not generate too much data points ; we recall that Magma has a cubic complexity, so the execution can be extremely long depending on the number and length of sequences. Therefore, we advise to reduce the length of the Inputs sequences if we want to perform a high dimensional prediction. Moreover, each Input must have the same name as in the data base to avoid errors during the prediction step.
 
 ```{r fig.asp = 0.6, fig.width = 7, out.width = "80%"}
 grid_inputs_dim2 <- expand_grid_inputs(Input = seq(0,10,0.5), Covariate = seq(0,10,0.5))
