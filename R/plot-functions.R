@@ -798,7 +798,6 @@ plot_magmaclust <- function(pred_clust,
                             size_data_train = 1,
                             alpha_data_train = 0.5
                             ) {
-
   ## Check prob_CI format
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")

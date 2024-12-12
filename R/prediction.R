@@ -368,10 +368,14 @@ pred_gp <- function(data = NULL,
 
   ## Display the graph of the prediction if expected
   if (plot) {
+
+    ## Display samples only in 1D and Credible Interval otherwise
+    display_samples = dplyr::if_else(ncol(pred_gp) == 3, TRUE, FALSE)
+
     plot_gp(
       list('pred' = pred_gp, 'cov' = pred_cov),
       data = data,
-      samples = TRUE
+      samples = display_samples
     ) %>% print()
   }
 
@@ -1168,13 +1172,16 @@ pred_magma <- function(data = NULL,
     res <- list("pred" = pred_gp)
     res[["cov"]] <- pred_cov
 
+    ## Display samples only in 1D and Credible Interval otherwise
+    display_samples = dplyr::if_else(ncol(pred_gp) == 3, TRUE, FALSE)
+
     ## Plot results
     plot_gp(res,
             data = data,
             data_train = data_train,
             prior_mean = hyperpost$mean %>%
               dplyr::select(-.data$Reference),
-            samples = TRUE
+            samples = display_samples
             ) %>%
       print()
   }
@@ -1885,15 +1892,25 @@ pred_magmaclust <- function(data = NULL,
         ## Add 'cov' to display samples
         pred[["cov"]] <- hyperpost$cov
 
-        ## Plot the mixture-of-GPs prediction
-        plot_magmaclust(
-          pred,
-          data_train = data_train,
-          prior_mean = hyperpost$mean,
-          samples = TRUE
-        ) %>%
-          print()
-      }
+        ## Display samples only in 1D and Credible Interval otherwise
+        if(ncol(mixture_pred) == 4){
+          ## Plot 1D prediction
+          plot_magmaclust(
+            pred,
+            data = data,
+            data_train = data_train,
+            prior_mean = hyperpost$mean,
+            samples = TRUE
+          ) %>%
+            print()
+        } else {
+          ## Plot 2D prediction
+          plot_magmaclust(
+            pred,
+            samples = FALSE
+          ) %>%
+            print()
+        }
 
       ## Check whether posterior covariance should be returned
       if (!get_full_cov) {
@@ -1901,6 +1918,7 @@ pred_magmaclust <- function(data = NULL,
       }
 
        return(pred)
+      }
     }
   }
 
@@ -2341,15 +2359,27 @@ pred_magmaclust <- function(data = NULL,
       data_train <- trained_model$ini_args$data
     }
 
-    ## Plot the mixture-of-GPs prediction
-    plot_magmaclust(
-      res,
-      data = data,
-      data_train = data_train,
-      prior_mean = hyperpost$mean,
-      samples = TRUE
-    ) %>%
-      print()
+    ## Display samples only in 1D and Credible Interval otherwise
+    if(ncol(mixture_pred) == 4){
+      ## Plot 1D prediction
+      plot_magmaclust(
+        res,
+        data = data,
+        data_train = data_train,
+        prior_mean = hyperpost$mean,
+        samples = TRUE
+      ) %>%
+        print()
+    } else {
+      ## Plot 2D prediction
+      plot_magmaclust(
+        res,
+        data = data,
+        samples = FALSE
+      ) %>%
+        print()
+    }
+
   }
 
   ## Check whether posterior covariance should be returned
