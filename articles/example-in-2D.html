@@ -76,6 +76,8 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ArthurLeroy/MagmaClustR" class="external-link">MagmaClustR</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error in get(paste0(generic, ".", class), envir = get_method_env()) : </span></span>
+<span><span class="co">#&gt;   object 'type_sum.accel' not found</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="purpose">Purpose<a class="anchor" aria-label="anchor" href="#purpose"></a>
@@ -308,15 +310,15 @@ function to train our model:</p>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 4.34 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 4.3 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1113.46118 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 3.42 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 3.36 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1079.22628 --- Convergence ratio = 0.03172</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 3.24 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 3.26 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1078.65383 --- Convergence ratio = 0.00053</span></span>
 <span><span class="co">#&gt;  </span></span>
