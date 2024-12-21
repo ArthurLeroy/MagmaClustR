@@ -4,6 +4,8 @@
 
 ## Minor
 
+* Fix issues when plotting in 2D mean process predictions 
+
 # MagmaClustR 1.2.1
 
 ## Major

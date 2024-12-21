@@ -277,6 +277,25 @@ plot_gp <- function(pred_gp,
         size = 3
       )
     }
+
+    ## If some day I want to add the feature of displaying data_train in 2D
+
+    # if (!is.null(data_train)) {
+    #   ## Round the 'Output' values to reduce size of labels on the graph
+    #   data_train <- data_train %>% dplyr::mutate(Output = round(.data$Output, 1))
+    #
+    #   gg <- gg + ggplot2::geom_label(
+    #     data = data_train,
+    #     ggplot2::aes_string(
+    #       x = names(inputs)[1],
+    #       y = names(inputs)[2],
+    #       label = "Output",
+    #       colour = "ID"
+    #     ),
+    #     size = 3
+    #   ) + ggplot2::guides(colour = 'none')
+    # }
+
   } else {
     ## Check the dimension of the inputs a propose an adequate representation
     if (ncol(inputs) == 1) {
@@ -798,6 +817,7 @@ plot_magmaclust <- function(pred_clust,
                             size_data_train = 1,
                             alpha_data_train = 0.5
                             ) {
+
   ## Check prob_CI format
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")

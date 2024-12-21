@@ -795,10 +795,14 @@ pred_magma <- function(data = NULL,
           trained_model = trained_model,
           grid_inputs = grid_inputs
           )
+
+        ## Retain only grid_inputs for dispplay purposes
+        hyperpost$pred = grid_inputs %>%
+          purrr::modify_at(tidyselect::all_of(names(grid_inputs)), signif) %>%
+          dplyr::inner_join(hyperpost$pred, by = names(grid_inputs))
       }
 
       pred = hyperpost$pred
-
 
       ## Display the graph of the prediction if expected
       if (plot) {
@@ -814,7 +818,6 @@ pred_magma <- function(data = NULL,
 
         ## Plot results
         plot_gp(res,
-                data = data,
                 data_train = data_train,
                 prior_mean = hyperpost$mean %>%
                   dplyr::select(-.data$Reference),
@@ -1831,6 +1834,14 @@ pred_magmaclust <- function(data = NULL,
           trained_model = trained_model,
           grid_inputs = grid_inputs
         )
+
+        ## Retain only grid_inputs for dispplay purposes
+        for(k in names(hyperpost$pred))
+        {
+          hyperpost$pred[[k]] = grid_inputs %>%
+            purrr::modify_at(tidyselect::all_of(names(grid_inputs)), signif) %>%
+            dplyr::inner_join(hyperpost$pred[[k]], by = names(grid_inputs))
+        }
       }
 
       names_k = hyperpost$pred %>% names()
@@ -1905,6 +1916,7 @@ pred_magmaclust <- function(data = NULL,
             print()
         } else {
           ## Plot 2D prediction
+
           plot_magmaclust(
             pred,
             samples = FALSE
