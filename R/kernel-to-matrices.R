@@ -54,6 +54,8 @@ kern_to_cov <- function(input,
                         hp,
                         deriv = NULL,
                         input_2 = NULL) {
+
+  # browser()
   ## If a second set of inputs is not provided, only 'input' against itself
   if (input_2 %>% is.null()) {
     input_2 <- input
@@ -65,6 +67,67 @@ kern_to_cov <- function(input,
       "Some inputs are duplicated. This will result in a singular ",
       "matrix and an unexpected behaviour of the algorithm."
     )
+  }
+
+  # browser()
+  ## Treat the convolution kernel appart from other kernels
+  if (kern %>% is_function() && length(input$Output_ID %>% unique()) > 1
+                             && is.null(deriv)) {
+    # Need a unique dataframe, containing all observed inputs of all outputs.
+    # The convolution_kernel() function generates the whole multioutputs
+    # covariance matrix.
+
+    # Call convolution_kernel() with vectorized mode to generate the whole MO
+    # covariance matrix.
+    mat <- convolution_kernel(x = input, y = input_2, hp = hp, vectorized = TRUE)
+
+    # We select ONLY the columns that uniquely define a point (coordinates + Output_ID)
+    # to ensure consistent naming across different function calls.
+    # 1. Dynamically find all coordinate columns (starting with "Input")
+    coord_cols <- grep("^Input", names(input), value = TRUE)
+
+    # 2. Paste the coordinate values together for each row
+    pasted_coords <- do.call(paste, c(input[coord_cols], sep = ";"))
+
+    # 3. Prepend the output ID to create the final name
+    reference <- paste0("o", input$Output_ID, ";", pasted_coords)
+
+    # Do the same for the second set of inputs if it's different
+    if (identical(input, input_2)) {
+      reference_2 <- reference
+    } else {
+      pasted_coords_2 <- do.call(paste, c(input_2[coord_cols], sep = ";"))
+      reference_2 <- paste0("o", input_2$Output_ID, ";", pasted_coords_2)
+    }
+
+    ## Add a 'noise' term on the diagonal if provided
+    if (("noise" %in% names(hp)) && is.null(deriv)) {
+
+      # 1. Arrange HPs and inputs by Output_ID to ensure that each output noise
+      # is added at the right location.
+      hp_ordered <- hp %>% dplyr::arrange(Output_ID)
+      input_ordered <- input %>% dplyr::arrange(Output_ID)
+
+      # 2. Extract the noise vector (one per output)
+      noise_per_output <- exp(hp_ordered$noise)
+
+      # 3. Count number of observations per output
+      n_points_per_output <- input_ordered %>%
+        dplyr::count(Output_ID) %>%
+        dplyr::pull(n)
+
+      # 4. Construct the noise vector repeated n_points_per_output for each
+      # output
+      full_noise_vector <- rep(noise_per_output, times = n_points_per_output)
+
+      # 5. Add the noise vector to the diagonal
+      mat <- mat + diag(full_noise_vector)
+
+    } else if (is.null(deriv)) {
+      warning("Noise parameter is not provided. Data is then supposed to be noiseless.")
+    }
+
+    return(mat %>% `rownames<-`(reference) %>% `colnames<-`(reference_2))
   }
 
   ## Process the character string defining the covariance structure
@@ -267,7 +330,7 @@ kern_to_cov <- function(input,
       reference <- input$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input <- input %>% dplyr::select(-.data$Reference)
+      input <- input %>% dplyr::select(-c(.data$Reference))
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input <- split(t(input),
@@ -314,6 +377,79 @@ kern_to_cov <- function(input,
 
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
+    if ("Output_ID" %in% names(hp)){
+      if (any(startsWith(deriv, "noise"))){
+        # --- DÉBUT DES CORRECTIONS ---
+
+        # 1. Extraire l'ID de l'hyperparamètre (ex: "noise_2" -> 2)
+        deriv_id_str <- stringr::str_extract(deriv, "\\d+$")
+        if (is.na(deriv_id_str)) {
+          stop("Le nom de la dérivée du bruit doit contenir un ID, ex: 'noise_1'")
+        }
+        deriv_id <- as.integer(deriv_id_str)
+
+        # --- FIN DES CORRECTIONS ---
+
+        # Le tri est toujours nécessaire pour construire la matrice dans le bon ordre
+        input <- input %>% dplyr::arrange(Output_ID)
+        if ("Task_ID" %in% colnames(input)) {
+          input <- input %>% dplyr::select(-Task_ID)
+        }
+        input_2 <- input_2 %>% dplyr::arrange(Output_ID)
+        if ("Task_ID" %in% colnames(input_2)) {
+          input_2 <- input_2 %>% dplyr::select(-Task_ID)
+        }
+
+        unique_ids <- unique(input$Output_ID)
+        list_of_blocks <- list()
+
+        for (id in unique_ids) {
+          subset_input <- input %>% dplyr::filter(Output_ID == id)
+          subset_input_2 <- input_2 %>% dplyr::filter(Output_ID == id)
+
+          # --- DÉBUT DES CORRECTIONS ---
+
+          # 2. Condition : on ne calcule le bloc que si l'ID correspond
+          if (id == deriv_id) {
+            # Si l'ID de la boucle correspond à celui de la dérivée,
+            # on calcule le bloc de bruit comme avant.
+            current_noise_hp <- hp %>%
+              dplyr::filter(Output_ID == id) %>%
+              pull(noise)
+
+            if (length(current_noise_hp) == 0) {
+              stop(paste("'Noise' parameter not found for Output_ID :", id))
+            }
+
+            block_matrix <- cpp_noise(
+              as.matrix(select(subset_input, -Output_ID)),
+              as.matrix(select(subset_input_2, -Output_ID)),
+              current_noise_hp
+            )
+          } else {
+            # Sinon, la dérivée est nulle. On crée un bloc de zéros
+            # de la bonne dimension.
+            block_matrix <- matrix(0,
+                                   nrow = nrow(subset_input),
+                                   ncol = nrow(subset_input_2))
+          }
+
+          # --- FIN DES CORRECTIONS ---
+
+          list_of_blocks[[as.character(id)]] <- block_matrix
+        }
+
+        # Aggregate blocks into the complete block-diagonal matrix
+        mat <- Matrix::bdiag(list_of_blocks)
+        mat <- as.matrix(mat)
+
+        rownames(mat) <- rownames(input)
+        colnames(mat) <- rownames(input_2)
+
+        return(mat)
+      }
+    }
+
     if (deriv == "noise") {
       mat <- cpp_noise(as.matrix(input),
                        as.matrix(input_2),
@@ -354,9 +490,13 @@ kern_to_cov <- function(input,
     }
   }
 
-  ## Add noise on the diagonal if provided (and if not computing gradients)
+  # Add noise to the diagonal if provided (for standard, single-output kernels)
   if (("noise" %in% names(hp)) & is.null(deriv)) {
-    mat <- mat + cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]])
+    # This generic noise logic is only for single-output kernels where noise is a single value.
+    # The multi-output convolution_kernel has its own noise logic in the block above.
+    if (length(hp[["noise"]]) == 1) {
+      mat <- mat + cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]])
+    }
   }
 
   mat %>%
@@ -514,6 +654,169 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
   sapply(unique(db$ID), floop, simplify = F, USE.NAMES = T) %>%
     return()
 }
+
+
+#' Inverts blocks of a kernel matrix, one block per output.
+#'
+#' @param db A tibble or data frame of input data, must contain an "Output_ID" column.
+#' @param kern The kernel function to use.
+#' @param hp The hyperparameter tibble, which should contain an "Output_ID" column.
+#' @param pen_diag Penalty term added to the diagonal for stability.
+#' @param deriv A character, indicating according to which hyper-parameter the
+#'  derivative should be computed. If NULL (default), the function simply returns
+#'  the list of covariance matrices.
+#' @return A named list where each element is an inverted matrix block.
+#'
+list_outputs_blocks_to_inv <- function(db,
+                                       kern,
+                                       hp,
+                                       pen_diag,
+                                       deriv = NULL) {
+  # browser()
+  # Inner function to process a single output
+  process_one_output <- function(current_output_id) {
+    # Extract the union of all reference inputs provided in the training data
+    # for the current output
+    all_inputs <- db %>%
+      dplyr::filter(Output_ID == current_output_id) %>%
+      dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
+      unique() %>%
+      dplyr::arrange(Reference)
+
+    # Filter the hyperparameters for the current output
+    hp_output <- hp %>%
+      dplyr::filter(Output_ID == current_output_id)
+
+    # Make sure to remove the ID column if it exists
+    if ("Output_ID" %in% names(hp_output)) {
+      hp_output <- hp_output %>% dplyr::select(-Output_ID)
+    }
+
+    # Call the inversion function for this specific block
+    kern_to_inv(all_inputs, kern, hp_output, pen_diag, deriv = deriv) %>%
+      return()
+  }
+
+  # Apply the 'process_one_output' function to each unique output
+  sapply(unique(db$Output_ID),
+         process_one_output,
+         simplify = FALSE,
+         USE.NAMES = TRUE) %>%
+    return()
+}
+
+
+#' Build the convolution matrix for DISSOCIATED grids (Multi-Input capable).
+#'
+#' @param grid_list A LIST, where each element is a MATRIX or DATA.FRAME of
+#'   inputs for an output. Each row is a point, each column is a dimension.
+#' @param l_outputs A vector of lengthscales for each output.
+#' @param S_outputs A vector of variances for each output.
+#' @param l_u Lengthscale of the latent GP.
+#' @return The full covariance matrix for dissociated grids.
+build_convolution_matrix <- function(grid_list,
+                                     l_outputs,
+                                     S_outputs,
+                                     l_u) {
+  nb_outputs <- length(grid_list)
+  n_points_per_output <- purrr::map_int(grid_list, nrow)
+  total_dim <- sum(n_points_per_output)
+
+  # Pre-allocate the final matrix
+  K <- matrix(nrow = total_dim, ncol = total_dim)
+
+  # Calculate cumulative points to find indices for blocks
+  end_indices <- cumsum(n_points_per_output)
+  start_indices <- c(1, end_indices[-nb_outputs] + 1)
+
+  # Loop over each pair of blocks (i, j)
+  for (i in 1:nb_outputs) {
+    for (j in i:nb_outputs) {
+
+      # Dynamically create the hyper-parameter tibble
+      hp_ij <- tibble::tibble(
+        "lengthscale_output1" = l_outputs[i],
+        "lengthscale_output2" = l_outputs[j],
+        "variance_output1" = S_outputs[i],
+        "variance_output2" = S_outputs[j],
+        "lengthscale_u" = l_u
+      )
+      # Calculate the (i, j) covariance block
+      block_ij <- kern_to_cov(input = grid_list[[i]],
+                              input_2 = grid_list[[j]],
+                              kern = convolution_kernel,
+                              hp = hp_ij)
+
+      # Get the row and column indices for placing the block
+      rows <- start_indices[i]:end_indices[i]
+      cols <- start_indices[j]:end_indices[j]
+
+      # Place the block and its transpose
+      K[rows, cols] <- block_ij
+      if (i != j) {
+        K[cols, rows] <- t(block_ij)
+      }
+    }
+  }
+  return(K)
+}
+
+#' #' Build the convolution matrix for DISSOCIATED grids.
+#' #'
+#' #' @param grid_list A LIST of vectors, where each element is the grid for an output.
+#' #' @param l_outputs A vector of lengthscales for each output.
+#' #' @param S_outputs A vector of variances for each output.
+#' #' @param l_u Lengthscale of the latent GP.
+#' #' @return The full covariance matrix for dissociated grids.
+#' build_convolution_matrix <- function(grid_list,
+#'                                      l_outputs,
+#'                                      S_outputs,
+#'                                      l_u) {
+#'
+#'   nb_outputs <- length(grid_list)
+#'   n_points_per_output <- map_int(grid_list, length)
+#'   total_dim <- sum(n_points_per_output)
+#'
+#'   # Pre-allocate the final matrix
+#'   K <- matrix(nrow = total_dim, ncol = total_dim)
+#'
+#'   # Calculate cumulative points to find indices for blocks
+#'   end_indices <- cumsum(n_points_per_output)
+#'   start_indices <- c(1, end_indices[-nb_outputs] + 1)
+#'
+#'   # Loop over each pair of blocks (i, j)
+#'   for (i in 1:nb_outputs) {
+#'     for (j in i:nb_outputs) {
+#'
+#'       # Dynamically create the hyper-parameter tibble
+#'       hp_ij <- tibble(
+#'         "lengthscale_output1" = l_outputs[i],
+#'         "lengthscale_output2" = l_outputs[j],
+#'         "variance_output1" = S_outputs[i],
+#'         "variance_output2" = S_outputs[j],
+#'         "lengthscale_u" = l_u
+#'       )
+#'
+#'       # Calculate the (i, j) covariance block
+#'       # This now uses the two respective grids from the list
+#'       block_ij <- kern_to_cov(input = grid_list[[i]],
+#'                               input_2 = grid_list[[j]],
+#'                               kern = convolution_kernel,
+#'                               hp = hp_ij)
+#'
+#'       # Get the row and column indices for placing the block
+#'       rows <- start_indices[i]:end_indices[i]
+#'       cols <- start_indices[j]:end_indices[j]
+#'
+#'       # Place the block and its transpose
+#'       K[rows, cols] <- block_ij
+#'       if (i != j) {
+#'         K[cols, rows] <- t(block_ij)
+#'       }
+#'     }
+#'   }
+#'   return(K)
+#' }
 
 #' Inverse a matrix using an adaptive jitter term
 #'

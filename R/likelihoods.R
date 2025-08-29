@@ -89,121 +89,182 @@ logL_GP <- function(hp,
 }
 
 
-#' Modified log-Likelihood function for GPs
+#' Modified log-Likelihood function for GPs in a multi-output context
 #'
-#' Log-Likelihood function involved in Magma during the maximisation step of
-#' the training. The log-Likelihood is defined as a simple Gaussian likelihood
-#' added with correction trace term.
+#' Log-Likelihood function used during the maximization step of the training.
+#' The log-Likelihood is defined as a Gaussian likelihood with a correction
+#' trace term. This version is adapted for multi-output GPs.
 #'
-#' @param hp A tibble, data frame or named vector of hyper-parameters.
-#' @param db A tibble containing values we want to compute logL on.
-#'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param mean A vector, specifying the mean of the GP at the reference inputs.
-#' @param kern A kernel function.
-#' @param post_cov A matrix, covariance parameter of the hyper-posterior.
-#'    Used to compute the correction term.
-#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
-#'    numerical issues when inverting, in cases of nearly singular matrices.
+#' @param hp A numeric vector of hyper-parameters, as provided by `stats::optim`.
+#' @param db A tibble containing the data to compute the logL on.
+#'   Required columns: `Output` and `Output_ID`, plus input coordinates.
+#' @param mean A vector specifying the mean of the GP at the reference inputs.
+#' @param kern The kernel function (e.g., `convolution_kernel`).
+#' @param inv_0 A matrix, corresponding to the prior covariance of the
+#'    mean process.
+#' @param post_cov A matrix, the covariance parameter of the hyper-posterior,
+#'   used for the correction term.
+#' @param pen_diag A jitter term added to the covariance matrix for numerical
+#'   stability.
+#' @param hp_col_names A character vector with the names of the hyper-parameters
+#'   (e.g., c("l_t", "S_t")).
+#' @param output_ids A character vector with the unique IDs of the outputs for
+#'   the current task.
 #'
 #' @return A number, corresponding to the value of the modified Gaussian
-#' log-Likelihood defined in Magma.
+#'   log-Likelihood.
 #'
 #' @keywords internal
-#'
-#' @examples
-#' TRUE
-logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
-  if (length(mean) == 1) {
-    mean <- rep(mean, nrow(db))
+logL_GP_mod <- function(hp,
+                        db,
+                        mean,
+                        kern,
+                        inv_0,
+                        post_cov,
+                        pen_diag,
+                        hp_col_names,
+                        output_ids) {
+  # browser()
+  if(!(hp %>% is_tibble())){
+    # 1. Reconstruct the structured HP tibble from the flat vector
+    hp_tibble <- reconstruct_hp(
+      par_vector = hp,
+      hp_names = hp_col_names,
+      output_ids = output_ids
+    )
+  } else {
+    hp_tibble <- hp
   }
-  ## mean is equal for all timestamps
 
-  ## Extract the input variables (reference Input + Covariates)
-  inputs <- db %>% dplyr::select(-.data$Output)
-  ## Compute the inverse of the covariance matrix
-  inv <- kern_to_inv(inputs, kern, hp, pen_diag)
+  list_output_ID <- db$Output_ID %>% unique()
 
-  ## Classical Gaussian log-likelihood
-  LL_norm <- -dmnorm(db$Output, mean, inv, log = T)
-  ## Correction trace term (- 1/2 * Trace(inv %*% post_cov))
-  cor_term <- 0.5 * sum(inv * post_cov)
+  # 2. Build and invert the full multi-outputs covariance matrix
+
+  if(kern %>% is.null()){
+    # Get the inverse of the prior covariance of the mean process
+    inv <- inv_0
+  } else if (length(list_output_ID) > 1 && !(kern %>% is.null())){
+    # MO inversion of the TASK covariance
+    # It will handle the multi-output structure and the noise addition internally.
+    # 'kern_t' is expected to be the 'convolution_kernel' function.
+    K_task_t <- kern_to_cov(
+      input = db %>% dplyr::select(-Output),
+      kern = kern,
+      hp = hp_tibble
+    )
+
+    # Inverse K_task_t
+    inv <- K_task_t %>%
+      chol_inv_jitter(pen_diag = pen_diag) %>%
+      `rownames<-`(row.names(K_task_t)) %>%
+      `colnames<-`(colnames(K_task_t))
+  } else {
+      # Single output case (for both computing the inverse of the task covariance
+      # AND the inverse of the post_mean in logL_GP_monitoring())
+      # Extract all_inputs to call kern_to_inv() on the single output case
+      all_inputs <- db %>%
+        dplyr::select(-c(Output, Output_ID)) %>%
+        unique() %>%
+        dplyr::arrange(Reference)
+
+      if("Task_ID" %in% colnames(all_inputs)){
+        all_inputs <- all_inputs %>% select(-Task_ID)
+      }
+
+      # Compute the inverse covariance matrix
+      inv <- kern_to_inv(
+        input = all_inputs,
+        kern = kern,
+        hp = hp_tibble,
+        pen_diag = pen_diag
+      )
+  }
+  # 3. Compute the log-likelihood components
+  # Classical Gaussian log-likelihood
+  LL_norm <- -dmnorm(db$Output, mean, inv, log = TRUE)
+  # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+  cor_term <- 0.5 * sum(diag(inv %*% post_cov))
 
   return(LL_norm + cor_term)
 }
 
-#' Modified log-Likelihood function with common HPs for GPs
+
+#' Modified log-Likelihood with shared HPs for multi-task GPs
 #'
-#' Log-Likelihood function involved in Magma during the maximisation step of
-#' the training, in the particular case where the hyper-parameters are shared by
-#' all individuals. The log-Likelihood is defined as a sum over all individuals
-#' of Gaussian likelihoods added with correction trace terms.
+#' Computes the sum of modified log-likelihoods over all tasks, assuming that
+#' the hyper-parameters are shared across all tasks.
 #'
-#' @param hp A tibble, data frame of hyper-parameters.
-#' @param db A tibble containing the values we want to compute the logL on.
-#'    Required columns: ID, Input, Output. Additional covariate columns are
-#'    allowed.
+#' @param hp A numeric vector of hyper-parameters, as provided by `stats::optim`.
+#' @param db A tibble containing the data for all tasks.
+#'   Required columns: `ID` (task ID), `Output`, `Output_ID`, plus inputs.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.
-#' @param kern A kernel function.
+#' @param kern The kernel function (e.g., `convolution_kernel`).
+#' @param inv_0 A matrix, corresponding to the prior covariance of the
+#'    mean process. Not useful here, but logL_GP_mod() requires this parameter
+#'    (in particular, when the function is called by logL_monitoring).
 #' @param post_cov A matrix, covariance parameter of the hyper-posterior.
-#'    Used to compute the correction term.
-#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
-#'    numerical issues when inverting, in cases of nearly singular matrices.
+#' @param pen_diag A jitter term for numerical stability.
+#' @param hp_col_names A character vector with the names of the hyper-parameters.
+#' @param output_ids A character vector with the unique IDs of the outputs,
+#'   assumed to be the same for all tasks.
 #'
-#' @return A number, corresponding to the value of the modified Gaussian
-#' log-Likelihood with common hyper-parameters defined in Magma.
+#' @return A number, the total modified log-Likelihood across all tasks.
 #'
 #' @keywords internal
-#'
-#' @examples
-#' TRUE
-logL_GP_mod_common_hp <- function(hp,
-                                  db,
-                                  mean,
-                                  kern,
-                                  post_cov,
-                                  pen_diag) {
+logL_GP_mod_shared_tasks <- function(hp,
+                                    db,
+                                    mean,
+                                    kern,
+                                    inv_0,
+                                    post_cov,
+                                    pen_diag,
+                                    hp_col_names,
+                                    output_ids) {
+  # Loop over each task ID to compute and sum its log-likelihood
+  funloop <- function(t) {
+    # Extract data specific to task 't'
+    db_t <- db %>%
+      dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-Task_ID)
 
-  funloop <- function(i) {
-    ## Extract the i-th specific reference inputs
-    input_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Reference)
-    ## Extract the i-th specific Inputs and Output
-    db_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
-    ## Extract the mean values associated with the i-th specific inputs
-    mean_i <- mean %>%
-      dplyr::filter(.data$Reference %in% input_i) %>%
-      dplyr::pull(.data$Output)
-    ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
+    input_t <- db_t %>% dplyr::pull(Reference) # Assumes 'Reference' col exists
 
-    ## Compute the modified logL for the individual processes
-    logL_GP_mod(hp,
-                db_i,
-                mean_i,
-                kern,
-                post_cov_i,
-                pen_diag) %>%
-      return()
+    mean_t <- mean %>%
+      dplyr::filter(Reference %in% input_t) %>%
+      dplyr::pull(Output)
+
+    post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
+
+    # Call the single-task function, passing all HP-related arguments through
+    logL_GP_mod(
+      hp = hp,
+      db = db_t,
+      mean = mean_t,
+      kern = kern,
+      inv_0 = inv_0,
+      post_cov = post_cov_t,
+      pen_diag = pen_diag,
+      hp_col_names = hp_col_names,
+      output_ids = output_ids
+    )
   }
-  sapply(unique(db$ID), funloop) %>%
+
+  sapply(unique(db$Task_ID), funloop) %>%
     sum() %>%
     return()
 }
 
+
 #' Log-Likelihood for monitoring the EM algorithm in Magma
 #'
-#' @param hp_0 A named vector, tibble or data frame, containing the
-#' hyper-parameters associated with the mean GP.
-#' @param hp_i A tibble or data frame, containing the hyper-parameters with the
-#'    individual GPs.
+#' @param hp_t A tibble or data frame, containing the hyper-parameters with the
+#'    task GPs.
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
 #' @param m_0 A vector, corresponding to the prior mean of the mean GP.
-#' @param kern_0 A kernel function, associated with the mean GP.
-#' @param kern_i A kernel function, associated with the individual GPs.
+#' @param inv_0 A matrix, corresponding to the prior covariance of the
+#'    mean process.
+#' @param kern_t A kernel function, associated with the task GPs.
 #' @param post_mean A tibble, coming out of the E step, containing the Input and
 #'    associated Output of the hyper-posterior mean parameter.
 #' @param post_cov A matrix, coming out of the E step, being the hyper-posterior
@@ -219,58 +280,60 @@ logL_GP_mod_common_hp <- function(hp,
 #'
 #' @examples
 #' TRUE
-logL_monitoring <- function(hp_0,
-                            hp_i,
+logL_monitoring <- function(hp_t,
                             db,
                             m_0,
-                            kern_0,
-                            kern_i,
+                            inv_0,
+                            kern_t,
                             post_mean,
                             post_cov,
                             pen_diag) {
+
   ## Compute the modified logL for the mean process
   ll_0 <- logL_GP_mod(
     hp = hp_0,
     db = post_mean,
     mean = m_0,
-    kern = kern_0,
+    kern = NULL,
+    inv_0 = inv_0,
     post_cov = post_cov,
     pen_diag = pen_diag
   )
 
-  ## Sum over the individuals
-  funloop <- function(i) {
-    ## Extract the i-th specific reference inputs
-    input_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
+  ## Sum over the tasks
+  funloop <- function(t) {
+    ## Extract the t-th specific reference inputs
+    input_t <- db %>%
+      dplyr::filter(Task_ID == t) %>%
       dplyr::pull(.data$Reference)
-    ## Extract the i-th specific hyper-parameters
-    hp_i_i <- hp_i %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
-    ## Extract the i-th specific Inputs and Output
-    db_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
-    ## Extract the mean values associated with the i-th specific inputs
-    post_mean_i <- post_mean %>%
-      dplyr::filter(.data$Reference %in% input_i) %>%
-      dplyr::pull(.data$Output)
-    ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i <- post_cov[as.character(input_i),
-                           as.character(input_i)
+    ## Extract the t-th specific hyper-parameters
+    hp_t_t <- hp_t %>%
+      dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-Task_ID)
+    ## Extract the t-th specific Inputs and Output
+    db_t <- db %>%
+      dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-Task_ID)
+    ## Extract the mean values associated with the t-th specific inputs
+    post_mean_t <- post_mean %>%
+      dplyr::filter(Reference %in% input_t) %>%
+      dplyr::pull(Output)
+    ## Extract the covariance values associated with the t-th specific inputs
+    post_cov_t <- post_cov[as.character(input_t),
+                           as.character(input_t)
     ]
 
     ## Compute the modified logL for the individual processes
-    logL_GP_mod(hp_i_i,
-                db_i,
-                post_mean_i,
-                kern_i,
-                post_cov_i,
-                pen_diag) %>%
+    logL_GP_mod(hp = hp_t_t,
+                db = db_t,
+                mean = post_mean_t,
+                kern = kern_t,
+                inv_0 = inv_0,
+                post_cov = post_cov_t,
+                pen_diag = pen_diag) %>%
       return()
   }
-  sum_ll_i <- sapply(unique(db$ID), funloop) %>% sum()
+  sum_ll_t <- sapply(unique(db$Task_ID), funloop) %>% sum()
 
   ## Compute the log-determinant term using Cholesky decomposition
   ## log(det(A)) = 2*sum(log(diag(chol(A))))
@@ -282,7 +345,7 @@ logL_monitoring <- function(hp_0,
 
   ## Since the logL_GP_* functions return negative likelihoods for minimisation
   ## in the M-step, we need to x(-1) once more to retrieve the correct logL
-  return(-ll_0 - sum_ll_i + det)
+  return(-ll_0 - sum_ll_t + det)
 }
 
 #' Compute a mixture of Gaussian log-likelihoods
@@ -368,4 +431,49 @@ sum_logL_GP_clust <- function(hp,
   sapply(names(mean), floop) %>%
     sum() %>%
     return()
+}
+
+
+#' Reconstruct the HP tibble from the optimizer's numeric vector
+#'
+#' This function handles two cases:
+#' 1. A simple case where hp_names are like c("l_t", "S_t") and the vector
+#'    is reshaped into a table with one row per output.
+#' 2. A multi-output "flattened" case where hp_names are like
+#'    c("l_t_1", "S_t_1", "l_t_2", "S_t_2", "l_u_t"). The function reshapes
+#'    this into a long format tibble.
+#'
+#' @param par_vector The flat numeric vector handled by `stats::optim`.
+#' @param hp_names A character vector containing the HP names.
+#' @param output_ids A vector containing the unique output IDs.
+#'
+#' @return A correctly formatted HP tibble.
+reconstruct_hp <- function(par_vector, hp_names, output_ids) {
+
+  # --- Détection du format des hyper-paramètres ---
+  # On vérifie si au moins un nom contient un suffixe comme "_1", "_2", etc.
+  is_flattened_format <- any(grepl("_\\d+$", hp_names))
+
+  if (is_flattened_format) {
+    # --- CAS 1 : Format aplati (ex: "l_t_1", "S_t_1", "l_u_t") ---
+
+    shared_params <- hp_names[!grepl("_\\d+$", hp_names)]
+
+    initial_tibble <- tibble::as_tibble_row(par_vector) %>%
+      stats::setNames(hp_names)
+
+    hp_tibble <- initial_tibble %>%
+      tidyr::pivot_longer(
+        cols = -all_of(shared_params),
+        names_to = c(".value", "Output_ID"),
+        names_pattern = "(.*)_(\\d+)$"
+      ) %>%
+      dplyr::mutate(Output_ID = as.character(Output_ID))
+  } else { # Single output case
+    hp_tibble <- par_vector %>%
+      t() %>%
+      tibble::as_tibble()
+  }
+
+  return(hp_tibble)
 }

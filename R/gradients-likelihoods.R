@@ -53,127 +53,179 @@ gr_GP <- function(hp,
 }
 
 
-#' Gradient of the modified logLikelihood for GPs in Magma
+#' Gradient of the modified logLikelihood for GPs in a multi-output context
 #'
-#' @param hp A tibble, data frame or named vector containing hyper-parameters.
-#' @param db A tibble containing the values we want to compute the logL on.
-#'    Required columns: Input, Output. Additional covariate columns are allowed.
-#' @param mean A vector, specifying the mean of the GPs at the reference inputs.
-#' @param kern A kernel function.
-#' @param post_cov A matrix, covariance parameter of the hyper-posterior.
-#'    Used to compute the correction term.
-#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
-#'    numerical issues when inverting, in cases of nearly singular matrices.
+#' @param hp A numeric vector of hyper-parameters, as provided by `stats::optim`.
+#' @param db A tibble containing the data to compute the gradient on.
+#'   Required columns: `Output`, `Output_ID`, plus input coordinates.
+#' @param mean A vector specifying the mean of the GP at the reference inputs.
+#' @param kern The kernel function (e.g., `convolution_kernel`).
+#' @param post_cov A matrix, the covariance parameter of the hyper-posterior.
+#' @param pen_diag A jitter term for numerical stability.
+#' @param hp_col_names A character vector with the names of the hyper-parameters.
+#' @param output_ids A character vector with the unique IDs of the outputs.
 #'
-#' @return A named vector, corresponding to the value of the hyper-parameters
-#'    gradients for the modified Gaussian log-Likelihood involved in Magma.
+#' @return A named vector of gradients for each hyper-parameter.
 #'
 #' @keywords internal
-#'
-#' @examples
-#' TRUE
 gr_GP_mod <- function(hp,
                       db,
                       mean,
                       kern,
                       post_cov,
-                      pen_diag) {
-  list_hp <- names(hp)
-  output <- db$Output
-  ## Extract the reference Input
-  input <- db$Reference
-  ## Extract the input variables (reference Input + Covariates)
-  inputs <- db %>% dplyr::select(-.data$Output)
+                      pen_diag,
+                      hp_col_names,
+                      output_ids,
+                      ...) {
+  # browser()
+  # 1. Reconstruct the structured HP tibble from the flat vector
+  hp_tibble <- reconstruct_hp(
+    par_vector = hp,
+    hp_names = hp_col_names,
+    output_ids = output_ids
+  )
 
-  inv <- kern_to_inv(inputs, kern, hp, pen_diag)
-  ## Compute the term common to all partial derivatives
-  prod_inv <- inv %*% (output - mean)
-  common_term <- prod_inv %*% t(prod_inv) +
-    inv %*% (post_cov %*% inv - diag(1, length(input)))
+  list_ID_outputs <- db$Output_ID %>% unique()
+  # 2. Build and invert the full multi-output covariance matrix
+  #    'inputs' must contain the 'Output_ID' column for the kernel to work
+  if(length(list_ID_outputs) > 1){
+    # Call kern_to_cov directly.
+    # It will handle the multi-output structure and the noise addition internally.
+    # 'kern_t' is expected to be the 'convolution_kernel' function.
+    K_task_t <- kern_to_cov(
+      input = db %>%
+                dplyr::select(Output_ID, dplyr::starts_with("Input")),
+      kern = kern,
+      hp = hp_tibble
+    )
 
-  ## Loop over the derivatives of hyper-parameters for computing the gradient
-  floop <- function(deriv) {
-    (-1 / 2 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
-      diag() %>%
-      sum() %>%
-      return()
+    # Inverse K_task_t
+    inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
+
+  } else{
+    # Extract all_inputs to call kern_to_cov() on the single output case
+    all_inputs_t <- db %>%
+      dplyr::select(-c(Output, Output_ID)) %>%
+      unique() %>%
+      dplyr::arrange(Reference)
+
+    if("Task_ID" %in% colnames(all_inputs_t)){
+      all_inputs_t <- all_inputs_t %>% select(-Task_ID)
+    }
+
+    # Compute the inverse covariance matrix of the task 't'
+    inv_t <- kern_to_inv(
+      input = all_inputs_t,
+      kern = kern,
+      hp = hp_tibble,
+      pen_diag = pen_diag
+    )
   }
-  sapply(list_hp, floop) %>%
-    return()
+
+  # 3. Compute the term common to all partial derivatives
+  prod_inv_t <- inv_t %*% (db$Output - mean)
+  common_term <- prod_inv_t %*% t(prod_inv_t) +
+    inv_t %*% (post_cov %*% inv_t - diag(1, nrow(db)))
+
+  # 4. Loop over HPs to compute the gradient for each
+  # The derivative names must match what the kernel expects in its 'deriv'
+  ## argument
+  floop <- function(deriv_name) {
+    # Get the derivative of the covariance matrix w.r.t. the current HP
+    if(length(list_ID_outputs) > 1){
+      dK_dhp <- kern_to_cov(db %>%
+                              dplyr::select(Output_ID, dplyr::starts_with("Input")),
+                            kern = kern,
+                            hp = hp_tibble,
+                            deriv = deriv_name)
+    } else{
+      # Extract all_inputs to call kern_to_cov() on the single output case
+      all_inputs_t <- db %>%
+        dplyr::select(-c(Output, Output_ID)) %>%
+        unique() %>%
+        dplyr::arrange(Reference)
+
+      if("Task_ID" %in% colnames(all_inputs_t)){
+        all_inputs_t <- all_inputs_t %>% select(-Task_ID)
+      }
+
+      dK_dhp <- kern_to_cov(input = all_inputs_t,
+                            kern = kern,
+                            hp = hp_tibble,
+                            deriv = deriv_name)
+    }
+
+    # Compute the gradient component for this HP
+    gradient_value <- -0.5 * sum(diag(common_term %*% dK_dhp))
+    return(gradient_value)
+  }
+
+  # Return a named vector of gradients
+  sapply(hp_col_names, floop, USE.NAMES = TRUE)
 }
 
-#' Gradient of the modified logLikelihood with common HPs for GPs in Magma
+
+
+#' Gradient of the logLikelihood with shared HPs for multi-task GPs
 #'
-#' @param hp A tibble or data frame containing hyper-parameters for all
-#'    individuals.
-#' @param db A tibble containing the values we want to compute the logL on.
-#'    Required columns: ID, Input, Output. Additional covariate columns are
-#'    allowed.
-#' @param mean A vector, specifying the mean of the GPs at the reference inputs.
-#' @param kern A kernel function.
+#' Computes the sum of gradients over all tasks, assuming that the
+#' hyper-parameters are shared across all tasks.
+#'
+#' @param hp A numeric vector of hyper-parameters, as provided by `stats::optim`.
+#' @param db A tibble containing the data for all tasks.
+#'   Required columns: `ID` (task ID), `Output`, `Output_ID`, plus inputs.
+#' @param mean A vector, specifying the mean of the GP at the reference inputs.
+#' @param kern The kernel function (e.g., `convolution_kernel`).
 #' @param post_cov A matrix, covariance parameter of the hyper-posterior.
-#'    Used to compute the correction term.
-#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
-#'    numerical issues when inverting, in cases of nearly singular matrices.
+#' @param pen_diag A jitter term for numerical stability.
+#' @param hp_col_names A character vector with the names of the hyper-parameters.
+#' @param output_ids A character vector with the unique IDs of the outputs.
 #'
-#' @return A named vector, corresponding to the value of the hyper-parameters'
-#'    gradients for the modified Gaussian log-Likelihood involved in Magma with
-#'    the 'common HP' setting.
+#' @return A named vector, the total gradient across all tasks.
 #'
 #' @keywords internal
-#'
-#' @examples
-#' TRUE
-gr_GP_mod_common_hp <- function(hp,
+gr_GP_mod_shared_tasks <- function(hp,
                                 db,
                                 mean,
                                 kern,
                                 post_cov,
-                                pen_diag) {
+                                pen_diag,
+                                hp_col_names,
+                                output_ids) {
 
-  list_hp <- names(hp)
-  ## Loop over individuals to compute the sum of log-Likelihoods
-  funloop <- function(i) {
-    ## Extract the i-th specific reference Input
-    input_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Reference)
-    ## Extract the i-th specific inputs (reference + covariates)
-    inputs_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-c(.data$ID, .data$Output))
-    ## Extract the i-th specific Inputs and Output
-    output_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Output)
-    ## Extract the mean values associated with the i-th specific inputs
-    mean_i <- mean %>%
-      dplyr::filter(.data$Reference %in% input_i) %>%
-      dplyr::pull(.data$Output)
-    ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i <- post_cov[as.character(input_i),
-                           as.character(input_i)
-    ]
+  # Loop over each task ID to compute its gradient vector
+  funloop <- function(t) {
+    # Extract data specific to task 't'
+    db_t <- db %>% dplyr::filter(Task_ID == t) %>%
+                   dplyr::select(-Task_ID)
 
-    ## Compute the term common to all partial derivatives
-    inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
-    prod_inv <- inv %*% (output_i - mean_i)
-    common_term <- prod_inv %*% t(prod_inv) +
-      inv %*% (post_cov_i %*% inv - diag(1, length(input_i)))
-    ## Loop over the derivatives of hyper-parameters for computing the gradient
-    floop <- function(deriv) {
-      (-0.5 * (common_term %*% kern_to_cov(inputs_i, kern, hp, deriv))) %>%
-        diag() %>%
-        sum() %>%
-        return()
-    }
-    sapply(list_hp, floop) %>%
-      return()
+    input_t <- db_t %>% dplyr::pull(Reference)
+
+    mean_t <- mean %>%
+      dplyr::filter(Reference %in% input_t) %>%
+      dplyr::pull(Output)
+
+    post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
+    # Call the single-task gradient function, passing all arguments through
+    gr_GP_mod(
+      hp = hp,
+      db = db_t,
+      mean = mean_t,
+      kern = kern,
+      post_cov = post_cov_t,
+      pen_diag = pen_diag,
+      hp_col_names = hp_col_names,
+      output_ids = output_ids
+    )
+
   }
-  sapply(unique(db$ID), funloop) %>%
+
+  # Sum the gradient vectors from all tasks element-wise
+  sapply(unique(db$Task_ID), funloop) %>%
     rowSums() %>%
     return()
 }
+
 
 #'  Gradient of the mixture of Gaussian likelihoods
 #'
