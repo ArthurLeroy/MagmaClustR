@@ -45,9 +45,10 @@ e_step <- function(db,
 
   # For each task, compute its full multi-output inverse covariance matrix
   for (t in list_ID_task) {
+    # browser()
     # Isolate the data and HPs for the current task
     db_t <- db %>% dplyr::filter(Task_ID == t) %>%
-                   dplyr::select(-Output)
+                   dplyr::select(-c(Output, Task_ID))
     hp_t_indiv <- hp_t %>% dplyr::filter(Task_ID == t)
 
     if(length(list_output_ID) > 1){
@@ -286,7 +287,6 @@ m_step <- function(db,
         db                = db_t,
         mean              = post_mean_t,
         kern              = kern_t,
-        inv_0             = inv_0,
         post_cov          = post_cov_t,
         pen_diag          = pen_diag,
         hp_col_names      = hp_col_names,

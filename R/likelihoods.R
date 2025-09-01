@@ -100,8 +100,6 @@ logL_GP <- function(hp,
 #'   Required columns: `Output` and `Output_ID`, plus input coordinates.
 #' @param mean A vector specifying the mean of the GP at the reference inputs.
 #' @param kern The kernel function (e.g., `convolution_kernel`).
-#' @param inv_0 A matrix, corresponding to the prior covariance of the
-#'    mean process.
 #' @param post_cov A matrix, the covariance parameter of the hyper-posterior,
 #'   used for the correction term.
 #' @param pen_diag A jitter term added to the covariance matrix for numerical
@@ -119,7 +117,6 @@ logL_GP_mod <- function(hp,
                         db,
                         mean,
                         kern,
-                        inv_0,
                         post_cov,
                         pen_diag,
                         hp_col_names,
@@ -139,13 +136,9 @@ logL_GP_mod <- function(hp,
   list_output_ID <- db$Output_ID %>% unique()
 
   # 2. Build and invert the full multi-outputs covariance matrix
-
-  if(kern %>% is.null()){
-    # Get the inverse of the prior covariance of the mean process
-    inv <- inv_0
-  } else if (length(list_output_ID) > 1 && !(kern %>% is.null())){
+  if(length(list_output_ID) > 1 && !(kern %>% is.null())){
     # MO inversion of the TASK covariance
-    # It will handle the multi-output structure and the noise addition internally.
+    # It will handle the multi-outputs structure and the noise addition internally.
     # 'kern_t' is expected to be the 'convolution_kernel' function.
     K_task_t <- kern_to_cov(
       input = db %>% dplyr::select(-Output),
@@ -183,6 +176,7 @@ logL_GP_mod <- function(hp,
   # Classical Gaussian log-likelihood
   LL_norm <- -dmnorm(db$Output, mean, inv, log = TRUE)
   # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+  # cor_term <- 0.5 * sum(inv %*% post_cov)
   cor_term <- 0.5 * sum(diag(inv %*% post_cov))
 
   return(LL_norm + cor_term)
@@ -199,9 +193,6 @@ logL_GP_mod <- function(hp,
 #'   Required columns: `ID` (task ID), `Output`, `Output_ID`, plus inputs.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.
 #' @param kern The kernel function (e.g., `convolution_kernel`).
-#' @param inv_0 A matrix, corresponding to the prior covariance of the
-#'    mean process. Not useful here, but logL_GP_mod() requires this parameter
-#'    (in particular, when the function is called by logL_monitoring).
 #' @param post_cov A matrix, covariance parameter of the hyper-posterior.
 #' @param pen_diag A jitter term for numerical stability.
 #' @param hp_col_names A character vector with the names of the hyper-parameters.
@@ -215,7 +206,6 @@ logL_GP_mod_shared_tasks <- function(hp,
                                     db,
                                     mean,
                                     kern,
-                                    inv_0,
                                     post_cov,
                                     pen_diag,
                                     hp_col_names,
@@ -241,7 +231,6 @@ logL_GP_mod_shared_tasks <- function(hp,
       db = db_t,
       mean = mean_t,
       kern = kern,
-      inv_0 = inv_0,
       post_cov = post_cov_t,
       pen_diag = pen_diag,
       hp_col_names = hp_col_names,
@@ -289,16 +278,14 @@ logL_monitoring <- function(hp_t,
                             post_cov,
                             pen_diag) {
 
+  # browser()
   ## Compute the modified logL for the mean process
-  ll_0 <- logL_GP_mod(
-    hp = hp_0,
-    db = post_mean,
-    mean = m_0,
-    kern = NULL,
-    inv_0 = inv_0,
-    post_cov = post_cov,
-    pen_diag = pen_diag
-  )
+  # Classical Gaussian log-likelihood
+  LL_norm <- -dmnorm(post_mean$Output, m_0, inv_0, log = TRUE)
+  # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+  # cor_term <- 0.5 * sum(inv %*% post_cov)
+  cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
+  ll_0 <- LL_norm + cor_term
 
   ## Sum over the tasks
   funloop <- function(t) {
@@ -328,7 +315,6 @@ logL_monitoring <- function(hp_t,
                 db = db_t,
                 mean = post_mean_t,
                 kern = kern_t,
-                inv_0 = inv_0,
                 post_cov = post_cov_t,
                 pen_diag = pen_diag) %>%
       return()
