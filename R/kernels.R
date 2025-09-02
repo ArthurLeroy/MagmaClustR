@@ -436,23 +436,213 @@ lin_kernel <- function(
 }
 
 
+#' #' Generate Initial Hyperparameters for GP Kernels
+#' #'
+#' #' A helper function to generate a tibble of random initial hyperparameter (HP)
+#' #' values for common Gaussian Process (GP) kernels. It can generate a single
+#' #' set of HPs, create HPs for different tasks or outputs, or for every
+#' #' combination of task and output.
+#' #'
+#' #' @param kern A character string (e.g., "SE", "SE + LIN")
+#' #'   or a function object (e.g., `convolution_kernel`).
+#' #' @param list_task_ID A vector of task or individual IDs.
+#' #' @param list_output_ID A vector of output IDs.
+#' #' @param shared_hp_tasks If TRUE, all tasks share the same hyperparameter
+#' #'   values.
+#' #' @param shared_hp_outputs If TRUE, all outputs within a task share the same
+#' #'   values for l_t, S_t and noise.
+#' #' @param noise A boolean. If TRUE, an additional 'noise' hyperparameter is
+#' #'   added to the tibble. Default is FALSE.
+#' #'
+#' #' @return A `tibble` containing the generated hyperparameters.
+#'
+#' hp <- function(kern = "SE",
+#'                list_task_ID = NULL,
+#'                list_output_ID = NULL,
+#'                shared_hp_tasks = TRUE,
+#'                shared_hp_outputs = TRUE,
+#'                noise = FALSE) {
+#'   # browser()
+#'   # Define boundaries for random sampling
+#'   min_val <- -2; max_val <- 2; min_noise <- -5; max_noise <- -5
+#'
+#'   # Case 1: Kernel is provided as a function object (for convolution_kernel)
+#'   if (is.function(kern)) {
+#'     kern_name <- deparse(substitute(kern))
+#'     if (kern_name != "convolution_kernel") {
+#'       stop("Currently, only 'convolution_kernel' is supported as a function input.")
+#'     }
+#'     if (is.null(list_task_ID) || is.null(list_output_ID)) {
+#'       stop("For the convolution_kernel, both 'list_task_ID' and 'list_output_ID' must be provided.")
+#'     }
+#'
+#'     num_tasks <- length(list_task_ID)
+#'     num_outputs <- length(list_output_ID)
+#'
+#'     # Create the base grid of all Task x Output combinations
+#'     base_ids <- tidyr::crossing(Task_ID = as.character(list_task_ID),
+#'                                 Output_ID = as.character(list_output_ID))
+#'
+#'     # --- Handle the four sharing scenarios for l_t, S_t, and noise ---
+#'
+#'     if (shared_hp_tasks && shared_hp_outputs) {
+#'       # SCENARIO A: 1 set of HPs for EVERYTHING (all tasks and outputs)
+#'       hps_to_add <- tibble::tibble(
+#'         l_t = stats::runif(1, min_val, max_val),
+#'         S_t = stats::runif(1, min_val, max_val)
+#'       )
+#'       if (noise) hps_to_add$noise <- stats::runif(1, min_noise, max_noise)
+#'
+#'       final_hp <- tidyr::crossing(base_ids, hps_to_add)
+#'
+#'     } else if (shared_hp_tasks && !shared_hp_outputs) {
+#'       # SCENARIO B: HPs are shared across tasks, but different for each output.
+#'       hps_per_output <- tibble::tibble(
+#'         Output_ID = as.character(list_output_ID),
+#'         l_t = stats::runif(num_outputs, min_val, max_val),
+#'         S_t = stats::runif(num_outputs, min_val, max_val)
+#'       )
+#'       if (noise) hps_per_output$noise <- stats::runif(num_outputs, min_noise, max_noise)
+#'
+#'       final_hp <- dplyr::left_join(base_ids, hps_per_output, by = "Output_ID")
+#'
+#'     } else if (!shared_hp_tasks && shared_hp_outputs) {
+#'       # SCENARIO C: HPs are different for each task, but shared by outputs within a task.
+#'       hps_per_task <- tibble::tibble(
+#'         Task_ID = as.character(list_task_ID),
+#'         l_t = stats::runif(num_tasks, min_val, max_val),
+#'         S_t = stats::runif(num_tasks, min_val, max_val)
+#'       )
+#'       if (noise) hps_per_task$noise <- stats::runif(num_tasks, min_noise, max_noise)
+#'
+#'       final_hp <- dplyr::left_join(base_ids, hps_per_task, by = "Task_ID")
+#'
+#'     } else { # !shared_hp_tasks && !shared_hp_outputs
+#'       # SCENARIO D: Every Task x Output combination gets its own unique HPs.
+#'       n_draws <- nrow(base_ids)
+#'       hps_to_add <- tibble::tibble(
+#'         l_t = stats::runif(n_draws, min_val, max_val),
+#'         S_t = stats::runif(n_draws, min_val, max_val)
+#'       )
+#'       if (noise) hps_to_add$noise <- stats::runif(n_draws, min_noise, max_noise)
+#'
+#'       final_hp <- dplyr::bind_cols(base_ids, hps_to_add)
+#'     }
+#'
+#'     # --- Handle l_u_t (latent process lengthscale), which only depends on tasks ---
+#'     if (shared_hp_tasks) {
+#'       # If tasks share HPs, they share one l_u_t
+#'       final_hp$l_u_t <- stats::runif(1, -2, 0.001)
+#'     } else {
+#'       # If tasks have different HPs, they get different l_u_t values
+#'       l_u_t_per_task <- tibble::tibble(
+#'         Task_ID = as.character(list_task_ID),
+#'         l_u_t   = stats::runif(length(list_task_ID), -2, 0.001)
+#'       )
+#'       final_hp <- dplyr::left_join(final_hp, l_u_t_per_task, by = "Task_ID")
+#'     }
+#'
+#'     return(final_hp)
+#'
+#'   } else {
+  #   # Case 2: Kernel is provided as a string (e.g., "SE", "SE + PERIO")
+  #   # This logic remains as it was in your original function.
+  #   base_ids <- NULL
+  #   n_draws <- 1
+  #
+  #   if (!is.null(list_task_ID) && !is.null(list_output_ID)) {
+  #     base_ids <- tidyr::crossing(Task_ID = as.character(list_task_ID),
+  #                                 Output_ID = as.character(list_output_ID))
+  #     if (!shared_hp_tasks && !shared_hp_outputs) {
+  #       n_draws <- nrow(base_ids)
+  #     } else if (!shared_hp_tasks && shared_hp_outputs) {
+  #       n_draws <- length(list_task_ID)
+  #     } else if (shared_hp_tasks && !shared_hp_outputs) {
+  #       n_draws <- length(list_output_ID)
+  #     } # else n_draws remains 1
+  #   } else if (!is.null(list_output_ID)) {
+  #     base_ids <- tibble::tibble(Output_ID = as.character(list_output_ID))
+  #     n_draws <- if (shared_hp_outputs) 1 else nrow(base_ids)
+  #   } else if (!is.null(list_task_ID)) {
+  #     base_ids <- tibble::tibble(Task_ID = as.character(list_task_ID))
+  #     n_draws <- if (shared_hp_tasks) 1 else nrow(base_ids)
+  #   }
+  #
+  #   str_kern <- strsplit(kern, " +")[[1]]
+  #
+  #   # Generate the required number of unique HP sets
+  #   generated_hps <- tibble::tibble(.rows = n_draws)
+  #   for (i in str_kern) {
+  #     temp_hp <- switch(i,
+  #                       "SE" = tibble::tibble(
+  #                         se_variance = stats::runif(n_draws, min_val, max_val),
+  #                         se_lengthscale = stats::runif(n_draws, min_val, max_val)
+  #                       ),
+  #                       "PERIO" = tibble::tibble(
+  #                         perio_variance = stats::runif(n_draws, min_val, max_val),
+  #                         perio_lengthscale = stats::runif(n_draws, min_val, max_val),
+  #                         period = stats::runif(n_draws, 0, 2 * pi)
+  #                       ),
+  #                       "RQ" = tibble::tibble(
+  #                         rq_variance = stats::runif(n_draws, min_val, max_val),
+  #                         rq_lengthscale = stats::runif(n_draws, min_val, max_val),
+  #                         rq_scale = stats::runif(n_draws, min_val, max_val)
+  #                       ),
+  #                       "LIN" = tibble::tibble(
+  #                         lin_slope = stats::runif(n_draws, min_val, max_val),
+  #                         lin_offset = stats::runif(n_draws, min_val, max_val)
+  #                       ),
+  #                       # Default case for operators like '+' or '*'
+  #                       tibble::tibble()
+  #     )
+  #     generated_hps <- dplyr::bind_cols(generated_hps, temp_hp)
+  #   }
+  #
+  #   if (noise) {
+  #     generated_hps <- generated_hps %>%
+  #       dplyr::mutate(noise = stats::runif(n_draws, min_noise, max_noise))
+  #   }
+  #
+  #   # Construct the Final Tibble by combining IDs and HPs
+  #   if (is.null(base_ids)) {
+  #     return(generated_hps)
+  #   }
+  #
+  #   if (!is.null(list_task_ID) && !is.null(list_output_ID)) {
+  #     if (!shared_hp_tasks && !shared_hp_outputs) {
+  #       final_hp <- dplyr::bind_cols(base_ids, generated_hps)
+  #     } else if (!shared_hp_tasks && shared_hp_outputs) {
+  #       task_hps <- dplyr::bind_cols(Task_ID = as.character(list_task_ID), generated_hps)
+  #       final_hp <- dplyr::left_join(base_ids, task_hps, by = "Task_ID")
+  #     } else if (shared_hp_tasks && !shared_hp_outputs) {
+  #       output_hps <- dplyr::bind_cols(Output_ID = as.character(list_output_ID), generated_hps)
+  #       final_hp <- dplyr::left_join(base_ids, output_hps, by = "Output_ID")
+  #     } else {
+  #       final_hp <- tidyr::crossing(base_ids, generated_hps)
+  #     }
+  #   } else { # Case for only one list provided (task or output)
+  #     if (n_draws == 1) { # Shared HPs
+  #       final_hp <- tidyr::crossing(base_ids, generated_hps)
+  #     } else { # Independent HPs
+  #       final_hp <- dplyr::bind_cols(base_ids, generated_hps)
+  #     }
+  #   }
+  #
+  #   return(final_hp)
+  # }
+#' }
+
+
 #' Generate Initial Hyperparameters for GP Kernels
 #'
-#' A helper function to generate a tibble of random initial hyperparameter (HP)
-#' values for common Gaussian Process (GP) kernels. It can generate a single
-#' set of HPs, create HPs for different tasks or outputs, or for every
-#' combination of task and output.
-#'
-#' @param kern A character string (e.g., "SE", "SE + LIN")
-#'   or a function object (e.g., `convolution_kernel`).
-#' @param list_task_ID A vector of task or individual IDs.
+#' @param kern A character string (e.g., "SE") or a function (e.g., `convolution_kernel`).
+#' @param list_task_ID A vector of task IDs.
 #' @param list_output_ID A vector of output IDs.
-#' @param shared_hp_tasks If TRUE, all tasks share the same hyperparameter
-#'   values.
-#' @param shared_hp_outputs If TRUE, all outputs within a task share the same
-#'   values for l_t, S_t and noise.
-#' @param noise A boolean. If TRUE, an additional 'noise' hyperparameter is
-#'   added to the tibble. Default is FALSE.
+#' @param shared_hp_tasks If TRUE, HPs are shared across tasks.
+#' @param shared_hp_outputs If TRUE, HPs are shared across outputs.
+#' @param noise If TRUE, a 'noise' hyperparameter is added.
+#' @param hp_config A tibble providing min/max bounds for HP generation, specific
+#'   to the convolution_kernel. If NULL, default bounds are used.
 #'
 #' @return A `tibble` containing the generated hyperparameters.
 
@@ -461,14 +651,10 @@ hp <- function(kern = "SE",
                list_output_ID = NULL,
                shared_hp_tasks = TRUE,
                shared_hp_outputs = TRUE,
-               noise = FALSE) {
-
-  # Define boundaries for random sampling
-  min_val <- -2; max_val <- 2; min_noise <- -5; max_noise <- -1
-
-  #=============================================================================
-  # Case 1: Kernel is provided as a function object (for convolution_kernel)
-  #=============================================================================
+               noise = FALSE,
+               hp_config = NULL) {
+  # browser()
+  # Convolution case
   if (is.function(kern)) {
     kern_name <- deparse(substitute(kern))
     if (kern_name != "convolution_kernel") {
@@ -478,68 +664,92 @@ hp <- function(kern = "SE",
       stop("For the convolution_kernel, both 'list_task_ID' and 'list_output_ID' must be provided.")
     }
 
+    if (is.null(hp_config)) {
+      message("hp_config not provided for convolution_kernel, using default HP bounds.")
+      hp_config <- tibble::tibble(
+        output_id   = list_output_ID,
+        lt_min      = -2, lt_max      = 2,
+        St_min      = -2, St_max      = 2,
+        lu_min      = -2, lu_max      = 0,
+        noise_min   = -5, noise_max   = -2
+      )
+    }
+
     num_tasks <- length(list_task_ID)
     num_outputs <- length(list_output_ID)
 
-    # Create the base grid of all Task x Output combinations
+    # All combination task x output
     base_ids <- tidyr::crossing(Task_ID = as.character(list_task_ID),
                                 Output_ID = as.character(list_output_ID))
 
-    # --- Handle the four sharing scenarios for l_t, S_t, and noise ---
-
     if (shared_hp_tasks && shared_hp_outputs) {
-      # SCENARIO A: 1 set of HPs for EVERYTHING (all tasks and outputs)
       hps_to_add <- tibble::tibble(
-        l_t = stats::runif(1, min_val, max_val),
-        S_t = stats::runif(1, min_val, max_val)
+        l_t = stats::runif(1, hp_config$lt_min[1], hp_config$lt_max[1]),
+        S_t = stats::runif(1, hp_config$St_min[1], hp_config$St_max[1])
       )
-      if (noise) hps_to_add$noise <- stats::runif(1, min_noise, max_noise)
-
+      if (noise) {
+        hps_to_add$noise <- stats::runif(1, hp_config$noise_min[1], hp_config$noise_max[1])
+      }
       final_hp <- tidyr::crossing(base_ids, hps_to_add)
 
     } else if (shared_hp_tasks && !shared_hp_outputs) {
-      # SCENARIO B: HPs are shared across tasks, but different for each output.
-      hps_per_output <- tibble::tibble(
-        Output_ID = as.character(list_output_ID),
-        l_t = stats::runif(num_outputs, min_val, max_val),
-        S_t = stats::runif(num_outputs, min_val, max_val)
-      )
-      if (noise) hps_per_output$noise <- stats::runif(num_outputs, min_noise, max_noise)
-
+      hps_per_output <- hp_config %>%
+        dplyr::transmute(
+          Output_ID = as.character(output_id),
+          l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
+          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
+        )
+      if (noise) {
+        hps_per_output$noise <- purrr::map2_dbl(hp_config$noise_min,
+                                                hp_config$noise_max,
+                                                ~stats::runif(1, .x, .y))
+      }
       final_hp <- dplyr::left_join(base_ids, hps_per_output, by = "Output_ID")
 
     } else if (!shared_hp_tasks && shared_hp_outputs) {
-      # SCENARIO C: HPs are different for each task, but shared by outputs within a task.
       hps_per_task <- tibble::tibble(
         Task_ID = as.character(list_task_ID),
-        l_t = stats::runif(num_tasks, min_val, max_val),
-        S_t = stats::runif(num_tasks, min_val, max_val)
+        l_t = stats::runif(num_tasks, hp_config$lt_min[1], hp_config$lt_max[1]),
+        S_t = stats::runif(num_tasks, hp_config$St_min[1], hp_config$St_max[1])
       )
-      if (noise) hps_per_task$noise <- stats::runif(num_tasks, min_noise, max_noise)
-
+      if (noise) {
+        hps_per_task$noise <- stats::runif(num_tasks,
+                                           hp_config$noise_min[1],
+                                           hp_config$noise_max[1])
+      }
       final_hp <- dplyr::left_join(base_ids, hps_per_task, by = "Task_ID")
 
     } else { # !shared_hp_tasks && !shared_hp_outputs
-      # SCENARIO D: Every Task x Output combination gets its own unique HPs.
-      n_draws <- nrow(base_ids)
-      hps_to_add <- tibble::tibble(
-        l_t = stats::runif(n_draws, min_val, max_val),
-        S_t = stats::runif(n_draws, min_val, max_val)
-      )
-      if (noise) hps_to_add$noise <- stats::runif(n_draws, min_noise, max_noise)
-
-      final_hp <- dplyr::bind_cols(base_ids, hps_to_add)
+      hps_unique <- base_ids %>%
+        dplyr::left_join(hp_config %>%
+                           dplyr::mutate(Output_ID = as.character(output_id)),
+                         by = "Output_ID") %>%
+        dplyr::mutate(
+          l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
+          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
+        ) %>%
+        dplyr::select(Task_ID, Output_ID, l_t, S_t)
+      if (noise) {
+        hps_unique <- base_ids %>%
+          dplyr::left_join(hp_config %>%
+                             dplyr::mutate(Output_ID = as.character(output_id)),
+                           by = "Output_ID") %>%
+          dplyr::mutate(
+            noise = purrr::map2_dbl(noise_min, noise_max, ~stats::runif(1, .x, .y))
+          ) %>%
+          dplyr::select(Task_ID, Output_ID, noise) %>%
+          dplyr::left_join(hps_unique, ., by = c("Task_ID", "Output_ID"))
+      }
+      final_hp <- hps_unique
     }
 
-    # --- Handle l_u_t (latent process lengthscale), which only depends on tasks ---
+    # --- Gestion de l_u_t (ne dépend que des tâches) ---
     if (shared_hp_tasks) {
-      # If tasks share HPs, they share one l_u_t
-      final_hp$l_u_t <- stats::runif(1, -2, 0.001)
+      final_hp$l_u_t <- stats::runif(1, hp_config$lu_min[1], hp_config$lu_max[1])
     } else {
-      # If tasks have different HPs, they get different l_u_t values
       l_u_t_per_task <- tibble::tibble(
         Task_ID = as.character(list_task_ID),
-        l_u_t   = stats::runif(length(list_task_ID), -2, 0.001)
+        l_u_t   = stats::runif(num_tasks, hp_config$lu_min[1], hp_config$lu_max[1])
       )
       final_hp <- dplyr::left_join(final_hp, l_u_t_per_task, by = "Task_ID")
     }
@@ -547,10 +757,8 @@ hp <- function(kern = "SE",
     return(final_hp)
 
   } else {
-    #===========================================================================
     # Case 2: Kernel is provided as a string (e.g., "SE", "SE + PERIO")
     # This logic remains as it was in your original function.
-    #===========================================================================
     base_ids <- NULL
     n_draws <- 1
 

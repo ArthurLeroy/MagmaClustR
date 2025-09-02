@@ -544,7 +544,9 @@ simulate_multi_output_data <- function(
     ),
     hp_config_tasks = tibble::tibble(
       output_id = 1:2, lt_min = c(-2, -2), lt_max = c(-2, -2),
-      St_min = c(1, 1), St_max = c(1, 1)
+      St_min = c(-1, -1), St_max = c(-1, -1),
+      noise_min = c(-5, -5), noise_max = c(-5, -5),
+      lu_min = c(-2, -2), lu_max = c(-2, -2)
     ),
     n_points_per_task_range = c(5, 20),
     shared_hp_tasks = FALSE,
@@ -562,6 +564,7 @@ simulate_multi_output_data <- function(
     shared_grid_outputs = shared_grid_outputs,
     shared_hp_outputs = shared_hp_outputs
   )
+  browser()
 
   # === STEP 2: generate HPs for all tasks simultaneously ===
   cat("Generating hyperparameters for all tasks...\n")
@@ -571,8 +574,10 @@ simulate_multi_output_data <- function(
     list_output_ID = 1:nrow(hp_config_tasks),
     shared_hp_tasks = shared_hp_tasks,
     shared_hp_outputs = shared_hp_outputs,
-    noise = TRUE
+    noise = TRUE,
+    hp_config = hp_config_tasks
   )
+
 
   # === STEP 3: generate observed data for all tasks ===
   task_dfs_list <- purrr::map(1:num_tasks, ~{
