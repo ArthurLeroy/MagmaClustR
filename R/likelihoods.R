@@ -122,13 +122,20 @@ logL_GP_mod <- function(hp,
                         hp_col_names,
                         output_ids) {
   # browser()
-  if(!(hp %>% is_tibble())){
+  if(!(hp %>% is_tibble()) && length(output_ids) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
       par_vector = hp,
       hp_names = hp_col_names,
       output_ids = output_ids
     )
+  } else if (!(hp %>% is_tibble()) && length(output_ids) == 1){
+    # browser()
+    hp_tibble <- hp %>%
+      t() %>%
+      tibble::as_tibble() %>%
+      stats::setNames(hp_col_names)
+
   } else {
     hp_tibble <- hp
   }
@@ -136,7 +143,7 @@ logL_GP_mod <- function(hp,
   list_output_ID <- db$Output_ID %>% unique()
 
   # 2. Build and invert the full multi-outputs covariance matrix
-  if(length(list_output_ID) > 1 && !(kern %>% is.null())){
+  if(length(list_output_ID) > 1 && !(kern %>% is.character())){
     # MO inversion of the TASK covariance
     # It will handle the multi-outputs structure and the noise addition internally.
     # 'kern_t' is expected to be the 'convolution_kernel' function.
@@ -151,6 +158,12 @@ logL_GP_mod <- function(hp,
       chol_inv_jitter(pen_diag = pen_diag) %>%
       `rownames<-`(row.names(K_task_t)) %>%
       `colnames<-`(colnames(K_task_t))
+
+  } else if (length(list_output_ID) > 1 && (kern %>% is.character())){
+    # MO inversion of the MEAN PROCESS covariance
+    ## Compute the inverse covariance of the mean process
+    inv <- ini_inverse_prior_cov(db, kern, hp, pen_diag)
+
   } else {
       # Single output case (for both computing the inverse of the task covariance
       # AND the inverse of the post_mean in logL_GP_monitoring())
@@ -246,13 +259,14 @@ logL_GP_mod_shared_tasks <- function(hp,
 
 #' Log-Likelihood for monitoring the EM algorithm in Magma
 #'
+#' @param hp_0 A tibble or data frame, containing the hyper-parameters with the
+#'    mean GP.
 #' @param hp_t A tibble or data frame, containing the hyper-parameters with the
 #'    task GPs.
 #' @param db A tibble or data frame. Columns required: ID, Input, Output.
 #'    Additional columns for covariates can be specified.
 #' @param m_0 A vector, corresponding to the prior mean of the mean GP.
-#' @param inv_0 A matrix, corresponding to the prior covariance of the
-#'    mean process.
+#' @param kern_0 A kernel function, associated with the mean process GP.
 #' @param kern_t A kernel function, associated with the task GPs.
 #' @param post_mean A tibble, coming out of the E step, containing the Input and
 #'    associated Output of the hyper-posterior mean parameter.
@@ -269,10 +283,11 @@ logL_GP_mod_shared_tasks <- function(hp,
 #'
 #' @examples
 #' TRUE
-logL_monitoring <- function(hp_t,
+logL_monitoring <- function(hp_0,
+                            hp_t,
                             db,
                             m_0,
-                            inv_0,
+                            kern_0,
                             kern_t,
                             post_mean,
                             post_cov,
@@ -280,12 +295,15 @@ logL_monitoring <- function(hp_t,
 
   # browser()
   ## Compute the modified logL for the mean process
-  # Classical Gaussian log-likelihood
-  LL_norm <- -dmnorm(post_mean$Output, m_0, inv_0, log = TRUE)
-  # Correction trace term (-0.5 * Tr(inv %*% post_cov))
-  # cor_term <- 0.5 * sum(inv %*% post_cov)
-  cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
-  ll_0 <- LL_norm + cor_term
+  # browser()
+  ll_0 <- logL_GP_mod(
+    hp = hp_0,
+    db = post_mean,
+    mean = m_0,
+    kern = kern_0,
+    post_cov = post_cov,
+    pen_diag = pen_diag
+  )
 
   ## Sum over the tasks
   funloop <- function(t) {
@@ -435,7 +453,7 @@ sum_logL_GP_clust <- function(hp,
 #'
 #' @return A correctly formatted HP tibble.
 reconstruct_hp <- function(par_vector, hp_names, output_ids) {
-
+  browser()
   # --- Détection du format des hyper-paramètres ---
   # On vérifie si au moins un nom contient un suffixe comme "_1", "_2", etc.
   is_flattened_format <- any(grepl("_\\d+$", hp_names))

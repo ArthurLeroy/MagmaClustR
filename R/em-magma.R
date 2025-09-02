@@ -8,8 +8,8 @@
 #' @param m_0 A vector, corresponding to the prior mean of the mean GP.
 #' @param kern_0 A kernel function, associated with the mean GP.
 #' @param kern_t A kernel function, associated with the task GPs.
-#' @param inv_0 A matrix, corresponding to the prior covariance of the
-#'    mean process.
+#' @param hp_0 A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_0}.
 #' @param hp_t A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_t}.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
@@ -26,8 +26,9 @@
 
 e_step <- function(db,
                    m_0,
-                   inv_0,
+                   kern_0,
                    kern_t,
+                   hp_0,
                    hp_t,
                    pen_diag) {
   # browser()
@@ -37,7 +38,9 @@ e_step <- function(db,
     unique() %>%
     dplyr::arrange(Reference)
 
-  ## Compute the inverse covariance for each task
+  ## Compute the inverse covariance of the mean process
+  inv_0 <- ini_inverse_prior_cov(db, kern_0, hp_0, pen_diag)
+
   list_inv_t <- list()
   list_ID_task <- unique(db$Task_ID)
 
@@ -80,6 +83,7 @@ e_step <- function(db,
 
     # Invert the covariance matrix (this strips the names)
     K_inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
+    # paste0('Det de K_inv_t, avec t = ', t, ' : ', det(K_inv_t))
 
     # Re-apply the stored names to the inverted matrix
     dimnames(K_inv_t) <- list(task_references, task_references)
@@ -96,6 +100,7 @@ e_step <- function(db,
   ##--------------- Update Posterior Inverse Covariance ---------------##
   post_inv <- inv_0
   for (inv_t in list_inv_t) {
+    # browser()
     # Find the common input points between the mean process and the current task
     co_input <- intersect(row.names(inv_t), row.names(post_inv))
 
@@ -144,9 +149,9 @@ e_step <- function(db,
 #'
 #' @param db A tibble or data frame. Required columns: Task_ID, Output_ID, Input_1, Output, Reference.
 #' @param m_0 Prior mean vector for the mean GP.
+#' @param kern_0 Kernel function for the mean GP.
 #' @param kern_t Kernel function for the individual task GPs.
-#' @param inv_0 A matrix, corresponding to the prior covariance of the
-#'    mean process.
+#' @param old_hp_0 Hyper-parameters for the mean GP from the previous step.
 #' @param old_hp_t Hyper-parameters for the task GPs from the previous step.
 #' @param post_mean Posterior mean from the E-step.
 #' @param post_cov Posterior covariance from the E-step.
@@ -158,8 +163,9 @@ e_step <- function(db,
 
 m_step <- function(db,
                    m_0,
+                   kern_0,
                    kern_t,
-                   inv_0,
+                   old_hp_0,
                    old_hp_t,
                    post_mean,
                    post_cov,
@@ -167,8 +173,56 @@ m_step <- function(db,
                    pen_diag) {
   # browser()
 
+  list_hp_0 <- old_hp_0 %>% names()
   list_ID_task <- unique(db$Task_ID)
   output_ids_vector <- unique(db$Output_ID)
+
+  if (length(output_ids_vector) > 1){
+    # MO case
+    # Optimise hyper-parameters of the mean process
+    new_hp_0 <- stats::optim(
+      par = old_hp_0,
+      fn = logL_GP_mod,
+      gr = gr_GP_mod,
+      db = post_mean,
+      mean = m_0,
+      kern = kern_0,
+      post_cov = post_cov,
+      pen_diag = pen_diag,
+      hp_col_names = list_hp_0,
+      output_ids = output_ids_vector,
+      method = "L-BFGS-B",
+      control = list(factr = 1e13, maxit = 25)
+    )$par %>%
+      tibble::as_tibble_row()
+  } else {
+    # Single output case
+    # Optimise hyper-parameters of the mean process
+    old_hp_0 <- old_hp_0 %>%
+      dplyr::select(-Output_ID) %>%
+      as.numeric()
+
+    list_hp_0 <- list_hp_0[list_hp_0 != "Output_ID"]
+
+    new_hp_0 <- stats::optim(
+      par = old_hp_0,
+      fn = logL_GP_mod,
+      gr = gr_GP_mod,
+      db = post_mean,
+      mean = m_0,
+      kern = kern_0,
+      post_cov = post_cov,
+      pen_diag = pen_diag,
+      hp_col_names = list_hp_0,
+      output_ids = output_ids_vector,
+      method = "L-BFGS-B",
+      control = list(factr = 1e13, maxit = 25)
+    )$par %>% setNames(list_hp_0) %>%
+      tibble::as_tibble_row()
+
+    # To give the right format of HPs to the next E-step
+    new_hp_0$Output_ID <- "1"
+  }
 
   # =================================================================== #
   # Case 1: HPs are shared across tasks -> one optimisation over all data
@@ -200,6 +254,7 @@ m_step <- function(db,
       hp_col_names <- names(par)
     }
 
+    # Optimise hyper-parameters of the task process
     result_optim <- stats::optim(
       par               = par,
       fn                = logL_GP_mod_shared_tasks,
@@ -328,5 +383,9 @@ m_step <- function(db,
     }
   }
 
-  return("hp_t" = new_hp_t)
+  list(
+    "hp_0" = new_hp_0,
+    "hp_t" = new_hp_t
+  ) %>%
+    return()
 }

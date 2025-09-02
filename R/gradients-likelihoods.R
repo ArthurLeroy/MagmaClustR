@@ -78,17 +78,28 @@ gr_GP_mod <- function(hp,
                       output_ids,
                       ...) {
   # browser()
-  # 1. Reconstruct the structured HP tibble from the flat vector
-  hp_tibble <- reconstruct_hp(
-    par_vector = hp,
-    hp_names = hp_col_names,
-    output_ids = output_ids
-  )
+  if(!(hp %>% is_tibble()) && length(output_ids) > 1){
+    # 1. Reconstruct the structured HP tibble from the flat vector
+    hp_tibble <- reconstruct_hp(
+      par_vector = hp,
+      hp_names = hp_col_names,
+      output_ids = output_ids
+    )
+  } else if (!(hp %>% is_tibble()) && length(output_ids) == 1){
+    hp_tibble <- hp %>%
+      t() %>%
+      tibble::as_tibble() %>%
+      stats::setNames(hp_col_names)
+
+  } else {
+    hp_tibble <- hp
+  }
 
   list_ID_outputs <- db$Output_ID %>% unique()
   # 2. Build and invert the full multi-output covariance matrix
   #    'inputs' must contain the 'Output_ID' column for the kernel to work
-  if(length(list_ID_outputs) > 1){
+  if(length(list_ID_outputs) > 1 && !(kern %>% is.character())){
+    # MO inversion of the TASK covariance
     # Call kern_to_cov directly.
     # It will handle the multi-output structure and the noise addition internally.
     # 'kern_t' is expected to be the 'convolution_kernel' function.
@@ -100,22 +111,29 @@ gr_GP_mod <- function(hp,
     )
 
     # Inverse K_task_t
-    inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
+    inv <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
+
+  } else if (length(list_ID_outputs) > 1 && kern %>% is.character()){
+    # MO inversion of the MEAN PROCESS covariance
+    ## Compute the inverse covariance of the mean process
+    inv <- ini_inverse_prior_cov(db, kern, hp, pen_diag)
 
   } else{
+    # browser()
+    # Single output case
     # Extract all_inputs to call kern_to_cov() on the single output case
-    all_inputs_t <- db %>%
+    all_inputs <- db %>%
       dplyr::select(-c(Output, Output_ID)) %>%
       unique() %>%
       dplyr::arrange(Reference)
 
-    if("Task_ID" %in% colnames(all_inputs_t)){
-      all_inputs_t <- all_inputs_t %>% select(-Task_ID)
+    if("Task_ID" %in% colnames(all_inputs)){
+      all_inputs <- all_inputs %>% select(-Task_ID)
     }
 
     # Compute the inverse covariance matrix of the task 't'
-    inv_t <- kern_to_inv(
-      input = all_inputs_t,
+    inv <- kern_to_inv(
+      input = all_inputs,
       kern = kern,
       hp = hp_tibble,
       pen_diag = pen_diag
@@ -123,14 +141,16 @@ gr_GP_mod <- function(hp,
   }
 
   # 3. Compute the term common to all partial derivatives
-  prod_inv_t <- inv_t %*% (db$Output - mean)
-  common_term <- prod_inv_t %*% t(prod_inv_t) +
-    inv_t %*% (post_cov %*% inv_t - diag(1, nrow(db)))
+  prod_inv <- inv %*% (db$Output - mean)
+
+  common_term <- prod_inv %*% t(prod_inv) +
+    inv %*% (post_cov %*% inv - diag(1, nrow(db)))
 
   # 4. Loop over HPs to compute the gradient for each
   # The derivative names must match what the kernel expects in its 'deriv'
   ## argument
   floop <- function(deriv_name) {
+    # browser()
     # Get the derivative of the covariance matrix w.r.t. the current HP
     if(length(list_ID_outputs) > 1){
       dK_dhp <- kern_to_cov(db %>%
@@ -140,24 +160,29 @@ gr_GP_mod <- function(hp,
                             deriv = deriv_name)
     } else{
       # Extract all_inputs to call kern_to_cov() on the single output case
-      all_inputs_t <- db %>%
+      all_inputs <- db %>%
         dplyr::select(-c(Output, Output_ID)) %>%
         unique() %>%
         dplyr::arrange(Reference)
 
-      if("Task_ID" %in% colnames(all_inputs_t)){
-        all_inputs_t <- all_inputs_t %>% select(-Task_ID)
+      if("Task_ID" %in% colnames(all_inputs)){
+        all_inputs <- all_inputs %>% select(-Task_ID)
       }
 
-      dK_dhp <- kern_to_cov(input = all_inputs_t,
+      dK_dhp <- kern_to_cov(input = all_inputs,
                             kern = kern,
                             hp = hp_tibble,
                             deriv = deriv_name)
     }
 
     # Compute the gradient component for this HP
-    gradient_value <- -0.5 * sum(diag(common_term %*% dK_dhp))
-    return(gradient_value)
+    # browser()
+    gradient_value <- -0.5 * (common_term %*% dK_dhp) %>%
+      diag() %>%
+      sum() %>%
+      return()
+    # gradient_value <- -0.5 * sum(diag(common_term %*% dK_dhp))
+    # return(gradient_value)
   }
 
   # Return a named vector of gradients
@@ -206,6 +231,7 @@ gr_GP_mod_shared_tasks <- function(hp,
       dplyr::pull(Output)
 
     post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
+    # browser()
     # Call the single-task gradient function, passing all arguments through
     gr_GP_mod(
       hp = hp,
