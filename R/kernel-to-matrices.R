@@ -330,7 +330,7 @@ kern_to_cov <- function(input,
       reference <- input$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input <- input %>% dplyr::select(-c(.data$Reference))
+      input <- input %>% dplyr::select(-c(Output_ID, Reference))
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input <- split(t(input),
@@ -341,7 +341,7 @@ kern_to_cov <- function(input,
       reference_2 <- input_2$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input_2 <- input_2 %>% dplyr::select(-.data$Reference)
+      input_2 <- input_2 %>% dplyr::select(-c(Output_ID, Reference))
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input_2 <- split(t(input_2),
@@ -377,6 +377,7 @@ kern_to_cov <- function(input,
 
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
+    # browser()
     if ("Output_ID" %in% names(hp)){
       if (any(startsWith(deriv, "noise"))){
         # --- DÉBUT DES CORRECTIONS ---

@@ -160,9 +160,22 @@ logL_GP_mod <- function(hp,
       `colnames<-`(colnames(K_task_t))
 
   } else if (length(list_output_ID) > 1 && (kern %>% is.character())){
+    # browser()
     # MO inversion of the MEAN PROCESS covariance
     ## Compute the inverse covariance of the mean process
-    inv <- ini_inverse_prior_cov(db, kern, hp, pen_diag)
+    # inv <- ini_inverse_prior_cov(db, kern, hp, pen_diag)
+    all_inputs <- db %>%
+      dplyr::select(-c(Output, Output_ID)) %>%
+      unique() %>%
+      dplyr::arrange(Reference)
+
+    if("Task_ID" %in% colnames(all_inputs)){
+      all_inputs <- all_inputs %>% select(-Task_ID)
+    }
+
+    inv <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
+      `rownames<-`(all_inputs$Reference) %>%
+      `colnames<-`(all_inputs$Reference)
 
   } else {
       # Single output case (for both computing the inverse of the task covariance
@@ -172,10 +185,6 @@ logL_GP_mod <- function(hp,
         dplyr::select(-c(Output, Output_ID)) %>%
         unique() %>%
         dplyr::arrange(Reference)
-
-      if("Task_ID" %in% colnames(all_inputs)){
-        all_inputs <- all_inputs %>% select(-Task_ID)
-      }
 
       # Compute the inverse covariance matrix
       inv <- kern_to_inv(
@@ -293,9 +302,7 @@ logL_monitoring <- function(hp_0,
                             post_cov,
                             pen_diag) {
 
-  # browser()
   ## Compute the modified logL for the mean process
-  # browser()
   ll_0 <- logL_GP_mod(
     hp = hp_0,
     db = post_mean,
@@ -453,7 +460,6 @@ sum_logL_GP_clust <- function(hp,
 #'
 #' @return A correctly formatted HP tibble.
 reconstruct_hp <- function(par_vector, hp_names, output_ids) {
-  browser()
   # --- Détection du format des hyper-paramètres ---
   # On vérifie si au moins un nom contient un suffixe comme "_1", "_2", etc.
   is_flattened_format <- any(grepl("_\\d+$", hp_names))

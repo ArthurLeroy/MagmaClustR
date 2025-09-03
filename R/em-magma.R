@@ -57,11 +57,22 @@ e_step <- function(db,
                    dplyr::select(-c(Output, Task_ID))
     hp_t_indiv <- hp_t %>% dplyr::filter(Task_ID == t)
 
-    if(length(list_output_ID) > 1){
+    if(length(list_output_ID) > 1 && !(kern_t %>% is.character())){
+      # MO case with dependent outputs
       # Call kern_to_cov directly.
       # It will handle the multi-output structure and the noise addition internally.
       # 'kern_t' is expected to be the 'convolution_kernel' function.
       K_task_t <- kern_to_cov(
+        input = db_t,
+        kern = kern_t,
+        hp = hp_t_indiv
+      )
+    } else if (length(list_output_ID) > 1 && kern_t %>% is.character()){
+      # MO case with independent outputs
+
+      hp_t_indiv <- hp_t_indiv %>% dplyr::select(-c(Task_ID, Output_ID))
+
+      inv_t <- kern_to_cov(
         input = db_t,
         kern = kern_t,
         hp = hp_t_indiv

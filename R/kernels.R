@@ -128,79 +128,6 @@ convolution_kernel <- function(x,
 }
 
 
-#' Compute the Covariance Matrix for a Multi-Output GP via Convolution
-#'
-#' @param x The input data. For the vectorized multi-output case, this must be
-#'   a tibble/data.frame containing the coordinates and an 'Output_ID' column.
-#' @param y The second input data (must have the same format as x).
-#' @param hp For the vectorized multi-output case, this must be a tibble
-#'   containing the hyperparameters 'l_t', 'S_t', 'l_u_t' and an 'Output_ID'
-#'   column.
-#' @param vectorized If TRUE, enables the calculation of the full MO covariance
-#'   matrix.
-#' @return The covariance matrix.
-
-# convolution_kernel <- function(x,
-#                                y,
-#                                hp,
-#                                vectorized = FALSE) {
-#
-#   # ----- NON-VECTORIZED CASE -----
-#   # Handles the calculation between two single points.
-#   if (!vectorized) {
-#     l_1 <- exp(hp[["lengthscale_output1"]])
-#     l_2 <- exp(hp[["lengthscale_output2"]])
-#     l_u <- exp(hp[["lengthscale_u"]])
-#     S_1 <- exp(hp[["variance_output1"]])
-#     S_2 <- exp(hp[["variance_output2"]])
-#     distance <- sum((x - y)^2)
-#     top_term <- - (l_1 + l_2 + l_u)^(-1) * 0.5 * distance
-#     return(((S_1 * S_2 / ((2*pi)^(0.5)*(l_1 + l_2 + l_u)^(0.5))) * exp(top_term)))
-#   }
-#
-#   # ----- VECTORIZED CASE -----
-#
-#   # 1. Input checks
-#   if (!"Output_ID" %in% names(x) || !"Output_ID" %in% names(hp)) {
-#     stop("For the vectorized convolution kernel, 'input' and 'hp' must contain",
-#          " an 'Output_ID' column.")
-#   }
-#
-#   # 2. Separate coordinates from output indices
-#   #    We exclude non-numeric columns to get the coordinates.
-#   coord_cols <- names(x)[sapply(x, is.numeric) & names(x) != "Output_ID"]
-#   x_coords <- as.matrix(x[, coord_cols, drop = FALSE])
-#   y_coords <- as.matrix(y[, coord_cols, drop = FALSE])
-#   idx_x <- x$Output_ID
-#   idx_y <- y$Output_ID
-#
-#   # 3. Prepare hyperparameter vectors
-#   #    Ensure HPs are correctly sorted by Output_ID to guarantee alignment.
-#   hp_ordered <- hp %>% dplyr::arrange(Output_ID)
-#
-#   l_outputs <- hp_ordered$l_t
-#   S_outputs <- hp_ordered$S_t
-#   l_u <- hp_ordered$l_u_t[1] # Assume l_u is shared across outputs for a given task
-#
-#   # 4. Compute the covariance matrix (meta-kernel logic)
-#   distance_matrix_sq <- cpp_dist(x_coords, y_coords)
-#
-#   l_vec_x <- exp(l_outputs[idx_x])
-#   l_vec_y <- exp(l_outputs[idx_y])
-#   S_vec_x <- exp(S_outputs[idx_x])
-#   S_vec_y <- exp(S_outputs[idx_y])
-#
-#   l_sum_mat <- outer(l_vec_x, l_vec_y, FUN = "+")
-#   S_prod_mat <- outer(S_vec_x, S_vec_y, FUN = "*")
-#
-#   denominator_sum <- l_sum_mat + exp(l_u)
-#   top_term_mat <- -0.5 * distance_matrix_sq / denominator_sum
-#   pre_factor_mat <- S_prod_mat / sqrt(2 * pi * denominator_sum)
-#
-#   return(pre_factor_mat * exp(top_term_mat))
-# }
-
-
 #' Squared Exponential Kernel
 #'
 #' @param x A vector (or matrix if vectorized = T) of inputs.
@@ -228,6 +155,7 @@ se_kernel <- function(
   hp,
   deriv = NULL,
   vectorized = FALSE) {
+  # browser()
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -653,6 +581,12 @@ hp <- function(kern = "SE",
                shared_hp_outputs = TRUE,
                noise = FALSE,
                hp_config = NULL) {
+  ## Initiate interval boundaries
+  min_val <- 0
+  max_val <- 3
+  min_noise <- -5
+  max_noise <- -1
+
   # browser()
   # Convolution case
   if (is.function(kern)) {
