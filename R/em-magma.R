@@ -39,7 +39,10 @@ e_step <- function(db,
     dplyr::arrange(Reference)
 
   ## Compute the inverse covariance of the mean process
-  inv_0 <- ini_inverse_prior_cov(db, kern_0, hp_0, pen_diag)
+  # inv_0 <- ini_inverse_prior_cov(db, kern_0, hp_0, pen_diag)
+  inv_0 <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
+    `rownames<-`(all_inputs$Reference) %>%
+    `colnames<-`(all_inputs$Reference)
 
   list_inv_t <- list()
   list_ID_task <- unique(db$Task_ID)
@@ -180,48 +183,53 @@ m_step <- function(db,
   if (length(output_ids_vector) > 1){
     # MO case
     # Optimise hyper-parameters of the mean process
-    new_hp_0 <- stats::optim(
-      par = old_hp_0,
-      fn = logL_GP_mod,
-      gr = gr_GP_mod,
-      db = post_mean,
-      mean = m_0,
-      kern = kern_0,
-      post_cov = post_cov,
-      pen_diag = pen_diag,
-      hp_col_names = list_hp_0,
-      output_ids = output_ids_vector,
-      method = "L-BFGS-B",
-      control = list(factr = 1e13, maxit = 25)
-    )$par %>%
-      tibble::as_tibble_row()
+    # new_hp_0 <- stats::optim(
+    #   par = old_hp_0,
+    #   fn = logL_GP_mod,
+    #   gr = gr_GP_mod,
+    #   db = post_mean,
+    #   mean = m_0,
+    #   kern = kern_0,
+    #   post_cov = post_cov,
+    #   pen_diag = pen_diag,
+    #   hp_col_names = list_hp_0,
+    #   output_ids = output_ids_vector,
+    #   method = "L-BFGS-B",
+    #   control = list(factr = 1e13, maxit = 25)
+    # )$par %>%
+    #   tibble::as_tibble_row()
+
+    new_hp_0 <- old_hp_0
+
   } else {
     # Single output case
     # Optimise hyper-parameters of the mean process
-    old_hp_0 <- old_hp_0 %>%
-      dplyr::select(-Output_ID) %>%
-      as.numeric()
+    # old_hp_0 <- old_hp_0 %>%
+    #   dplyr::select(-Output_ID) %>%
+    #   as.numeric()
+    #
+    # list_hp_0 <- list_hp_0[list_hp_0 != "Output_ID"]
+    #
+    # new_hp_0 <- stats::optim(
+    #   par = old_hp_0,
+    #   fn = logL_GP_mod,
+    #   gr = gr_GP_mod,
+    #   db = post_mean,
+    #   mean = m_0,
+    #   kern = kern_0,
+    #   post_cov = post_cov,
+    #   pen_diag = pen_diag,
+    #   hp_col_names = list_hp_0,
+    #   output_ids = output_ids_vector,
+    #   method = "L-BFGS-B",
+    #   control = list(factr = 1e13, maxit = 25)
+    # )$par %>% setNames(list_hp_0) %>%
+    #   tibble::as_tibble_row()
+    #
+    # # To give the right format of HPs to the next E-step
+    # new_hp_0$Output_ID <- "1"
 
-    list_hp_0 <- list_hp_0[list_hp_0 != "Output_ID"]
-
-    new_hp_0 <- stats::optim(
-      par = old_hp_0,
-      fn = logL_GP_mod,
-      gr = gr_GP_mod,
-      db = post_mean,
-      mean = m_0,
-      kern = kern_0,
-      post_cov = post_cov,
-      pen_diag = pen_diag,
-      hp_col_names = list_hp_0,
-      output_ids = output_ids_vector,
-      method = "L-BFGS-B",
-      control = list(factr = 1e13, maxit = 25)
-    )$par %>% setNames(list_hp_0) %>%
-      tibble::as_tibble_row()
-
-    # To give the right format of HPs to the next E-step
-    new_hp_0$Output_ID <- "1"
+    new_hp_0 <- old_hp_0
   }
 
   # =================================================================== #

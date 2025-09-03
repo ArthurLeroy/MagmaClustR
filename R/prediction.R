@@ -413,8 +413,8 @@ pred_gp <- function(data = NULL,
 #' @param hp_0 A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_0}. Recovered from \code{trained_model} if not
 #'    provided.
-#' @param hp_i A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}. Recovered from \code{trained_model} if not
+#' @param hp_t A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_t}. Recovered from \code{trained_model} if not
 #'    provided.
 #' @param kern_0 A kernel function, associated with the mean GP.
 #'    Several popular kernels
@@ -433,7 +433,7 @@ pred_gp <- function(data = NULL,
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not). Recovered from
 #'    \code{trained_model} if not provided.
-#' @param kern_i A kernel function, associated with the individual GPs. ("SE",
+#' @param kern_t A kernel function, associated with the task GPs. ("SE",
 #'    "PERIO" and "RQ" are aso available here). Recovered from
 #'    \code{trained_model} if not provided.
 #' @param prior_mean Hyper-prior mean parameter of the mean GP. This argument,
@@ -449,7 +449,8 @@ pred_gp <- function(data = NULL,
 #'     argument.
 #' @param grid_inputs A vector or a data frame, indicating the grid of
 #'    additional reference inputs on which the mean process' hyper-posterior
-#'    should be evaluated.
+#'    should be evaluated. If grid_inputs is a data frame, it should contain 3
+#'    mandatory columns : 'Input_ID', 'Input' and 'Output_ID'.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
@@ -473,107 +474,167 @@ pred_gp <- function(data = NULL,
 hyperposterior <- function(trained_model = NULL,
                            data = NULL,
                            hp_0 = NULL,
-                           hp_i = NULL,
+                           hp_t = NULL,
                            kern_0 = NULL,
-                           kern_i = NULL,
+                           kern_t = NULL,
                            prior_mean = NULL,
                            grid_inputs = NULL,
                            pen_diag = 1e-10) {
+  # browser()
   ## Check whether a model trained by train_magma() is provided
   if(trained_model %>% is.null()){
     ## Check whether all mandatory arguments are present otherwise
-    if(is.null(data)|is.null(hp_0)|is.null(hp_i)|
-       is.null(kern_0)|is.null(kern_i)){
+    if(is.null(data)|is.null(hp_0)|is.null(hp_t)|
+       is.null(kern_0)|is.null(kern_t)){
       stop(
         "If no 'trained_model' argument is provided, the arguments 'data', ",
-        "'hp_0', 'hp_i' 'kern_0', and 'kern_i' are all required."
+        "'hp_0', 'hp_t' 'kern_0', and 'kern_t' are all required."
       )
-      }
+    }
   } else {
     ## For each argument, retrieve the value from 'trained_model' if missing
     if(data %>% is.null()){data = trained_model$ini_args$data}
     if(hp_0 %>% is.null()){hp_0 = trained_model$hp_0}
-    if(hp_i %>% is.null()){hp_i = trained_model$hp_i}
-    if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_0}
-    if(kern_i %>% is.null()){kern_i = trained_model$ini_args$kern_i}
+    if(hp_t %>% is.null()){hp_t = trained_model$hp_t}
+    if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_t}
+    if(kern_t %>% is.null()){kern_t = trained_model$ini_args$kern_t}
     if(prior_mean %>% is.null()){prior_mean = trained_model$ini_args$prior_mean}
+  }
+
+  ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+  # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
+  # In other words, inputs are no longer in "short" format; instead, we have one
+  # column per input.
+  data <- data %>%
+    pivot_wider(
+      names_from = Input_ID,
+      values_from = Input,
+      names_prefix = "Input_"
+    ) %>%
+    # Keep 6 significant digits for Inputs to avoid numerical issues
+    mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+    rowwise() %>%
+    mutate(
+      Reference = paste(
+        # Create output's prefix
+        paste0("o", Output_ID),
+        # Create the reference for each Output_ID
+        paste(c_across(starts_with("Input_")), collapse = ":"),
+        # Join output's prefix and reference
+        sep = ";"
+      )
+    ) %>%
+    ungroup()
+
+  ## Check that tasks do not have duplicate inputs for each output
+  task_duplicates <- data %>%
+    count(Task_ID, Reference) %>%
+    filter(n > 1)
+
+  if (nrow(task_duplicates) > 0) {
+    stop("Error: At least one task has duplicates, i.e. several 'Output' values",
+         " for the same 'Output_ID'.")
   }
 
   ## Get input column names
   if (!("Reference" %in% (names(data)))) {
     names_col <- data %>%
-      dplyr::select(- c(.data$ID, .data$Output)) %>%
+      dplyr::select(- c(Task_ID, Output_ID, Output)) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(- c(.data$ID, .data$Output, .data$Reference)) %>%
+      dplyr::select(- c(Task_ID,  Output_ID, Output, Reference)) %>%
       names()
   }
 
-  ## Keep 6 significant digits for entries to avoid numerical errors and
-  ## Add Reference column if missing
-  data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep = ":",
-                 remove = FALSE) %>%
-    tidyr::drop_na() %>%
-    dplyr::group_by(.data$ID) %>%
-    dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
-    dplyr::ungroup()
-
   if (grid_inputs %>% is.null()) {
-    ## Define the union of all reference Inputs in the dataset
+    ## Extract the union of all reference inputs provided in the training data
     all_inputs <- data %>%
-      dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
-      dplyr::arrange(.data$Reference) %>%
+      dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
       unique()
-    all_input <- all_inputs %>% dplyr::pull(.data$Reference)
+
+    all_input <- all_inputs %>%
+      dplyr::arrange(Reference) %>%
+      dplyr::pull(Reference)
     cat(
       "The argument 'grid_inputs' is NULL, the hyper-posterior distribution",
       "will only be evaluated on observed Input from 'data'.\n \n"
     )
-  } else {
 
-    ## If 'grid_input' is a vector, convert to the correct format
+  } else {
+    ## If 'grid_input' is a vector, convert it to the correct format. We suppose
+    ## that the vector form is only used when the user works with single input
+    ## single output
     if(grid_inputs %>% is.vector()){
-      grid_inputs <- tibble::tibble('Input' = grid_inputs)
+      grid_inputs <- tibble::tibble('Input' = grid_inputs,
+                                    'Input_ID' = rep("1", length(grid_inputs)),
+                                    'Output_ID' = rep("1", length(grid_inputs)))
     }
 
     ## Define the union among all reference Inputs and a specified grid
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_col),
-                   sep = ":",
-                   remove = FALSE) %>%
-      dplyr::arrange(.data$Reference)
+      group_by(Input_ID) %>%
+      mutate(id_ligne = row_number()) %>%
+      ungroup() %>%
+      pivot_wider(
+        names_from = Input_ID,
+        values_from = Input,
+        names_prefix = "Input_"
+      ) %>%
+      dplyr::select(-id_ligne) %>%
+      # Keep 6 significant digits for Inputs to avoid numerical issues
+      mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+      rowwise() %>%
+      mutate(
+        Reference = paste(
+          # Create output's prefix
+          paste0("o", Output_ID),
+          # Create the reference for each Output_ID
+          paste(c_across(starts_with("Input_")), collapse = ":"),
+          # Join output's prefix and reference
+          sep = ";"
+        )
+      ) %>%
+      dplyr::select(-Output_ID)
 
     all_inputs <- data %>%
-      dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
+      dplyr::select(Reference, tidyselect::all_of(names_col)) %>%
       dplyr::union(grid_inputs) %>%
       unique() %>%
-      dplyr::arrange(.data$Reference)
+      dplyr::arrange(Reference)
 
-    all_input <- all_inputs %>% dplyr::pull(.data$Reference)
+    all_input <- all_inputs %>% dplyr::pull(Reference)
   }
 
   ## Initialise m_0 according to the value provided by the user
   if (prior_mean %>% is.null()) {
     m_0 <- rep(0, length(all_input))
     cat(
-      "The 'prior_mean' argument has not been specified. The hyper-prior mean",
-      "function is thus set to be 0 everywhere.\n \n"
+      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+      "function is thus set to be 0 everywhere for all outputs.\n \n"
     )
   } else if (prior_mean %>% is.vector()) {
+
     if (length(prior_mean) == length(all_input)) {
       m_0 <- prior_mean
-    } else if (length(prior_mean) == 1) {
-      m_0 <- rep(prior_mean, length(all_input))
+    } else if (length(prior_mean) == length(data$Output_ID %>% unique())) {
+      # Get the unique and sorted Output_IDs
+      unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
+
+      # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
+      # This assumes the prior_mean vector is provided in the sorted order of
+      # Output_IDs.
+      prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
+
+      # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      all_input_prefixes <- str_extract(all_input, "o[0-9]+")
+
+      # Build m_0 using the lookup table; it will automatically repeat the correct
+      # value for each prefix.
+      m_0 <- prior_mean_map[all_input_prefixes] %>% unname()
+
       cat(
-        "The provided 'prior_mean' argument is of length 1. Thus, the",
-        "hyper-prior mean function has set to be constant everywhere.\n \n"
+        "A constant hyper_prior mean has been set for each output.\n \n"
       )
     } else {
       stop(
@@ -582,35 +643,11 @@ hyperposterior <- function(trained_model = NULL,
         length(all_input)
       )
     }
+
   } else if (prior_mean %>% is.function()) {
     m_0 <- prior_mean(all_inputs %>%
                         dplyr::select(-.data$Reference)
     )
-  } else if (prior_mean %>% is.data.frame()) {
-    if (all(c(tidyselect::all_of(names_col),"Output") %in% names(prior_mean))) {
-      m_0 <- prior_mean %>%
-        purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-        tidyr::unite("Reference",
-                     tidyselect::all_of(names_col),
-                     sep = ":",
-                     remove = FALSE) %>%
-        dplyr::filter(.data$Reference %in% all_input) %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::pull(.data$Output)
-
-      if (length(m_0) != length(all_input)) {
-        stop(
-          "Problem in the length of the hyper-prior mean parameter. The ",
-          "'prior_mean' argument should provide an Output value for each  ",
-          "Input value appearing in the training data and in grid_inputs."
-        )
-      }
-    } else {
-      stop(
-        "If the 'prior_mean' argument is provided as a data frame, it ",
-        "should contain the mandatory column names: 'Output', 'Input'"
-      )
-    }
   } else {
     stop(
       "Incorrect format for the 'prior_mean' argument. Please read ",
@@ -618,47 +655,106 @@ hyperposterior <- function(trained_model = NULL,
     )
   }
 
+
   ## Certify that IDs are of type 'character'
-  data$ID <- data$ID %>% as.character()
-  ## Compute all the inverse covariance matrices
-  inv_0 <- kern_to_inv(all_inputs, kern_0, hp_0, pen_diag)
-  list_inv_i <- list_kern_to_inv(data, kern_i, hp_i, pen_diag)
-  ## Create a named list of Output values for all individuals
-  list_output_i <- base::split(data$Output, list(data$ID))
+  data$Task_ID <- data$Task_ID %>% as.character()
 
-  ## Update the posterior inverse covariance ##
-  post_inv <- inv_0
-  for (inv_i in list_inv_i)
-  {
-    ## Collect the input's common indices between mean and individual processes
-    co_input <- intersect(row.names(inv_i), row.names(post_inv))
-    ## Sum the common inverse covariance's terms
-    post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
-      inv_i[co_input, co_input]
+  ## Compute the inverse covariance of the mean process
+  # inv_0 <- ini_inverse_prior_cov(db, kern_0, hp_0, pen_diag)
+  inv_0 <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
+    `rownames<-`(all_inputs$Reference) %>%
+    `colnames<-`(all_inputs$Reference)
+
+  list_inv_t <- list()
+  list_ID_task <- unique(data$Task_ID)
+
+  list_output_ID <-  data$Output_ID %>% unique()
+
+  # For each task, compute its full multi-output inverse covariance matrix
+  for (t in list_ID_task) {
+    # browser()
+    # Isolate the data and HPs for the current task
+    db_t <- data %>% dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-c(Output, Task_ID))
+    hp_t_indiv <- hp_t %>% dplyr::filter(Task_ID == t)
+
+    if(length(list_output_ID) > 1){
+      # Call kern_to_cov directly.
+      # It will handle the multi-output structure and the noise addition internally.
+      # 'kern_t' is expected to be the 'convolution_kernel' function.
+      K_task_t <- kern_to_cov(
+        input = db_t,
+        kern = kern_t,
+        hp = hp_t_indiv
+      )
+    } else{
+      # Extract all_inputs to call kern_to_cov() on the single output case
+      all_inputs_t <- data %>%
+        dplyr::filter(Task_ID == t) %>%
+        dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
+        unique() %>%
+        dplyr::arrange(Reference)
+
+      K_task_t <- kern_to_cov(
+        input = all_inputs_t,
+        kern = kern_t,
+        hp = hp_t_indiv
+      )
+    }
+
+    # Store the correct row/column names before they are lost during inversion
+    task_references <- rownames(K_task_t)
+
+    # Invert the covariance matrix (this strips the names)
+    K_inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
+    # paste0('Det de K_inv_t, avec t = ', t, ' : ', det(K_inv_t))
+
+    # Re-apply the stored names to the inverted matrix
+    dimnames(K_inv_t) <- list(task_references, task_references)
+
+    # Add the inverted matrix to the list
+    # The rownames are already correctly set by kern_to_cov
+    list_inv_t[[t]] <- K_inv_t
   }
-  ##############################################
 
-  ## Update the posterior mean ##
-  weighted_0 <- inv_0 %*% m_0
+  ## Update the posterior distribution
+  # Create a named list of output values, split by task
+  list_output_t <- base::split(data$Output, list(data$Task_ID))
 
-  for (i in names(list_inv_i))
-  {
-    ## Compute the weighted mean for the i-th individual
-    weighted_i <- list_inv_i[[i]] %*% list_output_i[[i]]
-    ## Collect the input's common indices between mean and individual processes
-    co_input <- intersect(row.names(weighted_i), row.names(weighted_0))
-    ## Sum the common weighted mean terms
-    weighted_0[co_input, ] <- weighted_0[co_input, ] +
-      weighted_i[co_input, ]
+  ##--------------- Update Posterior Inverse Covariance ---------------##
+  post_inv <- inv_0
+  for (inv_t in list_inv_t) {
+    # browser()
+    # Find the common input points between the mean process and the current task
+    co_input <- intersect(row.names(inv_t), row.names(post_inv))
+
+    # Add the task's contribution to the posterior inverse covariance
+    post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
+      inv_t[co_input, co_input]
   }
 
   post_cov <- post_inv %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
-    `rownames<-`(all_input) %>%
-    `colnames<-`(all_input)
-  ## Compute the updated mean parameter
+    `rownames<-`(all_inputs %>% dplyr::pull(.data$Reference)) %>%
+    `colnames<-`(all_inputs %>% dplyr::pull(.data$Reference))
+
+  ##--------------------- Update Posterior Mean ---------------------##
+  weighted_0 <- inv_0 %*% m_0
+
+  for (t in names(list_inv_t)) {
+    # Compute the weighted mean for the t-th task
+    weighted_t <- list_inv_t[[t]] %*% list_output_t[[t]]
+
+    # Find the common input points between the mean process and the current task
+    co_input <- intersect(row.names(weighted_t), row.names(weighted_0))
+
+    # Add the task's contribution to the posterior weighted mean
+    weighted_0[co_input, ] <- weighted_0[co_input, ] +
+      weighted_t[co_input, ]
+  }
+
+  # Compute the final posterior mean
   post_mean <- post_cov %*% weighted_0 %>% as.vector()
-  ##############################################
 
   ## Format the mean parameter of the hyper-posterior distribution
   mean <- tibble::tibble(all_inputs,
@@ -670,7 +766,7 @@ hyperposterior <- function(trained_model = NULL,
                          "Mean" = post_mean,
                          "Var" = post_cov %>% diag() %>% as.vector()
   ) %>%
-    dplyr::select(- .data$Reference)
+    dplyr::select(-Reference)
 
   list(
     "mean" = mean,
