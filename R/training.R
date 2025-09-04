@@ -182,15 +182,15 @@ train_magma <- function(data,
   # In other words, inputs are no longer in "short" format; instead, we have one
   # column per input.
   data <- data %>%
-    pivot_wider(
+    tidyr::pivot_wider(
       names_from = Input_ID,
       values_from = Input,
       names_prefix = "Input_"
     ) %>%
     # Keep 6 significant digits for Inputs to avoid numerical issues
-    mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+    dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
     rowwise() %>%
-    mutate(
+    dplyr::mutate(
       Reference = paste(
         # Create output's prefix
         paste0("o", Output_ID),
@@ -200,7 +200,7 @@ train_magma <- function(data,
         sep = ";"
       )
     ) %>%
-    ungroup()
+    dplyr::ungroup()
 
   ## Check that tasks do not have duplicate inputs for each output
   task_duplicates <- data %>%
@@ -432,19 +432,86 @@ train_magma <- function(data,
   logL_monitoring <- -Inf
   seq_loglikelihood <- c()
 
-  ########### FIN TRAIN_MAGMA() ###########
+  browser()
+
   for (i in 1:n_iter_max){
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
-    # E-step of Magma
-    post <- e_step(db = data,
-                   m_0 = m_0,
-                   kern_0 = kern_0,
-                   kern_t = kern_t,
-                   hp_0 = hp_0,
-                   hp_t = hp_t,
-                   pen_diag = pen_diag)
+    if(i == 1){
+
+      hp_0t <-  hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
+      cov_0 <- kern_to_cov(
+        input = data %>%
+          distinct(Output_ID, Reference, .keep_all = TRUE) %>%
+          dplyr::select(-c(Task_ID, Output)),
+        kern = kern_t,
+        hp = hp_0t,
+      )
+      inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
+        `rownames<-` (all_inputs$Reference) %>%
+        `colnames<-` (all_inputs$Reference)
+
+      # M-step of Magma
+      new_hp <- m_step(db = data,
+                       m_0 = m_0,
+                       kern_0 = kern_0,
+                       kern_t = kern_t,
+                       old_hp_0 = hp_0,
+                       old_hp_t = hp_t,
+                       post_mean = m_0,
+                       post_cov = inv_0,
+                       shared_hp_tasks = shared_hp_tasks,
+                       pen_diag = pen_diag
+      )
+
+      new_hp_0 <- new_hp$hp_0
+      new_hp_t <- new_hp$hp_t
+
+      print(new_hp_0)
+      print(new_hp_t)
+
+      # E-step of Magma
+      post <- e_step(db = data,
+                     m_0 = m_0,
+                     kern_0 = kern_0,
+                     kern_t = kern_t,
+                     hp_0 = hp_0,
+                     hp_t = hp_t,
+                     pen_diag = pen_diag)
+    } else {
+      # E-step of Magma
+      post <- e_step(db = data,
+                     m_0 = m_0,
+                     kern_0 = kern_0,
+                     kern_t = kern_t,
+                     hp_0 = hp_0,
+                     hp_t = hp_t,
+                     pen_diag = pen_diag)
+
+      # M-step of Magma
+      new_hp <- m_step(db = data,
+                       m_0 = m_0,
+                       kern_0 = kern_0,
+                       kern_t = kern_t,
+                       old_hp_0 = hp_0,
+                       old_hp_t = hp_t,
+                       post_mean = post$mean,
+                       post_cov = post$cov,
+                       shared_hp_tasks = shared_hp_tasks,
+                       pen_diag = pen_diag
+      )
+
+      new_hp_0 <- new_hp$hp_0
+      new_hp_t <- new_hp$hp_t
+
+      print(new_hp_0)
+      print(new_hp_t)
+
+
+    }
+
+
 
     ########### GRAPH DE CONTROLE MU0 ###########
     tib_mean_prep <- post$mean %>%
@@ -499,25 +566,6 @@ train_magma <- function(data,
       cv <- FALSE
       break
     }
-
-    # M-step of Magma
-    new_hp <- m_step(db = data,
-                     m_0 = m_0,
-                     kern_0 = kern_0,
-                     kern_t = kern_t,
-                     old_hp_0 = hp_0,
-                     old_hp_t = hp_t,
-                     post_mean = post$mean,
-                     post_cov = post$cov,
-                     shared_hp_tasks = shared_hp_tasks,
-                     pen_diag = pen_diag
-    )
-
-    new_hp_0 <- new_hp$hp_0
-    new_hp_t <- new_hp$hp_t
-
-    print(new_hp_0)
-    print(new_hp_t)
 
 
     ## In case something went wrong during the optimization
@@ -624,7 +672,7 @@ train_magma <- function(data,
 
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
-    "data" = data %>% dplyr::select(-Reference),
+    "data" = raw_data,
     "prior_mean" = prior_mean,
     "ini_hp_0" = hp_0_ini,
     "ini_hp_t" = hp_t_ini,

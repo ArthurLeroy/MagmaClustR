@@ -573,19 +573,19 @@ hyperposterior <- function(trained_model = NULL,
 
     ## Define the union among all reference Inputs and a specified grid
     grid_inputs <- grid_inputs %>%
-      group_by(Input_ID) %>%
-      mutate(id_ligne = row_number()) %>%
-      ungroup() %>%
-      pivot_wider(
+      dplyr::group_by(Input_ID) %>%
+      dplyr::mutate(id_ligne = dplyr::row_number()) %>%
+      dplyr::ungroup() %>%
+      tidyr::pivot_wider(
         names_from = Input_ID,
         values_from = Input,
         names_prefix = "Input_"
       ) %>%
       dplyr::select(-id_ligne) %>%
       # Keep 6 significant digits for Inputs to avoid numerical issues
-      mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+      dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
       rowwise() %>%
-      mutate(
+      dplyr::mutate(
         Reference = paste(
           # Create output's prefix
           paste0("o", Output_ID),
@@ -594,11 +594,10 @@ hyperposterior <- function(trained_model = NULL,
           # Join output's prefix and reference
           sep = ";"
         )
-      ) %>%
-      dplyr::select(-Output_ID)
+      )
 
     all_inputs <- data %>%
-      dplyr::select(Reference, tidyselect::all_of(names_col)) %>%
+      dplyr::select(Reference, tidyselect::all_of(names_col), Output_ID) %>%
       dplyr::union(grid_inputs) %>%
       unique() %>%
       dplyr::arrange(Reference)
@@ -658,12 +657,20 @@ hyperposterior <- function(trained_model = NULL,
 
   ## Certify that IDs are of type 'character'
   data$Task_ID <- data$Task_ID %>% as.character()
+  all_inputs$Output_ID <- all_inputs$Output_ID %>% as.factor()
 
   ## Compute the inverse covariance of the mean process
   # inv_0 <- ini_inverse_prior_cov(db, kern_0, hp_0, pen_diag)
-  inv_0 <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
-    `rownames<-`(all_inputs$Reference) %>%
-    `colnames<-`(all_inputs$Reference)
+  # ONLY IF HPs ARE SHARED BETWEEN TASKS
+  hp_0t = hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
+  cov_0 <- kern_to_cov(
+    input = all_inputs,
+    kern = kern_t,
+    hp = hp_0t,
+  )
+  inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
+    `rownames<-` (all_inputs$Reference) %>%
+    `colnames<-` (all_inputs$Reference)
 
   list_inv_t <- list()
   list_ID_task <- unique(data$Task_ID)

@@ -303,14 +303,27 @@ logL_monitoring <- function(hp_0,
                             pen_diag) {
 
   ## Compute the modified logL for the mean process
-  ll_0 <- logL_GP_mod(
-    hp = hp_0,
-    db = post_mean,
-    mean = m_0,
-    kern = kern_0,
-    post_cov = post_cov,
-    pen_diag = pen_diag
+  # ll_0 <- 0
+
+  # # ONLY IF HPs ARE SHARED BETWEEN TASKS
+  hp_0t <- hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
+  cov_0 <- kern_to_cov(
+    input = post_mean,
+    kern = kern_t,
+    hp = hp_0t,
   )
+  inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
+    `rownames<-` (post_mean$Reference) %>%
+    `colnames<-` (post_mean$Reference)
+
+  # Compute the log-likelihood components
+  # Classical Gaussian log-likelihood
+  LL_norm <- -dmnorm(post_mean$Output, m_0, inv_0, log = TRUE)
+  # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+  # cor_term <- 0.5 * sum(inv %*% post_cov)
+  cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
+
+  ll_0 <- LL_norm + cor_term
 
   ## Sum over the tasks
   funloop <- function(t) {

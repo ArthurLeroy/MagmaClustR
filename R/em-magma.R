@@ -32,6 +32,8 @@ e_step <- function(db,
                    hp_t,
                    pen_diag) {
   # browser()
+  list_ID_task <- unique(db$Task_ID)
+  list_output_ID <-  db$Output_ID %>% unique()
   # Get the union of all unique input points from the training data
   all_inputs <- db %>%
     dplyr::select(-c(Task_ID, Output)) %>%
@@ -40,14 +42,22 @@ e_step <- function(db,
 
   ## Compute the inverse covariance of the mean process
   # inv_0 <- ini_inverse_prior_cov(db, kern_0, hp_0, pen_diag)
-  inv_0 <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
-    `rownames<-`(all_inputs$Reference) %>%
-    `colnames<-`(all_inputs$Reference)
+  # inv_0 <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
+  #   `rownames<-`(all_inputs$Reference) %>%
+  #   `colnames<-`(all_inputs$Reference)
+
+  # # ONLY IF HPs ARE SHARED BETWEEN TASKS
+  hp_0t <-  hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
+  cov_0 <- kern_to_cov(
+    input = all_inputs,
+    kern = kern_t,
+    hp = hp_0t,
+  )
+  inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
+    `rownames<-` (all_inputs$Reference) %>%
+    `colnames<-` (all_inputs$Reference)
 
   list_inv_t <- list()
-  list_ID_task <- unique(db$Task_ID)
-
-  list_output_ID <-  db$Output_ID %>% unique()
 
   # For each task, compute its full multi-output inverse covariance matrix
   for (t in list_ID_task) {
@@ -72,7 +82,7 @@ e_step <- function(db,
 
       hp_t_indiv <- hp_t_indiv %>% dplyr::select(-c(Task_ID, Output_ID))
 
-      inv_t <- kern_to_cov(
+      K_task_t <- kern_to_cov(
         input = db_t,
         kern = kern_t,
         hp = hp_t_indiv
@@ -185,7 +195,7 @@ m_step <- function(db,
                    post_cov,
                    shared_hp_tasks,
                    pen_diag) {
-  # browser()
+  browser()
 
   list_hp_0 <- old_hp_0 %>% names()
   list_ID_task <- unique(db$Task_ID)

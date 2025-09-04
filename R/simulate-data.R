@@ -364,6 +364,7 @@ generate_mean_process <- function(
     shared_grid_outputs,
     shared_hp_outputs
 ) {
+  # browser()
   num_outputs <- length(points_per_output)
 
   if (length(grid_ranges) != num_outputs) {
@@ -400,10 +401,39 @@ generate_mean_process <- function(
   }
   X_unlist <- unlist(grid_list)
 
-  # STEP 2: Define the GP's prior mean function, m_0(.)
-  a <- runif(1, -0.5, 2)
-  b <- runif(1, 0, 10)
-  m0_mean_function <- a * X_unlist + b
+  # # STEP 2: Define the GP's prior mean function, m_0(.)
+  # a <- runif(1, -0.5, 2)
+  # b <- runif(1, 0, 10)
+  # m0_mean_function <- a * X_unlist + b
+
+  # STEP 2: Define the GP's prior mean function, m_0(.), with different
+  # coefficients for each output.
+
+  # 1. Définissez des vecteurs pour les bornes min et max de chaque intervalle
+  a_mins <- c(-0.5, 2)
+  a_maxs <- c(0, 3)
+
+  # 2. Utilisez map2_dbl pour générer un coefficient 'a' pour chaque intervalle
+  #    Le premier a_coeff sera tiré dans [-0.5, 0]
+  #    Le second a_coeff sera tiré dans [5.0, 10.0]
+  a_coeffs <- map2_dbl(a_mins, a_maxs, ~runif(1, .x, .y))
+
+  # Le reste de votre code reste inchangé
+  b_coeffs <- runif(num_outputs, -10, 10)
+
+  # Use pmap to iterate over the grids, 'a' coefficients, and 'b' coefficients
+  # simultaneously. This creates a list where each element is the mean vector
+  # for the corresponding output.
+  mean_list <- purrr::pmap(
+    .l = list(grid = grid_list, a = a_coeffs, b = b_coeffs),
+    .f = function(grid, a, b) {
+      a * grid + b
+    }
+  )
+
+  # Unlist to create a single mean vector, preserving the order of the outputs.
+  # This vector will now correctly align with the block-diagonal covariance matrix.
+  m0_mean_function <- unlist(mean_list)
 
   # STEP 3: Draw hyper-parameters for the mean process's GP covariance
   if (shared_hp_outputs) {
@@ -539,18 +569,18 @@ simulate_multi_output_data <- function(
     points_per_output_grid = c(500, 150),
     grid_ranges = list(c(0, 10), c(0, 10)),
     hp_config_mean_process = tibble::tibble(
-      output_id = 1:2, l0_min = c(-2, -2), l0_max = c(-2, -2),
-      s0_min = c(1, 1), s0_max = c(1, 1)
+      output_id = 1:2, l0_min = c(-3, -0.5), l0_max = c(-1, 3),
+      s0_min = c(-3, -0.1), s0_max = c(-1, 1)
     ),
     hp_config_tasks = tibble::tibble(
-      output_id = 1:2, lt_min = c(-2, -2), lt_max = c(-2, -2),
-      St_min = c(-1, -1), St_max = c(-1, -1),
-      noise_min = c(-5, -5), noise_max = c(-5, -5),
-      lu_min = c(-2, -2), lu_max = c(-2, -2)
+      output_id = 1:2, lt_min = c(-3, -0.5), lt_max = c(-1, 3),
+      St_min = c(-3, -0.1), St_max = c(-1, 1),
+      noise_min = c(-5, -2), noise_max = c(-3, 0),
+      lu_min = c(-2, -2), lu_max = c(2, 2)
     ),
     n_points_per_task_range = c(5, 20),
     shared_hp_tasks = FALSE,
-    shared_hp_outputs = TRUE, # <<< ARGUMENT UNIQUE
+    shared_hp_outputs = FALSE, # <<< ARGUMENT UNIQUE
     shared_grid_outputs = FALSE,
     seed = 456
 ) {
@@ -564,7 +594,7 @@ simulate_multi_output_data <- function(
     shared_grid_outputs = shared_grid_outputs,
     shared_hp_outputs = shared_hp_outputs
   )
-  browser()
+  # browser()
 
   # === STEP 2: generate HPs for all tasks simultaneously ===
   cat("Generating hyperparameters for all tasks...\n")
@@ -611,7 +641,11 @@ simulate_multi_output_data <- function(
 
   return(list(
     simulated_data_df = simulated_data_df,
-    mean_process_df = mean_process_df
+    mean_process_df = mean_process_df,
+    hyperparameters = list(
+      mean_process = mean_process_info,
+      tasks = all_tasks_hps
+    )
   ))
 }
 
