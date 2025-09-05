@@ -774,7 +774,6 @@ pred_magma <- function(data = NULL,
                        get_full_cov = FALSE,
                        plot = TRUE,
                        pen_diag = 1e-10) {
-
   ## Return the mean process if no data is provided
   if(data %>% is.null()){
     ## Check whether trained_model is provided
@@ -790,27 +789,21 @@ pred_magma <- function(data = NULL,
         hyperpost = trained_model$hyperpost
 
       } else{
+
         ## Recompute the mean process at the required inputs if necessary
         hyperpost = hyperposterior(
           trained_model = trained_model,
           grid_inputs = grid_inputs
           )
 
-        ## Retain only grid_inputs for dispplay purposes
-        hyperpost$pred = grid_inputs %>%
-          purrr::modify_at(tidyselect::all_of(names(grid_inputs)), signif) %>%
-          dplyr::inner_join(hyperpost$pred, by = names(grid_inputs))
       }
-
-      pred = hyperpost$pred
-
       ## Display the graph of the prediction if expected
       if (plot) {
 
         data_train <- trained_model$ini_args$data
 
         ## Add 'cov' to display samples
-        res <- list("pred" = pred)
+        res <- list("pred" = hyperpost$pred)
         res[["cov"]] <- hyperpost$cov
 
         ## Display samples only in 1D and Credible Interval otherwise
@@ -1834,14 +1827,6 @@ pred_magmaclust <- function(data = NULL,
           trained_model = trained_model,
           grid_inputs = grid_inputs
         )
-
-        ## Retain only grid_inputs for dispplay purposes
-        for(k in names(hyperpost$pred))
-        {
-          hyperpost$pred[[k]] = grid_inputs %>%
-            purrr::modify_at(tidyselect::all_of(names(grid_inputs)), signif) %>%
-            dplyr::inner_join(hyperpost$pred[[k]], by = names(grid_inputs))
-        }
       }
 
       names_k = hyperpost$pred %>% names()

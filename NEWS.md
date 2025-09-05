@@ -4,7 +4,9 @@
 
 ## Minor
 
-* Fix issues when plotting in 2D mean process predictions 
+* Fix a bug when plotting in 2D mean process predictions
+* Fix a few bugs when using pred_*() functions with argument data = NULL
+* Simplify and improve visualisation with plot_db() and export it for users
 
 # MagmaClustR 1.2.1
 

@@ -1,59 +1,35 @@
 #' Plot smoothed curves of raw data
 #'
-#' Display raw data under the Magma format as smoothed curves.
+#' Display raw data under the Magma format as points and lines.
 #'
 #' @param data A data frame or tibble with format : ID, Input, Output.
-#' @param cluster A boolean indicating whether data should be coloured by
-#'   cluster. Requires a column named 'Cluster'.
 #' @param legend A boolean indicating whether the legend should be displayed.
 #'
-#' @return Graph of smoothed curves of raw data.
+#' @return Graph of the raw data.
+#'
+#' @export
 #'
 #' @examples
-#' TRUE
-plot_db <- function(data, cluster = FALSE, legend = FALSE) {
-  ## Convert Cluster into factors for a better display
+#' ## Generate a synthetic dataset
+#' db = simu_db()
+#' ## Plot the raw data
+#' plot_db(db)
+plot_db <- function(data, legend = FALSE) {
+  ## Convert ID into factors for a better display
   data$ID <- as.factor(data$ID)
-  if (cluster) {
-    ## Add a dummy column 'Cluster' if absent
-    if (!("Cluster" %in% names(data))) {
-      data$Cluster <- 1
-    }
-    ## Convert Cluster into factors for a better display
-    data$Cluster <- as.factor(data$Cluster)
+  gg <- ggplot2::ggplot(data) +
+    ggplot2::geom_line(ggplot2::aes(
+      x = .data$Input,
+      y = .data$Output,
+      color = .data$ID)
+    ) +
+    ggplot2::geom_point(ggplot2::aes(
+      x = .data$Input,
+      y = .data$Output,
+      color = .data$ID
+    )) +
+    ggplot2::theme_classic()
 
-    gg <- ggplot2::ggplot(data) +
-      ggplot2::geom_smooth(ggplot2::aes(
-        x = .data$Input,
-        y = .data$Output,
-        group = .data$ID,
-        color = .data$Cluster
-      ),
-      se = F
-      ) +
-      ggplot2::geom_point(ggplot2::aes(
-        x = .data$Input,
-        y = .data$Output,
-        group = .data$ID,
-        color = .data$Cluster
-      )) +
-      ggplot2::theme_classic()
-  } else {
-    gg <- ggplot2::ggplot(data) +
-      ggplot2::geom_smooth(ggplot2::aes(
-        x = .data$Input,
-        y = .data$Output,
-        color = .data$ID
-      ),
-      se = F
-      ) +
-      ggplot2::geom_point(ggplot2::aes(
-        x = .data$Input,
-        y = .data$Output,
-        color = .data$ID
-      )) +
-      ggplot2::theme_classic()
-  }
   if (!legend) {
     gg <- gg + ggplot2::guides(color = "none")
   }
