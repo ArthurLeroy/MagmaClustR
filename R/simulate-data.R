@@ -416,7 +416,7 @@ generate_mean_process <- function(
   # 2. Utilisez map2_dbl pour générer un coefficient 'a' pour chaque intervalle
   #    Le premier a_coeff sera tiré dans [-0.5, 0]
   #    Le second a_coeff sera tiré dans [5.0, 10.0]
-  a_coeffs <- map2_dbl(a_mins, a_maxs, ~runif(1, .x, .y))
+  a_coeffs <- purrr::map2_dbl(a_mins, a_maxs, ~runif(1, .x, .y))
 
   # Le reste de votre code reste inchangé
   b_coeffs <- runif(num_outputs, -10, 10)
@@ -569,14 +569,14 @@ simulate_multi_output_data <- function(
     points_per_output_grid = c(500, 150),
     grid_ranges = list(c(0, 10), c(0, 10)),
     hp_config_mean_process = tibble::tibble(
-      output_id = 1:2, l0_min = c(-3, -0.5), l0_max = c(-1, 3),
-      s0_min = c(-3, -0.1), s0_max = c(-1, 1)
+      output_id = 1:2, l0_min = c(-3, -3), l0_max = c(3, 3),
+      s0_min = c(-3, -3), s0_max = c(3, 3)
     ),
     hp_config_tasks = tibble::tibble(
-      output_id = 1:2, lt_min = c(-3, -0.5), lt_max = c(-1, 3),
-      St_min = c(-3, -0.1), St_max = c(-1, 1),
-      noise_min = c(-5, -2), noise_max = c(-3, 0),
-      lu_min = c(-2, -2), lu_max = c(2, 2)
+      output_id = 1:2, lt_min = c(-3, -3), lt_max = c(3, 3),
+      St_min = c(-3, -3), St_max = c(3, 3),
+      noise_min = c(-3, -3), noise_max = c(3, 3),
+      lu_min = c(-3, -3), lu_max = c(3, 3)
     ),
     n_points_per_task_range = c(5, 20),
     shared_hp_tasks = FALSE,

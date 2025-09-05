@@ -423,15 +423,15 @@ kern_to_cov <- function(input,
               stop(paste("'Noise' parameter not found for Output_ID :", id))
             }
 
-            block_matrix <- diag(nrow(subset_input)) %>%
-              `rownames<-` (subset_input$Input_1) %>%
-              `colnames<-` (subset_input$Input_1)
+            # block_matrix <- diag(nrow(subset_input)) %>%
+            #   `rownames<-` (subset_input$Input_1) %>%
+            #   `colnames<-` (subset_input$Input_1)
 
-            # block_matrix <- cpp_noise(
-            #   as.matrix(select(subset_input, -Output_ID)),
-            #   as.matrix(select(subset_input_2, -Output_ID)),
-            #   current_noise_hp
-            # )
+            block_matrix <- cpp_noise(
+              as.matrix(select(subset_input, -Output_ID)),
+              as.matrix(select(subset_input_2, -Output_ID)),
+              current_noise_hp
+            )
           } else {
             # Sinon, la dérivée est nulle. On crée un bloc de zéros
             # de la bonne dimension.
@@ -449,13 +449,15 @@ kern_to_cov <- function(input,
 
         # Aggregate blocks into the complete block-diagonal matrix
         mat <- Matrix::bdiag(list_of_blocks)
-        mat <- as.matrix(mat)
+        mat <- as.matrix(mat) %>%
+          `rownames<-`(input$Input_1) %>%
+          `colnames<-` (input_2$Input_1)
 
-        row_names <- do.call(c, lapply(list_of_blocks, rownames))
-        col_names <- do.call(c, lapply(list_of_blocks, colnames))
-
-        # Assigner les noms à la matrice finale
-        dimnames(mat) <- list(row_names, col_names)
+        # row_names <- do.call(c, lapply(list_of_blocks, rownames))
+        # col_names <- do.call(c, lapply(list_of_blocks, colnames))
+#
+#         # Assigner les noms à la matrice finale
+#         dimnames(mat) <- list(row_names, col_names)
 
         return(mat)
       }

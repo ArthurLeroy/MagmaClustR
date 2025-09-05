@@ -232,8 +232,10 @@ logL_GP_mod_shared_tasks <- function(hp,
                                     pen_diag,
                                     hp_col_names,
                                     output_ids) {
+
   # Loop over each task ID to compute and sum its log-likelihood
   funloop <- function(t) {
+    # browser()
     # Extract data specific to task 't'
     db_t <- db %>%
       dplyr::filter(Task_ID == t) %>%
@@ -303,27 +305,28 @@ logL_monitoring <- function(hp_0,
                             pen_diag) {
 
   ## Compute the modified logL for the mean process
-  # ll_0 <- 0
+  ll_0 <- 0
 
-  # # ONLY IF HPs ARE SHARED BETWEEN TASKS
-  hp_0t <- hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
-  cov_0 <- kern_to_cov(
-    input = post_mean,
-    kern = kern_t,
-    hp = hp_0t,
-  )
-  inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
-    `rownames<-` (post_mean$Reference) %>%
-    `colnames<-` (post_mean$Reference)
-
-  # Compute the log-likelihood components
-  # Classical Gaussian log-likelihood
-  LL_norm <- -dmnorm(post_mean$Output, m_0, inv_0, log = TRUE)
-  # Correction trace term (-0.5 * Tr(inv %*% post_cov))
-  # cor_term <- 0.5 * sum(inv %*% post_cov)
-  cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
-
-  ll_0 <- LL_norm + cor_term
+  # # # ONLY IF HPs ARE SHARED BETWEEN TASKS
+  # hp_0t <- hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
+  # cov_0 <- kern_to_cov(
+  #   input = post_mean,
+  #   kern = kern_t,
+  #   hp = hp_0t,
+  # )
+  # inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
+  #   `rownames<-` (post_mean$Reference) %>%
+  #   `colnames<-` (post_mean$Reference)
+  #
+  # # Compute the log-likelihood components
+  # # Classical Gaussian log-likelihood
+  # LL_norm <- -dmnorm(post_mean$Output, m_0, inv_0, log = TRUE)
+  # # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+  # # cor_term <- 0.5 * sum(inv %*% post_cov)
+  # cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
+  #
+  # ll_0 <- LL_norm + cor_term
+  print(paste0('Valeur de ll_0 : ', ll_0))
 
   ## Sum over the tasks
   funloop <- function(t) {
@@ -349,13 +352,14 @@ logL_monitoring <- function(hp_0,
     ]
 
     ## Compute the modified logL for the individual processes
-    logL_GP_mod(hp = hp_t_t,
+    ll_t <- logL_GP_mod(hp = hp_t_t,
                 db = db_t,
                 mean = post_mean_t,
                 kern = kern_t,
                 post_cov = post_cov_t,
-                pen_diag = pen_diag) %>%
-      return()
+                pen_diag = pen_diag)
+    print(paste0('Valeur de ll_t :', ll_t))
+    return(ll_t)
   }
   sum_ll_t <- sapply(unique(db$Task_ID), funloop) %>% sum()
 
@@ -366,6 +370,8 @@ logL_monitoring <- function(hp_0,
     diag() %>%
     log() %>%
     sum()
+
+  print(paste0('Valeur de log(det(post_cov)) : ', det))
 
   ## Since the logL_GP_* functions return negative likelihoods for minimisation
   ## in the M-step, we need to x(-1) once more to retrieve the correct logL

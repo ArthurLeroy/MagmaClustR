@@ -42,20 +42,20 @@ e_step <- function(db,
 
   ## Compute the inverse covariance of the mean process
   # inv_0 <- ini_inverse_prior_cov(db, kern_0, hp_0, pen_diag)
-  # inv_0 <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
-  #   `rownames<-`(all_inputs$Reference) %>%
-  #   `colnames<-`(all_inputs$Reference)
+  inv_0 <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
+    `rownames<-`(all_inputs$Reference) %>%
+    `colnames<-`(all_inputs$Reference)
 
   # # ONLY IF HPs ARE SHARED BETWEEN TASKS
-  hp_0t <-  hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
-  cov_0 <- kern_to_cov(
-    input = all_inputs,
-    kern = kern_t,
-    hp = hp_0t,
-  )
-  inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
-    `rownames<-` (all_inputs$Reference) %>%
-    `colnames<-` (all_inputs$Reference)
+  # hp_0t <-  hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
+  # cov_0 <- kern_to_cov(
+  #   input = all_inputs,
+  #   kern = kern_t,
+  #   hp = hp_0t,
+  # )
+  # inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
+  #   `rownames<-` (all_inputs$Reference) %>%
+  #   `colnames<-` (all_inputs$Reference)
 
   list_inv_t <- list()
 
@@ -195,7 +195,6 @@ m_step <- function(db,
                    post_cov,
                    shared_hp_tasks,
                    pen_diag) {
-  browser()
 
   list_hp_0 <- old_hp_0 %>% names()
   list_ID_task <- unique(db$Task_ID)
