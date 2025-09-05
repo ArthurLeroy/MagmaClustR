@@ -136,6 +136,7 @@ train_magma <- function(data,
                         cv_threshold = 1e-3,
                         fast_approx = FALSE) {
 
+  # browser()
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("Task_ID", "Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
@@ -432,97 +433,31 @@ train_magma <- function(data,
   logL_monitoring <- -Inf
   seq_loglikelihood <- c()
 
-  browser()
+  # browser()
 
   for (i in 1:n_iter_max){
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
-    if(i == 1){
-
-      hp_0t <-  hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
-      cov_0 <- kern_to_cov(
-        input = data %>%
-          distinct(Output_ID, Reference, .keep_all = TRUE) %>%
-          dplyr::select(-c(Task_ID, Output)),
-        kern = kern_t,
-        hp = hp_0t,
-      )
-      inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
-        `rownames<-` (all_inputs$Reference) %>%
-        `colnames<-` (all_inputs$Reference)
-
-      # M-step of Magma
-      new_hp <- m_step(db = data,
-                       m_0 = m_0,
-                       kern_0 = kern_0,
-                       kern_t = kern_t,
-                       old_hp_0 = hp_0,
-                       old_hp_t = hp_t,
-                       post_mean = m_0,
-                       post_cov = inv_0,
-                       shared_hp_tasks = shared_hp_tasks,
-                       pen_diag = pen_diag
-      )
-
-      new_hp_0 <- new_hp$hp_0
-      new_hp_t <- new_hp$hp_t
-
-      print(new_hp_0)
-      print(new_hp_t)
-
-      # E-step of Magma
-      post <- e_step(db = data,
-                     m_0 = m_0,
-                     kern_0 = kern_0,
-                     kern_t = kern_t,
-                     hp_0 = hp_0,
-                     hp_t = hp_t,
-                     pen_diag = pen_diag)
-    } else {
-      # E-step of Magma
-      post <- e_step(db = data,
-                     m_0 = m_0,
-                     kern_0 = kern_0,
-                     kern_t = kern_t,
-                     hp_0 = hp_0,
-                     hp_t = hp_t,
-                     pen_diag = pen_diag)
-
-      # M-step of Magma
-      new_hp <- m_step(db = data,
-                       m_0 = m_0,
-                       kern_0 = kern_0,
-                       kern_t = kern_t,
-                       old_hp_0 = hp_0,
-                       old_hp_t = hp_t,
-                       post_mean = post$mean,
-                       post_cov = post$cov,
-                       shared_hp_tasks = shared_hp_tasks,
-                       pen_diag = pen_diag
-      )
-
-      new_hp_0 <- new_hp$hp_0
-      new_hp_t <- new_hp$hp_t
-
-      print(new_hp_0)
-      print(new_hp_t)
-
-
-    }
-
-
+    # E-step of Magma
+    post <- e_step(db = data,
+                    m_0 = m_0,
+                    kern_0 = kern_0,
+                    kern_t = kern_t,
+                    hp_0 = hp_0,
+                    hp_t = hp_t,
+                    pen_diag = pen_diag)
 
     ########### GRAPH DE CONTROLE MU0 ###########
     tib_mean_prep <- post$mean %>%
-      rename(Input = Input_1, Value = Output) %>%
-      mutate(Source = paste0("Post mean (itération ", i, ")")) %>%
-      select(Output_ID, Input, Value, Source)
+      dplyr::rename(Input = Input_1, Value = Output) %>%
+      dplyr::mutate(Source = paste0("Post mean (itération ", i, ")")) %>%
+      dplyr::select(Output_ID, Input, Value, Source)
 
     mu0_df_prep <- mu0_df %>%
-      rename(Value = mean_value) %>%
-      mutate(Source = "mu0 réel") %>%
-      select(Output_ID, Input, Value, Source)
+      dplyr::rename(Value = mean_value) %>%
+      dplyr::mutate(Source = "mu0 réel") %>%
+      dplyr::select(Output_ID, Input, Value, Source)
 
     combined_data <- bind_rows(tib_mean_prep, mu0_df_prep)
 
@@ -547,6 +482,25 @@ train_magma <- function(data,
     print(control_plot)
 
     #############################################
+
+    # M-step of Magma
+    new_hp <- m_step(db = data,
+                      m_0 = m_0,
+                      kern_0 = kern_0,
+                      kern_t = kern_t,
+                      old_hp_0 = hp_0,
+                      old_hp_t = hp_t,
+                      post_mean = post$mean,
+                      post_cov = post$cov,
+                      shared_hp_tasks = shared_hp_tasks,
+                      pen_diag = pen_diag
+    )
+
+    new_hp_0 <- new_hp$hp_0
+    new_hp_t <- new_hp$hp_t
+
+    print(new_hp_0)
+    print(new_hp_t)
 
     ## Break after E-step if we can to compute the fast approximation
     if (fast_approx) {
@@ -642,6 +596,8 @@ train_magma <- function(data,
       break
     }
   }
+
+
 
   ## Evaluate the hyper-posterior on the grid of inputs if provided
   if (!is.null(grid_inputs)) {

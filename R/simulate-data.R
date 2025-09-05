@@ -582,7 +582,7 @@ simulate_multi_output_data <- function(
     shared_hp_tasks = FALSE,
     shared_hp_outputs = FALSE, # <<< ARGUMENT UNIQUE
     shared_grid_outputs = FALSE,
-    seed = 456
+    seed = NULL
 ) {
   if (!is.null(seed)) { set.seed(seed) }
 

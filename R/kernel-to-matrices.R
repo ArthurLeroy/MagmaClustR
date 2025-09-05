@@ -330,7 +330,8 @@ kern_to_cov <- function(input,
       reference <- input$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input <- input %>% dplyr::select(-c(Output_ID, Reference))
+      # input <- input %>% dplyr::select(-c(Output_ID, Reference))
+      input <- input %>% dplyr::select(-Reference)
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input <- split(t(input),
@@ -341,7 +342,8 @@ kern_to_cov <- function(input,
       reference_2 <- input_2$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input_2 <- input_2 %>% dplyr::select(-c(Output_ID, Reference))
+      # input_2 <- input_2 %>% dplyr::select(-c(Output_ID, Reference))
+      input_2 <- input_2 %>% dplyr::select(-Reference)
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input_2 <- split(t(input_2),
@@ -428,8 +430,8 @@ kern_to_cov <- function(input,
             #   `colnames<-` (subset_input$Input_1)
 
             block_matrix <- cpp_noise(
-              as.matrix(select(subset_input, -Output_ID)),
-              as.matrix(select(subset_input_2, -Output_ID)),
+              as.matrix(dplyr::select(subset_input, -Output_ID)),
+              as.matrix(dplyr::select(subset_input_2, -Output_ID)),
               current_noise_hp
             )
           } else {
@@ -688,11 +690,17 @@ list_outputs_blocks_to_inv <- function(db,
   # browser()
   # Inner function to process a single output
   process_one_output <- function(current_output_id) {
+    # browser()
+
+    if("Task_ID" %in% names(db) || "Output" %in% names(db)){
+      db <- db %>% dplyr::select(-c(Task_ID, Output))
+    }
+
     # Extract the union of all reference inputs provided in the training data
     # for the current output
     all_inputs <- db %>%
       dplyr::filter(Output_ID == current_output_id) %>%
-      dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
+      dplyr::select(-Output_ID) %>%
       unique() %>%
       dplyr::arrange(Reference)
 

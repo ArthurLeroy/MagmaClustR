@@ -305,7 +305,20 @@ logL_monitoring <- function(hp_0,
                             pen_diag) {
 
   ## Compute the modified logL for the mean process
-  ll_0 <- 0
+  # ll_0 <- 0
+  # browser()
+  list_inv_0 <- list_outputs_blocks_to_inv(db = db,
+                                           kern = kern_0,
+                                           hp = hp_0,
+                                           pen_diag = pen_diag)
+
+  # Create the full block-diagonal inverse covariance matrix for mu_0
+  inv_0 <- Matrix::bdiag(list_inv_0)
+
+  # Set the row and column names of inv_0
+  all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
+  dimnames(inv_0) <- list(all_references, all_references)
+  inv_0 <- as.matrix(inv_0)
 
   # # # ONLY IF HPs ARE SHARED BETWEEN TASKS
   # hp_0t <- hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
@@ -318,14 +331,14 @@ logL_monitoring <- function(hp_0,
   #   `rownames<-` (post_mean$Reference) %>%
   #   `colnames<-` (post_mean$Reference)
   #
-  # # Compute the log-likelihood components
-  # # Classical Gaussian log-likelihood
-  # LL_norm <- -dmnorm(post_mean$Output, m_0, inv_0, log = TRUE)
-  # # Correction trace term (-0.5 * Tr(inv %*% post_cov))
-  # # cor_term <- 0.5 * sum(inv %*% post_cov)
-  # cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
-  #
-  # ll_0 <- LL_norm + cor_term
+  # Compute the log-likelihood components
+  # Classical Gaussian log-likelihood
+  LL_norm <- -dmnorm(post_mean$Output, m_0, inv_0, log = TRUE)
+  # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+  # cor_term <- 0.5 * sum(inv %*% post_cov)
+  cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
+
+  ll_0 <- LL_norm + cor_term
   print(paste0('Valeur de ll_0 : ', ll_0))
 
   ## Sum over the tasks
