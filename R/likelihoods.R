@@ -228,6 +228,7 @@ logL_monitoring <- function(hp_0,
                             post_mean,
                             post_cov,
                             pen_diag) {
+
   ## Compute the modified logL for the mean process
   ll_0 <- logL_GP_mod(
     hp = hp_0,

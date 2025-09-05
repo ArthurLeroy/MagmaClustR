@@ -797,17 +797,19 @@ pred_magma <- function(data = NULL,
           )
 
       }
+
+      pred = hyperpost$pred
       ## Display the graph of the prediction if expected
       if (plot) {
 
         data_train <- trained_model$ini_args$data
 
         ## Add 'cov' to display samples
-        res <- list("pred" = hyperpost$pred)
+        res <- list("pred" = pred)
         res[["cov"]] <- hyperpost$cov
 
         ## Display samples only in 1D and Credible Interval otherwise
-        display_samples = dplyr::if_else(ncol(pred) == 3, TRUE, FALSE)
+        display_samples = dplyr::if_else(ncol(res$pred) == 3, TRUE, FALSE)
 
         ## Plot results
         plot_gp(res,

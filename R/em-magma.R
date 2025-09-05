@@ -35,12 +35,8 @@ e_step <- function(db,
     unique() %>%
     dplyr::arrange(.data$Reference)
 
-  hp_0i = hp_i %>% slice(1) %>% dplyr::select(-c(ID, noise))
   ## Compute all the inverse covariance matrices
-  inv_0 <- kern_to_inv(all_inputs, kern_0, hp_0i, pen_diag) * 10
-  # inv_0 = matrix(1, nrow = nrow(all_inputs), ncol = nrow(all_inputs))  %>%
-  #   `rownames<-`(all_inputs %>% dplyr::pull(.data$Reference)) %>%
-  #   `colnames<-`(all_inputs %>% dplyr::pull(.data$Reference))
+  inv_0 <- kern_to_inv(all_inputs, kern_0, hp_0, pen_diag)
   list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)
   ## Create a named list of Output values for all individuals
   list_output_i <- base::split(db$Output, list(db$ID))
