@@ -71,8 +71,8 @@ kern_to_cov <- function(input,
 
   # browser()
   ## Treat the convolution kernel appart from other kernels
-  if (kern %>% is_function() && length(input$Output_ID %>% unique()) > 1
-                             && is.null(deriv)) {
+  if (kern %>% rlang::is_function() && length(input$Output_ID %>% unique()) > 1
+                                    && is.null(deriv)) {
     # Need a unique dataframe, containing all observed inputs of all outputs.
     # The convolution_kernel() function generates the whole multioutputs
     # covariance matrix.
