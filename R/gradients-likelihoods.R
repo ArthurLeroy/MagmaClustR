@@ -81,7 +81,6 @@ gr_GP_mod <- function(hp,
                       output_ids,
                       priors,
                       ...) {
-  # browser()
   if(!(hp %>% is_tibble()) && length(output_ids) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -123,7 +122,6 @@ gr_GP_mod <- function(hp,
     inv <- ini_inverse_prior_cov(db, kern, hp, pen_diag)
 
   } else{
-    # browser()
     # Single output case
     # Extract all_inputs to call kern_to_cov() on the single output case
     all_inputs <- db %>%
@@ -154,7 +152,6 @@ gr_GP_mod <- function(hp,
   # The derivative names must match what the kernel expects in its 'deriv'
   ## argument
   floop <- function(deriv_name) {
-    # browser()
     # Get the derivative of the covariance matrix w.r.t. the current HP
     if(length(list_ID_outputs) > 1){
       dK_dhp <- kern_to_cov(db %>%
@@ -180,12 +177,9 @@ gr_GP_mod <- function(hp,
     }
 
     # Compute the gradient component for this HP
-    # browser()
     gradient_value <- -0.5 * (common_term %*% dK_dhp) %>%
       diag() %>%
       sum()
-    # gradient_value <- -0.5 * sum(diag(common_term %*% dK_dhp))
-    # return(gradient_value)
   }
 
   # Return a named vector of gradients

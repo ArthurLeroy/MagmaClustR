@@ -125,7 +125,6 @@ logL_GP_mod <- function(hp,
                         hp_col_names,
                         output_ids,
                         priors) {
-  # browser()
   if(!(hp %>% is_tibble()) && length(output_ids) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -164,7 +163,6 @@ logL_GP_mod <- function(hp,
       `colnames<-`(colnames(K_task_t))
 
   } else if (length(list_output_ID) > 1 && (kern %>% is.character())){
-    # browser()
     # MO inversion of the MEAN PROCESS covariance
     ## Compute the inverse covariance of the mean process
     # inv <- ini_inverse_prior_cov(db, kern, hp, pen_diag)
@@ -298,7 +296,6 @@ logL_GP_mod_shared_tasks <- function(hp,
 
   # Loop over each task ID to compute and sum its log-likelihood
   funloop <- function(t) {
-    # browser()
     # Extract data specific to task 't'
     db_t <- db %>%
       dplyr::filter(Task_ID == t) %>%
@@ -371,47 +368,11 @@ logL_monitoring <- function(hp_0,
                             post_cov,
                             pen_diag,
                             priors) {
-
-  # browser()
-  ## Compute the modified logL for the mean process
-  # ll_0 <- 0
-
   # Get the union of all unique input points from the training data
   all_inputs <- db %>%
     dplyr::select(-c(Task_ID, Output)) %>%
     unique() %>%
     dplyr::arrange(Reference)
-
-  # # Extract unique inputs
-  # unique_inputs <- db %>%
-  #   dplyr::select(-c(Task_ID, Output_ID,
-  #                    Output)) %>%
-  #   dplyr::distinct()
-  #
-  # # Extract the unique Output_ID
-  # unique_tasks_outputs <- db %>%
-  #   dplyr::select(Output_ID) %>%
-  #   dplyr::distinct()
-  #
-  # # Create the complete grid by combining the 2 sets
-  # all_inputs <- tidyr::expand_grid(
-  #   unique_tasks_outputs,
-  #   unique_inputs
-  # ) %>%
-  #   dplyr::mutate(across(starts_with("Input"), ~ round(.x, 6))) %>%
-  #   rowwise() %>%
-  #   dplyr::mutate(
-  #     Reference = paste(
-  #       # Create output's prefix
-  #       paste0("o", Output_ID),
-  #       # Create the reference for each Output_ID
-  #       paste(c_across(starts_with("Input")), collapse = ":"),
-  #       # Join output's prefix and reference
-  #       sep = ";"
-  #     )
-  #   ) %>%
-  #   dplyr::ungroup() %>%
-  #   dplyr::arrange(Reference)
 
   all_input <- all_inputs %>%
     dplyr::arrange(Reference) %>%
@@ -453,15 +414,14 @@ logL_monitoring <- function(hp_0,
   #   `rownames<-` (post_mean$Reference) %>%
   #   `colnames<-` (post_mean$Reference)
   #
+
   # Compute the log-likelihood components
   # Classical Gaussian log-likelihood
   LL_norm <- -dmnorm(post_mean$Output, m_0, inv_0, log = TRUE)
   # Correction trace term (-0.5 * Tr(inv %*% post_cov))
-  # cor_term <- 0.5 * sum(inv %*% post_cov)
   cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
 
   ll_0 <- LL_norm + cor_term
-  # print(paste0('Valeur de ll_0 : ', ll_0))
 
   ## Sum over the tasks
   funloop <- function(t) {
@@ -506,8 +466,6 @@ logL_monitoring <- function(hp_0,
     diag() %>%
     log() %>%
     sum()
-
-  # print(paste0('Valeur de log(det(post_cov)) : ', det))
 
   log_prior_term <- 0
   if (length(priors)!=0) {

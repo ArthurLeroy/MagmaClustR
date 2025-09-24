@@ -41,24 +41,6 @@ convolution_kernel <- function(x,
       stop("'input' and 'hp' must contain an 'Output_ID' column for vectorized mode.")
     }
 
-    # Préparation des données et des hyperparamètres
-    # coord_cols <- names(x)[sapply(x, is.numeric) & names(x) != "Output_ID"]
-    # x_coords <- as.matrix(x[, coord_cols, drop = FALSE])
-    # y_coords <- as.matrix(y[, coord_cols, drop = FALSE])
-    #
-    # idx_x <- x$Output_ID
-    # idx_y <- y$Output_ID
-    #
-    # hp_ordered <- hp %>% dplyr::arrange(Output_ID)
-    # l_outputs <- hp_ordered$l_t
-    # S_outputs <- hp_ordered$S_t
-    # l_u_val <- exp(hp_ordered$l_u_t[1])
-    #
-    # l_vec_1 <- exp(l_outputs[idx_x])
-    # l_vec_2 <- exp(l_outputs[idx_y])
-    # S_vec_1 <- exp(S_outputs[idx_x])
-    # S_vec_2 <- exp(S_outputs[idx_y])
-
     x_ids_numeric <- as.numeric(as.character(x$Output_ID))
     y_ids_numeric <- as.numeric(as.character(y$Output_ID))
     hp_ids_numeric <- as.numeric(as.character(hp$Output_ID))
@@ -91,53 +73,41 @@ convolution_kernel <- function(x,
     return(K)
   }
 
-  # --- CALCUL DES DÉRIVÉES PARTIELLES (CORRIGÉ) ---
+  # Partial derivative computation
 
   hp_id_str <- stringr::str_extract(deriv, "\\d+$")
   if (is.na(hp_id_str) && deriv != "l_u_t") {
-    stop("Le nom de la dérivée doit se terminer par un ID numérique, ex: 'l_t_1'.")
+    stop("The name of the derivative should end with a number, ex: 'l_t_1'.")
   }
   hp_id <- as.integer(hp_id_str)
 
   if (startsWith(deriv, "l_t_")) {
-    # Formule de base (inchangée)
     common_deriv_denom <- K * ((-0.5 / denominator_sum) + (0.5 * distance_sq / (denominator_sum^2)))
 
-    # CORRECTION : Règle de dérivation en chaîne avec recherche robuste
-    # On recherche la valeur de l'hyperparamètre au lieu de faire une indexation fragile.
-    # Ceci correspond au terme l_k^2 (selon votre paramétrisation exp(theta_l) = l^2)
     chain_rule_factor <- exp(hp$l_t[hp_ids_numeric == hp_id])
 
-    # CORRECTION : Création des masques avec les IDs numériques
     N <- nrow(x)
     M <- nrow(y)
     mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
     mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
 
-    # La matrice de facteurs (I(i=k) + I(j=k)) est correcte
     factor_matrix <- mask_i_is_k + mask_j_is_k
 
     return(common_deriv_denom * chain_rule_factor * factor_matrix)
 
-    # --- Dérivée par rapport à log(S_k) ---
   } else if (startsWith(deriv, "S_t_")) {
-    # CORRECTION : Création des masques avec les IDs numériques
     N <- nrow(x)
     M <- nrow(y)
     mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
     mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
 
-    # La formule K * (I(i=k) + I(j=k)) est correcte
     pd <- K * (mask_i_is_k + mask_j_is_k)
     return(pd)
 
-    # --- Dérivée par rapport à log(l_u) ---
   } else if (deriv == "l_u_t") {
-    # Terme commun (inchangé)
+    # Common_term
     common_deriv_denom <- K * ((-0.5 / denominator_sum) + (0.5 * distance_sq / (denominator_sum^2)))
 
-    # Règle de dérivation en chaîne : on multiplie par l_u^2
-    # On utilise la valeur calculée dans la partie principale du noyau pour la cohérence.
     chain_rule_factor <- exp(hp$l_u_t[1])
 
     return(common_deriv_denom * chain_rule_factor)
@@ -603,96 +573,6 @@ hp <- function(kern = "SE",
   }
 }
 
-
-
-
-#' #' @title Generate Initial Hyperparameters for Tasks
-#' #' @description Creates an initial hp_t tibble based on prior distributions.
-#' #'
-#' #' @param hp_t_config A named list where each element is a list containing a `prior` definition.
-#' #' @param task_ids A vector of unique task IDs.
-#' #' @param output_ids A vector of unique output IDs.
-#' #' @param shared_tasks A logical indicating if HPs are shared across tasks.
-#' #' @param shared_hp_outputs A logical indicating if HPs are shared across outputs.
-#' #'
-#' #' @return A tibble `hp_t` with initial values for the EM algorithm.
-#'
-#' generate_initial_hp_t <- function(hp_t_config,
-#'                                   task_ids,
-#'                                   output_ids,
-#'                                   shared_tasks = TRUE,
-#'                                   shared_hp_outputs = TRUE) {
-#'
-#'   if (shared_hp_outputs) {
-#'     # --- Cas 1: Tous les HPs sont partagés entre les outputs ---
-#'
-#'     initial_values <- list()
-#'     for (name in names(hp_t_config)) {
-#'       prior <- hp_t_config[[name]]$prior
-#'       if (is.null(prior)) stop(paste("Error: 'prior' is missing for HP:", name))
-#'
-#'       value <- switch(prior$dist,
-#'                       "gamma"    = prior$shape / prior$rate,
-#'                       "invgamma" = prior$scale / (prior$shape - 1),
-#'                       "normal"   = prior$mean,
-#'                       stop(paste("Unsupported prior distribution:", prior$dist))
-#'       )
-#'       initial_values[[name]] <- value
-#'     }
-#'
-#'     hp_t <- tidyr::crossing(Task_ID = task_ids, Output_ID = output_ids) %>%
-#'       dplyr::bind_cols(tibble::as_tibble(initial_values))
-#'
-#'   } else {
-#'     # --- Cas 2: Certains HPs sont spécifiques à chaque output ---
-#'
-#'     n_outputs <- length(output_ids)
-#'     initial_values_per_output <- list()
-#'
-#'     for (name in names(hp_t_config)) {
-#'       prior <- hp_t_config[[name]]$prior
-#'       if (is.null(prior)) stop(paste("Error: 'prior' is missing for HP:", name))
-#'
-#'       # --- AJOUT DE LA CONDITION SPÉCIFIQUE POUR 'l_u_t' ---
-#'       if (name == "l_u_t") {
-#'         # Pour l_u_t, on calcule la moyenne du prior et on la réplique.
-#'         value <- switch(prior$dist,
-#'                         "gamma"    = prior$shape / prior$rate,
-#'                         "invgamma" = prior$scale / (prior$shape - 1),
-#'                         "normal"   = prior$mean,
-#'                         stop(paste("Unsupported prior for shared HP:", prior$dist))
-#'         )
-#'         values <- rep(value, n_outputs)
-#'
-#'       } else {
-#'         # Pour les autres HPs, on échantillonne une valeur par output.
-#'         values <- switch(prior$dist,
-#'                          "gamma" = {
-#'                            stats::rgamma(n_outputs, shape = prior$shape, rate = prior$rate)
-#'                          },
-#'                          "invgamma" = {
-#'                            if (!requireNamespace("extraDistr", quietly = TRUE)) stop("Package 'extraDistr' needed.")
-#'                            extraDistr::rinvgamma(n_outputs, alpha = prior$shape, beta = prior$scale)
-#'                          },
-#'                          "normal" = {
-#'                            stats::rnorm(n_outputs, mean = prior$mean, sd = prior$sd)
-#'                          },
-#'                          stop(paste("Unsupported prior distribution:", prior$dist))
-#'         )
-#'       }
-#'       initial_values_per_output[[name]] <- values
-#'     }
-#'
-#'     hp_per_output <- tibble::as_tibble(initial_values_per_output) %>%
-#'       dplyr::mutate(Output_ID = output_ids)
-#'
-#'     hp_t <- tidyr::crossing(Task_ID = task_ids, Output_ID = output_ids) %>%
-#'       dplyr::left_join(hp_per_output, by = "Output_ID")
-#'   }
-#'
-#'   return(hp_t)
-#' }
-#'
 
 #' @title Generate Initial Hyperparameters for Tasks and Outputs
 #' @description Creates an initial `hp_t` tibble based on prior distributions,

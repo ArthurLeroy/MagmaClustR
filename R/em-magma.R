@@ -40,37 +40,6 @@ e_step <- function(db,
     unique() %>%
     dplyr::arrange(Reference)
 
-  # # Extract unique inputs
-  # unique_inputs <- db %>%
-  #   dplyr::select(-c(Task_ID, Output_ID,
-  #                    Output)) %>%
-  #   dplyr::distinct()
-  #
-  # # Extract the unique Output_ID
-  # unique_tasks_outputs <- db %>%
-  #   dplyr::select(Output_ID) %>%
-  #   dplyr::distinct()
-  #
-  # # Create the complete grid by combining the 2 sets
-  # all_inputs <- tidyr::expand_grid(
-  #   unique_tasks_outputs,
-  #   unique_inputs
-  # ) %>%
-  #   dplyr::mutate(across(starts_with("Input"), ~ round(.x, 6))) %>%
-  #   rowwise() %>%
-  #   dplyr::mutate(
-  #     Reference = paste(
-  #       # Create output's prefix
-  #       paste0("o", Output_ID),
-  #       # Create the reference for each Output_ID
-  #       paste(c_across(starts_with("Input")), collapse = ":"),
-  #       # Join output's prefix and reference
-  #       sep = ";"
-  #     )
-  #   ) %>%
-  #   dplyr::ungroup() %>%
-  #   dplyr::arrange(Reference)
-
   all_input <- all_inputs %>%
     dplyr::arrange(Reference) %>%
     dplyr::pull(Reference)
@@ -84,13 +53,11 @@ e_step <- function(db,
 
   # Create the full block-diagonal inverse covariance matrix for mu_0
   inv_0 <- Matrix::bdiag(list_inv_0)
-  # browser()
   # Set the row and column names of inv_0
   all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
   dimnames(inv_0) <- list(all_references, all_references)
   inv_0 <- (1/10000)*as.matrix(inv_0)
 
-  # browser()
   # Compute the convolutional covariance matrix of the mean process
   # cov_0 <- kern_to_cov(input = all_inputs,
   #                      kern = kern_0,
@@ -104,13 +71,10 @@ e_step <- function(db,
   # dimnames(inv_0) <- list(references, references)
   # inv_0 <- (1/100000) * inv_0
 
-  print(paste0('Det inv_0:',det(inv_0)))
-
   list_inv_t <- list()
 
   # For each task, compute its full multi-output inverse covariance matrix
   for (t in list_ID_task) {
-    # browser()
     # Isolate the data and HPs for the current task
     db_t <- db %>% dplyr::filter(Task_ID == t) %>%
                    dplyr::select(-c(Output, Task_ID))
@@ -173,7 +137,6 @@ e_step <- function(db,
   ##--------------- Update Posterior Inverse Covariance ---------------##
   post_inv <- inv_0
   for (inv_t in list_inv_t) {
-    # browser()
     # Find the common input points between the mean process and the current task
     co_input <- intersect(row.names(inv_t), row.names(post_inv))
 
@@ -182,7 +145,6 @@ e_step <- function(db,
       inv_t[co_input, co_input]
   }
 
-  # browser()
   post_cov <- post_inv %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
     `rownames<-`(all_inputs %>% dplyr::pull(.data$Reference)) %>%
@@ -250,7 +212,6 @@ m_step <- function(db,
                    pen_diag,
                    priors) {
 
-  # browser()
   list_hp_0 <- old_hp_0 %>% names()
   list_ID_task <- unique(db$Task_ID)
   output_ids_vector <- unique(db$Output_ID)
@@ -392,7 +353,6 @@ m_step <- function(db,
       return(result_optim)
     }
 
-    # browser()
     # Collect results from all tasks
     optim_results_by_task <- sapply(list_ID_task, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "Task_ID") %>%

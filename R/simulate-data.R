@@ -507,7 +507,6 @@ generate_single_task_data <- function(
     task_hp_tibble,
     n_points_range
 ) {
-  # browser()
   num_outputs <- length(mean_process_info$grid_list)
 
   # --- Sample a sparse sub-grid for this task ---

@@ -139,8 +139,6 @@ train_magma <- function(data,
                         n_iter_max = 25,
                         cv_threshold = 1e-3,
                         fast_approx = FALSE) {
-
-  # browser()
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("Task_ID", "Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
@@ -166,8 +164,6 @@ train_magma <- function(data,
   list_ID_task <- data$Task_ID %>% unique()
   ## Extract the list of different output IDs
   list_ID_output <- data$Output_ID %>% unique()
-
-
 
   ## Check if there is duplicates in data
   duplicates <- data %>%
@@ -217,48 +213,14 @@ train_magma <- function(data,
          " for the same 'Output_ID'.")
   }
 
-
-  # browser()
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- data %>%
     dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
     unique()
 
-
-  # # Extract unique inputs
-  # unique_inputs <- data %>%
-  #   dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
-  #   dplyr::distinct()
-  #
-  # # Extract the unique Output_ID
-  # unique_tasks_outputs <- data %>%
-  #   dplyr::select(Output_ID) %>%
-  #   dplyr::distinct()
-  #
-  # # Create the complete grid by combining the 2 sets
-  # all_inputs <- tidyr::expand_grid(
-  #   unique_tasks_outputs,
-  #   unique_inputs
-  # ) %>%
-  #   dplyr::mutate(across(starts_with("Input"), ~ round(.x, 6))) %>%
-  #   rowwise() %>%
-  #   dplyr::mutate(
-  #     Reference = paste(
-  #       # Create output's prefix
-  #       paste0("o", Output_ID),
-  #       # Create the reference for each Output_ID
-  #       paste(c_across(starts_with("Input")), collapse = ":"),
-  #       # Join output's prefix and reference
-  #       sep = ";"
-  #     )
-  #   ) %>%
-  #   dplyr::ungroup() %>%
-  #   dplyr::arrange(Reference)
-
   all_input <- all_inputs %>%
     dplyr::arrange(Reference) %>%
     dplyr::pull(Reference)
-
 
   ## Initialise m_0 according to the value provided by the user
   if (prior_mean %>% is.null()) {
@@ -617,8 +579,6 @@ train_magma <- function(data,
     }
   }
 
-
-
   ## Evaluate the hyper-posterior on the grid of inputs if provided
   if (!is.null(grid_inputs)) {
     cat(
@@ -674,6 +634,8 @@ train_magma <- function(data,
   ) %>%
     return()
 }
+
+
 
 #' Learning hyper-parameters of a Gaussian Process
 #'

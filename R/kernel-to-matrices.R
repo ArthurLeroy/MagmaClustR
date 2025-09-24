@@ -54,8 +54,6 @@ kern_to_cov <- function(input,
                         hp,
                         deriv = NULL,
                         input_2 = NULL) {
-
-  # browser()
   ## If a second set of inputs is not provided, only 'input' against itself
   if (input_2 %>% is.null()) {
     input_2 <- input
@@ -69,7 +67,6 @@ kern_to_cov <- function(input,
     )
   }
 
-  # browser()
   ## Treat the convolution kernel appart from other kernels
   if (kern %>% rlang::is_function() && length(input$Output_ID %>% unique()) > 1
                                     && is.null(deriv)) {
@@ -379,12 +376,8 @@ kern_to_cov <- function(input,
 
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
-    # browser()
     if ("Output_ID" %in% names(hp)){
       if (any(startsWith(deriv, "noise"))){
-        # browser()
-        # --- DÉBUT DES CORRECTIONS ---
-
         # 1. Extraire l'ID de l'hyperparamètre (ex: "noise_2" -> 2)
         deriv_id_str <- stringr::str_extract(deriv, "\\d+$")
         if (is.na(deriv_id_str)) {
@@ -392,9 +385,6 @@ kern_to_cov <- function(input,
         }
         deriv_id <- as.integer(deriv_id_str)
 
-        # --- FIN DES CORRECTIONS ---
-
-        # Le tri est toujours nécessaire pour construire la matrice dans le bon ordre
         input <- input %>% dplyr::arrange(Output_ID)
         if ("Task_ID" %in% colnames(input)) {
           input <- input %>% dplyr::select(-Task_ID)
@@ -411,12 +401,9 @@ kern_to_cov <- function(input,
           subset_input <- input %>% dplyr::filter(Output_ID == id)
           subset_input_2 <- input_2 %>% dplyr::filter(Output_ID == id)
 
-          # --- DÉBUT DES CORRECTIONS ---
-
-          # 2. Condition : on ne calcule le bloc que si l'ID correspond
+          # Compute the block only if Output_ID matches
           if (id == deriv_id) {
-            # Si l'ID de la boucle correspond à celui de la dérivée,
-            # on calcule le bloc de bruit comme avant.
+            # Compute the matrix derivative according to the current HP
             current_noise_hp <- hp %>%
               dplyr::filter(Output_ID == id) %>%
               pull(noise)
@@ -425,26 +412,19 @@ kern_to_cov <- function(input,
               stop(paste("'Noise' parameter not found for Output_ID :", id))
             }
 
-            # block_matrix <- diag(nrow(subset_input)) %>%
-            #   `rownames<-` (subset_input$Input_1) %>%
-            #   `colnames<-` (subset_input$Input_1)
-
             block_matrix <- cpp_noise(
               as.matrix(dplyr::select(subset_input, -Output_ID)),
               as.matrix(dplyr::select(subset_input_2, -Output_ID)),
               current_noise_hp
             )
           } else {
-            # Sinon, la dérivée est nulle. On crée un bloc de zéros
-            # de la bonne dimension.
+            # Derivative is zero
             block_matrix <- matrix(0,
                                    nrow = nrow(subset_input),
                                    ncol = nrow(subset_input_2)) %>%
               `rownames<-` (subset_input$Input_1) %>%
               `colnames<-` (subset_input$Input_1)
           }
-
-          # --- FIN DES CORRECTIONS ---
 
           list_of_blocks[[as.character(id)]] <- block_matrix
         }
@@ -454,13 +434,6 @@ kern_to_cov <- function(input,
         mat <- as.matrix(mat) %>%
           `rownames<-`(input$Input_1) %>%
           `colnames<-` (input_2$Input_1)
-
-        # row_names <- do.call(c, lapply(list_of_blocks, rownames))
-        # col_names <- do.call(c, lapply(list_of_blocks, colnames))
-#
-#         # Assigner les noms à la matrice finale
-#         dimnames(mat) <- list(row_names, col_names)
-
         return(mat)
       }
     }
@@ -689,8 +662,6 @@ list_outputs_blocks_to_inv <- function(db,
                                        deriv = NULL) {
   # Inner function to process a single output
   process_one_output <- function(current_output_id) {
-    # browser()
-
     if("Task_ID" %in% names(db) || "Output" %in% names(db)){
       db <- db %>% dplyr::select(-c(Task_ID, Output))
     }
