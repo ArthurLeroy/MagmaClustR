@@ -658,21 +658,34 @@ hyperposterior <- function(trained_model = NULL,
   ## Certify that IDs are of type 'character'
   data$Task_ID <- data$Task_ID %>% as.character()
   all_inputs$Output_ID <- all_inputs$Output_ID %>% as.factor()
+  # browser()
+  if(length(all_inputs$Output_ID %>% unique()) > 1){
+    # Compute the inverse covariance matrix for each output block of the mean process
+    # This assumes the prior on mu_0 treats outputs as independent GPs.
+    list_inv_0 <- list_outputs_blocks_to_inv(db = all_inputs,
+                                             kern = kern_0,
+                                             hp = hp_0,
+                                             pen_diag = pen_diag)
 
-  # Compute the inverse covariance matrix for each output block of the mean process
-  # This assumes the prior on mu_0 treats outputs as independent GPs.
-  list_inv_0 <- list_outputs_blocks_to_inv(db = all_inputs,
-                                           kern = kern_0,
-                                           hp = hp_0,
-                                           pen_diag = pen_diag)
+    # Create the full block-diagonal inverse covariance matrix for mu_0
+    inv_0 <- Matrix::bdiag(list_inv_0)
 
-  # Create the full block-diagonal inverse covariance matrix for mu_0
-  inv_0 <- Matrix::bdiag(list_inv_0)
+    # Set the row and column names of inv_0
+    all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
+    dimnames(inv_0) <- list(all_references, all_references)
+    inv_0 <- (1/100000000)*as.matrix(inv_0)
+  } else {
+    inv_0 <- kern_to_inv(all_inputs %>%
+                           select(-Output_ID),
+                         kern_0,
+                         hp_0 %>%
+                           filter(Output_ID=="1") %>%
+                           select(-Output_ID),
+                         pen_diag) %>%
+      `rownames<-`(all_inputs$Reference)%>%
+      `colnames<-`(all_inputs$Reference)
+  }
 
-  # Set the row and column names of inv_0
-  all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
-  dimnames(inv_0) <- list(all_references, all_references)
-  inv_0 <- as.matrix(inv_0)
 
   list_inv_t <- list()
   list_ID_task <- unique(data$Task_ID)
@@ -742,10 +755,17 @@ hyperposterior <- function(trained_model = NULL,
       inv_t[co_input, co_input]
   }
 
-  post_cov <- post_inv %>%
-    chol_inv_jitter(pen_diag = pen_diag) %>%
-    `rownames<-`(all_references) %>%
-    `colnames<-`(all_references)
+  if(length(all_inputs$Output_ID %>% unique()) > 1){
+    post_cov <- post_inv %>%
+      chol_inv_jitter(pen_diag = pen_diag) %>%
+      `rownames<-`(all_references) %>%
+      `colnames<-`(all_references)
+  } else {
+    post_cov <- post_inv %>%
+      chol_inv_jitter(pen_diag = pen_diag) %>%
+      `rownames<-`(all_inputs$Reference)%>%
+      `colnames<-`(all_inputs$Reference)
+  }
 
   ##--------------------- Update Posterior Mean ---------------------##
   weighted_0 <- inv_0 %*% m_0
@@ -760,6 +780,51 @@ hyperposterior <- function(trained_model = NULL,
     # Add the task's contribution to the posterior weighted mean
     weighted_0[co_input, ] <- weighted_0[co_input, ] +
       weighted_t[co_input, ]
+  }
+
+
+  # On s'assure qu'il y a des références à analyser
+  if (!is.null(rownames(post_cov))) {
+    # 1. Identifier les références de départ
+    all_refs <- rownames(post_cov)
+    # Extraction des parties numériques et des préfixes des références
+    ref_matches <- regmatches(all_refs, regexpr("^o1;([0-9]+\\.?[0-9]*)$", all_refs))
+
+    valid_refs <- all_refs[sapply(ref_matches, length) > 0]
+    numeric_values <- as.numeric(sub("^(o1|o2);", "", valid_refs))
+
+    # On filtre celles qui sont entre 3.00 et 4.00
+    start_refs <- valid_refs[numeric_values >= 3.00 & numeric_values <= 4.00]
+
+    if (length(start_refs) == 0) {
+      message("Aucune référence de départ ('o1' avec entrée entre 3.00 et 4.00) trouvée pour cette tâche.")
+    } else {
+      # 2. Pour chaque référence de départ, trouver et classer les covariances
+      for (start_ref in start_refs) {
+        message(paste("\n>> Analyse pour la référence de départ :", start_ref))
+
+        # Extraire la ligne de covariance de K_task_t et prendre la valeur absolue
+        covariances_abs <- abs(post_cov[start_ref, ])
+
+        # Trier par ordre décroissant
+        sorted_indices <- order(covariances_abs, decreasing = TRUE)
+
+        # Créer un tibble pour un affichage propre
+        sorted_results <- tibble::tibble(
+          Reference = names(covariances_abs)[sorted_indices],
+          CovarianceAbs = covariances_abs[sorted_indices]
+        )
+
+        # Exclure la référence de départ elle-même (qui a la covariance maximale, c'est-à-dire la variance)
+        sorted_results <- sorted_results %>%
+          dplyr::filter(Reference != start_ref)
+
+        # 3. Afficher les 10 premières
+        message("Top 10 des références avec la plus grande covariance (en valeur absolue) :")
+        print(head(sorted_results, 10))
+      }
+    }
+    message("--- Fin de l'analyse ---")
   }
 
   # Compute the final posterior mean

@@ -108,6 +108,9 @@ logL_GP <- function(hp,
 #'   (e.g., c("l_t", "S_t")).
 #' @param output_ids A character vector with the unique IDs of the outputs for
 #'   the current task.
+#' @param priors A list or tibble containing prior information, e.g.,
+#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
+#'   If NULL, performs ML estimation.
 #'
 #' @return A number, corresponding to the value of the modified Gaussian
 #'   log-Likelihood.
@@ -120,7 +123,8 @@ logL_GP_mod <- function(hp,
                         post_cov,
                         pen_diag,
                         hp_col_names,
-                        output_ids) {
+                        output_ids,
+                        priors) {
   # browser()
   if(!(hp %>% is_tibble()) && length(output_ids) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
@@ -201,7 +205,62 @@ logL_GP_mod <- function(hp,
   # cor_term <- 0.5 * sum(inv %*% post_cov)
   cor_term <- 0.5 * sum(diag(inv %*% post_cov))
 
-  return(LL_norm + cor_term)
+  # 4. Add the negative log-prior term for MAP
+  neg_log_prior <- 0
+  if (length(priors)!=0) {
+    # Itérer sur les hyperparamètres qui ont un a priori défini
+    for (param_name in names(priors)) {
+      # --- ÉTAPE 1 : Extraire le nom de la colonne (ex: "l_t_1" -> "l_t") ---
+      col_name <- gsub("_\\d+$", "", param_name)
+
+      # --- ÉTAPE 2 : Extraire l'index de la ligne (ex: "l_t_1" -> 1) ---
+      # On utilise une expression régulière pour trouver le nombre à la fin
+      output_index_str <- sub(".*_(\\d+)$", "\\1", param_name)
+
+      # Si un nombre est trouvé, on le convertit. Sinon (cas de "l_u_t"), on prend la 1ère ligne.
+      row_index <- if (grepl("\\d+", output_index_str)) {
+        as.numeric(output_index_str)
+      } else {
+        1
+      }
+
+      # --- ÉTAPE 3 : Récupérer la valeur unique de l'HP ---
+      current_hp_value <- hp_tibble[[col_name]][row_index]
+
+      # Récupère la définition du prior pour cet HP
+      prior_info <- priors[[col_name]]
+
+      if (prior_info$dist == "invgamma") {
+        # log-densité de la loi Inverse-Gamma
+        # dgamma(1/x, shape, rate) + 2*log(1/x) est log(dinvgamma(x, shape, scale))
+        # Attention: stats::dgamma prend (shape, rate), pas (shape, scale)
+        # Pour IG(shape=α, scale=β), la Gamma correspondante est G(α, β)
+        log_p <- sum(log(extraDistr::dinvgamma(current_hp_value,
+                                           alpha = prior_info$shape,
+                                           beta = prior_info$scale))
+        )
+      } else if (prior_info$dist == "gamma") {
+        # log-densité de la loi Gamma
+        log_p <- sum(stats::dgamma(current_hp_value,
+                        shape = prior_info$shape,
+                        rate = prior_info$rate,
+                        log = TRUE)
+        )
+      } else if (prior_info$dist == "normal") {
+        # Prior is applied directly on the HP value
+        log_p <- sum(stats::dnorm(current_hp_value,
+                              mean = prior_info$mean,
+                              sd = prior_info$sd,
+                              log = TRUE)
+        )
+      }
+
+      # On somme les log-priors (car on suppose les a priori indépendants)
+      neg_log_prior <- neg_log_prior - log_p
+    }
+  }
+
+  return(LL_norm + cor_term + neg_log_prior)
 }
 
 
@@ -220,6 +279,9 @@ logL_GP_mod <- function(hp,
 #' @param hp_col_names A character vector with the names of the hyper-parameters.
 #' @param output_ids A character vector with the unique IDs of the outputs,
 #'   assumed to be the same for all tasks.
+#' @param priors A list or tibble containing prior information, e.g.,
+#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
+#'   If NULL, performs ML estimation.
 #'
 #' @return A number, the total modified log-Likelihood across all tasks.
 #'
@@ -231,7 +293,8 @@ logL_GP_mod_shared_tasks <- function(hp,
                                     post_cov,
                                     pen_diag,
                                     hp_col_names,
-                                    output_ids) {
+                                    output_ids,
+                                    priors) {
 
   # Loop over each task ID to compute and sum its log-likelihood
   funloop <- function(t) {
@@ -258,7 +321,8 @@ logL_GP_mod_shared_tasks <- function(hp,
       post_cov = post_cov_t,
       pen_diag = pen_diag,
       hp_col_names = hp_col_names,
-      output_ids = output_ids
+      output_ids = output_ids,
+      priors = priors
     )
   }
 
@@ -285,6 +349,9 @@ logL_GP_mod_shared_tasks <- function(hp,
 #'    covariance parameter.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
+#' @param priors A list or tibble containing prior information, e.g.,
+#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
+#'   If NULL, performs ML estimation.
 #'
 #' @return A number, expectation of joint log-likelihood of the model. This
 #'    quantity is supposed to increase at each step of the EM algorithm, and
@@ -302,12 +369,55 @@ logL_monitoring <- function(hp_0,
                             kern_t,
                             post_mean,
                             post_cov,
-                            pen_diag) {
+                            pen_diag,
+                            priors) {
 
+  # browser()
   ## Compute the modified logL for the mean process
   # ll_0 <- 0
-  # browser()
-  list_inv_0 <- list_outputs_blocks_to_inv(db = db,
+
+  # Get the union of all unique input points from the training data
+  all_inputs <- db %>%
+    dplyr::select(-c(Task_ID, Output)) %>%
+    unique() %>%
+    dplyr::arrange(Reference)
+
+  # # Extract unique inputs
+  # unique_inputs <- db %>%
+  #   dplyr::select(-c(Task_ID, Output_ID,
+  #                    Output)) %>%
+  #   dplyr::distinct()
+  #
+  # # Extract the unique Output_ID
+  # unique_tasks_outputs <- db %>%
+  #   dplyr::select(Output_ID) %>%
+  #   dplyr::distinct()
+  #
+  # # Create the complete grid by combining the 2 sets
+  # all_inputs <- tidyr::expand_grid(
+  #   unique_tasks_outputs,
+  #   unique_inputs
+  # ) %>%
+  #   dplyr::mutate(across(starts_with("Input"), ~ round(.x, 6))) %>%
+  #   rowwise() %>%
+  #   dplyr::mutate(
+  #     Reference = paste(
+  #       # Create output's prefix
+  #       paste0("o", Output_ID),
+  #       # Create the reference for each Output_ID
+  #       paste(c_across(starts_with("Input")), collapse = ":"),
+  #       # Join output's prefix and reference
+  #       sep = ";"
+  #     )
+  #   ) %>%
+  #   dplyr::ungroup() %>%
+  #   dplyr::arrange(Reference)
+
+  all_input <- all_inputs %>%
+    dplyr::arrange(Reference) %>%
+    dplyr::pull(Reference)
+
+  list_inv_0 <- list_outputs_blocks_to_inv(db = all_inputs,
                                            kern = kern_0,
                                            hp = hp_0,
                                            pen_diag = pen_diag)
@@ -319,6 +429,18 @@ logL_monitoring <- function(hp_0,
   all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
   dimnames(inv_0) <- list(all_references, all_references)
   inv_0 <- as.matrix(inv_0)
+  inv_0 <- (1/10000)*inv_0
+
+  # # Compute the convolutional covariance matrix of the mean process
+  # cov_0 <- kern_to_cov(input = all_inputs,
+  #                      kern = kern_0,
+  #                      hp = hp_0)
+  #
+  # references <- rownames(cov_0)
+  # matrixcalc::is.positive.semi.definite(cov_0)
+  # inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
+  # # Re-apply the stored names to the inverted matrix
+  # dimnames(inv_0) <- list(references, references)
 
   # # # ONLY IF HPs ARE SHARED BETWEEN TASKS
   # hp_0t <- hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
@@ -339,7 +461,7 @@ logL_monitoring <- function(hp_0,
   cor_term <- 0.5 * sum(diag(inv_0 %*% post_cov))
 
   ll_0 <- LL_norm + cor_term
-  print(paste0('Valeur de ll_0 : ', ll_0))
+  # print(paste0('Valeur de ll_0 : ', ll_0))
 
   ## Sum over the tasks
   funloop <- function(t) {
@@ -370,8 +492,9 @@ logL_monitoring <- function(hp_0,
                 mean = post_mean_t,
                 kern = kern_t,
                 post_cov = post_cov_t,
-                pen_diag = pen_diag)
-    print(paste0('Valeur de ll_t :', ll_t))
+                pen_diag = pen_diag,
+                priors = priors)
+    # print(paste0('Valeur de ll_t :', ll_t))
     return(ll_t)
   }
   sum_ll_t <- sapply(unique(db$Task_ID), funloop) %>% sum()
@@ -384,11 +507,67 @@ logL_monitoring <- function(hp_0,
     log() %>%
     sum()
 
-  print(paste0('Valeur de log(det(post_cov)) : ', det))
+  # print(paste0('Valeur de log(det(post_cov)) : ', det))
+
+  log_prior_term <- 0
+  if (length(priors)!=0) {
+    # On itère sur tous les HPs définis dans l'objet de priors (ex: "l_t", "S_t", "l_u_t")
+    for (param_name in names(priors)) {
+      # --- ÉTAPE 1 : Extraire le nom de la colonne (ex: "l_t_1" -> "l_t") ---
+      col_name <- gsub("_\\d+$", "", param_name)
+
+      # --- ÉTAPE 2 : Extraire l'index de la ligne (ex: "l_t_1" -> 1) ---
+      # On utilise une expression régulière pour trouver le nombre à la fin
+      output_index_str <- sub(".*_(\\d+)$", "\\1", param_name)
+
+      # Si un nombre est trouvé, on le convertit. Sinon (cas de "l_u_t"), on prend la 1ère ligne.
+      row_index <- if (grepl("\\d+", output_index_str)) {
+        as.numeric(output_index_str)
+      } else {
+        1
+      }
+
+      # --- ÉTAPE 3 : Récupérer la valeur unique de l'HP ---
+      current_hp_value <- hp_t[[col_name]][row_index]
+
+      # Récupère la définition du prior pour cet HP
+      prior_info <- priors[[col_name]]
+      log_p <- 0 # Initialise la log-probabilité pour cet HP
+
+      # On vérifie si l'HP est un HP de tâche (dans hp_t)
+      if (param_name %in% names(hp_t)) {
+
+        all_task_hp_values <- hp_t[[param_name]]
+
+        # --- Logique de distinction des lois, comme dans les autres fonctions ---
+        if (prior_info$dist == "invgamma") {
+          log_p <- sum(extraDistr::dinvgamma(all_task_hp_values,
+                                             alpha = prior_info$shape,
+                                             beta = prior_info$scale,
+                                             log = TRUE))
+        } else if (prior_info$dist == "gamma") {
+          log_p <- sum(stats::dgamma(all_task_hp_values,
+                                     shape = prior_info$shape,
+                                     rate = prior_info$rate,
+                                     log = TRUE))
+        } else if (prior_info$dist == "normal") {
+          log_p <- sum(stats::dnorm(all_task_hp_values,
+                                    mean = prior_info$mean,
+                                    sd = prior_info$sd,
+                                    log = TRUE))
+        }
+      }
+
+      if(is.na(log_p) || is.infinite(log_p)) log_p <- -1e9
+
+      # On ajoute la contribution de cet HP au total
+      log_prior_term <- log_prior_term + log_p
+    }
+  }
 
   ## Since the logL_GP_* functions return negative likelihoods for minimisation
   ## in the M-step, we need to x(-1) once more to retrieve the correct logL
-  return(-ll_0 - sum_ll_t + det)
+  return(-ll_0 - sum_ll_t + det + log_prior_term)
 }
 
 #' Compute a mixture of Gaussian log-likelihoods

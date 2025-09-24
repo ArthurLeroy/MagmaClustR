@@ -64,6 +64,9 @@ gr_GP <- function(hp,
 #' @param pen_diag A jitter term for numerical stability.
 #' @param hp_col_names A character vector with the names of the hyper-parameters.
 #' @param output_ids A character vector with the unique IDs of the outputs.
+#' @param priors A list or tibble containing prior information, e.g.,
+#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
+#'   If NULL, performs ML estimation.
 #'
 #' @return A named vector of gradients for each hyper-parameter.
 #'
@@ -76,6 +79,7 @@ gr_GP_mod <- function(hp,
                       pen_diag,
                       hp_col_names,
                       output_ids,
+                      priors,
                       ...) {
   # browser()
   if(!(hp %>% is_tibble()) && length(output_ids) > 1){
@@ -179,14 +183,70 @@ gr_GP_mod <- function(hp,
     # browser()
     gradient_value <- -0.5 * (common_term %*% dK_dhp) %>%
       diag() %>%
-      sum() %>%
-      return()
+      sum()
     # gradient_value <- -0.5 * sum(diag(common_term %*% dK_dhp))
     # return(gradient_value)
   }
 
   # Return a named vector of gradients
-  sapply(hp_col_names, floop, USE.NAMES = TRUE)
+  neg_grad_Q  <- sapply(hp_col_names, floop, USE.NAMES = TRUE)
+
+  # 5. Add the negative gradient of the log-prior for MAP
+  neg_grad_log_prior <- rep(0, length(neg_grad_Q))
+  names(neg_grad_log_prior) <- names(neg_grad_Q)
+
+  if (length(priors)!=0) {
+    # On itère sur chaque nom de paramètre du vecteur d'optimisation (ex: "l_t_1")
+    for (param_name in names(neg_grad_log_prior)) {
+
+      # --- ÉTAPE 1 : Extraire le nom de la colonne (ex: "l_t_1" -> "l_t") ---
+      col_name <- gsub("_\\d+$", "", param_name)
+
+      # Vérifier si un prior est défini pour ce type de paramètre
+      if (col_name %in% names(priors)) {
+
+        # --- ÉTAPE 2 : Extraire l'index de la ligne (ex: "l_t_1" -> 1) ---
+        # On utilise une expression régulière pour trouver le nombre à la fin
+        output_index_str <- sub(".*_(\\d+)$", "\\1", param_name)
+
+        # Si un nombre est trouvé, on le convertit. Sinon (cas de "l_u_t"), on prend la 1ère ligne.
+        row_index <- if (grepl("\\d+", output_index_str)) {
+          as.numeric(output_index_str)
+        } else {
+          1
+        }
+
+        # --- ÉTAPE 3 : Récupérer la valeur unique de l'HP ---
+        current_hp_value <- hp_tibble[[col_name]][row_index]
+
+        # --- ÉTAPE 4 : Calculer le gradient comme avant ---
+        prior_info <- priors[[col_name]]
+        grad_log_p <- 0
+
+        if (prior_info$dist == "invgamma") {
+          alpha <- prior_info$shape
+          beta <- prior_info$scale
+          grad_log_p <- - (alpha + 1) / current_hp_value + beta / (current_hp_value^2)
+        } else if (prior_info$dist == "gamma") {
+          alpha <- prior_info$shape
+          beta <- prior_info$rate
+          grad_log_p <- (alpha - 1) / current_hp_value - beta
+        } else if (prior_info$dist == "normal") {
+          mu <- prior_info$mean
+          sigma <- prior_info$sd
+          grad_log_p <- - (current_hp_value - mu) / (sigma^2)
+        }
+
+        if(is.na(grad_log_p) || is.infinite(grad_log_p)) grad_log_p <- 0
+
+        # --- ÉTAPE 5 : Assigner le gradient à la bonne place ---
+        neg_grad_log_prior[param_name] <- -grad_log_p
+      }
+    }
+  }
+
+  final_gradient <- neg_grad_Q + neg_grad_log_prior
+  return(final_gradient)
 }
 
 
@@ -205,6 +265,9 @@ gr_GP_mod <- function(hp,
 #' @param pen_diag A jitter term for numerical stability.
 #' @param hp_col_names A character vector with the names of the hyper-parameters.
 #' @param output_ids A character vector with the unique IDs of the outputs.
+#' @param priors A list or tibble containing prior information, e.g.,
+#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
+#'   If NULL, performs ML estimation.
 #'
 #' @return A named vector, the total gradient across all tasks.
 #'
@@ -216,7 +279,8 @@ gr_GP_mod_shared_tasks <- function(hp,
                                 post_cov,
                                 pen_diag,
                                 hp_col_names,
-                                output_ids) {
+                                output_ids,
+                                priors) {
 
   # Loop over each task ID to compute its gradient vector
   funloop <- function(t) {
@@ -241,7 +305,8 @@ gr_GP_mod_shared_tasks <- function(hp,
       post_cov = post_cov_t,
       pen_diag = pen_diag,
       hp_col_names = hp_col_names,
-      output_ids = output_ids
+      output_ids = output_ids,
+      priors = priors
     )
 
   }

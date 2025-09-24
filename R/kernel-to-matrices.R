@@ -687,7 +687,6 @@ list_outputs_blocks_to_inv <- function(db,
                                        hp,
                                        pen_diag,
                                        deriv = NULL) {
-  # browser()
   # Inner function to process a single output
   process_one_output <- function(current_output_id) {
     # browser()
@@ -727,117 +726,6 @@ list_outputs_blocks_to_inv <- function(db,
 }
 
 
-#' Build the convolution matrix for DISSOCIATED grids (Multi-Input capable).
-#'
-#' @param grid_list A LIST, where each element is a MATRIX or DATA.FRAME of
-#'   inputs for an output. Each row is a point, each column is a dimension.
-#' @param l_outputs A vector of lengthscales for each output.
-#' @param S_outputs A vector of variances for each output.
-#' @param l_u Lengthscale of the latent GP.
-#' @return The full covariance matrix for dissociated grids.
-build_convolution_matrix <- function(grid_list,
-                                     l_outputs,
-                                     S_outputs,
-                                     l_u) {
-  nb_outputs <- length(grid_list)
-  n_points_per_output <- purrr::map_int(grid_list, nrow)
-  total_dim <- sum(n_points_per_output)
-
-  # Pre-allocate the final matrix
-  K <- matrix(nrow = total_dim, ncol = total_dim)
-
-  # Calculate cumulative points to find indices for blocks
-  end_indices <- cumsum(n_points_per_output)
-  start_indices <- c(1, end_indices[-nb_outputs] + 1)
-
-  # Loop over each pair of blocks (i, j)
-  for (i in 1:nb_outputs) {
-    for (j in i:nb_outputs) {
-
-      # Dynamically create the hyper-parameter tibble
-      hp_ij <- tibble::tibble(
-        "lengthscale_output1" = l_outputs[i],
-        "lengthscale_output2" = l_outputs[j],
-        "variance_output1" = S_outputs[i],
-        "variance_output2" = S_outputs[j],
-        "lengthscale_u" = l_u
-      )
-      # Calculate the (i, j) covariance block
-      block_ij <- kern_to_cov(input = grid_list[[i]],
-                              input_2 = grid_list[[j]],
-                              kern = convolution_kernel,
-                              hp = hp_ij)
-
-      # Get the row and column indices for placing the block
-      rows <- start_indices[i]:end_indices[i]
-      cols <- start_indices[j]:end_indices[j]
-
-      # Place the block and its transpose
-      K[rows, cols] <- block_ij
-      if (i != j) {
-        K[cols, rows] <- t(block_ij)
-      }
-    }
-  }
-  return(K)
-}
-
-#' #' Build the convolution matrix for DISSOCIATED grids.
-#' #'
-#' #' @param grid_list A LIST of vectors, where each element is the grid for an output.
-#' #' @param l_outputs A vector of lengthscales for each output.
-#' #' @param S_outputs A vector of variances for each output.
-#' #' @param l_u Lengthscale of the latent GP.
-#' #' @return The full covariance matrix for dissociated grids.
-#' build_convolution_matrix <- function(grid_list,
-#'                                      l_outputs,
-#'                                      S_outputs,
-#'                                      l_u) {
-#'
-#'   nb_outputs <- length(grid_list)
-#'   n_points_per_output <- map_int(grid_list, length)
-#'   total_dim <- sum(n_points_per_output)
-#'
-#'   # Pre-allocate the final matrix
-#'   K <- matrix(nrow = total_dim, ncol = total_dim)
-#'
-#'   # Calculate cumulative points to find indices for blocks
-#'   end_indices <- cumsum(n_points_per_output)
-#'   start_indices <- c(1, end_indices[-nb_outputs] + 1)
-#'
-#'   # Loop over each pair of blocks (i, j)
-#'   for (i in 1:nb_outputs) {
-#'     for (j in i:nb_outputs) {
-#'
-#'       # Dynamically create the hyper-parameter tibble
-#'       hp_ij <- tibble(
-#'         "lengthscale_output1" = l_outputs[i],
-#'         "lengthscale_output2" = l_outputs[j],
-#'         "variance_output1" = S_outputs[i],
-#'         "variance_output2" = S_outputs[j],
-#'         "lengthscale_u" = l_u
-#'       )
-#'
-#'       # Calculate the (i, j) covariance block
-#'       # This now uses the two respective grids from the list
-#'       block_ij <- kern_to_cov(input = grid_list[[i]],
-#'                               input_2 = grid_list[[j]],
-#'                               kern = convolution_kernel,
-#'                               hp = hp_ij)
-#'
-#'       # Get the row and column indices for placing the block
-#'       rows <- start_indices[i]:end_indices[i]
-#'       cols <- start_indices[j]:end_indices[j]
-#'
-#'       # Place the block and its transpose
-#'       K[rows, cols] <- block_ij
-#'       if (i != j) {
-#'         K[cols, rows] <- t(block_ij)
-#'       }
-#'     }
-#'   }
-#'   return(K)
-#' }
 
 #' Inverse a matrix using an adaptive jitter term
 #'

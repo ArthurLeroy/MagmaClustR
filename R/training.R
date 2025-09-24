@@ -82,6 +82,9 @@
 #'    stop after only one iteration of the E-step. This advanced feature is
 #'    mainly used to provide a faster approximation of the model selection
 #'    procedure, by preventing any optimisation over the hyper-parameters.
+#' @param priors A list or tibble containing prior information, e.g.,
+#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
+#'   If NULL, performs ML estimation.
 #'
 #' @details The user can specify custom kernel functions for the argument
 #'    \code{kern_0} and \code{kern_t}. The hyper-parameters used in the kernel
@@ -129,6 +132,7 @@ train_magma <- function(data,
                         ini_hp_t = NULL,
                         kern_0 = "SE",
                         kern_t = "SE",
+                        priors = NULL,
                         shared_hp_tasks = TRUE,
                         grid_inputs = NULL,
                         pen_diag = 1e-10,
@@ -214,14 +218,47 @@ train_magma <- function(data,
   }
 
 
+  # browser()
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- data %>%
     dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
     unique()
 
+
+  # # Extract unique inputs
+  # unique_inputs <- data %>%
+  #   dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
+  #   dplyr::distinct()
+  #
+  # # Extract the unique Output_ID
+  # unique_tasks_outputs <- data %>%
+  #   dplyr::select(Output_ID) %>%
+  #   dplyr::distinct()
+  #
+  # # Create the complete grid by combining the 2 sets
+  # all_inputs <- tidyr::expand_grid(
+  #   unique_tasks_outputs,
+  #   unique_inputs
+  # ) %>%
+  #   dplyr::mutate(across(starts_with("Input"), ~ round(.x, 6))) %>%
+  #   rowwise() %>%
+  #   dplyr::mutate(
+  #     Reference = paste(
+  #       # Create output's prefix
+  #       paste0("o", Output_ID),
+  #       # Create the reference for each Output_ID
+  #       paste(c_across(starts_with("Input")), collapse = ":"),
+  #       # Join output's prefix and reference
+  #       sep = ";"
+  #     )
+  #   ) %>%
+  #   dplyr::ungroup() %>%
+  #   dplyr::arrange(Reference)
+
   all_input <- all_inputs %>%
     dplyr::arrange(Reference) %>%
     dplyr::pull(Reference)
+
 
   ## Initialise m_0 according to the value provided by the user
   if (prior_mean %>% is.null()) {
@@ -285,6 +322,8 @@ train_magma <- function(data,
         "You can use the function 'hp()' to easily generate a tibble of random",
         " hyper-parameters with the desired format for initialisation."
       )
+    } else {
+      hp_0 <- ini_hp_0
     }
   } else {
     if (ini_hp_0 %>% is.null()) {
@@ -313,29 +352,6 @@ train_magma <- function(data,
       hp_0 <- ini_hp_0
     }
   }
-
-  # # Initialise the mean process inverse covariance if not provided
-  # if (inv_0 %>% is.null()){
-  #   inv_0 <- ini_inverse_prior_cov(db = data,
-  #                                  kern_0 = kern_0,
-  #                                  hp = hp_0,
-  #                                  pen_diag = pen_diag)
-  # } else {
-  #   # Get the expected dimension based on the number of unique inputs
-  #   expected_dim <- nrow(all_inputs)
-  #
-  #   # Check if the dimensions are not what we expect
-  #   if (is.null(dim(inv_0)) || nrow(inv_0) != expected_dim || ncol(inv_0) != expected_dim) {
-  #     actual_dims <- if(!is.null(dim(inv_0))) paste0(nrow(inv_0), "x", ncol(inv_0)) else "NULL"
-  #
-  #     stop(paste0("Wrong dimensions for inv_0. Expected ",
-  #                 expected_dim, "x", expected_dim,
-  #                 ", but got ", actual_dims, "."))
-  #   }
-  #   inv_0 <- inv_0 %>%
-  #     `rownames<-`(all_inputs %>% dplyr::pull(.data$Reference)) %>%
-  #     `colnames<-`(all_inputs %>% dplyr::pull(.data$Reference))
-  # }
 
 
   ## Initialise the task process' hp according to user's values
@@ -490,6 +506,7 @@ train_magma <- function(data,
                       kern_t = kern_t,
                       old_hp_0 = hp_0,
                       old_hp_t = hp_t,
+                      priors = priors,
                       post_mean = post$mean,
                       post_cov = post$cov,
                       shared_hp_tasks = shared_hp_tasks,
@@ -532,9 +549,11 @@ train_magma <- function(data,
       break
     }
 
-    ## Monitoring the complete log-likelihood
+    # Monitoring (MAP)
+    priors_for_monitoring <- purrr::map(priors, "prior")
+
     new_logL_monitoring <- logL_monitoring(
-      hp_0 = hp_0,
+      hp_0 = new_hp_0,
       hp_t = new_hp_t,
       db = data,
       m_0 = m_0,
@@ -542,7 +561,8 @@ train_magma <- function(data,
       kern_t = kern_t,
       post_mean = post$mean,
       post_cov = post$cov,
-      pen_diag = pen_diag
+      pen_diag = pen_diag,
+      priors = priors_for_monitoring
     )
 
     diff_logL <- new_logL_monitoring - logL_monitoring

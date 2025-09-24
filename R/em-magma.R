@@ -40,22 +40,71 @@ e_step <- function(db,
     unique() %>%
     dplyr::arrange(Reference)
 
-  ## Compute the inverse covariance of the mean process
-  # inv_0 <- ini_inverse_prior_cov(db, kern_0, hp_0, pen_diag)
-  inv_0 <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
-    `rownames<-`(all_inputs$Reference) %>%
-    `colnames<-`(all_inputs$Reference)
+  # # Extract unique inputs
+  # unique_inputs <- db %>%
+  #   dplyr::select(-c(Task_ID, Output_ID,
+  #                    Output)) %>%
+  #   dplyr::distinct()
+  #
+  # # Extract the unique Output_ID
+  # unique_tasks_outputs <- db %>%
+  #   dplyr::select(Output_ID) %>%
+  #   dplyr::distinct()
+  #
+  # # Create the complete grid by combining the 2 sets
+  # all_inputs <- tidyr::expand_grid(
+  #   unique_tasks_outputs,
+  #   unique_inputs
+  # ) %>%
+  #   dplyr::mutate(across(starts_with("Input"), ~ round(.x, 6))) %>%
+  #   rowwise() %>%
+  #   dplyr::mutate(
+  #     Reference = paste(
+  #       # Create output's prefix
+  #       paste0("o", Output_ID),
+  #       # Create the reference for each Output_ID
+  #       paste(c_across(starts_with("Input")), collapse = ":"),
+  #       # Join output's prefix and reference
+  #       sep = ";"
+  #     )
+  #   ) %>%
+  #   dplyr::ungroup() %>%
+  #   dplyr::arrange(Reference)
 
-  # # ONLY IF HPs ARE SHARED BETWEEN TASKS
-  # hp_0t <-  hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
-  # cov_0 <- kern_to_cov(
-  #   input = all_inputs,
-  #   kern = kern_t,
-  #   hp = hp_0t,
-  # )
-  # inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
-  #   `rownames<-` (all_inputs$Reference) %>%
-  #   `colnames<-` (all_inputs$Reference)
+  all_input <- all_inputs %>%
+    dplyr::arrange(Reference) %>%
+    dplyr::pull(Reference)
+
+  # # Compute the inverse covariance matrix for each output block of the mean process
+  # # This assumes the prior on mu_0 treats outputs as independent GPs.
+  list_inv_0 <- list_outputs_blocks_to_inv(db = all_inputs,
+                                           kern = kern_0,
+                                           hp = hp_0,
+                                           pen_diag = pen_diag)
+
+  # Create the full block-diagonal inverse covariance matrix for mu_0
+  inv_0 <- Matrix::bdiag(list_inv_0)
+  # browser()
+  # Set the row and column names of inv_0
+  all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
+  dimnames(inv_0) <- list(all_references, all_references)
+  inv_0 <- (1/10000)*as.matrix(inv_0)
+
+  # browser()
+  # Compute the convolutional covariance matrix of the mean process
+  # cov_0 <- kern_to_cov(input = all_inputs,
+  #                      kern = kern_0,
+  #                      hp = hp_0)
+  #
+  # references <- rownames(cov_0)
+  # matrixcalc::is.positive.semi.definite(cov_0)
+  # inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
+  # matrixcalc::is.positive.semi.definite(inv_0)
+  # # Re-apply the stored names to the inverted matrix
+  # dimnames(inv_0) <- list(references, references)
+  # inv_0 <- (1/100000) * inv_0
+
+  print(paste0('Det inv_0:',det(inv_0)))
 
   list_inv_t <- list()
 
@@ -133,6 +182,7 @@ e_step <- function(db,
       inv_t[co_input, co_input]
   }
 
+  # browser()
   post_cov <- post_inv %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
     `rownames<-`(all_inputs %>% dplyr::pull(.data$Reference)) %>%
@@ -181,6 +231,9 @@ e_step <- function(db,
 #' @param post_cov Posterior covariance from the E-step.
 #' @param shared_hp_tasks If TRUE, all tasks share the same hyper-parameter values.
 #' @param pen_diag A jitter term for matrix inversion.
+#' @param priors A list or tibble containing prior information, e.g.,
+#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
+#'   If NULL, performs ML estimation.
 #'
 #' @return A tibble containing the updated hyperparameters`hp_t`.
 #'
@@ -194,63 +247,18 @@ m_step <- function(db,
                    post_mean,
                    post_cov,
                    shared_hp_tasks,
-                   pen_diag) {
+                   pen_diag,
+                   priors) {
 
+  # browser()
   list_hp_0 <- old_hp_0 %>% names()
   list_ID_task <- unique(db$Task_ID)
   output_ids_vector <- unique(db$Output_ID)
 
-  if (length(output_ids_vector) > 1){
-    # MO case
-    # Optimise hyper-parameters of the mean process
-    # new_hp_0 <- stats::optim(
-    #   par = old_hp_0,
-    #   fn = logL_GP_mod,
-    #   gr = gr_GP_mod,
-    #   db = post_mean,
-    #   mean = m_0,
-    #   kern = kern_0,
-    #   post_cov = post_cov,
-    #   pen_diag = pen_diag,
-    #   hp_col_names = list_hp_0,
-    #   output_ids = output_ids_vector,
-    #   method = "L-BFGS-B",
-    #   control = list(factr = 1e13, maxit = 25)
-    # )$par %>%
-    #   tibble::as_tibble_row()
+  new_hp_0 <- old_hp_0
 
-    new_hp_0 <- old_hp_0
-
-  } else {
-    # Single output case
-    # Optimise hyper-parameters of the mean process
-    # old_hp_0 <- old_hp_0 %>%
-    #   dplyr::select(-Output_ID) %>%
-    #   as.numeric()
-    #
-    # list_hp_0 <- list_hp_0[list_hp_0 != "Output_ID"]
-    #
-    # new_hp_0 <- stats::optim(
-    #   par = old_hp_0,
-    #   fn = logL_GP_mod,
-    #   gr = gr_GP_mod,
-    #   db = post_mean,
-    #   mean = m_0,
-    #   kern = kern_0,
-    #   post_cov = post_cov,
-    #   pen_diag = pen_diag,
-    #   hp_col_names = list_hp_0,
-    #   output_ids = output_ids_vector,
-    #   method = "L-BFGS-B",
-    #   control = list(factr = 1e13, maxit = 25)
-    # )$par %>% setNames(list_hp_0) %>%
-    #   tibble::as_tibble_row()
-    #
-    # # To give the right format of HPs to the next E-step
-    # new_hp_0$Output_ID <- "1"
-
-    new_hp_0 <- old_hp_0
-  }
+  # Extraire les a priori de la configuration pour les passer à l'optimiseur
+  priors_for_optim <- purrr::map(priors, "prior")
 
   # =================================================================== #
   # Case 1: HPs are shared across tasks -> one optimisation over all data
@@ -294,6 +302,7 @@ m_step <- function(db,
       pen_diag          = pen_diag,
       hp_col_names      = hp_col_names,
       output_ids        = output_ids_vector,
+      priors            = priors_for_optim,
       method            = "L-BFGS-B",
       control           = list(factr = 1e13, maxit = 25)
     )$par %>%
@@ -374,6 +383,7 @@ m_step <- function(db,
         pen_diag          = pen_diag,
         hp_col_names      = hp_col_names,
         output_ids        = output_ids_vector,
+        priors            = priors_for_optim,
         method            = "L-BFGS-B",
         control           = list(factr = 1e13, maxit = 25)
       )$par %>%

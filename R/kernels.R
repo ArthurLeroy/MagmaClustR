@@ -405,8 +405,10 @@ hp <- function(kern = "SE",
                noise = FALSE,
                hp_config = NULL) {
   ## Initiate interval boundaries
-  min_val <- 0
+  min_val <- -3
   max_val <- 3
+  # min_val_u <- -1
+  # max_val_u <- 3
   min_noise <- -5
   max_noise <- -1
 
@@ -599,4 +601,223 @@ hp <- function(kern = "SE",
 
     return(final_hp)
   }
+}
+
+
+
+
+#' #' @title Generate Initial Hyperparameters for Tasks
+#' #' @description Creates an initial hp_t tibble based on prior distributions.
+#' #'
+#' #' @param hp_t_config A named list where each element is a list containing a `prior` definition.
+#' #' @param task_ids A vector of unique task IDs.
+#' #' @param output_ids A vector of unique output IDs.
+#' #' @param shared_tasks A logical indicating if HPs are shared across tasks.
+#' #' @param shared_hp_outputs A logical indicating if HPs are shared across outputs.
+#' #'
+#' #' @return A tibble `hp_t` with initial values for the EM algorithm.
+#'
+#' generate_initial_hp_t <- function(hp_t_config,
+#'                                   task_ids,
+#'                                   output_ids,
+#'                                   shared_tasks = TRUE,
+#'                                   shared_hp_outputs = TRUE) {
+#'
+#'   if (shared_hp_outputs) {
+#'     # --- Cas 1: Tous les HPs sont partagés entre les outputs ---
+#'
+#'     initial_values <- list()
+#'     for (name in names(hp_t_config)) {
+#'       prior <- hp_t_config[[name]]$prior
+#'       if (is.null(prior)) stop(paste("Error: 'prior' is missing for HP:", name))
+#'
+#'       value <- switch(prior$dist,
+#'                       "gamma"    = prior$shape / prior$rate,
+#'                       "invgamma" = prior$scale / (prior$shape - 1),
+#'                       "normal"   = prior$mean,
+#'                       stop(paste("Unsupported prior distribution:", prior$dist))
+#'       )
+#'       initial_values[[name]] <- value
+#'     }
+#'
+#'     hp_t <- tidyr::crossing(Task_ID = task_ids, Output_ID = output_ids) %>%
+#'       dplyr::bind_cols(tibble::as_tibble(initial_values))
+#'
+#'   } else {
+#'     # --- Cas 2: Certains HPs sont spécifiques à chaque output ---
+#'
+#'     n_outputs <- length(output_ids)
+#'     initial_values_per_output <- list()
+#'
+#'     for (name in names(hp_t_config)) {
+#'       prior <- hp_t_config[[name]]$prior
+#'       if (is.null(prior)) stop(paste("Error: 'prior' is missing for HP:", name))
+#'
+#'       # --- AJOUT DE LA CONDITION SPÉCIFIQUE POUR 'l_u_t' ---
+#'       if (name == "l_u_t") {
+#'         # Pour l_u_t, on calcule la moyenne du prior et on la réplique.
+#'         value <- switch(prior$dist,
+#'                         "gamma"    = prior$shape / prior$rate,
+#'                         "invgamma" = prior$scale / (prior$shape - 1),
+#'                         "normal"   = prior$mean,
+#'                         stop(paste("Unsupported prior for shared HP:", prior$dist))
+#'         )
+#'         values <- rep(value, n_outputs)
+#'
+#'       } else {
+#'         # Pour les autres HPs, on échantillonne une valeur par output.
+#'         values <- switch(prior$dist,
+#'                          "gamma" = {
+#'                            stats::rgamma(n_outputs, shape = prior$shape, rate = prior$rate)
+#'                          },
+#'                          "invgamma" = {
+#'                            if (!requireNamespace("extraDistr", quietly = TRUE)) stop("Package 'extraDistr' needed.")
+#'                            extraDistr::rinvgamma(n_outputs, alpha = prior$shape, beta = prior$scale)
+#'                          },
+#'                          "normal" = {
+#'                            stats::rnorm(n_outputs, mean = prior$mean, sd = prior$sd)
+#'                          },
+#'                          stop(paste("Unsupported prior distribution:", prior$dist))
+#'         )
+#'       }
+#'       initial_values_per_output[[name]] <- values
+#'     }
+#'
+#'     hp_per_output <- tibble::as_tibble(initial_values_per_output) %>%
+#'       dplyr::mutate(Output_ID = output_ids)
+#'
+#'     hp_t <- tidyr::crossing(Task_ID = task_ids, Output_ID = output_ids) %>%
+#'       dplyr::left_join(hp_per_output, by = "Output_ID")
+#'   }
+#'
+#'   return(hp_t)
+#' }
+#'
+
+#' @title Generate Initial Hyperparameters for Tasks and Outputs
+#' @description Creates an initial `hp_t` tibble based on prior distributions,
+#'   handling both shared and specific hyperparameters.
+#'
+#' @param hp_t_config A named list where each element defines a prior.
+#'   Names can be generic (`l_t`) or specific (`l_t_T1`, `l_t_Oa`, `l_t_T1_Oa`)
+#'   following the format `baseName_taskID_outputID`.
+#' @param task_ids A vector of unique task IDs.
+#' @param output_ids A vector of unique output IDs.
+#' @param base_hp_names A character vector of the base hyperparameter names
+#'   (e.g., `c("l_u_t", "l_t", "S_t", "noise")`).
+#' @param shared_tasks A boolean. If `TRUE`, HPs are identical across all tasks
+#'   (unless a specific output prior is provided when `shared_hp_outputs = FALSE`).
+#' @param shared_hp_outputs A boolean. If `TRUE`, HPs are identical across all outputs.
+#'
+#' @return A tibble `hp_t` with initial values for each combination
+#'   of `Task_ID` and `Output_ID`.
+
+generate_initial_hp_t <- function(hp_t_config,
+                                  task_ids,
+                                  output_ids,
+                                  base_hp_names,
+                                  shared_tasks = TRUE,
+                                  shared_hp_outputs = TRUE) {
+
+  # Create the base tibble with all combinations
+  hp_t <- tidyr::crossing(Task_ID = task_ids, Output_ID = output_ids)
+
+  # --- Case 1: HPs shared across all tasks AND all outputs ---
+  if (shared_tasks && shared_hp_outputs) {
+    initial_values <- list()
+    for (name in base_hp_names) {
+      prior <- hp_t_config[[name]]$prior
+      if (is.null(prior)) stop(paste("Error: Generic prior is missing for HP:", name))
+
+      value <- switch(prior$dist,
+                      "gamma"    = prior$shape / prior$rate,
+                      "invgamma" = if (prior$shape > 1) prior$scale / (prior$shape - 1) else NA,
+                      "normal"   = prior$mean,
+                      stop(paste("Unsupported prior distribution:", prior$dist))
+      )
+      initial_values[[name]] <- value
+    }
+    hp_t <- dplyr::bind_cols(hp_t, tibble::as_tibble(initial_values))
+  }
+
+  # --- Case 2: HPs specific to each task, but shared across outputs ---
+  else if (!shared_tasks && shared_hp_outputs) {
+    for (hp_name in base_hp_names) {
+      values_for_tasks <- sapply(task_ids, function(current_task) {
+        specific_name <- paste0(hp_name, "_", current_task)
+
+        prior_name <- if (specific_name %in% names(hp_t_config)) specific_name else hp_name
+        prior <- hp_t_config[[prior_name]]$prior
+        if (is.null(prior)) stop(paste("Error: No prior for HP:", hp_name, "for task:", current_task))
+
+        switch(prior$dist,
+               "gamma"    = prior$shape / prior$rate,
+               "invgamma" = if (prior$shape > 1) prior$scale / (prior$shape - 1) else NA,
+               "normal"   = prior$mean,
+               stop(paste("Unsupported prior:", prior$dist)))
+      })
+      values_tibble <- tibble(Task_ID = task_ids, !!hp_name := values_for_tasks)
+      hp_t <- dplyr::left_join(hp_t, values_tibble, by = "Task_ID")
+    }
+  }
+
+  # --- Case 3: HPs shared across tasks, but specific to each output ---
+  else if (shared_tasks && !shared_hp_outputs) {
+    for (hp_name in base_hp_names) {
+      values_for_outputs <- sapply(output_ids, function(current_output) {
+        specific_name <- paste0(hp_name, "_", current_output)
+
+        prior_name <- if (specific_name %in% names(hp_t_config)) specific_name else hp_name
+        prior <- hp_t_config[[prior_name]]$prior
+        if (is.null(prior)) stop(paste("Error: No prior for HP:", hp_name, "for output:", current_output))
+
+        switch(prior$dist,
+               "gamma"    = prior$shape / prior$rate,
+               "invgamma" = if (prior$shape > 1) prior$scale / (prior$shape - 1) else NA,
+               "normal"   = prior$mean,
+               stop(paste("Unsupported prior:", prior$dist)))
+      })
+      values_tibble <- tibble(Output_ID = output_ids, !!hp_name := values_for_outputs)
+      hp_t <- dplyr::left_join(hp_t, values_tibble, by = "Output_ID")
+    }
+  }
+
+  # --- Case 4: HPs specific to each combination of task AND output ---
+  else if (!shared_tasks && !shared_hp_outputs) {
+    # Iterate over each hyperparameter name
+    for (hp_name in base_hp_names) {
+      # Use purrr::map2_dbl to apply a function over each pair of Task_ID and Output_ID
+      hp_values <- purrr::map2_dbl(hp_t$Task_ID, hp_t$Output_ID, function(current_task, current_output) {
+
+        # Hierarchical search logic for the prior
+        name_task_output <- paste0(hp_name, "_", current_task, "_", current_output)
+        name_task        <- paste0(hp_name, "_", current_task)
+        name_output      <- paste0(hp_name, "_", current_output)
+
+        prior_name <- if (name_task_output %in% names(hp_t_config)) {
+          name_task_output
+        } else if (name_task %in% names(hp_t_config)) {
+          name_task
+        } else if (name_output %in% names(hp_t_config)) {
+          name_output
+        } else {
+          hp_name
+        }
+
+        prior <- hp_t_config[[prior_name]]$prior
+        if (is.null(prior)) stop(paste("Error: No prior for HP:", hp_name, "for combo:", current_task, current_output))
+
+        switch(prior$dist,
+               "gamma"    = prior$shape / prior$rate,
+               "invgamma" = if (prior$shape > 1) prior$scale / (prior$shape - 1) else NA,
+               "normal"   = prior$mean,
+               stop(paste("Unsupported prior:", prior$dist)))
+      })
+
+      # Assign the computed values as a new column in the tibble
+      hp_t[[hp_name]] <- hp_values
+    }
+  }
+
+  return(hp_t)
 }

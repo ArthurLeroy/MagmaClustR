@@ -507,9 +507,12 @@ generate_single_task_data <- function(
     task_hp_tibble,
     n_points_range
 ) {
+  # browser()
   num_outputs <- length(mean_process_info$grid_list)
 
   # --- Sample a sparse sub-grid for this task ---
+  # n_points_per_output_task <- n_points_range
+
   n_points_per_output_task <- sample(n_points_range[1]:n_points_range[2],
                                      size = num_outputs, replace = TRUE)
   task_grid_list <- purrr::map2(mean_process_info$grid_list,
@@ -575,8 +578,8 @@ simulate_multi_output_data <- function(
     hp_config_tasks = tibble::tibble(
       output_id = 1:2, lt_min = c(-3, -3), lt_max = c(3, 3),
       St_min = c(-3, -3), St_max = c(3, 3),
-      noise_min = c(-3, -3), noise_max = c(3, 3),
-      lu_min = c(-3, -3), lu_max = c(3, 3)
+      noise_min = c(-3, -3), noise_max = c(0, 0),
+      lu_min = c(-1, -1), lu_max = c(3, 3)
     ),
     n_points_per_task_range = c(5, 20),
     shared_hp_tasks = FALSE,
