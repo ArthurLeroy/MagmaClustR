@@ -12,6 +12,8 @@
 #'    associated with \code{kern_0}.
 #' @param hp_t A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_t}.
+#' @param weight_inv_0 A number, indicating the weight that the user wants to
+#'  attribute to the inverse prior covariance inv_0.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #' @return A named list, containing the elements \code{mean}, a tibble
@@ -30,8 +32,9 @@ e_step <- function(db,
                    kern_t,
                    hp_0,
                    hp_t,
+                   weight_inv_0,
                    pen_diag) {
-  # browser()
+
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
   # Get the union of all unique input points from the training data
@@ -56,7 +59,7 @@ e_step <- function(db,
   # Set the row and column names of inv_0
   all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
   dimnames(inv_0) <- list(all_references, all_references)
-  inv_0 <- (1/10000)*as.matrix(inv_0)
+  inv_0 <- weight_inv_0*as.matrix(inv_0)
 
   # Compute the convolutional covariance matrix of the mean process
   # cov_0 <- kern_to_cov(input = all_inputs,

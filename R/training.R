@@ -64,8 +64,16 @@
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_t A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are also available here).
+#' @param priors A list or tibble containing prior information, e.g.,
+#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
+#'   If NULL, performs ML estimation.
+#' @param weight_inv_0 A number, indicating the weight that the user wants to
+#'  attribute to the inverse prior covariance inv_0.
 #' @param shared_hp_tasks A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all tasks. If TRUE, all tasks
+#'    share the same hyper-parameter values.
+#' @param shared_hp_outputs A logical value, indicating whether the set of
+#'    hyper-parameters is assumed to be common to all outputs. If TRUE, all outputs
 #'    share the same hyper-parameter values.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
@@ -133,7 +141,9 @@ train_magma <- function(data,
                         kern_0 = "SE",
                         kern_t = "SE",
                         priors = NULL,
+                        weight_inv_0 = 1e-4,
                         shared_hp_tasks = TRUE,
+                        shared_hp_outputs = FALSE,
                         grid_inputs = NULL,
                         pen_diag = 1e-10,
                         n_iter_max = 25,
@@ -424,6 +434,7 @@ train_magma <- function(data,
                     kern_t = kern_t,
                     hp_0 = hp_0,
                     hp_t = hp_t,
+                    weight_inv_0 = weight_inv_0,
                     pen_diag = pen_diag)
 
     ########### GRAPH DE CONTROLE MU0 ###########

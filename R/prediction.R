@@ -436,6 +436,8 @@ pred_gp <- function(data = NULL,
 #' @param kern_t A kernel function, associated with the task GPs. ("SE",
 #'    "PERIO" and "RQ" are aso available here). Recovered from
 #'    \code{trained_model} if not provided.
+#' @param weight_inv_0 A number, indicating the weight that the user wants to
+#'  attribute to the inverse prior covariance inv_0.
 #' @param prior_mean Hyper-prior mean parameter of the mean GP. This argument,
 #'    can be specified under various formats, such as:
 #'    - NULL (default). The hyper-prior mean would be set to 0 everywhere.
@@ -477,6 +479,7 @@ hyperposterior <- function(trained_model = NULL,
                            hp_t = NULL,
                            kern_0 = NULL,
                            kern_t = NULL,
+                           weight_inv_0 = 1,
                            prior_mean = NULL,
                            grid_inputs = NULL,
                            pen_diag = 1e-10) {
@@ -672,7 +675,7 @@ hyperposterior <- function(trained_model = NULL,
     # Set the row and column names of inv_0
     all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
     dimnames(inv_0) <- list(all_references, all_references)
-    inv_0 <- (1/100000000)*as.matrix(inv_0)
+    inv_0 <- weight_inv_0*as.matrix(inv_0)
   } else {
     inv_0 <- kern_to_inv(all_inputs %>%
                            select(-Output_ID),
@@ -683,6 +686,8 @@ hyperposterior <- function(trained_model = NULL,
                          pen_diag) %>%
       `rownames<-`(all_inputs$Reference)%>%
       `colnames<-`(all_inputs$Reference)
+
+    inv_0 <- weight_inv_0*inv_0
   }
 
 
@@ -693,7 +698,6 @@ hyperposterior <- function(trained_model = NULL,
 
   # For each task, compute its full multi-output inverse covariance matrix
   for (t in list_ID_task) {
-    # browser()
     # Isolate the data and HPs for the current task
     db_t <- data %>% dplyr::filter(Task_ID == t) %>%
       dplyr::select(-c(Output, Task_ID))
@@ -972,6 +976,7 @@ pred_magma <- function(data = NULL,
           kern_t = trained_model$ini_args$kern_t,
           hp_0 = trained_model$hp_0,
           hp_t = trained_model$hp_t,
+          weight_inv_0 = trained_model$weight_inv_0,
         )
 
         ## Retain only grid_inputs for display purposes
