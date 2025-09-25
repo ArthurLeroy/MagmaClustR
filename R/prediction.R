@@ -483,6 +483,7 @@ hyperposterior <- function(trained_model = NULL,
                            prior_mean = NULL,
                            grid_inputs = NULL,
                            pen_diag = 1e-10) {
+  # browser()
   ## Check whether a model trained by train_magma() is provided
   if(trained_model %>% is.null()){
     ## Check whether all mandatory arguments are present otherwise
@@ -500,7 +501,9 @@ hyperposterior <- function(trained_model = NULL,
     if(hp_t %>% is.null()){hp_t = trained_model$hp_t}
     if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_t}
     if(kern_t %>% is.null()){kern_t = trained_model$ini_args$kern_t}
+    if(weight_inv_0 %>% is.null()){weight_inv_0 = trained_model$ini_args$weight_inv_0}
     if(prior_mean %>% is.null()){prior_mean = trained_model$ini_args$prior_mean}
+
   }
 
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
