@@ -24,31 +24,96 @@ gr_GP <- function(hp,
                   mean,
                   kern,
                   post_cov,
-                  pen_diag) {
+                  pen_diag,
+                  hp_col_names) {
+  if(!(hp %>% is_tibble()) && length(db$Output_ID %>% unique()) > 1){
+    # 1. Reconstruct the structured HP tibble from the flat vector
+    hp_tibble <- reconstruct_hp(
+      par_vector = hp,
+      hp_names = hp_col_names,
+      output_ids = db$Output_ID %>% unique()
+    )
+  } else if (!(hp %>% is_tibble()) && length(db$Output_ID %>% unique()) == 1){
+    hp_tibble <- hp %>%
+      t() %>%
+      tibble::as_tibble() %>%
+      stats::setNames(hp_col_names)
 
-  list_hp <- names(hp)
+  } else {
+    hp_tibble <- hp
+  }
+
+  list_ID_outputs <- db$Output_ID %>% unique()
+
+  # 2. Build and invert the full multi-output covariance matrix
+  #    'inputs' must contain the 'Output_ID' column for the kernel to work
+  if(length(list_ID_outputs) > 1 && !(kern %>% is.character())){
+    # MO inversion of the TASK covariance
+    # Call kern_to_cov directly.
+    # It will handle the multi-output structure and the noise addition internally.
+    # 'kern_t' is expected to be the 'convolution_kernel' function.
+    cov <- kern_to_cov(
+      input = db %>%
+        dplyr::select(Output_ID, dplyr::starts_with("Input")),
+      kern = kern,
+      hp = hp_tibble
+    ) + post_cov
+
+    # Inverse K_task_t
+    inv <- cov %>% chol_inv_jitter(pen_diag = pen_diag)
+
+  } else {
+    # Single output case
+    # Extract all_inputs to call kern_to_cov() on the single output case
+    all_inputs <- db %>%
+      dplyr::select(-c(Output, Output_ID)) %>%
+      unique() %>%
+      dplyr::arrange(Reference)
+
+    # Compute the inverse covariance matrix of the task 't'
+    inv <- kern_to_inv(
+      input = all_inputs,
+      kern = kern,
+      hp = hp_tibble,
+      pen_diag = pen_diag
+    )
+  }
+
   output <- db$Output
-  ## Extract the reference Input
-  input <- db$Reference
-  ## Extract the input variables (reference Input + Covariates)
-  inputs <- db %>% dplyr::select(-.data$Output)
-
-  cov <- kern_to_cov(inputs, kern, hp) + post_cov
-
-  inv <- cov %>% chol_inv_jitter(pen_diag = pen_diag)
 
   ## Compute the term common to all partial derivatives
   prod_inv <- inv %*% (output - mean)
   common_term <- prod_inv %*% t(prod_inv) - inv
 
-  ## Loop over the derivatives of hyper-parameters for computing the gradient
-  floop <- function(deriv) {
-    (-0.5 * (common_term %*% kern_to_cov(inputs, kern, hp, deriv))) %>%
+  floop <- function(deriv_name) {
+    # Get the derivative of the covariance matrix w.r.t. the current HP
+    if(length(list_ID_outputs) > 1){
+      dcov <- kern_to_cov(db %>%
+                            dplyr::select(Output_ID, dplyr::starts_with("Input")),
+                          kern = kern,
+                          hp = hp_tibble,
+                          deriv = deriv_name)
+    } else {
+      # Extract all_inputs to call kern_to_cov() on the single output case
+      all_inputs <- db %>%
+        dplyr::select(-c(Output, Output_ID)) %>%
+        unique() %>%
+        dplyr::arrange(Reference)
+
+      dcov <- kern_to_cov(input = all_inputs,
+                          kern = kern,
+                          hp = hp_tibble,
+                          deriv = deriv_name)
+    }
+
+    # Compute the gradient component for this HP
+    gradient_value <- -0.5 * (common_term %*% dcov) %>%
       diag() %>%
       sum() %>%
       return()
   }
-  sapply(list_hp, floop) %>%
+
+  sapply(hp_col_names, floop) %>%
     return()
 }
 
@@ -81,6 +146,7 @@ gr_GP_mod <- function(hp,
                       output_ids,
                       priors,
                       ...) {
+  bro
   if(!(hp %>% is_tibble()) && length(output_ids) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(

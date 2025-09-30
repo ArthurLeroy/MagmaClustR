@@ -74,15 +74,52 @@ logL_GP <- function(hp,
                     mean,
                     kern,
                     post_cov,
-                    pen_diag) {
+                    pen_diag,
+                    hp_col_names) {
+  # browser()
+  if(!(hp %>% is_tibble()) && length(db$Output_ID %>% unique()) > 1){
+    # 1. Reconstruct the structured HP tibble from the flat vector
+    hp_tibble <- reconstruct_hp(
+      par_vector = hp,
+      hp_names = hp_col_names,
+      output_ids = db$Output_ID %>% unique()
+    )
+  } else if (!(hp %>% is_tibble()) && length(db$Output_ID %>% unique()) == 1){
+    hp_tibble <- hp %>%
+      t() %>%
+      tibble::as_tibble() %>%
+      stats::setNames(hp_col_names)
+
+  } else {
+    hp_tibble <- hp
+  }
 
   ## Extract the input variables (reference Input + Covariates)
-  inputs <- db %>% dplyr::select(-.data$Output)
+  inputs <- db %>% dplyr::select(-Output)
 
-  ## Sum the two covariance matrices and inverse the result
-  cov <- kern_to_cov(inputs, kern, hp) + post_cov
+  if(length(db$Output_ID %>% unique()) > 1){
+    ## MO case
+    ## Sum the two covariance matrices and inverse the result
+    cov <- kern_to_cov(inputs, kern, hp_tibble) + post_cov
 
-  inv <- cov %>% chol_inv_jitter(pen_diag = pen_diag)
+    inv <- cov %>% chol_inv_jitter(pen_diag = pen_diag)
+  } else {
+    # Single output case
+    # Extract all_inputs to call kern_to_inv() on the single output case
+    all_inputs <- db %>%
+      dplyr::select(-c(Output, Output_ID)) %>%
+      unique() %>%
+      dplyr::arrange(Reference)
+
+    # Compute the inverse covariance matrix
+    inv <- kern_to_inv(
+      input = all_inputs,
+      kern = kern,
+      hp = hp_tibble,
+      pen_diag = pen_diag
+    )
+  }
+
 
   (-dmnorm(db$Output, mean, inv, log = T)) %>%
     return()
@@ -346,6 +383,8 @@ logL_GP_mod_shared_tasks <- function(hp,
 #'    covariance parameter.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
+#' @param weight_inv_0 A number, indicating the weight that the user wants to
+#'  attribute to the inverse prior covariance inv_0.
 #' @param priors A list or tibble containing prior information, e.g.,
 #'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
 #'   If NULL, performs ML estimation.
@@ -367,6 +406,7 @@ logL_monitoring <- function(hp_0,
                             post_mean,
                             post_cov,
                             pen_diag,
+                            weight_inv_0,
                             priors) {
   # Get the union of all unique input points from the training data
   all_inputs <- db %>%
@@ -390,7 +430,7 @@ logL_monitoring <- function(hp_0,
   all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
   dimnames(inv_0) <- list(all_references, all_references)
   inv_0 <- as.matrix(inv_0)
-  inv_0 <- (1/10000)*inv_0
+  inv_0 <- weight_inv_0*inv_0
 
   # # Compute the convolutional covariance matrix of the mean process
   # cov_0 <- kern_to_cov(input = all_inputs,

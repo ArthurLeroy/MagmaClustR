@@ -364,7 +364,6 @@ generate_mean_process <- function(
     shared_grid_outputs,
     shared_hp_outputs
 ) {
-  # browser()
   num_outputs <- length(points_per_output)
 
   if (length(grid_ranges) != num_outputs) {
@@ -488,6 +487,163 @@ generate_mean_process <- function(
 }
 
 
+#' @title Generate a Mean Process Realization (Convolution Kernel Version)
+#' @description Creates a working grid for each output and generates a single
+#'              smooth underlying mean process, `mu_0`, by drawing a
+#'              realization from a multi-output Gaussian Process using a
+#'              convolution kernel. This GP is centered around a simple linear function.
+#'
+#' @param points_per_output A numeric vector specifying the number of points for
+#'                          each output's working grid.
+#' @param grid_ranges A list of numeric vectors, where each defines the
+#'                    `c(min, max)` input domain for the corresponding output.
+#' @param hp_config_mean_process A tibble configuring the hyperparameters for
+#'                               the mean process's convolution kernel.
+#' @param noise_0 An optional numeric vector specifying the standard deviation
+#'                of the noise for each output. If provided, its length must
+#'                match the number of outputs. Defaults to `NULL` (no noise).
+#' @param shared_grid_outputs A logical value. If `TRUE`, all outputs are
+#'                            defined on the exact same input grid.
+#' @param shared_hp_outputs A logical value. If `TRUE`, all outputs share the
+#'                          same hyperparameters.
+#'
+#' @return A list containing the realization, grid, and hyperparameters.
+#'
+generate_mean_process_convol <- function(
+    points_per_output,
+    grid_ranges,
+    hp_config_mean_process,
+    shared_grid_outputs,
+    shared_hp_outputs,
+    noise_0 = NULL
+) {
+  num_outputs <- length(points_per_output)
+
+  if (length(grid_ranges) != num_outputs) {
+    stop("The number of grid ranges must match the number of outputs.")
+  }
+
+  # --- ETAPES 1 & 2 : Inchangées ---
+  if (shared_grid_outputs) {
+    if (length(unique(points_per_output)) > 1 || length(unique(lapply(grid_ranges, as.character))) > 1) {
+      stop("For a shared grid, 'points_per_output' and 'grid_ranges' must be identical.")
+    }
+    shared_grid <- sort(runif(n = points_per_output[1], min = grid_ranges[[1]][1], max = grid_ranges[[1]][2]))
+    grid_list <- rep(list(shared_grid), num_outputs)
+  } else {
+    grid_list <- purrr::map2(
+      points_per_output,
+      grid_ranges,
+      ~ sort(runif(n = .x, min = .y[1], max = .y[2]))
+    )
+  }
+
+  # 1. Définissez des vecteurs pour les bornes min et max de chaque intervalle
+  a_mins <- c(-0.5, 2)
+  a_maxs <- c(0, 3)
+
+  # 2. Utilisez map2_dbl pour générer un coefficient 'a' pour chaque intervalle
+  #    Le premier a_coeff sera tiré dans [-0.5, 0]
+  #    Le second a_coeff sera tiré dans [5.0, 10.0]
+  a_coeffs <- purrr::map2_dbl(a_mins, a_maxs, ~runif(1, .x, .y))
+
+  # Le reste de votre code reste inchangé
+  b_coeffs <- runif(num_outputs, -10, 10)
+
+  # Use pmap to iterate over the grids, 'a' coefficients, and 'b' coefficients
+  # simultaneously. This creates a list where each element is the mean vector
+  # for the corresponding output.
+  mean_list <- purrr::pmap(
+    .l = list(grid = grid_list, a = a_coeffs, b = b_coeffs),
+    .f = function(grid, a, b) {
+      a * grid + b
+    }
+  )
+  m0_mean_function <- unlist(mean_list)
+
+  # --- ETAPE 3 : Tirage des HPs avec la convention "0" ---
+  # Cette partie reste inchangée et correcte.
+  lu0_shared <- runif(1, hp_config_mean_process$lu0_min[1], hp_config_mean_process$lu0_max[1])
+  lu0_vals <- rep(lu0_shared, num_outputs)
+
+  if (shared_hp_outputs) {
+    l0_shared <- runif(1, hp_config_mean_process$l0_min[1], hp_config_mean_process$l0_max[1])
+    S0_shared <- runif(1, hp_config_mean_process$S0_min[1], hp_config_mean_process$S0_max[1])
+    l0_vals <- rep(l0_shared, num_outputs)
+    S0_vals <- rep(S0_shared, num_outputs)
+  } else {
+    l0_vals <- purrr::map2_dbl(hp_config_mean_process$l0_min, hp_config_mean_process$l0_max, ~runif(1, .x, .y))
+    S0_vals <- purrr::map2_dbl(hp_config_mean_process$S0_min, hp_config_mean_process$S0_max, ~runif(1, .x, .y))
+  }
+
+  # --- ETAPE 4 : Construction de la covariance ---
+  input_df_mean_process <- purrr::imap_dfr(grid_list,
+                                           ~dplyr::tibble(Input = .x, Output_ID = .y)
+  )
+
+  hp_tibble_for_kernel <- tibble::tibble(
+    Output_ID = 1:num_outputs,
+    l_t       = l0_vals,
+    S_t       = S0_vals,
+    l_u_t     = lu0_vals
+  )
+
+  # L'appel à kern_to_cov reçoit maintenant un tibble correctement formaté.
+  K_theta0_X <- suppressWarnings(kern_to_cov(
+    input = input_df_mean_process,
+    kern = convolution_kernel,
+    hp = hp_tibble_for_kernel # On utilise le tibble nouvellement créé
+  ))
+
+  # --- NOUVELLE ÉTAPE 5 : Ajout optionnel du bruit ---
+  if (!is.null(noise_0)) {
+    # Validation : on vérifie que le vecteur de bruit a la bonne taille
+    if (length(noise_0) != num_outputs) {
+      stop(sprintf(
+        "La longueur de 'noise_0' (%d) doit correspondre au nombre d'outputs (%d).",
+        length(noise_0), num_outputs
+      ))
+    }
+
+    # On crée un vecteur de variances (bruit^2) pour chaque point de la grille
+    noise_variances <- exp(noise_0[input_df_mean_process$Output_ID])
+
+    # On ajoute ces variances à la diagonale de la matrice de covariance
+    diag(K_theta0_X) <- diag(K_theta0_X) + noise_variances
+  }
+
+  all_point_names <- paste0("o", input_df_mean_process$Output_ID, "_pt_", input_df_mean_process$Input)
+  rownames(K_theta0_X) <- colnames(K_theta0_X) <- all_point_names
+
+  mean_process_realization <- MASS::mvrnorm(
+    n = 1,
+    mu = m0_mean_function,
+    Sigma = K_theta0_X
+  )
+  names(mean_process_realization) <- all_point_names
+
+  # browser()
+  mean_process_df <- tibble::tibble(
+    Input = unlist(grid_list),
+    Output_ID = factor(rep(
+      1:length(points_per_output),
+      times = points_per_output
+    )),
+    Output = as.numeric(mean_process_realization)
+  )
+
+  return(list(
+    mean_process_realization = mean_process_realization,
+    grid_list = grid_list,
+    points_per_output = points_per_output,
+    list_l0 = l0_vals,
+    list_S0 = S0_vals,
+    list_lu0 = lu0_vals,
+    noise_0 = noise_0,
+    mean_process_df = mean_process_df
+  ))
+}
+
 #' @title Generate Data for a Single Task
 #' @description Simulates observed data points for one task. This version
 #'              expects hyperparameters to be provided as a tibble.
@@ -582,7 +738,7 @@ simulate_multi_output_data <- function(
     ),
     n_points_per_task_range = c(5, 20),
     shared_hp_tasks = FALSE,
-    shared_hp_outputs = FALSE, # <<< ARGUMENT UNIQUE
+    shared_hp_outputs = FALSE,
     shared_grid_outputs = FALSE,
     seed = NULL
 ) {
@@ -594,7 +750,8 @@ simulate_multi_output_data <- function(
     grid_ranges = grid_ranges,
     hp_config_mean_process = hp_config_mean_process,
     shared_grid_outputs = shared_grid_outputs,
-    shared_hp_outputs = shared_hp_outputs
+    shared_hp_outputs = shared_hp_outputs,
+    noise_0 = NULL
   )
   # browser()
 
@@ -627,6 +784,105 @@ simulate_multi_output_data <- function(
   # === STEP 4: combined results for all tasks and format the final tibble ===
   simulated_data_df <- dplyr::bind_rows(task_dfs_list)
 
+  mean_process_df <- tibble::tibble(
+    Input = unlist(mean_process_info$grid_list),
+    Output_ID = factor(rep(
+      1:length(mean_process_info$points_per_output),
+      times = mean_process_info$points_per_output
+    )),
+    mean_value = as.numeric(mean_process_info$mean_process_realization)
+  )
+
+  cat(sprintf(
+    "Simulation complete. Generated %d points for %d tasks.\n",
+    nrow(simulated_data_df), num_tasks
+  ))
+
+  return(list(
+    simulated_data_df = simulated_data_df,
+    mean_process_df = mean_process_df,
+    hyperparameters = list(
+      mean_process = mean_process_info,
+      tasks = all_tasks_hps
+    )
+  ))
+}
+
+#' @title Simulate a Multi-Output, Multi-Task Dataset (Final Version)
+#' @description Main orchestrator function that generates a complete dataset.
+#'
+#' @param num_tasks Total number of tasks.
+#' @param points_per_output_grid Points for dense grid per output.
+#' @param grid_ranges Input domain for each output.
+#' @param hp_config_mean_process Tibble for mean process GP HPs.
+#' @param hp_config_tasks Tibble for task-specific HPs.
+#' @param n_points_per_task_range Min/max points per task.
+#' @param shared_hp_tasks If TRUE, tasks share HPs.
+#' @param shared_hp_outputs If TRUE, outputs share HPs.
+#' @param shared_grid_outputs If TRUE, outputs share the same grid.
+#' @param seed Optional integer for reproducibility.
+#'
+#' @return A list with simulated data, mean process, and HPs.
+
+simulate_multi_output_data_convol <- function(
+    num_tasks = 50,
+    points_per_output_grid = c(500, 150),
+    grid_ranges = list(c(0, 10), c(0, 10)),
+    hp_config_mean_process = tibble::tibble(
+      output_id = 1:2,
+      l0_min = c(-3, -3), l0_max = c(3, 3),
+      S0_min = c(-3, -3), S0_max = c(3, 3),
+      lu0_min = c(-1, -1), lu0_max = c(3, 3)
+    ),
+
+    # La configuration des tâches reste inchangée
+    hp_config_tasks = tibble::tibble(
+      output_id = 1:2,
+      lt_min = c(-3, -3), lt_max = c(3, 3),
+      St_min = c(-3, -3), St_max = c(3, 3),
+      noise_min = c(-3, -3), noise_max = c(0, 0),
+      lu_min = c(-1, -1), lu_max = c(3, 3)
+    ),
+    n_points_per_task_range = c(5, 20),
+    shared_hp_tasks = FALSE,
+    shared_hp_outputs = FALSE,
+    shared_grid_outputs = FALSE,
+    seed = NULL
+) {
+  # Le reste de la fonction est correct et ne change pas.
+  if (!is.null(seed)) { set.seed(seed) }
+
+  mean_process_info <- generate_mean_process_convol(
+    points_per_output = points_per_output_grid,
+    grid_ranges = grid_ranges,
+    hp_config_mean_process = hp_config_mean_process,
+    shared_grid_outputs = shared_grid_outputs,
+    shared_hp_outputs = shared_hp_outputs
+  )
+
+  cat("Generating hyperparameters for all tasks...\n")
+  all_tasks_hps <- hp(
+    kern = convolution_kernel,
+    list_task_ID = 1:num_tasks,
+    list_output_ID = 1:nrow(hp_config_tasks),
+    shared_hp_tasks = shared_hp_tasks,
+    shared_hp_outputs = shared_hp_outputs,
+    noise = TRUE,
+    hp_config = hp_config_tasks
+  )
+
+  task_dfs_list <- purrr::map(1:num_tasks, ~{
+    current_task_hp <- all_tasks_hps %>%
+      dplyr::filter(Task_ID == .x)
+    generate_single_task_data(
+      task_id = .x,
+      mean_process_info = mean_process_info,
+      task_hp_tibble = current_task_hp,
+      n_points_range = n_points_per_task_range
+    )
+  })
+
+  simulated_data_df <- dplyr::bind_rows(task_dfs_list)
   mean_process_df <- tibble::tibble(
     Input = unlist(mean_process_info$grid_list),
     Output_ID = factor(rep(

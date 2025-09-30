@@ -502,6 +502,7 @@ train_magma <- function(data,
         m_0 = m_0,
         kern_0 = kern_0,
         kern_t = kern_t,
+        weight_inv_0 = weight_inv_0,
         post_mean = post$mean,
         post_cov = post$cov,
         pen_diag = pen_diag
@@ -532,6 +533,7 @@ train_magma <- function(data,
       m_0 = m_0,
       kern_0 = kern_0,
       kern_t = kern_t,
+      weight_inv_0 = weight_inv_0,
       post_mean = post$mean,
       post_cov = post$cov,
       pen_diag = pen_diag,
@@ -660,15 +662,18 @@ train_magma <- function(data,
 #' covariance parameters, and initialisation values for the hyper-parameters,
 #' the function computes maximum likelihood estimates of the hyper-parameters.
 #'
-#' @param data A tibble or data frame. Required columns: \code{Input},
-#'    \code{Output}. Additional columns for covariates can be specified.
-#'    The \code{Input} column should define the variable that is used as
-#'    reference for the observations (e.g. time for longitudinal data). The
-#'    \code{Output} column specifies the observed values (the response
-#'    variable). The data frame can also provide as many covariates as desired,
-#'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference \code{Input}.
+#' @param data A tibble or data frame. Required columns:
+#'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
+#'    columns for covariates can be specified.
+#'    The \code{Input_ID} contains the unique names/codes used to identify each
+#'    explanatory variable.
+#'    The \code{Input} column should define the value of the explanatory
+#'    variables that are used as reference for the observations (e.g. time for
+#'    longitudinal data).
+#'    The \code{Output_ID} contains the unique names/codes used to identify each
+#'    output (response) variable.
+#'    The \code{Output} column specifies the observed values (the response
+#'    variables).
 #' @param prior_mean Mean parameter of the GP. This argument can be
 #'    specified under various formats, such as:
 #'    - NULL (default). The hyper-posterior mean would be set to 0 everywhere.
@@ -677,9 +682,6 @@ train_magma <- function(data,
 #'     \code{data} argument. This vector would be considered as the evaluation
 #'     of the hyper-posterior mean function at the training Inputs.
 #'    - A function. This function is defined as the hyper-posterior mean.
-#'    - A tibble or data frame. Required columns: Input, Output. The Input
-#'     values should include at least the same values as in the \code{data}
-#'     argument.
 #' @param ini_hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with the \code{kern} of the new individual/task.
 #'    The columns should be named according to the hyper-parameters that are
@@ -704,6 +706,9 @@ train_magma <- function(data,
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param shared_hp_outputs A logical value, indicating whether the set of
+#'    hyper-parameters is assumed to be common to all outputs. If TRUE, all outputs
+#'    share the same hyper-parameter values.
 #' @param hyperpost A list, containing the elements 'mean' and 'cov',
 #'    the parameters of the hyper-posterior distribution of the mean process.
 #'    Typically, this argument should come from a previous learning using
@@ -727,84 +732,112 @@ train_gp <- function(data,
                      ini_hp = NULL,
                      kern = "SE",
                      hyperpost = NULL,
+                     shared_hp_outputs = FALSE,
                      pen_diag = 1e-10) {
-  ## Remove the 'ID' column if present
-  if ("ID" %in% names(data)) {
-    if (dplyr::n_distinct(data$ID) > 1) {
+  ## Check for the correct format of the training data
+  if (data %>% is.data.frame()) {
+    if (!all(c("Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
       stop(
-        "Problem in the 'ID' column: different values are not allowed. ",
-        "The prediction can only be performed for one individual/task."
+        "The 'data' argument should be a tibble or a data frame containing ",
+        "at least the mandatory column names: 'Input_ID', 'Input'",
+        "'Output' and 'Output_ID'"
       )
     }
-    data <- data %>% dplyr::select(-.data$ID)
-  }
-  if (!("Reference" %in% (data %>% names()))) {
-    ## Get input column names
-    names_col <- data %>%
-      dplyr::select(-.data$Output) %>%
-      names()
   } else {
-    names_col <- data %>%
-      dplyr::select(- c(.data$Output, .data$Reference)) %>%
-      names()
+    stop(
+      "The 'data' argument should be a tibble or a data frame containing ",
+      "at least the mandatory column names: 'Input_ID', 'Input'",
+      "'Output' and 'Output_ID'"
+    )
   }
 
-  ## Keep 6 significant digits for entries to avoid numerical errors and
-  ## Add a Reference column for identification
+  ## Remove possible missing data
+  data <- data %>% tidyr::drop_na()
+  ## Extract the list of different output IDs
+  list_ID_output <- data$Output_ID %>% unique()
+
+
+  ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+  # need to pivot data to obtain one row per observation of Output_ID.
+  # In other words, inputs are no longer in "short" format; instead, we have one
+  # column per input.
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep = ":",
-                 remove = FALSE) %>%
-    tidyr::drop_na() %>%
-    dplyr::arrange(.data$Reference)
+    tidyr::pivot_wider(
+      names_from = Input_ID,
+      values_from = Input,
+      names_prefix = "Input_"
+    ) %>%
+    # Keep 6 significant digits for Inputs to avoid numerical issues
+    dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+    rowwise() %>%
+    dplyr::mutate(
+      Reference = paste(
+        # Create output's prefix
+        paste0("o", Output_ID),
+        # Create the reference for each Output_ID
+        paste(c_across(starts_with("Input_")), collapse = ":"),
+        # Join output's prefix and reference
+        sep = ";"
+      )
+    ) %>%
+    dplyr::ungroup()
+
+
+  ## Check that tasks do not have duplicate inputs for each output
+  duplicates <- data %>%
+    count(Reference) %>%
+    filter(n > 1)
+
+  if (nrow(duplicates) > 0) {
+    stop("Error: The task has duplicates, i.e. several 'Output' values",
+         " for the same 'Output_ID'.")
+  }
+
 
   ## Extract the union of all reference inputs provided in the training data
   inputs_obs <- data %>%
-    dplyr::select(-.data$Output) %>%
+    dplyr::select(-c(Output_ID, Output)) %>%
     unique()
 
-  input_obs <- inputs_obs %>% dplyr::pull(.data$Reference)
+  input_obs <- inputs_obs %>% dplyr::pull(Reference)
 
-  ## Check whether 'hyperpost' is provided and thus used for Magma prediction
+
   if (!is.null(hyperpost)) {
-    cat(
-      "The 'hyperpost' argument is provided. Therefore, this training is",
-      "considered to be part of the prediction step in Magma. Hyper-posterior",
-      "mean and covariance parameters are used in the likelihood",
-      "maximisation. \n \n"
-    )
-    mean <- hyperpost$mean %>%
-      dplyr::filter(.data$Reference %in% input_obs) %>%
-      dplyr::arrange(.data$Reference) %>%
-      dplyr::pull(.data$Output)
-
-    post_cov <- hyperpost$cov[
-      as.character(input_obs),
-      as.character(input_obs)
-    ]
+    ## A COMPLETER (UTILE UNIQUEMENT POUR MAGMA, PAS EN MO CLASSIQUE)
   } else {
     ## Set post_cov to 0 if we are not in Magma but in a classic GP training
     post_cov <- 0
 
     ## Extract the values of the hyper-posterior mean at reference Input
+    ## Initialise m_0 according to the value provided by the user
     if (prior_mean %>% is.null()) {
       mean <- rep(0, length(input_obs))
       cat(
-        "The 'prior_mean' argument has not been specified. The",
-        "mean function is thus set to be 0 everywhere.\n \n"
+        "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+        "function is thus set to be 0 everywhere for all outputs.\n \n"
       )
     } else if (prior_mean %>% is.vector()) {
+
       if (length(prior_mean) == length(input_obs)) {
         mean <- prior_mean
-      } else if (length(prior_mean) == 1) {
-        mean <- rep(prior_mean, length(input_obs))
+      } else if (length(prior_mean) == length(data$Output_ID %>% unique())) {
+        # Get the unique and sorted Output_IDs
+        unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
+
+        # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
+        # This assumes the prior_mean vector is provided in the sorted order of
+        # Output_IDs.
+        prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
+
+        # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+        input_obs_prefixes <- str_extract(input_obs, "o[0-9]+")
+
+        # Build m_0 using the lookup table; it will automatically repeat the correct
+        # value for each prefix.
+        mean <- prior_mean_map[input_obs_prefixes] %>% unname()
 
         cat(
-          "The provided 'prior_mean' argument is of length 1. Thus, the",
-          "hyper-posterior mean function has set to be constant everywhere.",
-          "\n \n"
+          "A constant hyper_prior mean has been set for each output.\n \n"
         )
       } else {
         stop(
@@ -813,60 +846,68 @@ train_gp <- function(data,
           length(input_obs)
         )
       }
-    } else if (prior_mean %>% is.function()) {
-      mean <- prior_mean(inputs_obs %>%
-                           dplyr::select(-.data$Reference)
-      )
-    } else if (prior_mean %>% is.data.frame()) {
-      if (all(c("Output",
-                tidyselect::all_of(names_col))
-              %in% names(prior_mean))) {
-        mean <- prior_mean %>%
-          purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-          tidyr::unite("Reference",
-                       tidyselect::all_of(names_col),
-                       sep = ":",
-                       remove = FALSE) %>%
-          dplyr::filter(.data$Reference %in% input_obs) %>%
-          dplyr::arrange(.data$Reference) %>%
-          dplyr::pull(.data$Output)
 
-        if (length(mean) != length(input_obs)) {
-          stop(
-            "Problem in the length of the prior mean parameter. The ",
-            "'prior_mean' argument should provide an Output value for each ",
-            "Input value appearing in the training data."
-          )
-        }
-      } else {
-        stop(
-          "If the 'prior_mean' argument is provided as a data frame, it ",
-          "should contain the mandatory column names: 'Output', 'Input'"
-        )
-      }
+    } else if (prior_mean %>% is.function()) {
+      mean <- prior_mean(input_obs %>%
+                           dplyr::select(-Reference)
+      )
     } else {
       stop(
         "Incorrect format for the 'prior_mean' argument. Please read ",
-        "?train_gp() for details."
+        "?hyperposterior() for details."
       )
     }
   }
 
-  ## Initialise hp according to user's values
+  ## Initialise the mean process' HPs according to user's values
   if (kern %>% is.function()) {
     if (ini_hp %>% is.null()) {
       stop(
-        "When using a custom kernel function the 'ini_hp' argument is ",
+        "When using a custom kernel function the 'ini_hp_0' argument is ",
         "mandatory, in order to provide the name of the hyper-parameters. ",
         "You can use the function 'hp()' to easily generate a tibble of random",
         " hyper-parameters with the desired format for initialisation."
       )
     } else {
+      if('Task_ID' %in% colnames(ini_hp)){
+        ini_hp <- ini_hp %>%
+          dplyr::select(-Task_ID)
+      }
       hp <- ini_hp
     }
   } else {
     if (ini_hp %>% is.null()) {
-      hp <- hp(kern, noise = T)
+      list_output_ID <- data$Output_ID %>% unique()
+      hp <- NULL
+      if (shared_hp_outputs) {
+        # --- Case shared hps between outputs ---
+        cat("Generate shared hps between outputs ...\n")
+        hp <- hp(kern = kern,
+                 list_task_ID = 1,
+                 list_output_ID = list_output_ID,
+                 shared_hp_outputs = TRUE,
+                 noise = TRUE)
+
+        if('Task_ID' %in% colnames(hp)){
+          hp <- hp %>%
+            dplyr::select(-Task_ID)
+        }
+
+      } else {
+        # --- Case distinct hps between outputs ---
+        cat("Generate distinct set of hps for each output ...\n")
+        hp <- hp(kern = kern,
+                 list_task_ID = 1,
+                 list_output_ID = list_output_ID,
+                 shared_hp_outputs = FALSE,
+                 noise = TRUE)
+
+        if('Task_ID' %in% colnames(hp)){
+          hp <- hp %>%
+            dplyr::select(-Task_ID)
+        }
+      }
+
       cat(
         "The 'ini_hp' argument has not been specified. Random values of",
         "hyper-parameters are used as initialisation.\n \n"
@@ -875,11 +916,33 @@ train_gp <- function(data,
       hp <- ini_hp
     }
   }
-  ## Extract the names of hyper-parameters
-  list_hp <- hp %>% names()
+
+  if (length(list_ID_output) > 1){
+    # Prepare parameters for optim() inF MO case
+    hp_per_output <- hp %>%
+      dplyr::group_by(Output_ID) %>%
+      dplyr::slice(1) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(-l_u_t) %>%
+      tidyr::pivot_longer(cols = -Output_ID, names_to = "hp_name", values_to = "value") %>%
+      dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
+      dplyr::select(specific_name, value) %>%
+      tibble::deframe()
+
+    shared_hp_l_u_t <- hp$l_u_t[1]
+    names(shared_hp_l_u_t) <- "l_u_t"
+    par <- c(hp_per_output, shared_hp_l_u_t)
+    hp_col_names <- names(par)
+  } else {
+    # Prepare parameters for optim() in single output case
+    par <- hp %>%
+      dplyr::select(-Output_ID) %>%
+      dplyr::slice(1)
+    hp_col_names <- names(par)
+  }
 
   hp_new <- stats::optim(
-    hp,
+    par = par,
     fn = logL_GP,
     gr = gr_GP,
     db = data,
@@ -887,10 +950,12 @@ train_gp <- function(data,
     kern = kern,
     post_cov = post_cov,
     pen_diag = pen_diag,
+    hp_col_names = hp_col_names,
     method = "L-BFGS-B",
     control = list(factr = 1e13, maxit = 25)
   )$par %>%
     tibble::as_tibble_row()
+
 
   ## If something went wrong during the optimization
   if (hp_new %>% is.na() %>% any()) {
@@ -898,6 +963,21 @@ train_gp <- function(data,
             "values of the hyperparameters"
     )
     hp_new <- hp
+  }
+
+  # Reshape results
+  if (length(data$Output_ID %>% unique()) > 1){
+    # MO case
+    hp_new <- hp_new %>%
+      tidyr::pivot_longer(
+        cols = -dplyr::any_of("l_u_t"),
+        names_to = c(".value", "Output_ID"),
+        names_pattern = "(.+)_(\\d+)$"
+      )
+  } else {
+    # Single output case
+    hp_new$Output_ID <- "1"
+    hp_new <- hp_new
   }
   return(hp_new)
 }

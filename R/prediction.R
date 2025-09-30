@@ -8,15 +8,18 @@
 #' evaluated on any arbitrary inputs since a GP is an infinite-dimensional
 #' object.
 #'
-#' @param data  A tibble or data frame. Required columns: 'Input',
-#'    'Output'. Additional columns for covariates can be specified.
-#'    The 'Input' column should define the variable that is used as
-#'    reference for the observations (e.g. time for longitudinal data). The
-#'    'Output' column specifies the observed values (the response
-#'    variable). The data frame can also provide as many covariates as desired,
-#'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference 'Input'. If NULL, the prior GP is returned.
+#' @param data A tibble or data frame. Required columns:
+#'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
+#'    columns for covariates can be specified.
+#'    The \code{Input_ID} contains the unique names/codes used to identify each
+#'    explanatory variable.
+#'    The \code{Input} column should define the value of the explanatory
+#'    variables that are used as reference for the observations (e.g. time for
+#'    longitudinal data).
+#'    The \code{Output_ID} contains the unique names/codes used to identify each
+#'    output (response) variable.
+#'    The \code{Output} column specifies the observed values (the response
+#'    variables).
 #' @param grid_inputs The grid of inputs (reference Input and covariates) values
 #'    on which the GP should be evaluated. Ideally, this argument should be a
 #'    tibble or a data frame, providing the same columns as \code{data}, except
@@ -29,9 +32,6 @@
 #'    various formats, such as:
 #'    - NULL (default). The mean would be set to 0 everywhere.
 #'    - A number. The mean would be a constant function.
-#'    - A tibble or data frame. Required columns: Input, Output. The Input
-#'     values should include at least the same values as in the \code{data}
-#'     argument.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}. The columns/elements should be named
 #'    according to the hyper-parameters that are used in \code{kern}. If NULL
@@ -79,14 +79,13 @@ pred_gp <- function(data = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
                     pen_diag = 1e-10) {
-
   ## Create a dummy dataset if no data is provided
   if(data %>% is.null()){
     data = tibble::tibble(
       'ID' = 'ID_pred',
       'Input' = c(0,10),
       'Output' = c(0,0)
-      )
+    )
 
     ## Draw random hyper-parameters if not provided
     if(hp %>% is.null()){
@@ -104,49 +103,68 @@ pred_gp <- function(data = NULL,
   }
 
   ## Remove the 'ID' column if present
-  if ("ID" %in% names(data)) {
-    if (dplyr::n_distinct(data$ID) > 1) {
+  if ("Task_ID" %in% names(data)) {
+    if (dplyr::n_distinct(data$Task_ID) > 1) {
       stop(
-        "Problem in the 'ID' column: different values are not allowed. ",
+        "Problem in the 'Task_ID' column: different values are not allowed. ",
         "The prediction can only be performed for one individual/task."
       )
     }
     data <- data %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-Task_ID)
   }
 
-  if (!("Reference" %in% (data %>% names()))) {
-    ## Get input column names
+  ## Extract the list of different output IDs
+  list_ID_output <- data$Output_ID %>% unique()
+
+
+  ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+  # need to pivot data to obtain one row per observation of Output_ID.
+  # In other words, inputs are no longer in "short" format; instead, we have one
+  # column per input.
+  data <- data %>%
+    tidyr::pivot_wider(
+      names_from = Input_ID,
+      values_from = Input,
+      names_prefix = "Input_"
+    ) %>%
+    # Keep 6 significant digits for Inputs to avoid numerical issues
+    dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+    rowwise() %>%
+    dplyr::mutate(
+      Reference = paste(
+        # Create output's prefix
+        paste0("o", Output_ID),
+        # Create the reference for each Output_ID
+        paste(c_across(starts_with("Input_")), collapse = ":"),
+        # Join output's prefix and reference
+        sep = ";"
+      )
+    ) %>%
+    dplyr::ungroup()
+
+  ## Get input column names
+  if ("Reference" %in% names(data)) {
     names_col <- data %>%
-      dplyr::select(-.data$Output) %>%
+      dplyr::select(- c(Output_ID, Output, Reference)) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(- c(.data$Output, .data$Reference)) %>%
+      dplyr::select(-c(Output_ID, Output)) %>%
       names()
   }
 
-  ## Keep 6 significant digits for entries to avoid numerical errors
-  data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep = ":",
-                 remove = FALSE) %>%
-    dplyr::arrange(.data$Reference) %>%
-    tidyr::drop_na()
-
   ## Extract the observed Output (data points)
   data_obs <- data %>%
-    dplyr::pull(.data$Output)
+    dplyr::pull(Output)
 
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
-    dplyr::select(-.data$Output)
+    dplyr::select(-Output) %>%
+    unique()
 
   ## Extract the observed (reference) Input
-  input_obs <- inputs_obs %>%
-    dplyr::pull(.data$Reference)
+  input_obs <- inputs_obs %>% dplyr::pull(Reference)
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
@@ -157,9 +175,10 @@ pred_gp <- function(data = NULL,
       ) %>%
         return()
     }
-    if (inputs_obs %>% names() %>% length() == 2) {
+
+    if (inputs_obs %>% names() %>% length() == 3) {
       size_grid <- 500
-    } else if (inputs_obs %>% names() %>% length() > 2) {
+    } else if (inputs_obs %>% names() %>% length() > 3) {
       size_grid <- 1000^(1 / (ncol(inputs_obs) - 1)) %>% round()
       ## floor instead of round ?
     } else {
@@ -169,67 +188,104 @@ pred_gp <- function(data = NULL,
       )
     }
 
-    inputs_pred <- purrr::map_dfr(
+    # Create a unique grid of inputs (which will be replicated for each Output_ID)
+    base_grid <- purrr::map(
       data %>% dplyr::select(tidyselect::all_of(names_col)),
       set_grid,
       size_grid
     ) %>%
-      unique() %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+      purrr::set_names(paste0("Input_", seq_along(.))) %>%
       expand.grid() %>%
-      tibble::as_tibble() %>% ## df to tibble
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_col),
-                   sep = ":",
-                   remove = FALSE) %>%
-      dplyr::arrange(.data$Reference)
+      tibble::as_tibble()
 
-    input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
+    unique_outputs <- data %>%
+      dplyr::distinct(Output_ID)
+
+    # Cross base_grid with unique_outputs to replicate base_grid as many times as
+    # unique_outputs and create 'Reference' column
+    inputs_pred <- tidyr::crossing(unique_outputs, base_grid) %>%
+      dplyr::rowwise() %>%
+      dplyr::mutate(
+        Reference = paste(
+          paste0("o", Output_ID),
+          paste(c_across(starts_with("Input_")), collapse = ":"),
+          sep = ";"
+        )
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::arrange(Reference)
+
+    input_pred <- inputs_pred %>% dplyr::pull(Reference)
 
   } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
-    if (inputs_obs %>% names() %>% length() == 2) {
-      input_pred <- grid_inputs %>%
+    if (inputs_obs %>% names() %>% length() == 3) {
+      input_temp <- grid_inputs %>%
         signif() %>%
         sort() %>%
         unique()
-      inputs_pred <- tibble::tibble(
-        "Input" = input_pred,
-        "Reference" = input_pred %>% as.character()
-      )
+
+      inputs_pred <- tibble::tibble("Input_1" = rep(input_temp,
+                                                    times = nrow(unique_outputs)),
+                                    "Output_ID" = rep(unique_outputs %>% as_vector(),
+                                                      each = length(input_temp))) %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(
+          Reference = paste(
+            paste0("o", Output_ID),
+            paste(c_across(starts_with("Input_")), collapse = ":"),
+            sep = ";"
+          )
+        ) %>%
+        dplyr::ungroup() %>%
+        dplyr::arrange(Reference)
+
+      input_pred <- inputs_pred %>% dplyr::pull(Reference)
+
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_gp()."
+        "or a data frame depending on the context. Please read ?pred_magma()."
       )
     }
   } else if (grid_inputs %>% is.data.frame()) {
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif)
-
-    if (!("Reference" %in% (grid_inputs %>% names()))) {
-      grid_inputs <- grid_inputs %>%
-        tidyr::unite("Reference",
-                     grid_inputs %>% names(),
-                     sep = ":",
-                     remove = FALSE
-        ) %>%
-        dplyr::arrange(.data$Reference)
-    }
+      dplyr::group_by(Input_ID) %>%
+      dplyr::mutate(id_ligne = dplyr::row_number()) %>%
+      dplyr::ungroup() %>%
+      tidyr::pivot_wider(
+        names_from = Input_ID,
+        values_from = Input,
+        names_prefix = "Input_"
+      ) %>%
+      dplyr::select(-id_ligne) %>%
+      # Keep 6 significant digits for Inputs to avoid numerical issues
+      dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+      rowwise() %>%
+      dplyr::mutate(
+        Reference = paste(
+          # Create output's prefix
+          paste0("o", Output_ID),
+          # Create the reference for each Output_ID
+          paste(c_across(starts_with("Input_")), collapse = ":"),
+          # Join output's prefix and reference
+          sep = ";"
+        )
+      )
 
     ## Test whether 'data' has the same columns as grid_inputs
     if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
       input_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::pull(.data$Reference)
+        dplyr::arrange(Reference) %>%
+        dplyr::pull(Reference)
 
       inputs_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
+        dplyr::arrange(Reference) %>%
         dplyr::select(names(inputs_obs))
     } else {
       stop(
-        "The 'grid_inputs' argument should provide a column 'Input', and ",
-        "the same additional covariate columns as contained in 'data'."
+        "The 'grid_inputs' argument should provide a column 'Input_ID', 'Input' ",
+        " and 'Output_ID'."
       )
     }
   } else {
@@ -239,20 +295,38 @@ pred_gp <- function(data = NULL,
     )
   }
 
-  ## Define of extract the mean values under an adequate format
   if (mean %>% is.null()) {
     mean_obs <- rep(0, length(input_obs))
     mean_pred <- rep(0, length(input_pred))
     cat(
-      "The 'mean' argument has not been specified. The ",
-      "mean function is thus set to be 0 everywhere.\n \n"
+      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+      "function is thus set to be 0 everywhere for all outputs.\n \n"
     )
   } else if (mean %>% is.vector()) {
-    if (length(mean) == 1) {
-      mean_obs <- rep(mean, length(input_obs))
-      mean_pred <- rep(mean, length(input_pred))
+
+    if (length(mean) == length(input_obs)) {
+      mean_obs <- mean
+      mean_pred <- mean
+    } else if (length(mean) == length(data$Output_ID %>% unique())) {
+      # Get the unique and sorted Output_IDs
+      unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
+
+      # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
+      # This assumes the prior_mean vector is provided in the sorted order of
+      # Output_IDs.
+      mean_map <- setNames(mean, paste0("o", unique_outputs_sorted))
+
+      # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      input_obs_prefixes <- str_extract(input_obs, "o[0-9]+")
+      input_pred_prefixes <- str_extract(input_pred, "o[0-9]+")
+
+      # Build m_0 using the lookup table; it will automatically repeat the correct
+      # value for each prefix.
+      mean_obs <- mean_map[input_obs_prefixes] %>% unname()
+      mean_pred <- mean_map[input_pred_prefixes] %>% unname()
+
       cat(
-        "The mean function has been set to be", mean, "everywhere.\n \n"
+        "A constant hyper_prior mean has been set for each output.\n \n"
       )
     } else {
       stop(
@@ -260,36 +334,15 @@ pred_gp <- function(data = NULL,
         "?pred_gp() for details."
       )
     }
-  } else if (mean %>% is.data.frame()) {
-    if (all(c("Output", "Input") %in% names(mean))) {
-      mean_obs <- mean %>%
-        dplyr::filter(.data$Reference %in% input_obs) %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::pull(.data$Output)
 
-      mean_pred <- mean %>%
-        dplyr::filter(.data$Reference %in% input_pred) %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::pull(.data$Output)
-
-      if ((length(mean_obs) != length(input_obs)) |
-          (length(mean_pred) != length(input_pred))) {
-        stop(
-          "Problem in the length of the mean parameter. The ",
-          "'mean' argument should provide an Output value for each Input ",
-          "value appearing in the data and for each 'grid_inputs' values."
-        )
-      }
-    } else {
-      stop(
-        "If the 'mean' argument is provided as a data frame, it ",
-        "should contain the mandatory column names: 'Output', 'Input'"
-      )
-    }
+  } else if (mean %>% is.function()) {
+    mean <- mean(input_obs %>%
+                   dplyr::select(-Reference)
+    )
   } else {
     stop(
-      "Incorrect format for the 'mean' argument. Please read ",
-      "?pred_gp() for details."
+      "Incorrect format for the 'prior_mean' argument. Please read ",
+      "?hyperposterior() for details."
     )
   }
 
@@ -329,17 +382,46 @@ pred_gp <- function(data = NULL,
 
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if ("noise" %in% names(hp)) {
-    hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
+    hp_rm_noi <- hp %>% dplyr::select(-noise)
     noise <- exp(hp[["noise"]])
   } else {
     hp_rm_noi <- hp
     noise <- 0
   }
 
-  ## Compute the required sub-matrix for prediction
-  inv_obs <- kern_to_inv(inputs_obs, kern, hp, pen_diag)
-  cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi)
-  cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi, input_2 = inputs_pred)
+  if(length(data$Output_ID %>% unique()) > 1){
+    ## MO case
+    ## Compute the required sub-matrix for prediction
+    inv_obs <- kern_to_cov(inputs_obs, kern, hp) %>%
+      chol_inv_jitter(pen_diag = pen_diag) %>%
+      `rownames<-`(as.character(input_obs)) %>%
+      `colnames<-`(as.character(input_obs))
+
+    cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi)
+    cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi, input_2 = inputs_pred)
+  } else {
+    ## Single output case
+    ## Compute the required sub-matrix for prediction
+    inv_obs <- kern_to_cov(inputs_obs %>%
+                             dplyr:: select(-Output_ID),
+                           kern,
+                           hp) %>%
+      chol_inv_jitter(pen_diag = pen_diag) %>%
+      `rownames<-`(as.character(input_obs)) %>%
+      `colnames<-`(as.character(input_obs))
+
+    cov_pred <- kern_to_cov(inputs_pred %>%
+                              dplyr:: select(-Output_ID),
+                            kern,
+                            hp_rm_noi)
+
+    cov_crossed <- kern_to_cov(inputs_obs %>%
+                                 dplyr:: select(-Output_ID),
+                               kern,
+                               hp_rm_noi,
+                               input_2 = inputs_pred %>%
+                                 dplyr:: select(-Output_ID))
+  }
 
   ## Compute the posterior mean
   pred_mean <- (mean_pred +
@@ -358,13 +440,19 @@ pred_gp <- function(data = NULL,
     data = c()
   }
 
+  ## Get the pred_cov rownames and colnames to create a noise vector with correct
+  ## dimensions
+  point_names <- rownames(pred_cov)
+  output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
+  full_noise_vector <- noise[output_ids]
+
   ## Create a tibble of values and associated uncertainty from a GP prediction
   pred_gp <- tibble::tibble(
     "Mean" = pred_mean,
-    "Var" = diag(pred_cov) + noise
+    "Var" = diag(pred_cov) + full_noise_vector
   ) %>%
     dplyr::mutate(inputs_pred) %>%
-    dplyr::select(-.data$Reference)
+    dplyr::select(-Reference)
 
   ## Display the graph of the prediction if expected
   if (plot) {
@@ -385,6 +473,8 @@ pred_gp <- function(data = NULL,
   }
   return(pred_gp)
 }
+
+
 
 #' Compute the hyper-posterior distribution in Magma
 #'
@@ -864,7 +954,7 @@ hyperposterior <- function(trained_model = NULL,
 #' Magma model, the predictive distribution is evaluated on any arbitrary inputs
 #' that are specified through the 'grid_inputs' argument.
 #'
-#' @param data  data A tibble or data frame. Required columns: \code{Task_ID},
+#' @param data A tibble or data frame. Required columns: \code{Task_ID},
 #'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
 #'    columns for covariates can be specified.
 #'    The \code{Task_ID} column contains the unique names/codes used to identify each
