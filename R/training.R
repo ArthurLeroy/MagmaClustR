@@ -918,21 +918,38 @@ train_gp <- function(data,
   }
 
   if (length(list_ID_output) > 1){
-    # Prepare parameters for optim() inF MO case
+    ## Prepare parameters for optim() in MO case
     hp_per_output <- hp %>%
       dplyr::group_by(Output_ID) %>%
       dplyr::slice(1) %>%
       dplyr::ungroup() %>%
-      dplyr::select(-l_u_t) %>%
+      dplyr::select(-p_u_t) %>% # Remplacer l_u_t par p_u_t
       tidyr::pivot_longer(cols = -Output_ID, names_to = "hp_name", values_to = "value") %>%
       dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
       dplyr::select(specific_name, value) %>%
       tibble::deframe()
 
-    shared_hp_l_u_t <- hp$l_u_t[1]
-    names(shared_hp_l_u_t) <- "l_u_t"
-    par <- c(hp_per_output, shared_hp_l_u_t)
+    shared_hp_p_u_t <- hp$p_u_t[1] # Remplacer l_u_t par p_u_t
+    names(shared_hp_p_u_t) <- "p_u_t" # Remplacer l_u_t par p_u_t
+    par <- c(hp_per_output, shared_hp_p_u_t) # Utiliser la nouvelle variable
     hp_col_names <- names(par)
+
+    # # Prepare parameters for optim() in MO case
+    # hp_per_output <- hp %>%
+    #   dplyr::group_by(Output_ID) %>%
+    #   dplyr::slice(1) %>%
+    #   dplyr::ungroup() %>%
+    #   dplyr::arrange(Output_ID) %>%
+    #   dplyr::select(-l_u_t) %>%
+    #   tidyr::pivot_longer(cols = -Output_ID, names_to = "hp_name", values_to = "value") %>%
+    #   dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
+    #   dplyr::select(specific_name, value) %>%
+    #   tibble::deframe()
+    #
+    # shared_hp_l_u_t <- hp$l_u_t[1]
+    # names(shared_hp_l_u_t) <- "l_u_t"
+    # par <- c(hp_per_output, shared_hp_l_u_t)
+    # hp_col_names <- names(par)
   } else {
     # Prepare parameters for optim() in single output case
     par <- hp %>%
@@ -940,6 +957,22 @@ train_gp <- function(data,
       dplyr::slice(1)
     hp_col_names <- names(par)
   }
+
+  # browser()
+
+  # Créez un vecteur de bornes inférieures, toutes non contraignantes
+  lower_bounds <- rep(-Inf, length(par))
+  # Créez un vecteur de bornes supérieures, majoritairement non contraignantes
+  upper_bounds <- rep(+Inf, length(par))
+
+  # Maintenant, assignez les bornes spécifiques par nom
+  # C'est la partie la plus importante et la plus robuste
+  names(lower_bounds) <- names(par)
+  names(upper_bounds) <- names(par)
+
+  # Appliquez vos contraintes sur le bruit
+  upper_bounds["noise_1"] <- -2.0
+  upper_bounds["noise_2"] <- -2.0
 
   hp_new <- stats::optim(
     par = par,
@@ -951,6 +984,8 @@ train_gp <- function(data,
     post_cov = post_cov,
     pen_diag = pen_diag,
     hp_col_names = hp_col_names,
+    lower = lower_bounds,
+    upper = upper_bounds,
     method = "L-BFGS-B",
     control = list(factr = 1e13, maxit = 25)
   )$par %>%
@@ -970,10 +1005,16 @@ train_gp <- function(data,
     # MO case
     hp_new <- hp_new %>%
       tidyr::pivot_longer(
-        cols = -dplyr::any_of("l_u_t"),
+        cols = -dplyr::any_of("p_u_t"), # Remplacer l_u_t par p_u_t
         names_to = c(".value", "Output_ID"),
         names_pattern = "(.+)_(\\d+)$"
       )
+    # hp_new <- hp_new %>%
+    #   tidyr::pivot_longer(
+    #     cols = -dplyr::any_of("l_u_t"),
+    #     names_to = c(".value", "Output_ID"),
+    #     names_pattern = "(.+)_(\\d+)$"
+    #   )
   } else {
     # Single output case
     hp_new$Output_ID <- "1"

@@ -423,6 +423,7 @@ pred_gp <- function(data = NULL,
                                  dplyr:: select(-Output_ID))
   }
 
+  browser()
   ## Compute the posterior mean
   pred_mean <- (mean_pred +
                   t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
@@ -443,8 +444,17 @@ pred_gp <- function(data = NULL,
   ## Get the pred_cov rownames and colnames to create a noise vector with correct
   ## dimensions
   point_names <- rownames(pred_cov)
-  output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
-  full_noise_vector <- noise[output_ids]
+  # output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
+  # full_noise_vector <- noise[output_ids]
+
+  # Extraire les IDs des sorties sous forme de chaînes de caractères ("1", "2", etc.)
+  output_ids_char <- sub("^o(\\d+);.*", "\\1", point_names)
+
+  # Créer un VECTEUR NOMMÉ pour le bruit, où les noms sont les Output_ID
+  noise_named_vec <- setNames(exp(hp$noise), hp$Output_ID)
+
+  # Utiliser les noms pour une correspondance robuste
+  full_noise_vector <- noise_named_vec[output_ids_char]
 
   ## Create a tibble of values and associated uncertainty from a GP prediction
   pred_gp <- tibble::tibble(
