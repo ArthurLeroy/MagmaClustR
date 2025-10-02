@@ -750,8 +750,7 @@ simulate_multi_output_data <- function(
     grid_ranges = grid_ranges,
     hp_config_mean_process = hp_config_mean_process,
     shared_grid_outputs = shared_grid_outputs,
-    shared_hp_outputs = shared_hp_outputs,
-    noise_0 = NULL
+    shared_hp_outputs = shared_hp_outputs
   )
   # browser()
 
@@ -857,7 +856,8 @@ simulate_multi_output_data_convol <- function(
     grid_ranges = grid_ranges,
     hp_config_mean_process = hp_config_mean_process,
     shared_grid_outputs = shared_grid_outputs,
-    shared_hp_outputs = shared_hp_outputs
+    shared_hp_outputs = shared_hp_outputs,
+    noise_0 = noise_0
   )
 
   cat("Generating hyperparameters for all tasks...\n")
