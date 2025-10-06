@@ -6,12 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>How to use MagmaClust • MagmaClustR</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
@@ -80,8 +79,6 @@ text-align: justify}
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ArthurLeroy/MagmaClustR" class="external-link">MagmaClustR</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error in get(paste0(generic, ".", class), envir = get_method_env()) : </span></span>
-<span><span class="co">#&gt;   object 'type_sum.accel' not found</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span><span class="kw">if</span><span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/is_installed.html" class="external-link">is_installed</a></span><span class="op">(</span><span class="st">"gridExtra"</span><span class="op">)</span><span class="op">)</span><span class="op">{</span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">gridExtra</span><span class="op">)</span><span class="op">}</span></span></code></pre></div>
 <div class="section level2">
@@ -314,71 +311,71 @@ for details.</p>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 1: 8.12 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 1: 8.97 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -614.01449 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 2: 4.56 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 2: 4.94 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -490.95276 --- Convergence ratio = 0.25066</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 3: 6.14 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 3: 6.62 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -431.92636 --- Convergence ratio = 0.13666</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 4: 4.77 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 4: 5.1 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -399.90849 --- Convergence ratio = 0.08006</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 5: 3.97 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 5: 4.41 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -392.73377 --- Convergence ratio = 0.01827</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 6: 4.75 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 6: 5.03 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -389.33247 --- Convergence ratio = 0.00874</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 7: 3.29 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 7: 3.52 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -387.01608 --- Convergence ratio = 0.00599</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 8: 3.27 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 8: 3.5 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -385.18784 --- Convergence ratio = 0.00475</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 9: 3.28 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 9: 3.65 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -383.4405 --- Convergence ratio = 0.00456</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 10: 3.27 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 10: 3.49 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -381.78493 --- Convergence ratio = 0.00434</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 11: 3.33 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 11: 3.54 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -380.30595 --- Convergence ratio = 0.00389</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 12: 3.22 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 12: 3.53 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -379.03158 --- Convergence ratio = 0.00336</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 13: 3.25 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 13: 3.57 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -378.03565 --- Convergence ratio = 0.00263</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 14: 3.23 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 14: 3.6 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -377.25121 --- Convergence ratio = 0.00208</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 15: 3.23 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 15: 3.5 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -376.7127 --- Convergence ratio = 0.00143</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 16: 3.31 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 16: 3.52 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -376.31287 --- Convergence ratio = 0.00106</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; VEM algorithm, step 17: 3.16 seconds </span></span>
+<span><span class="co">#&gt; VEM algorithm, step 17: 3.49 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the elbo: -376.05439 --- Convergence ratio = 0.00069</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -434,7 +431,16 @@ weight over time.</p>
 <span>                data <span class="op">=</span> <span class="va">weight_pred</span>,</span>
 <span>                prior_mean <span class="op">=</span> <span class="va">pred_clust</span><span class="op">$</span><span class="va">hyperpost</span><span class="op">$</span><span class="va">mean</span>,</span>
 <span>                data_train <span class="op">=</span> <span class="va">weight_train</span>,</span>
-<span>                size_data <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></code></pre></div>
+<span>                size_data <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: `aes_string()` was deprecated in ggplot2 3.0.0.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Please use tidy evaluation idioms with `aes()`.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> See also `vignette("ggplot2-in-packages")` for more information.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The deprecated feature was likely used in the <span style="color: #0000BB;">MagmaClustR</span> package.</span></span>
+<span><span class="co">#&gt;   Please report the issue at</span></span>
+<span><span class="co">#&gt;   <span style="color: #0000BB; font-style: italic;">&lt;https://github.com/ArthurLeroy/MagmaClustR/issues&gt;</span>.</span></span>
+<span><span class="co">#&gt; <span style="color: #555555;">This warning is displayed once every 8 hours.</span></span></span>
+<span><span class="co">#&gt; <span style="color: #555555;">Call `lifecycle::last_lifecycle_warnings()` to see where this warning was</span></span></span>
+<span><span class="co">#&gt; <span style="color: #555555;">generated.</span></span></span></code></pre></div>
 <p><img src="how-to-use-magmaclust_files/figure-html/unnamed-chunk-10-1.png" width="80%" style="display: block; margin: auto;"></p>
 <p>In the above figure, we can observe:</p>
 <ul>
@@ -535,7 +541,7 @@ Predictions with Multi-Task Gaussian Processes</a>.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
     </footer>
