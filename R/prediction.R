@@ -423,7 +423,7 @@ pred_gp <- function(data = NULL,
                                  dplyr:: select(-Output_ID))
   }
 
-  browser()
+  # browser()
   ## Compute the posterior mean
   pred_mean <- (mean_pred +
                   t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%

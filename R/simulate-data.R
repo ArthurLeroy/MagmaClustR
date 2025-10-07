@@ -644,25 +644,13 @@ generate_mean_process_convol <- function(
   ))
 }
 
-#' @title Generate Data for a Single Task
-#' @description Simulates observed data points for one task. This version
-#'              expects hyperparameters to be provided as a tibble.
-#'
-#' @param task_id A unique identifier for the task.
-#' @param mean_process_info A list object from `generate_mean_process()`.
-#' @param task_hp_tibble A tibble of hyperparameters for this specific task,
-#'                       with one row per output. Must contain columns `l_t`,
-#'                       `S_t`, `l_u_t`, and `noise`.
-#' @param n_points_range A numeric vector `c(min, max)` for the number of points.
-#'
-#' @return A tibble containing the simulated data for the single task.
-
 generate_single_task_data <- function(
     task_id,
     mean_process_info,
     task_hp_tibble,
     n_points_range
 ) {
+  # browser()
   num_outputs <- length(mean_process_info$grid_list)
 
   # --- Sample a sparse sub-grid for this task ---
@@ -681,6 +669,8 @@ generate_single_task_data <- function(
   input_df <- purrr::imap_dfr(task_grid_list,
                               ~dplyr::tibble(Input = .x[,1], Output_ID = .y)
   )
+
+  input_df$Output_ID <- as.factor(input_df$Output_ID)
 
   # 2. Call kern_to_cov, passing the received hp_tibble directly
   K_task_t <- kern_to_cov(
@@ -718,7 +708,6 @@ generate_single_task_data <- function(
 #' @param shared_hp_tasks If TRUE, all tasks share the same hyperparameter values.
 #' @param shared_hp_outputs If TRUE, all outputs share the same HPs, both for the mean process and for the tasks.
 #' @param shared_grid_outputs A logical value. If TRUE, all outputs are defined on the exact same input grid.
-#' @param seed An optional integer for reproducibility.
 #'
 #' @return A list containing `simulated_data_df` and `mean_process_df`.
 
@@ -739,10 +728,8 @@ simulate_multi_output_data <- function(
     n_points_per_task_range = c(5, 20),
     shared_hp_tasks = FALSE,
     shared_hp_outputs = FALSE,
-    shared_grid_outputs = FALSE,
-    seed = NULL
+    shared_grid_outputs = FALSE
 ) {
-  if (!is.null(seed)) { set.seed(seed) }
 
   # === STEP 1: generate the mean process ===
   mean_process_info <- generate_mean_process(
@@ -766,6 +753,7 @@ simulate_multi_output_data <- function(
     hp_config = hp_config_tasks
   )
 
+  all_tasks_hps$Output_ID <- as.factor(all_tasks_hps$Output_ID)
 
   # === STEP 3: generate observed data for all tasks ===
   task_dfs_list <- purrr::map(1:num_tasks, ~{
@@ -856,8 +844,7 @@ simulate_multi_output_data_convol <- function(
     grid_ranges = grid_ranges,
     hp_config_mean_process = hp_config_mean_process,
     shared_grid_outputs = shared_grid_outputs,
-    shared_hp_outputs = shared_hp_outputs,
-    noise_0 = noise_0
+    shared_hp_outputs = shared_hp_outputs
   )
 
   cat("Generating hyperparameters for all tasks...\n")

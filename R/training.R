@@ -970,9 +970,9 @@ train_gp <- function(data,
   names(lower_bounds) <- names(par)
   names(upper_bounds) <- names(par)
 
-  # Appliquez vos contraintes sur le bruit
-  upper_bounds["noise_1"] <- -2.0
-  upper_bounds["noise_2"] <- -2.0
+  # # # Appliquez vos contraintes sur le bruit
+  # upper_bounds["noise_1"] <- -2.0
+  # upper_bounds["noise_2"] <- -2.0
 
   hp_new <- stats::optim(
     par = par,
