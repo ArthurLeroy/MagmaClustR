@@ -683,7 +683,9 @@ plot_gif <- function(pred_gp,
     gganimate::animate(gg, renderer = gganimate::gifski_renderer(path))
   }
 
-  gg %>% return()
+  gg %>%
+    invisible() %>%
+    return()
 }
 
 #' Plot MagmaClust predictions

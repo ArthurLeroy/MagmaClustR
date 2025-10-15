@@ -4,6 +4,7 @@
 
 ## Minor
 
+* Fix the plot_gif() function to avoid saving multiple temporary png files
 * Add a minimal implementation of Laplace Matching for binary classification
 * Fix a bug when plotting in 2D mean process predictions
 * Fix a few bugs when using pred_*() functions with argument data = NULL
