@@ -79,6 +79,7 @@ pred_gp <- function(data = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
                     pen_diag = 1e-10) {
+  # browser()
   ## Create a dummy dataset if no data is provided
   if(data %>% is.null()){
     data = tibble::tibble(
@@ -116,7 +117,6 @@ pred_gp <- function(data = NULL,
 
   ## Extract the list of different output IDs
   list_ID_output <- data$Output_ID %>% unique()
-
 
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of Output_ID.
@@ -157,6 +157,9 @@ pred_gp <- function(data = NULL,
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::pull(Output)
+
+  ## Name elements of data_obs with 'Reference' column
+  names(data_obs) <- data$Reference
 
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
@@ -276,11 +279,11 @@ pred_gp <- function(data = NULL,
     ## Test whether 'data' has the same columns as grid_inputs
     if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
       input_pred <- grid_inputs %>%
-        dplyr::arrange(Reference) %>%
+        # dplyr::arrange(Reference) %>% # Ne surtout pas arrange avec Reference à cause de l'ordre lexico
         dplyr::pull(Reference)
 
       inputs_pred <- grid_inputs %>%
-        dplyr::arrange(Reference) %>%
+        # dplyr::arrange(Reference) %>% # Ne surtout pas arrange avec Reference à cause de l'ordre lexico
         dplyr::select(names(inputs_obs))
     } else {
       stop(
@@ -424,10 +427,17 @@ pred_gp <- function(data = NULL,
   }
 
   # browser()
+
+  ## Order data_obs - mean_obs according to the column names of inv_obs
+  obs <- data_obs - mean_obs
+  obs <- obs[colnames(inv_obs)]
+
   ## Compute the posterior mean
   pred_mean <- (mean_pred +
-                  t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+                  t(cov_crossed) %*% inv_obs %*% obs) %>%
     as.vector()
+
+  names(pred_mean) <- input_pred
 
   ## Compute the posterior covariance matrix
   pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
@@ -441,20 +451,18 @@ pred_gp <- function(data = NULL,
     data = c()
   }
 
-  ## Get the pred_cov rownames and colnames to create a noise vector with correct
-  ## dimensions
-  point_names <- rownames(pred_cov)
-  # output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
-  # full_noise_vector <- noise[output_ids]
+  if(length(data$Output_ID %>% unique()) > 1){
+    ## MO case
+    ## Get the pred_cov rownames and colnames to create a noise vector with correct
+    ## dimensions
+    point_names <- rownames(pred_cov)
+    output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
+    full_noise_vector <- noise[output_ids]
+  } else {
+    ## Single output case
+    full_noise_vector <- noise
+  }
 
-  # Extraire les IDs des sorties sous forme de chaînes de caractères ("1", "2", etc.)
-  output_ids_char <- sub("^o(\\d+);.*", "\\1", point_names)
-
-  # Créer un VECTEUR NOMMÉ pour le bruit, où les noms sont les Output_ID
-  noise_named_vec <- setNames(exp(hp$noise), hp$Output_ID)
-
-  # Utiliser les noms pour une correspondance robuste
-  full_noise_vector <- noise_named_vec[output_ids_char]
 
   ## Create a tibble of values and associated uncertainty from a GP prediction
   pred_gp <- tibble::tibble(
@@ -481,7 +489,10 @@ pred_gp <- function(data = NULL,
   if (get_full_cov) {
     pred_gp = list('pred' = pred_gp, 'cov' = pred_cov)
   }
-  return(pred_gp)
+  return(list("pred_gp" = pred_gp,
+              "cov_crossed_times_inv_cov" = t(cov_crossed) %*% inv_obs
+              )
+  )
 }
 
 
@@ -579,7 +590,7 @@ hyperposterior <- function(trained_model = NULL,
                            hp_t = NULL,
                            kern_0 = NULL,
                            kern_t = NULL,
-                           weight_inv_0 = 1,
+                           weight_inv_0 = 1e-4,
                            prior_mean = NULL,
                            grid_inputs = NULL,
                            pen_diag = 1e-10) {
@@ -599,7 +610,7 @@ hyperposterior <- function(trained_model = NULL,
     if(data %>% is.null()){data = trained_model$ini_args$data}
     if(hp_0 %>% is.null()){hp_0 = trained_model$hp_0}
     if(hp_t %>% is.null()){hp_t = trained_model$hp_t}
-    if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_t}
+    if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_0}
     if(kern_t %>% is.null()){kern_t = trained_model$ini_args$kern_t}
     if(weight_inv_0 %>% is.null()){weight_inv_0 = trained_model$ini_args$weight_inv_0}
     if(prior_mean %>% is.null()){prior_mean = trained_model$ini_args$prior_mean}
@@ -656,10 +667,18 @@ hyperposterior <- function(trained_model = NULL,
     ## Extract the union of all reference inputs provided in the training data
     all_inputs <- data %>%
       dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
-      unique()
+      unique() %>%
+      tidyr::separate(Reference,
+                      into = c("Output_ID_temp", "Input_temp"),
+                      sep = ";",
+                      remove = FALSE) %>%
+      dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+      dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+      dplyr::select(c(Input_1, Reference))
+      # dplyr::select(c(Input_1, Reference, Output_ID))
 
     all_input <- all_inputs %>%
-      dplyr::arrange(Reference) %>%
+      # dplyr::arrange(Reference) %>%
       dplyr::pull(Reference)
     cat(
       "The argument 'grid_inputs' is NULL, the hyper-posterior distribution",
@@ -705,9 +724,21 @@ hyperposterior <- function(trained_model = NULL,
       dplyr::select(Reference, tidyselect::all_of(names_col), Output_ID) %>%
       dplyr::union(grid_inputs) %>%
       unique() %>%
-      dplyr::arrange(Reference)
+      tidyr::separate(Reference,
+                      into = c("Output_ID_temp", "Input_temp"),
+                      sep = ";",
+                      remove = FALSE) %>%
+      dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+      dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+      dplyr::select(c(Input_1, Reference, Output_ID))
+      # dplyr::arrange(Reference)
 
     all_input <- all_inputs %>% dplyr::pull(Reference)
+
+    if(length(data$Output_ID %>% unique()) == 1){
+      all_inputs <- all_inputs %>%
+        dplyr::select(-Output_ID)
+    }
   }
 
   ## Initialise m_0 according to the value provided by the user
@@ -762,35 +793,37 @@ hyperposterior <- function(trained_model = NULL,
 
   ## Certify that IDs are of type 'character'
   data$Task_ID <- data$Task_ID %>% as.character()
-  all_inputs$Output_ID <- all_inputs$Output_ID %>% as.factor()
 
-  if(length(all_inputs$Output_ID %>% unique()) > 1){
-    # Compute the inverse covariance matrix for each output block of the mean process
-    # This assumes the prior on mu_0 treats outputs as independent GPs.
-    list_inv_0 <- list_outputs_blocks_to_inv(db = all_inputs,
-                                             kern = kern_0,
-                                             hp = hp_0,
-                                             pen_diag = pen_diag)
+  if('Output_ID' %in% names(all_inputs)){
+    all_inputs$Output_ID <- all_inputs$Output_ID %>% as.factor()
+  }
 
-    # Create the full block-diagonal inverse covariance matrix for mu_0
-    inv_0 <- Matrix::bdiag(list_inv_0)
+  if(length(data$Output_ID %>% unique()) > 1){
+    # Compute the convolutional covariance matrix of the mean process
+    cov_0 <- kern_to_cov(input = all_inputs,
+                         kern = kern_0,
+                         hp = hp_0)
 
-    # Set the row and column names of inv_0
-    all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
+    all_references <- rownames(cov_0)
+    # matrixcalc::is.positive.semi.definite(cov_0)
+    inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
+    # matrixcalc::is.positive.semi.definite(inv_0)
+    # Re-apply the stored names to the inverted matrix
     dimnames(inv_0) <- list(all_references, all_references)
-    inv_0 <- weight_inv_0*as.matrix(inv_0)
+    inv_0 <- weight_inv_0 * inv_0
   } else {
-    inv_0 <- kern_to_inv(all_inputs %>%
-                           select(-Output_ID),
-                         kern_0,
-                         hp_0 %>%
-                           filter(Output_ID=="1") %>%
-                           select(-Output_ID),
-                         pen_diag) %>%
-      `rownames<-`(all_inputs$Reference)%>%
-      `colnames<-`(all_inputs$Reference)
+    cov_0 <- kern_to_cov(input = all_inputs,
+                         kern = kern_0,
+                         hp = hp_0 %>%
+                           dplyr::select(-Output_ID))
 
-    inv_0 <- weight_inv_0*inv_0
+    all_references <- rownames(cov_0)
+    # matrixcalc::is.positive.semi.definite(cov_0)
+    inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
+    # matrixcalc::is.positive.semi.definite(inv_0)
+    # Re-apply the stored names to the inverted matrix
+    dimnames(inv_0) <- list(all_references, all_references)
+    inv_0 <- weight_inv_0 * inv_0
   }
 
 
@@ -820,8 +853,8 @@ hyperposterior <- function(trained_model = NULL,
       all_inputs_t <- data %>%
         dplyr::filter(Task_ID == t) %>%
         dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
-        unique() %>%
-        dplyr::arrange(Reference)
+        unique()
+        # dplyr::arrange(Reference)
 
       K_task_t <- kern_to_cov(
         input = all_inputs_t,
@@ -861,7 +894,7 @@ hyperposterior <- function(trained_model = NULL,
       inv_t[co_input, co_input]
   }
 
-  if(length(all_inputs$Output_ID %>% unique()) > 1){
+  if(length(data$Output_ID %>% unique()) > 1){
     post_cov <- post_inv %>%
       chol_inv_jitter(pen_diag = pen_diag) %>%
       `rownames<-`(all_references) %>%
@@ -887,51 +920,6 @@ hyperposterior <- function(trained_model = NULL,
     weighted_0[co_input, ] <- weighted_0[co_input, ] +
       weighted_t[co_input, ]
   }
-
-
-  # # On s'assure qu'il y a des références à analyser
-  # if (!is.null(rownames(post_cov))) {
-  #   # 1. Identifier les références de départ
-  #   all_refs <- rownames(post_cov)
-  #   # Extraction des parties numériques et des préfixes des références
-  #   ref_matches <- regmatches(all_refs, regexpr("^o1;([0-9]+\\.?[0-9]*)$", all_refs))
-  #
-  #   valid_refs <- all_refs[sapply(ref_matches, length) > 0]
-  #   numeric_values <- as.numeric(sub("^(o1|o2);", "", valid_refs))
-  #
-  #   # On filtre celles qui sont entre 3.00 et 4.00
-  #   start_refs <- valid_refs[numeric_values >= 3.00 & numeric_values <= 4.00]
-  #
-  #   if (length(start_refs) == 0) {
-  #     message("Aucune référence de départ ('o1' avec entrée entre 3.00 et 4.00) trouvée pour cette tâche.")
-  #   } else {
-  #     # 2. Pour chaque référence de départ, trouver et classer les covariances
-  #     for (start_ref in start_refs) {
-  #       message(paste("\n>> Analyse pour la référence de départ :", start_ref))
-  #
-  #       # Extraire la ligne de covariance de K_task_t et prendre la valeur absolue
-  #       covariances_abs <- abs(post_cov[start_ref, ])
-  #
-  #       # Trier par ordre décroissant
-  #       sorted_indices <- order(covariances_abs, decreasing = TRUE)
-  #
-  #       # Créer un tibble pour un affichage propre
-  #       sorted_results <- tibble::tibble(
-  #         Reference = names(covariances_abs)[sorted_indices],
-  #         CovarianceAbs = covariances_abs[sorted_indices]
-  #       )
-  #
-  #       # Exclure la référence de départ elle-même (qui a la covariance maximale, c'est-à-dire la variance)
-  #       sorted_results <- sorted_results %>%
-  #         dplyr::filter(Reference != start_ref)
-  #
-  #       # 3. Afficher les 10 premières
-  #       message("Top 10 des références avec la plus grande covariance (en valeur absolue) :")
-  #       print(head(sorted_results, 10))
-  #     }
-  #   }
-  #   message("--- Fin de l'analyse ---")
-  # }
 
   # Compute the final posterior mean
   post_mean <- post_cov %*% weighted_0 %>% as.vector()
@@ -1055,6 +1043,7 @@ pred_magma <- function(data = NULL,
                        get_full_cov = FALSE,
                        plot = TRUE,
                        pen_diag = 1e-10) {
+  # browser()
   ## Return the mean process if no data is provided
   if(data %>% is.null()){
     ## Check whether trained_model is provided
@@ -1125,7 +1114,6 @@ pred_magma <- function(data = NULL,
     data <- data %>% dplyr::select(-Task_ID)
   }
 
-
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
   # In other words, inputs are no longer in "short" format; instead, we have one
@@ -1165,6 +1153,9 @@ pred_magma <- function(data = NULL,
   ## Extract the observed Output (data points)
   data_obs <- data %>%
     dplyr::pull(Output)
+
+  ## Name elements of data_obs with 'Reference' column
+  names(data_obs) <- data$Reference
 
   ## Extract the observed (reference) Input
   input_obs <- data %>%
@@ -1284,11 +1275,11 @@ pred_magma <- function(data = NULL,
     ## Test whether 'data' has the same columns as grid_inputs
     if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
       input_pred <- grid_inputs %>%
-        dplyr::arrange(Reference) %>%
+        # dplyr::arrange(Reference) %>%
         dplyr::pull(Reference)
 
       inputs_pred <- grid_inputs %>%
-        dplyr::arrange(Reference) %>%
+        # dplyr::arrange(Reference) %>%
         dplyr::select(names(inputs_obs))
     } else {
       stop(
@@ -1305,8 +1296,8 @@ pred_magma <- function(data = NULL,
 
 
   ## Define the union of all distinct reference Input
-  all_inputs <- dplyr::union(inputs_obs, inputs_pred) %>%
-    dplyr::arrange(Reference)
+  all_inputs <- dplyr::union(inputs_obs, inputs_pred)
+    # dplyr::arrange(Reference)
   all_input <- all_inputs$Reference
 
 
@@ -1376,13 +1367,19 @@ pred_magma <- function(data = NULL,
 
   mean_obs <- hyperpost$mean %>%
     dplyr::filter(Reference %in% input_obs) %>%
-    dplyr::arrange(Reference) %>%
+    # dplyr::arrange(Reference) %>%
     dplyr::pull(Output)
+
+  names(mean_obs) <- (hyperpost$mean %>%
+                        dplyr::filter(Reference %in% input_obs))$Reference
 
   mean_pred <- hyperpost$mean %>%
     dplyr::filter(Reference %in% input_pred) %>%
-    dplyr::arrange(Reference) %>%
+    # dplyr::arrange(Reference) %>%
     dplyr::pull(Output)
+
+  names(mean_pred) <- (hyperpost$mean %>%
+                         dplyr::filter(Reference %in% input_pred))$Reference
 
   ## Extract the covariance sub-matrices from the hyper-posterior
   post_cov_obs <- hyperpost$cov[
@@ -1407,7 +1404,7 @@ pred_magma <- function(data = NULL,
       ) {
         ## Extract the hyper-parameters common to all 't'
         hp <- trained_model$hp_t %>%
-          dplyr::filter(Task_ID == "1") %>%
+          dplyr::slice(1:length(all_inputs$Output_ID %>% unique())) %>%
           dplyr::select(-Task_ID)
       } else if (kern %>% is.function()) {
         stop(
@@ -1464,6 +1461,14 @@ pred_magma <- function(data = NULL,
     }
   }
 
+  if(length(inputs_obs$Output_ID %>% unique()) == 1){
+    inputs_obs <- inputs_obs %>%
+      dplyr::select(-Output_ID)
+
+    inputs_pred <- inputs_pred %>%
+      dplyr::select(-Output_ID)
+  }
+
   ## Sum the covariance matrices on observed inputs and compute the inverse
   cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
 
@@ -1498,11 +1503,16 @@ pred_magma <- function(data = NULL,
   ## Compute the posterior covariance matrix of a GP
   pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
 
-  ## Get the pred_cov rownames and colnames to create a noise vector with correct
-  ## dimensions
-  point_names <- rownames(pred_cov)
-  output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
-  full_noise_vector <- noise[output_ids]
+  if(length(all_inputs$Output_ID %>% unique()) > 1){
+    ## Get the pred_cov rownames and colnames to create a noise vector with correct
+    ## dimensions
+    point_names <- rownames(pred_cov)
+    output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
+    full_noise_vector <- noise[output_ids]
+  } else {
+    full_noise_vector <- noise
+  }
+
 
   ## Create a tibble of values and associated uncertainty from a GP prediction
   pred_gp <- tibble::tibble(

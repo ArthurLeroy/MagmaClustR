@@ -26,6 +26,7 @@ gr_GP <- function(hp,
                   post_cov,
                   pen_diag,
                   hp_col_names) {
+  # browser()
   if(!(hp %>% is_tibble()) && length(db$Output_ID %>% unique()) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -113,6 +114,8 @@ gr_GP <- function(hp,
       return()
   }
 
+  resultat_gradient <- sapply(hp_col_names, floop)
+
   sapply(hp_col_names, floop) %>%
     return()
 }
@@ -146,7 +149,6 @@ gr_GP_mod <- function(hp,
                       output_ids,
                       priors,
                       ...) {
-  bro
   if(!(hp %>% is_tibble()) && length(output_ids) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -193,7 +195,14 @@ gr_GP_mod <- function(hp,
     all_inputs <- db %>%
       dplyr::select(-c(Output, Output_ID)) %>%
       unique() %>%
-      dplyr::arrange(Reference)
+      tidyr::separate(Reference,
+                      into = c("Output_ID_temp", "Input_temp"),
+                      sep = ";",
+                      remove = FALSE) %>%
+      dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+      dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+      dplyr::select(c(Input_1, Reference))
+      # dplyr::arrange(Reference)
 
     if("Task_ID" %in% colnames(all_inputs)){
       all_inputs <- all_inputs %>% select(-Task_ID)
@@ -230,7 +239,14 @@ gr_GP_mod <- function(hp,
       all_inputs <- db %>%
         dplyr::select(-c(Output, Output_ID)) %>%
         unique() %>%
-        dplyr::arrange(Reference)
+        tidyr::separate(Reference,
+                        into = c("Output_ID_temp", "Input_temp"),
+                        sep = ";",
+                        remove = FALSE) %>%
+        dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+        dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+        dplyr::select(c(Input_1, Reference))
+        # dplyr::arrange(Reference)
 
       if("Task_ID" %in% colnames(all_inputs)){
         all_inputs <- all_inputs %>% select(-Task_ID)

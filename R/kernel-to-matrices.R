@@ -54,6 +54,7 @@ kern_to_cov <- function(input,
                         hp,
                         deriv = NULL,
                         input_2 = NULL) {
+  # browser()
   ## If a second set of inputs is not provided, only 'input' against itself
   if (input_2 %>% is.null()) {
     input_2 <- input
@@ -99,23 +100,12 @@ kern_to_cov <- function(input,
 
     ## Add a 'noise' term on the diagonal if provided
     if (("noise" %in% names(hp)) && is.null(deriv)) {
+      # Join to ensure that the noise of each point corresponds to the right output
+      noise_info <- input %>%
+        dplyr::select(Output_ID) %>%
+        dplyr::left_join(hp, by = "Output_ID")
 
-      # 1. Arrange HPs and inputs by Output_ID to ensure that each output noise
-      # is added at the right location.
-      hp_ordered <- hp %>% dplyr::arrange(Output_ID)
-      input_ordered <- input %>% dplyr::arrange(Output_ID)
-
-      # 2. Extract the noise vector (one per output)
-      noise_per_output <- exp(hp_ordered$noise)
-
-      # 3. Count number of observations per output
-      n_points_per_output <- input_ordered %>%
-        dplyr::count(Output_ID) %>%
-        dplyr::pull(n)
-
-      # 4. Construct the noise vector repeated n_points_per_output for each
-      # output
-      full_noise_vector <- rep(noise_per_output, times = n_points_per_output)
+      full_noise_vector <- exp(noise_info$noise)
 
       # 5. Add the noise vector to the diagonal
       mat <- mat + diag(full_noise_vector)
@@ -385,7 +375,7 @@ kern_to_cov <- function(input,
         }
         deriv_id <- as.integer(deriv_id_str)
 
-        input <- input %>% dplyr::arrange(Output_ID)
+        # input <- input %>% dplyr::arrange(Output_ID)
         if ("Task_ID" %in% colnames(input)) {
           input <- input %>% dplyr::select(-Task_ID)
         }
@@ -411,12 +401,14 @@ kern_to_cov <- function(input,
             if (length(current_noise_hp) == 0) {
               stop(paste("'Noise' parameter not found for Output_ID :", id))
             }
+            # browser()
 
             block_matrix <- cpp_noise(
-              as.matrix(dplyr::select(subset_input, -Output_ID)),
-              as.matrix(dplyr::select(subset_input_2, -Output_ID)),
+              as.matrix(dplyr::select(subset_input, Input_1)),
+              as.matrix(dplyr::select(subset_input_2, Input_1)),
               current_noise_hp
             )
+
           } else {
             # Derivative is zero
             block_matrix <- matrix(0,
@@ -430,7 +422,7 @@ kern_to_cov <- function(input,
         }
 
         # Aggregate blocks into the complete block-diagonal matrix
-        mat <- Matrix::bdiag(list_of_blocks)
+        mat <- Matrix::bdiag(unname(list_of_blocks))
         mat <- as.matrix(mat) %>%
           `rownames<-`(input$Input_1) %>%
           `colnames<-` (input_2$Input_1)
@@ -453,6 +445,10 @@ kern_to_cov <- function(input,
   if ("deriv" %in% methods::formalArgs(kernel)) {
     ## Detect whether speed-up vectorised computation is provided
     if ("vectorized" %in% methods::formalArgs(kernel)) {
+      # input <- input %>%
+      #   dplyr::select(-Output_ID)
+      # input_2 <- input
+
       mat <- kernel(
         x = input,
         y = input_2,

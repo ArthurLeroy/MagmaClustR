@@ -206,7 +206,14 @@ logL_GP_mod <- function(hp,
     all_inputs <- db %>%
       dplyr::select(-c(Output, Output_ID)) %>%
       unique() %>%
-      dplyr::arrange(Reference)
+      tidyr::separate(Reference,
+                      into = c("Output_ID_temp", "Input_temp"),
+                      sep = ";",
+                      remove = FALSE) %>%
+      dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+      dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+      dplyr::select(c(Input_1, Reference))
+      # dplyr::arrange(Reference)
 
     if("Task_ID" %in% colnames(all_inputs)){
       all_inputs <- all_inputs %>% select(-Task_ID)
@@ -223,7 +230,14 @@ logL_GP_mod <- function(hp,
       all_inputs <- db %>%
         dplyr::select(-c(Output, Output_ID)) %>%
         unique() %>%
-        dplyr::arrange(Reference)
+        tidyr::separate(Reference,
+                        into = c("Output_ID_temp", "Input_temp"),
+                        sep = ";",
+                        remove = FALSE) %>%
+        dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+        dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+        dplyr::select(c(Input_1, Reference))
+        # dplyr::arrange(Reference)
 
       # Compute the inverse covariance matrix
       inv <- kern_to_inv(
@@ -408,52 +422,40 @@ logL_monitoring <- function(hp_0,
                             pen_diag,
                             weight_inv_0,
                             priors) {
+  # browser()
   # Get the union of all unique input points from the training data
   all_inputs <- db %>%
     dplyr::select(-c(Task_ID, Output)) %>%
     unique() %>%
-    dplyr::arrange(Reference)
+    tidyr::separate(Reference,
+                    into = c("Output_ID_temp", "Input_temp"),
+                    sep = ";",
+                    remove = FALSE) %>%
+    dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+    dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+    dplyr::select(c(Input_1, Reference, Output_ID))
+    # dplyr::arrange(Reference)
 
   all_input <- all_inputs %>%
-    dplyr::arrange(Reference) %>%
+    # dplyr::arrange(Reference) %>%
     dplyr::pull(Reference)
 
-  list_inv_0 <- list_outputs_blocks_to_inv(db = all_inputs,
-                                           kern = kern_0,
-                                           hp = hp_0,
-                                           pen_diag = pen_diag)
+  if(length(all_inputs$Output_ID %>% unique()) == 1){
+    all_inputs <- all_inputs %>%
+      dplyr::select(-Output_ID)
+  }
 
-  # Create the full block-diagonal inverse covariance matrix for mu_0
-  inv_0 <- Matrix::bdiag(list_inv_0)
+  # Compute the convolutional covariance matrix of the mean process
+  cov_0 <- kern_to_cov(input = all_inputs,
+                       kern = kern_0,
+                       hp = hp_0)
 
-  # Set the row and column names of inv_0
-  all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
-  dimnames(inv_0) <- list(all_references, all_references)
-  inv_0 <- as.matrix(inv_0)
-  inv_0 <- weight_inv_0*inv_0
-
-  # # Compute the convolutional covariance matrix of the mean process
-  # cov_0 <- kern_to_cov(input = all_inputs,
-  #                      kern = kern_0,
-  #                      hp = hp_0)
-  #
-  # references <- rownames(cov_0)
-  # matrixcalc::is.positive.semi.definite(cov_0)
-  # inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
-  # # Re-apply the stored names to the inverted matrix
-  # dimnames(inv_0) <- list(references, references)
-
-  # # # ONLY IF HPs ARE SHARED BETWEEN TASKS
-  # hp_0t <- hp_t %>% filter(Task_ID == "1") %>% dplyr::select(-c(Task_ID, noise))
-  # cov_0 <- kern_to_cov(
-  #   input = post_mean,
-  #   kern = kern_t,
-  #   hp = hp_0t,
-  # )
-  # inv_0 <- 0.1*cov_0 %>% chol_inv_jitter(pen_diag = pen_diag) %>%
-  #   `rownames<-` (post_mean$Reference) %>%
-  #   `colnames<-` (post_mean$Reference)
-  #
+  references <- rownames(cov_0)
+  matrixcalc::is.positive.semi.definite(cov_0)
+  inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
+  # Re-apply the stored names to the inverted matrix
+  dimnames(inv_0) <- list(references, references)
+  inv_0 <- weight_inv_0 * inv_0
 
   # Compute the log-likelihood components
   # Classical Gaussian log-likelihood
@@ -687,11 +689,14 @@ reconstruct_hp <- function(par_vector, hp_names, output_ids) {
         names_to = c(".value", "Output_ID"),
         names_pattern = "(.*)_(\\d+)$"
       ) %>%
-      dplyr::mutate(Output_ID = as.character(Output_ID))
+      dplyr::mutate(Output_ID = as.character(Output_ID)) %>%
+      dplyr::arrange(factor(Output_ID, levels = output_ids))
+
   } else { # Single output case
     hp_tibble <- par_vector %>%
       t() %>%
-      tibble::as_tibble()
+      tibble::as_tibble() %>%
+      stats::setNames(hp_names)
   }
 
   return(hp_tibble)

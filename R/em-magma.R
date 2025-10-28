@@ -35,44 +35,43 @@ e_step <- function(db,
                    weight_inv_0,
                    pen_diag) {
 
+  # browser()
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
   # Get the union of all unique input points from the training data
   all_inputs <- db %>%
     dplyr::select(-c(Task_ID, Output)) %>%
     unique() %>%
-    dplyr::arrange(Reference)
+    tidyr::separate(Reference,
+                    into = c("Output_ID_temp", "Input_temp"),
+                    sep = ";",
+                    remove = FALSE) %>%
+    dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+    dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+    dplyr::select(c(Input_1, Reference, Output_ID))
+    # dplyr::arrange(Reference)
 
   all_input <- all_inputs %>%
-    dplyr::arrange(Reference) %>%
+    # dplyr::arrange(Reference) %>%
     dplyr::pull(Reference)
 
-  # # Compute the inverse covariance matrix for each output block of the mean process
-  # # This assumes the prior on mu_0 treats outputs as independent GPs.
-  list_inv_0 <- list_outputs_blocks_to_inv(db = all_inputs,
-                                           kern = kern_0,
-                                           hp = hp_0,
-                                           pen_diag = pen_diag)
-
-  # Create the full block-diagonal inverse covariance matrix for mu_0
-  inv_0 <- Matrix::bdiag(list_inv_0)
-  # Set the row and column names of inv_0
-  all_references <- unlist(lapply(list_inv_0, rownames), use.names = FALSE)
-  dimnames(inv_0) <- list(all_references, all_references)
-  inv_0 <- weight_inv_0*as.matrix(inv_0)
+  if(length(list_output_ID) == 1){
+    all_inputs <- all_inputs %>%
+      dplyr::select(-Output_ID)
+  }
 
   # Compute the convolutional covariance matrix of the mean process
-  # cov_0 <- kern_to_cov(input = all_inputs,
-  #                      kern = kern_0,
-  #                      hp = hp_0)
-  #
-  # references <- rownames(cov_0)
+  cov_0 <- kern_to_cov(input = all_inputs,
+                       kern = kern_0,
+                       hp = hp_0)
+
+  references <- rownames(cov_0)
   # matrixcalc::is.positive.semi.definite(cov_0)
-  # inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
+  inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
   # matrixcalc::is.positive.semi.definite(inv_0)
-  # # Re-apply the stored names to the inverted matrix
-  # dimnames(inv_0) <- list(references, references)
-  # inv_0 <- (1/100000) * inv_0
+  # Re-apply the stored names to the inverted matrix
+  dimnames(inv_0) <- list(references, references)
+  inv_0 <- weight_inv_0 * inv_0
 
   list_inv_t <- list()
 
@@ -108,8 +107,8 @@ e_step <- function(db,
       all_inputs_t <- db %>%
         dplyr::filter(Task_ID == t) %>%
         dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
-        unique() %>%
-        dplyr::arrange(Reference)
+        unique()
+        # dplyr::arrange(Reference)
 
       K_task_t <- kern_to_cov(
         input = all_inputs_t,

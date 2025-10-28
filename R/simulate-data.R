@@ -409,8 +409,8 @@ generate_mean_process <- function(
   # coefficients for each output.
 
   # 1. Définissez des vecteurs pour les bornes min et max de chaque intervalle
-  a_mins <- c(-0.5, 2)
-  a_maxs <- c(0, 3)
+  a_mins <- c(0, 0)
+  a_maxs <- c(0, 0)
 
   # 2. Utilisez map2_dbl pour générer un coefficient 'a' pour chaque intervalle
   #    Le premier a_coeff sera tiré dans [-0.5, 0]
@@ -418,7 +418,7 @@ generate_mean_process <- function(
   a_coeffs <- purrr::map2_dbl(a_mins, a_maxs, ~runif(1, .x, .y))
 
   # Le reste de votre code reste inchangé
-  b_coeffs <- runif(num_outputs, -10, 10)
+  b_coeffs <- runif(num_outputs, 0, 0)
 
   # Use pmap to iterate over the grids, 'a' coefficients, and 'b' coefficients
   # simultaneously. This creates a list where each element is the mean vector
@@ -539,8 +539,8 @@ generate_mean_process_convol <- function(
   }
 
   # 1. Définissez des vecteurs pour les bornes min et max de chaque intervalle
-  a_mins <- c(-0.5, 2)
-  a_maxs <- c(0, 3)
+  a_mins <- c(0, 0)
+  a_maxs <- c(0, 0)
 
   # 2. Utilisez map2_dbl pour générer un coefficient 'a' pour chaque intervalle
   #    Le premier a_coeff sera tiré dans [-0.5, 0]
@@ -548,7 +548,8 @@ generate_mean_process_convol <- function(
   a_coeffs <- purrr::map2_dbl(a_mins, a_maxs, ~runif(1, .x, .y))
 
   # Le reste de votre code reste inchangé
-  b_coeffs <- runif(num_outputs, -10, 10)
+  b_coeffs <- c(0, 0)
+  # b_coeffs <- runif(num_outputs, -10, 10)
 
   # Use pmap to iterate over the grids, 'a' coefficients, and 'b' coefficients
   # simultaneously. This creates a list where each element is the mean vector
@@ -588,6 +589,7 @@ generate_mean_process_convol <- function(
     l_u_t     = lu0_vals
   )
 
+  # browser()
   # L'appel à kern_to_cov reçoit maintenant un tibble correctement formaté.
   K_theta0_X <- suppressWarnings(kern_to_cov(
     input = input_df_mean_process,
@@ -644,6 +646,7 @@ generate_mean_process_convol <- function(
   ))
 }
 
+
 generate_single_task_data <- function(
     task_id,
     mean_process_info,
@@ -656,8 +659,11 @@ generate_single_task_data <- function(
   # --- Sample a sparse sub-grid for this task ---
   # n_points_per_output_task <- n_points_range
 
-  n_points_per_output_task <- sample(n_points_range[1]:n_points_range[2],
-                                     size = num_outputs, replace = TRUE)
+  # n_points_per_output_task <- sample(n_points_range[1]:n_points_range[2],
+  #                                    size = num_outputs, replace = TRUE)
+
+  n_points_per_output_task <- rep(n_points_range[2], num_outputs)
+
   task_grid_list <- purrr::map2(mean_process_info$grid_list,
                                 n_points_per_output_task,
                                 ~sample(x = .x, size = .y) %>% sort())
@@ -844,7 +850,8 @@ simulate_multi_output_data_convol <- function(
     grid_ranges = grid_ranges,
     hp_config_mean_process = hp_config_mean_process,
     shared_grid_outputs = shared_grid_outputs,
-    shared_hp_outputs = shared_hp_outputs
+    shared_hp_outputs = shared_hp_outputs,
+    noise_0 = NULL
   )
 
   cat("Generating hyperparameters for all tasks...\n")
