@@ -586,7 +586,7 @@ generate_mean_process_convol <- function(
     Output_ID = 1:num_outputs,
     l_t       = l0_vals,
     S_t       = S0_vals,
-    l_u_t     = lu0_vals
+    l_u_t     = lu0_vals,
   )
 
   # browser()
@@ -723,13 +723,13 @@ simulate_multi_output_data <- function(
     grid_ranges = list(c(0, 10), c(0, 10)),
     hp_config_mean_process = tibble::tibble(
       output_id = 1:2, l0_min = c(-3, -3), l0_max = c(3, 3),
-      s0_min = c(-3, -3), s0_max = c(3, 3)
+      s0_min = c(-3, -3), s0_max = c(3, 3),
     ),
     hp_config_tasks = tibble::tibble(
       output_id = 1:2, lt_min = c(-3, -3), lt_max = c(3, 3),
       St_min = c(-3, -3), St_max = c(3, 3),
       noise_min = c(-3, -3), noise_max = c(0, 0),
-      lu_min = c(-1, -1), lu_max = c(3, 3)
+      lu_min = c(-1, -1), lu_max = c(3, 3),
     ),
     n_points_per_task_range = c(5, 20),
     shared_hp_tasks = FALSE,

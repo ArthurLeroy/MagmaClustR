@@ -1493,8 +1493,6 @@ pred_magma <- function(data = NULL,
   ) +
     post_cov_crossed
 
-
-
   ## Compute the posterior mean of a GP
   pred_mean <- (mean_pred +
                   t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
@@ -1521,6 +1519,8 @@ pred_magma <- function(data = NULL,
   ) %>%
     dplyr::mutate(inputs_pred) %>%
     dplyr::select(-Reference)
+
+  ponderation_matrix <- t(cov_crossed) %*% inv_obs
 
   ## Display the graph of the prediction if expected
   if (plot) {
@@ -1561,7 +1561,10 @@ pred_magma <- function(data = NULL,
     }
   }
 
-  return(res)
+  return(
+    list("pred_gp" = res,
+         "ponderation_matrix" = ponderation_matrix)
+    )
 }
 
 #' Magma prediction for ploting GIFs

@@ -154,13 +154,14 @@ plot_gp <- function(pred_gp,
   if (pred_gp %>% is.data.frame()) {
     pred <- pred_gp
   } else if (is.list(pred_gp) &
-    tryCatch(
-      is.data.frame(pred_gp$pred),
-      error = function(e) {
-        FALSE
-      }
-    )) {
+             tryCatch(
+               is.data.frame(pred_gp$pred),
+               error = function(e) {
+                 FALSE
+               }
+             )) {
     pred <- pred_gp$pred
+
     ## Check whether the hyper-posterior distribution is provided and extract
     if (tryCatch(
       is.list(pred_gp$hyperpost),
@@ -168,281 +169,395 @@ plot_gp <- function(pred_gp,
         FALSE
       }
     ) &
-      tryCatch(
-        is.data.frame(pred_gp$hyperpost$mean),
-        error = function(e) {
-          0
-        }
-      ) &
-      is.null(prior_mean)) {
+    tryCatch(
+      is.data.frame(pred_gp$hyperpost$mean),
+      error = function(e) {
+        0
+      }
+    ) &
+    is.null(prior_mean)) {
       prior_mean <- pred_gp$hyperpost$mean
     }
   } else {
     stop(
       "The 'pred_gp' argument should either be a list containing the 'pred' ",
-      "element or a data frame. Please read ?plot_gp(), and use ",
-      "pred_gp() or pred_magma() for making predictions under a correct format."
+      "element or a data frame."
     )
   }
 
   ## Remove 'ID' column if present
-  if ("ID" %in% names(pred)) {
-    pred <- pred %>% dplyr::select(-.data$ID)
+  if ("Task_ID" %in% names(pred)) {
+    pred <- pred %>% dplyr::select(-Task_ID)
   }
 
   ## Remove 'Reference' column if present
   if ("Reference" %in% names(pred)) {
-    pred <- pred %>% dplyr::select(-.data$Reference)
+    pred <- pred %>% dplyr::select(-Reference)
   }
 
   ## Remove the 'Index' column if the prediction comes from 'pred_gif()'
   if (any("Index" %in% names(pred))) {
-    index <- pred %>% dplyr::pull(.data$Index)
-    pred <- pred %>% dplyr::select(-.data$Index)
+    index <- pred %>% dplyr::pull(Index)
+    pred <- pred %>% dplyr::select(-Index)
   } else {
     index <- NULL
   }
 
   ## Rename the 'Output' column for enabling plot of the mean process in Magma
   if ("Output" %in% names(pred)) {
-    pred <- pred %>% dplyr::rename("Mean" = .data$Output)
+    pred <- pred %>% dplyr::rename("Mean" = Output)
   }
-  ## Get the inputs that should be used
-  if (x_input %>% is.null()) {
-    inputs <- pred %>% dplyr::select(-c(.data$Mean, .data$Var))
-  } else {
-    if (all(x_input %in% names(pred_gp))) {
-      inputs <- pred[x_input]
-    } else {
-      stop("The names in the 'x_input' argument don't exist in 'pred_gp'.")
+
+  all_samples <- NULL
+  if (samples) {
+    if (!is.list(pred_gp) || is.null(pred_gp$cov)) {
+      stop("If 'samples = TRUE', 'pred_gp' should be an object from ",
+           "pred_gp() with 'get_full_cov = TRUE'.")
+    }
+
+    # Call sample_gp()
+    all_samples <- tryCatch(
+      sample_gp(pred_gp = pred_gp, nb_samples = nb_samples),
+      error = function(e) {
+        stop(paste("Error when calling sample_gp():", e$message))
+      }
+    )
+    if (!"Output_ID" %in% names(all_samples)) {
+      stop("sample_gp() does not contain an 'Output_ID' column.")
     }
   }
 
-  ## Format the tibble for displaying the Credible Intervals
-  pred <- pred %>%
-    dplyr::mutate("CI_inf" = .data$Mean - quant_ci * sqrt(.data$Var)) %>%
-    dplyr::mutate("CI_sup" = .data$Mean + quant_ci * sqrt(.data$Var)) %>%
-    dplyr::mutate("CI_Width" = .data$CI_sup - .data$CI_inf)
-
-  ## If no CI (i.e. prob_CI = 1), then no transparency (i.e. alpha = 1)
-  if (prob_CI == 0) {
-    pred$CI_width <- 1
+  if (!"Output_ID" %in% names(pred)) {
+    stop("'Output_ID' not found in 'pred'.")
   }
+  unique_outputs <- unique(pred$Output_ID)
 
-  ## Display a heatmap if inputs are 2D
-  if (ncol(inputs) == 2) {
+  ## Loop on each output
+  plot_list <- purrr::map(unique_outputs, function(current_output_id) {
+    # # Subset pred only on the current Output_ID
+    pred_subset <- pred %>% dplyr::filter(Output_ID == current_output_id)
 
-    if (samples){
-      ## Display samples from the posterior
-      gg <- plot_samples(
-        pred = pred_gp,
-        x_input = x_input,
-        nb_samples = nb_samples,
-        plot_mean = plot_mean,
-        alpha_samples = alpha_samples)
+    data_subset <- NULL
+    if (!is.null(data)) {
+      data_subset <- if ("Output_ID" %in% names(data)) {
+        data %>% dplyr::filter(Output_ID == current_output_id)
+      } else {
+        data
+      }
+    }
 
+    data_train_subset <- NULL
+    if (!is.null(data_train)) {
+      data_train_subset <- if ("Output_ID" %in% names(data_train)) {
+        data_train %>% dplyr::filter(Output_ID == current_output_id)
+      } else {
+        data_train
+      }
+    }
+
+    prior_mean_subset <- NULL
+    if (!is.null(prior_mean)) {
+      prior_mean_subset <- if ("Output_ID" %in% names(prior_mean)) {
+        prior_mean %>% dplyr::filter(Output_ID == current_output_id)
+      } else {
+        prior_mean
+      }
+    }
+
+    samples_subset <- NULL
+    if (samples && !is.null(all_samples)) {
+      samples_subset <- all_samples %>% dplyr::filter(Output_ID == current_output_id)
+    }
+
+    # Extract inputs corresponding to the current Output_ID
+    if (x_input %>% is.null()) {
+      inputs <- pred_subset %>% dplyr::select(-c(Mean, Var, Output_ID))
     } else {
-      ## Add the 'Index' column if the prediction comes from 'pred_gif()'
-      if (!is.null(index)) {
-        pred <- pred %>% dplyr::mutate("Index" = index)
+      if (all(x_input %in% names(pred_subset))) {
+        inputs <- pred_subset[x_input]
+      } else {
+        stop("The names in the 'x_input' argument don't exist in 'pred_gp'.")
+      }
+    }
+
+    # Compute IC for the current Output_ID
+    pred_subset <- pred_subset %>%
+      dplyr::mutate("CI_inf" = Mean - quant_ci * sqrt(Var)) %>%
+      dplyr::mutate("CI_sup" = Mean + quant_ci * sqrt(Var)) %>%
+      dplyr::mutate("CI_Width" = CI_sup - CI_inf)
+
+    if (prob_CI == 0) {
+      pred_subset$CI_width <- 1
+    }
+
+    ## Display a heatmap if inputs are 2D
+    if (ncol(inputs) == 2) {
+
+      if (samples){
+        samples_2d <- samples_subset %>%
+          dplyr::filter(.data$Sample == unique(samples_subset$Sample)[1]) %>%
+          dplyr::select(- .data$Sample)
+
+        gg <- ggplot2::ggplot() +
+          ggplot2::geom_raster(
+            data = samples_2d,
+            ggplot2::aes_string(
+              x = names(inputs)[1],
+              y = names(inputs)[2],
+              fill = "Output"
+            ),
+            interpolate = TRUE
+          ) +
+          ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse")
+
+      } else {
+        if (!is.null(index)) {
+          pred_subset <- pred_subset %>%
+            dplyr::mutate("Index" = index[pred$Output_ID == current_output_id])
+        }
+
+        gg <- ggplot2::ggplot() +
+          ggplot2::geom_raster(
+            data = pred_subset,
+            ggplot2::aes_string(
+              x = names(inputs)[1],
+              y = names(inputs)[2],
+              fill = "Mean",
+              alpha = "CI_Width"
+            ),
+            interpolate = TRUE
+          ) +
+          ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse") +
+          ggplot2::scale_alpha_continuous(range = c(0.1, 1), trans = "reverse")
       }
 
-      gg <- ggplot2::ggplot() +
-        ggplot2::geom_raster(
-          data = pred,
+      # Add data points
+      if (!is.null(data_subset)) {
+        data_subset <- data_subset %>%
+          tidyr::pivot_wider(
+            names_from = Input_ID,
+            values_from = Input,
+            names_prefix = "Input_"
+          ) %>%
+          # Keep 6 significant digits for Inputs to avoid numerical issues
+          dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+          rowwise() %>%
+          dplyr::mutate(
+            Reference = paste(
+              # Create output's prefix
+              paste0("o", Output_ID),
+              # Create the reference for each Output_ID
+              paste(c_across(starts_with("Input_")), collapse = ":"),
+              # Join output's prefix and reference
+              sep = ";"
+            )
+          ) %>%
+          dplyr::ungroup()
+
+        gg <- gg + ggplot2::geom_label(
+          data = data_subset,
           ggplot2::aes_string(
             x = names(inputs)[1],
             y = names(inputs)[2],
-            fill = "Mean",
-            alpha = "CI_Width"
+            label = "Output",
+            fill = "Output"
           ),
-          interpolate = TRUE
-        ) +
-        ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse") +
-        ggplot2::scale_alpha_continuous(range = c(0.1, 1), trans = "reverse")
-    }
-
-    if (!is.null(data)) {
-      ## Round the 'Output' values to reduce size of labels on the graph
-      data <- data %>% dplyr::mutate(Output = round(.data$Output, 1))
-
-      gg <- gg + ggplot2::geom_label(
-        data = data,
-        ggplot2::aes_string(
-          x = names(inputs)[1],
-          y = names(inputs)[2],
-          label = "Output",
-          fill = "Output"
-        ),
-        size = 3
-      )
-    }
-
-    ## If some day I want to add the feature of displaying data_train in 2D
-
-    # if (!is.null(data_train)) {
-    #   ## Round the 'Output' values to reduce size of labels on the graph
-    #   data_train <- data_train %>% dplyr::mutate(Output = round(.data$Output, 1))
-    #
-    #   gg <- gg + ggplot2::geom_label(
-    #     data = data_train,
-    #     ggplot2::aes_string(
-    #       x = names(inputs)[1],
-    #       y = names(inputs)[2],
-    #       label = "Output",
-    #       colour = "ID"
-    #     ),
-    #     size = 3
-    #   ) + ggplot2::guides(colour = 'none')
-    # }
-
-  } else {
-    ## Check the dimension of the inputs a propose an adequate representation
-    if (ncol(inputs) == 1) {
-      if ((dplyr::n_distinct(inputs) != nrow(inputs)) & is.null(index)) {
-        warning(
-          "Some values on the x-axis appear multiple times, probably ",
-          "resulting in an incorrect graphical representation. Please ",
-          "consider recomputing predictions for more adequate inputs. "
+          size = 3
         )
       }
-    } else {
-      warning(
-        "Impossible to display inputs with dimensions greater than 2. The ",
-        "graph then simply uses 'Input' as x_axis and 'Output' as y-axis. "
-      )
-      inputs <- inputs %>% dplyr::select(.data$Input)
-    }
-
-    ## Display a 'heatmap' if the argument is TRUE
-    if (heatmap) {
-      if (is.null(y_grid)) {
-        y_grid <- seq(
-          min(pred$Mean) - quant_ci * sqrt(max(pred$Var)),
-          max(pred$Mean) + quant_ci * sqrt(max(pred$Var)),
-          length.out = 500
-        )
-      }
-      ## Define the columns needed to compute a prediction for all y-axis values
-      col_to_nest <- c(names(inputs)[1], "Mean", "Var")
-
-      ## Add the 'Index' column if the prediction comes from 'pred_gif()'
-      if (!is.null(index)) {
-        pred <- pred %>% dplyr::mutate("Index" = index)
-        col_to_nest <- c(col_to_nest, "Index")
-      }
-
-      db_heat <- pred %>%
-        tidyr::expand(tidyr::nesting(!!!rlang::syms(col_to_nest)),
-          "Ygrid" = y_grid
-        ) %>%
-        dplyr::mutate("Proba" = 2 *
-          (1 - stats::pnorm(abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))))
-
-      gg <- ggplot2::ggplot() +
-        ggplot2::geom_raster(
-          data = db_heat,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = "Ygrid",
-            fill = "Proba"
-          ),
-          interpolate = TRUE
-        ) +
-        ggplot2::scale_fill_gradientn(
-          colours = c(
-            "white",
-            "#FDE0DD",
-            "#FCC5C0",
-            "#FA9FB5",
-            "#F768A1",
-            "#DD3497",
-            "#AE017E",
-            "#7A0177"
-          )
-        ) +
-        ggplot2::labs(fill = "Proba CI") +
-        ggplot2::ylab("Output")
-    } else if (samples){
-      ## Display samples from the posterior
-      gg <- plot_samples(
-        pred = pred_gp,
-        x_input = x_input,
-        nb_samples = nb_samples,
-        plot_mean = plot_mean,
-        alpha_samples = alpha_samples)
 
     } else {
-      ## Display a classic curve otherwise
-      ## Add the 'Index' column if the prediction comes from 'pred_gif()'
-      if (!is.null(index)) {
-        pred <- pred %>% dplyr::mutate("Index" = index)
-      }
-
-      gg <- ggplot2::ggplot() +
-        ggplot2::geom_line(
-          data = pred,
-          ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
-          color = "#DB15C1"
-        ) +
-        ggplot2::geom_ribbon(
-          data = pred,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            ymin = "CI_inf",
-            ymax = "CI_sup"
-          ),
-          alpha = 0.2,
-          fill = "#FA9FB5"
-        ) +
-        ggplot2::ylab("Output")
-    }
-
-    ## Display the training data if provided
-    if (!is.null(data_train)) {
-      gg <- gg + ggplot2::geom_point(
-        data = data_train,
-        ggplot2::aes_string(
-          x = names(inputs)[1],
-          y = "Output",
-          col = "ID"
-        ),
-        size = size_data_train,
-        alpha = alpha_data_train
-      ) + ggplot2::guides(color = "none")
-    }
-    ## Display the observed data if provided
-    if (!is.null(data)) {
-      gg <- gg + ggplot2::geom_point(
-        data = data,
-        ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
-        size = size_data,
-        shape = 20
-      )
-    }
-
-    ## Display the (hyper-)prior mean process if provided
-    if (!is.null(prior_mean)) {
-      if (names(inputs)[1] %in% names(prior_mean)) {
-        gg <- gg +
-          ggplot2::geom_line(
-            data = prior_mean,
-            ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
-            linetype = "dashed"
-          )
+      if (ncol(inputs) == 1) {
+        if ((dplyr::n_distinct(inputs) != nrow(inputs)) & is.null(index)) {
+          warning("Some values on the x-axis appear multiple times... ")
+        }
       } else {
-        warning(
-          "The ",
-          names(inputs)[1],
-          " column does not exist in the ",
-          "'prior_mean' argument. The mean function cannot be displayed."
+        warning("Impossible to display inputs with dimensions greater than 2... ")
+        inputs <- inputs %>% dplyr::select(Input)
+      }
+
+      ## Display a 'heatmap' if the argument is TRUE
+      if (heatmap) {
+        if (is.null(y_grid)) {
+          y_grid <- seq(
+            min(pred_subset$Mean) - quant_ci * sqrt(max(pred_subset$Var)),
+            max(pred_subset$Mean) + quant_ci * sqrt(max(pred_subset$Var)),
+            length.out = 500
+          )
+        }
+        col_to_nest <- c(names(inputs)[1], "Mean", "Var")
+
+        if (!is.null(index)) {
+          pred_subset <- pred_subset %>%
+            dplyr::mutate("Index" = index[pred$Output_ID == current_output_id])
+          col_to_nest <- c(col_to_nest, "Index")
+        }
+
+        db_heat <- pred_subset %>%
+          tidyr::expand(tidyr::nesting(!!!rlang::syms(col_to_nest)),
+                        "Ygrid" = y_grid
+          ) %>%
+          dplyr::mutate("Proba" = 2 *
+                          (1 - stats::pnorm(abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))))
+
+        gg <- ggplot2::ggplot() +
+          ggplot2::geom_raster(
+            data = db_heat,
+            ggplot2::aes_string(
+              x = names(inputs)[1],
+              y = "Ygrid",
+              fill = "Proba"
+            ),
+            interpolate = TRUE
+          ) +
+          ggplot2::scale_fill_gradientn(
+            colours = c("white", "#FDE0DD", "#FCC5C0", "#FA9FB5",
+                        "#F768A1", "#DD3497", "#AE017E", "#7A0177")
+          ) +
+          ggplot2::labs(fill = "Proba CI") +
+          ggplot2::ylab("Output")
+
+      } else if (samples){
+        gg <- ggplot2::ggplot() +
+          ggplot2::geom_line(
+            data = samples_subset,
+            ggplot2::aes_string(
+              x = names(inputs)[1],
+              y = "Output",
+              group = "Sample"
+            ),
+            color = "#FA9FB5",
+            alpha = alpha_samples
+          ) +
+          ggplot2::guides(group = "none")
+
+        if(plot_mean){
+          if(is.null(pred_subset)){
+            warning(paste("For Output_ID '", current_output_id,
+                          "': 'pred' is necessary to display the mean."))
+          } else {
+            gg = gg + ggplot2::geom_line(
+              data = pred_subset,
+              ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
+              color = "#DB15C1"
+            )
+          }
+        }
+
+      } else {
+        if (!is.null(index)) {
+          pred_subset <- pred_subset %>%
+            dplyr::mutate("Index" = index[pred$Output_ID == current_output_id])
+        }
+
+        gg <- ggplot2::ggplot() +
+          ggplot2::geom_line(
+            data = pred_subset,
+            ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
+            color = "#DB15C1"
+          ) +
+          ggplot2::geom_ribbon(
+            data = pred_subset,
+            ggplot2::aes_string(
+              x = names(inputs)[1],
+              ymin = "CI_inf",
+              ymax = "CI_sup"
+            ),
+            alpha = 0.2,
+            fill = "#FA9FB5"
+          ) +
+          ggplot2::ylab("Output")
+      }
+
+      ## Add training data points
+      if (!is.null(data_train_subset)) {
+        data_train_subset <- data_train_subset %>%
+          tidyr::pivot_wider(
+            names_from = Input_ID,
+            values_from = Input,
+            names_prefix = "Input_"
+          ) %>%
+          # Keep 6 significant digits for Inputs to avoid numerical issues
+          dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+          rowwise() %>%
+          dplyr::mutate(
+            Reference = paste(
+              # Create output's prefix
+              paste0("o", Output_ID),
+              # Create the reference for each Output_ID
+              paste(c_across(starts_with("Input_")), collapse = ":"),
+              # Join output's prefix and reference
+              sep = ";"
+            )
+          ) %>%
+          dplyr::ungroup()
+        gg <- gg + ggplot2::geom_point(
+          data = data_train_subset,
+          ggplot2::aes_string(
+            x = names(inputs)[1],
+            y = "Output",
+            col = "Task_ID"
+          ),
+          size = size_data_train,
+          alpha = alpha_data_train
+        ) + ggplot2::guides(color = "none")
+      }
+      if (!is.null(data_subset)) {
+        data_subset <- data_subset %>%
+          tidyr::pivot_wider(
+            names_from = Input_ID,
+            values_from = Input,
+            names_prefix = "Input_"
+          ) %>%
+          # Keep 6 significant digits for Inputs to avoid numerical issues
+          dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+          rowwise() %>%
+          dplyr::mutate(
+            Reference = paste(
+              # Create output's prefix
+              paste0("o", Output_ID),
+              # Create the reference for each Output_ID
+              paste(c_across(starts_with("Input_")), collapse = ":"),
+              # Join output's prefix and reference
+              sep = ";"
+            )
+          ) %>%
+          dplyr::ungroup()
+
+        gg <- gg + ggplot2::geom_point(
+          data = data_subset,
+          ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
+          size = size_data,
+          shape = 20
         )
       }
-    }
-  }
 
-  (gg + ggplot2::theme_classic()) %>%
-    return()
+      ## Add prior mean
+      if (!is.null(prior_mean_subset)) {
+        if (names(inputs)[1] %in% names(prior_mean_subset)) {
+          gg <- gg +
+            ggplot2::geom_line(
+              data = prior_mean_subset,
+              ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
+              linetype = "dashed"
+            )
+        } else {
+          warning(
+            "The ", names(inputs)[1], " column does not exist in 'prior_mean'."
+          )
+        }
+      }
+    }
+
+    gg <- gg + ggplot2::theme_classic() +
+      ggplot2::labs(title = paste("Prediction for Output_ID:", current_output_id))
+
+    return(gg)
+
+  }) %>%
+    stats::setNames(unique_outputs)
+
+  return(plot_list)
 }
 
 #' @rdname plot_gp
@@ -461,7 +576,7 @@ plot_magma <- plot_gp
 #'    \code{cov}. This argument is needed if \code{samples} is missing.
 #' @param samples A tibble or data frame, containing the samples generated from
 #'    a GP, Magma, or MagmaClust prediction. Required columns: \code{Input},
-#'    \code{Sample}, \code{Output}.  This argument is needed if \code{pred}
+#'    \code{Sample}, \code{Output_ID}, \code{Output}.  This argument is needed if \code{pred}
 #'    is missing.
 #' @param nb_samples A number, indicating the number of samples to be drawn from
 #'    the predictive posterior distribution. For two-dimensional graphs, only
@@ -475,7 +590,7 @@ plot_magma <- plot_gp
 #'    should be displayed on the graph.
 #' @param alpha_samples A number, controlling transparency of the sample curves.
 #'
-#' @return Graph of samples drawn from a posterior distribution of a GP,
+#' @return List of graph of samples drawn from a posterior distribution of a GP,
 #'    Magma, or MagmaClust prediction.
 #' @export
 #'
@@ -488,7 +603,6 @@ plot_samples <- function(pred = NULL,
                          plot_mean = TRUE,
                          alpha_samples = 0.3
                          ) {
-
   ## Check whether 'samples' or 'pred' exist
   if(is.null(samples) & is.null(pred) ){
       stop("Either 'sample' or 'pred' is needed as an argument.")
@@ -527,67 +641,98 @@ plot_samples <- function(pred = NULL,
     }
   }
 
-  ## Get the inputs that should be used
-  if (x_input %>% is.null()) {
-    inputs <- samples %>% dplyr::select(-c(.data$Sample, .data$Output))
-  } else {
-    inputs <- samples[x_input]
+  if (!"Output_ID" %in% names(samples)) {
+    stop("'samples' tibble should contain 'Output_ID' column.")
   }
 
-  ## Display a heatmap if inputs are 2D
-  if (ncol(inputs) == 2) {
-    ## Extract only one sample when displaying in 2D
-    samples <- samples %>%
-      dplyr::filter(.data$Sample == unique(samples$Sample)[1]) %>%
-      dplyr::select(- .data$Sample)
+  ## Get the unique ID of Outputs
+  unique_outputs <- unique(samples$Output_ID)
 
-    gg <- ggplot2::ggplot() +
-      ggplot2::geom_raster(
-        data = samples,
-        ggplot2::aes_string(
-          x = names(inputs)[1],
-          y = names(inputs)[2],
-          fill = "Output"
-        ),
-        interpolate = TRUE
-      ) +
-      ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse")
+  ## Create a plot for each Output_ID
+  plot_list <- purrr::map(unique_outputs, function(current_output_id) {
 
-  } else if (ncol(inputs) == 1) {
-    gg <- ggplot2::ggplot() +
-      ggplot2::geom_line(
-        data = samples,
-        ggplot2::aes_string(
-          x = names(inputs)[1],
-          y = "Output",
-          group = "Sample"
-        ),
-        color = "#FA9FB5",
-        alpha = alpha_samples
-      ) +
-      ggplot2::guides(group = "none")
+    # Subset samples only on the current Output_ID
+    samples_subset <- samples %>%
+      dplyr::filter(Output_ID == current_output_id)
 
-    if(plot_mean){
-      if(is.null(pred)){
-        warning("The 'pred' argument is needed to display the mean prediction.")
-      } else {
-        gg = gg + ggplot2::geom_line(
-          data = mean_pred,
-          ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
-          color = "#DB15C1"
-        )
-      }
-
+    mean_pred_subset <- NULL
+    if (plot_mean && !is.null(pred) && exists("mean_pred") && !is.null(mean_pred)) {
+      mean_pred_subset <- mean_pred %>%
+        dplyr::filter(Output_ID == current_output_id)
     }
-  } else {
-    stop(
-      "Impossible to display inputs with dimensions greater than 2. Please ",
-      "provide two elements or less in the 'x_axis' argument."
-    )
-  }
 
-  (gg + ggplot2::theme_classic()) %>%
-    return()
+    # Determine inputs on which we want to plot (subset relative to the current Output_ID)
+    if (x_input %>% is.null()) {
+      inputs <- samples_subset %>% dplyr::select(-c(Sample, Output, Output_ID))
+    } else {
+      inputs <- samples_subset[x_input]
+    }
+
+    ## Display a heatmap if inputs are 2D
+    if (ncol(inputs) == 2) {
+      ## Extract only one sample when displaying in 2D
+      samples_2d <- samples_subset %>%
+        dplyr::filter(Sample == unique(samples_subset$Sample)[1]) %>%
+        dplyr::select(- Sample)
+
+      gg <- ggplot2::ggplot() +
+        ggplot2::geom_raster(
+          data = samples_2d,
+          ggplot2::aes_string(
+            x = names(inputs)[1],
+            y = names(inputs)[2],
+            fill = "Output"
+          ),
+          interpolate = TRUE
+        ) +
+        ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse")
+
+    } else if (ncol(inputs) == 1) {
+      ## Plot 1D
+      gg <- ggplot2::ggplot() +
+        ggplot2::geom_line(
+          data = samples_subset,
+          ggplot2::aes_string(
+            x = names(inputs)[1],
+            y = "Output",
+            group = "Sample"
+          ),
+          color = "#FA9FB5",
+          alpha = alpha_samples
+        ) +
+        ggplot2::guides(group = "none")
+
+      if(plot_mean){
+        if(is.null(pred) || is.null(mean_pred_subset)){
+          warning(paste("For Output_ID '", current_output_id,
+                        "': 'pred' is necessary to compute the mean"))
+        } else {
+          gg = gg + ggplot2::geom_line(
+            data = mean_pred_subset,
+            ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
+            color = "#DB15C1"
+          )
+        }
+      }
+    } else {
+      stop(
+        "Impossible to display inputs with dimensions greater than 2. Please ",
+        "provide two elements or less in the 'x_axis' argument."
+      )
+    }
+
+    gg <- gg +
+      ggplot2::theme_classic() +
+      ggplot2::labs(title = paste("Prediction for Output_ID:", current_output_id))
+
+    # Return plot for the current Output_ID
+    return(gg)
+
+  }) %>%
+    stats::setNames(unique_outputs) # Name plots in the list
+
+  ## Return list of plots
+  return(plot_list)
 }
 
 #' Create a GIF of Magma or GP predictions
