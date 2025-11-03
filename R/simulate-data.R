@@ -570,11 +570,14 @@ generate_mean_process_convol <- function(
   if (shared_hp_outputs) {
     l0_shared <- runif(1, hp_config_mean_process$l0_min[1], hp_config_mean_process$l0_max[1])
     S0_shared <- runif(1, hp_config_mean_process$S0_min[1], hp_config_mean_process$S0_max[1])
+    D0_shared <- runif(1, hp_config_mean_process$D0_min[1], hp_config_mean_process$D0_max[1])
     l0_vals <- rep(l0_shared, num_outputs)
     S0_vals <- rep(S0_shared, num_outputs)
+    D0_vals <- rep(D0_shared, num_outputs)
   } else {
     l0_vals <- purrr::map2_dbl(hp_config_mean_process$l0_min, hp_config_mean_process$l0_max, ~runif(1, .x, .y))
     S0_vals <- purrr::map2_dbl(hp_config_mean_process$S0_min, hp_config_mean_process$S0_max, ~runif(1, .x, .y))
+    D0_vals <- purrr::map2_dbl(hp_config_mean_process$D0_min, hp_config_mean_process$D0_max, ~runif(1, .x, .y))
   }
 
   # --- ETAPE 4 : Construction de la covariance ---
@@ -587,6 +590,7 @@ generate_mean_process_convol <- function(
     l_t       = l0_vals,
     S_t       = S0_vals,
     l_u_t     = lu0_vals,
+    D_t       = D0_vals,
   )
 
   # browser()
@@ -640,6 +644,7 @@ generate_mean_process_convol <- function(
     points_per_output = points_per_output,
     list_l0 = l0_vals,
     list_S0 = S0_vals,
+    list_D0 = D0_vals,
     list_lu0 = lu0_vals,
     noise_0 = noise_0,
     mean_process_df = mean_process_df
@@ -825,6 +830,7 @@ simulate_multi_output_data_convol <- function(
       output_id = 1:2,
       l0_min = c(-3, -3), l0_max = c(3, 3),
       S0_min = c(-3, -3), S0_max = c(3, 3),
+      D0_min = c(-1, 1), D0_max = c(-1, 1),
       lu0_min = c(-1, -1), lu0_max = c(3, 3)
     ),
 
@@ -834,6 +840,7 @@ simulate_multi_output_data_convol <- function(
       lt_min = c(-3, -3), lt_max = c(3, 3),
       St_min = c(-3, -3), St_max = c(3, 3),
       noise_min = c(-3, -3), noise_max = c(0, 0),
+      Dt_min = c(-0.5, 0.5), Dt_max = c(-0.5, 0.5),
       lu_min = c(-1, -1), lu_max = c(3, 3)
     ),
     n_points_per_task_range = c(5, 20),

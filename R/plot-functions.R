@@ -144,6 +144,7 @@ plot_gp <- function(pred_gp,
                     size_data = 3,
                     size_data_train = 1,
                     alpha_data_train = 0.5) {
+  # browser()
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
   }
@@ -230,10 +231,12 @@ plot_gp <- function(pred_gp,
   if (!"Output_ID" %in% names(pred)) {
     stop("'Output_ID' not found in 'pred'.")
   }
-  unique_outputs <- unique(pred$Output_ID)
+
+  unique_outputs <- as.character(unique(pred$Output_ID))
 
   ## Loop on each output
   plot_list <- purrr::map(unique_outputs, function(current_output_id) {
+    # browser()
     # # Subset pred only on the current Output_ID
     pred_subset <- pred %>% dplyr::filter(Output_ID == current_output_id)
 

@@ -49,23 +49,33 @@ convolution_kernel <- function(x,
     x_coords <- as.matrix(x[, coord_cols, drop = FALSE])
     y_coords <- as.matrix(y[, coord_cols, drop = FALSE])
 
+    input_dim <- ncol(x_coords)
+
     # Recherche robuste avec les IDs maintenant numériques
     indices_x <- match(x_ids_numeric, hp_ids_numeric)
     indices_y <- match(y_ids_numeric, hp_ids_numeric)
 
     l_vec_1 <- exp(hp$l_t[indices_x])
-    # l_vec_1 <- hp$l_t[indices_x]
     l_vec_2 <- exp(hp$l_t[indices_y])
-    # l_vec_2 <- hp$l_t[indices_y]
     S_vec_1 <- exp(hp$S_t[indices_x])
-    # S_vec_1 <- hp$S_t[indices_x]
     S_vec_2 <- exp(hp$S_t[indices_y])
-    # S_vec_2 <- hp$S_t[indices_y]
     l_u_val <- exp(unique(hp$l_u_t))
-    # l_u_val <- unique(hp$l_u_t)
 
-    # Calcul des composantes sous forme de matrices
-    distance_sq     <- cpp_dist(x_coords, y_coords)
+    x_coords_to_dist <- x_coords
+    y_coords_to_dist <- y_coords
+
+    if (input_dim == 1) {
+      # Le délai n'est appliqué que si l'entrée est 1D
+      D_vec_1 <- hp$D_t[indices_x] # Pas d'exponentielle
+      D_vec_2 <- hp$D_t[indices_y] # Pas d'exponentielle
+
+      # On pré-shift les coordonnées avant de les passer à cpp_dist
+      x_coords_to_dist <- x_coords - D_vec_1
+      y_coords_to_dist <- y_coords - D_vec_2
+    }
+
+    # cpp_dist calcule la distance carrée, qu'elle soit shiftée (1D) ou non (>1D)
+    distance_sq <- cpp_dist(x_coords_to_dist, y_coords_to_dist)
     denominator_sum <- outer(l_vec_1, l_vec_2, FUN = "+") + l_u_val
     S_prod          <- outer(S_vec_1, S_vec_2, FUN = "*")
 
@@ -85,6 +95,11 @@ convolution_kernel <- function(x,
     stop("The name of the derivative should end with a number, ex: 'l_t_1'.")
   }
   hp_id <- as.integer(hp_id_str)
+
+  if (!exists("input_dim")) {
+    coord_cols <- names(x)[sapply(x, is.numeric) & names(x) != "Output_ID"]
+    input_dim <- length(coord_cols) # ncol(x_coords)
+  }
 
   if (startsWith(deriv, "l_t_")) {
     common_deriv_denom <- K * ((-0.5 / denominator_sum) + (0.5 * distance_sq / (denominator_sum^2)))
@@ -129,6 +144,51 @@ convolution_kernel <- function(x,
 
     pd <- K * (mask_i_is_k + mask_j_is_k)
     return(pd)
+
+  } else if (startsWith(deriv, "D_t_")) {
+    # --- MODIFIÉ : Dérivée pour D_t_k avec "switch" 1D ---
+    N <- nrow(x)
+    M <- nrow(y)
+
+    # Si dim > 1, D_t n'a pas d'effet sur K, donc la dérivée est 0.
+    if (input_dim > 1) {
+      return(matrix(0, nrow = N, ncol = M))
+    }
+
+    # dK/dD_k = (dK/d(dist_sq)) * (d(dist_sq)/dD_k)
+
+    # Terme 1: (dK/d(dist_sq))
+    common_term <- K * (-0.5 / denominator_sum)
+
+    # Terme 2: (d(dist_sq)/dD_k)
+    # dist_sq = ((x_i - D_i) - (y_j - D_j))^2
+    # d/dD_k(dist_sq) = 2 * ((x_i - D_i) - (y_j - D_j)) * d/dD_k(x_i - D_i - y_j + D_j)
+    # d/dD_k(...) = -I(i=k) + I(j=k)
+
+    # Recalculons les matrices nécessaires
+    if (!exists("x_coords_to_dist")) { # Au cas où on appelle la dérivée sans K
+      coord_cols <- names(x)[sapply(x, is.numeric) & names(x) != "Output_ID"]
+      x_coords <- as.matrix(x[, coord_cols, drop = FALSE])
+      y_coords <- as.matrix(y[, coord_cols, drop = FALSE])
+      D_vec_1 <- hp$D_t[indices_x]
+      D_vec_2 <- hp$D_t[indices_y]
+      x_coords_to_dist <- x_coords - D_vec_1
+      y_coords_to_dist <- y_coords - D_vec_2
+    }
+
+    # A_mat = ((x_i - D_i) - (y_j - D_j))
+    A_mat <- outer(x_coords_to_dist[,1], y_coords_to_dist[,1], FUN = "-")
+
+    # Masques I(i=k) et I(j=k)
+    mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
+    mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
+
+    # d(dist_sq)/dD_k = 2 * A_mat * (I(j=k) - I(i=k))
+    pd_dist_sq <- 2 * A_mat * (mask_j_is_k - mask_i_is_k)
+
+    pd <- common_term * pd_dist_sq
+    return(pd)
+    # --- Fin de la modification ---
 
   } else if (deriv == "l_u_t") {
     # Common_term
@@ -400,6 +460,7 @@ hp <- function(kern = "SE",
                shared_hp_outputs = TRUE,
                noise = FALSE,
                hp_config = NULL) {
+  # browser()
   ## Initiate interval boundaries
   min_val <- -3
   max_val <- 3
@@ -425,6 +486,7 @@ hp <- function(kern = "SE",
         output_id   = list_output_ID,
         lt_min      = -2, lt_max      = 2,
         St_min      = -2, St_max      = 2,
+        Dt_min      = -10, Dt_max     = 10,
         lu_min      = -2, lu_max      = 0,
         noise_min   = -5, noise_max   = -2
       )
@@ -440,7 +502,8 @@ hp <- function(kern = "SE",
     if (shared_hp_tasks && shared_hp_outputs) {
       hps_to_add <- tibble::tibble(
         l_t = stats::runif(1, hp_config$lt_min[1], hp_config$lt_max[1]),
-        S_t = stats::runif(1, hp_config$St_min[1], hp_config$St_max[1])
+        S_t = stats::runif(1, hp_config$St_min[1], hp_config$St_max[1]),
+        D_t = stats::runif(1, hp_config$Dt_min[1], hp_config$Dt_max[1])
       )
       if (noise) {
         hps_to_add$noise <- stats::runif(1, hp_config$noise_min[1], hp_config$noise_max[1])
@@ -452,7 +515,8 @@ hp <- function(kern = "SE",
         dplyr::transmute(
           Output_ID = as.character(output_id),
           l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
-          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
+          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y)),
+          D_t = purrr::map2_dbl(Dt_min, Dt_max, ~stats::runif(1, .x, .y))
         )
       if (noise) {
         hps_per_output$noise <- purrr::map2_dbl(hp_config$noise_min,
@@ -465,7 +529,8 @@ hp <- function(kern = "SE",
       hps_per_task <- tibble::tibble(
         Task_ID = as.character(list_task_ID),
         l_t = stats::runif(num_tasks, hp_config$lt_min[1], hp_config$lt_max[1]),
-        S_t = stats::runif(num_tasks, hp_config$St_min[1], hp_config$St_max[1])
+        S_t = stats::runif(num_tasks, hp_config$St_min[1], hp_config$St_max[1]),
+        D_t = stats::runif(num_tasks, hp_config$Dt_min[1], hp_config$Dt_max[1])
       )
       if (noise) {
         hps_per_task$noise <- stats::runif(num_tasks,
@@ -481,9 +546,10 @@ hp <- function(kern = "SE",
                          by = "Output_ID") %>%
         dplyr::mutate(
           l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
-          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
+          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y)),
+          D_t = purrr::map2_dbl(Dt_min, Dt_max, ~stats::runif(1, .x, .y))
         ) %>%
-        dplyr::select(Task_ID, Output_ID, l_t, S_t)
+        dplyr::select(Task_ID, Output_ID, l_t, S_t, D_t)
       if (noise) {
         hps_unique <- base_ids %>%
           dplyr::left_join(hp_config %>%

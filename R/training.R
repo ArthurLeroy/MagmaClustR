@@ -446,41 +446,41 @@ train_magma <- function(data,
                     pen_diag = pen_diag)
 
     ########### GRAPH DE CONTROLE MU0 ###########
-    if(length(list_ID_output) == 1){
-      post$mean$Output_ID <- as.factor("1")
-    }
-
-    tib_mean_prep <- post$mean %>%
-      dplyr::rename(Input = Input_1, Value = Output) %>%
-      dplyr::mutate(Source = paste0("Post mean (itération ", i, ")")) %>%
-      dplyr::select(Output_ID, Input, Value, Source)
-
-    mu0_df_prep <- mu0_df %>%
-      dplyr::rename(Value = mean_value) %>%
-      dplyr::mutate(Source = "mu0 réel") %>%
-      dplyr::select(Output_ID, Input, Value, Source)
-
-    combined_data <- bind_rows(tib_mean_prep, mu0_df_prep)
-
-    control_plot <- ggplot(combined_data, aes(x = Input, y = Value)) +
-      geom_line(aes(color = Source), linewidth = 1) +
-      facet_wrap(
-        ~ Output_ID,
-        scales = "free",
-        ncol = 1,
-        labeller = as_labeller(function(value) {
-          paste("Output", value)
-        })
-      ) +
-      labs(
-        title = paste0("Post mean vs mu0 réel (itération ", i, ")"),
-        x = "Input",
-        y = "Output value",
-        color = "Type de courbe"
-      ) +
-      theme_minimal()
-
-    print(control_plot)
+    # if(length(list_ID_output) == 1){
+    #   post$mean$Output_ID <- as.factor("1")
+    # }
+    #
+    # tib_mean_prep <- post$mean %>%
+    #   dplyr::rename(Input = Input_1, Value = Output) %>%
+    #   dplyr::mutate(Source = paste0("Post mean (itération ", i, ")")) %>%
+    #   dplyr::select(Output_ID, Input, Value, Source)
+    #
+    # mu0_df_prep <- mu0_df %>%
+    #   dplyr::rename(Value = mean_value) %>%
+    #   dplyr::mutate(Source = "mu0 réel") %>%
+    #   dplyr::select(Output_ID, Input, Value, Source)
+    #
+    # combined_data <- bind_rows(tib_mean_prep, mu0_df_prep)
+    #
+    # control_plot <- ggplot(combined_data, aes(x = Input, y = Value)) +
+    #   geom_line(aes(color = Source), linewidth = 1) +
+    #   facet_wrap(
+    #     ~ Output_ID,
+    #     scales = "free",
+    #     ncol = 1,
+    #     labeller = as_labeller(function(value) {
+    #       paste("Output", value)
+    #     })
+    #   ) +
+    #   labs(
+    #     title = paste0("Post mean vs mu0 réel (itération ", i, ")"),
+    #     x = "Input",
+    #     y = "Output value",
+    #     color = "Type de courbe"
+    #   ) +
+    #   theme_minimal()
+    #
+    # print(control_plot)
 
     #############################################
 
@@ -746,6 +746,7 @@ train_gp <- function(data,
                      hyperpost = NULL,
                      shared_hp_outputs = FALSE,
                      pen_diag = 1e-10) {
+  # browser()
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
