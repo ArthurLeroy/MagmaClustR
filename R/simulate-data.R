@@ -539,8 +539,8 @@ generate_mean_process_convol <- function(
   }
 
   # 1. Définissez des vecteurs pour les bornes min et max de chaque intervalle
-  a_mins <- c(0, 0)
-  a_maxs <- c(0, 0)
+  a_mins <- c(0, 0, 0)
+  a_maxs <- c(0, 0, 0)
 
   # 2. Utilisez map2_dbl pour générer un coefficient 'a' pour chaque intervalle
   #    Le premier a_coeff sera tiré dans [-0.5, 0]
@@ -548,7 +548,7 @@ generate_mean_process_convol <- function(
   a_coeffs <- purrr::map2_dbl(a_mins, a_maxs, ~runif(1, .x, .y))
 
   # Le reste de votre code reste inchangé
-  b_coeffs <- c(0, 0)
+  b_coeffs <- c(0, 0, 0)
   # b_coeffs <- runif(num_outputs, -10, 10)
 
   # Use pmap to iterate over the grids, 'a' coefficients, and 'b' coefficients

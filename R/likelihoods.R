@@ -77,14 +77,14 @@ logL_GP <- function(hp,
                     pen_diag,
                     hp_col_names) {
   # browser()
-  if(!(hp %>% is_tibble()) && length(db$Output_ID %>% unique()) > 1){
+  if(!(hp %>% tibble::is_tibble()) && length(db$Output_ID %>% unique()) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
       par_vector = hp,
       hp_names = hp_col_names,
       output_ids = db$Output_ID %>% unique()
     )
-  } else if (!(hp %>% is_tibble()) && length(db$Output_ID %>% unique()) == 1){
+  } else if (!(hp %>% tibble::is_tibble()) && length(db$Output_ID %>% unique()) == 1){
     hp_tibble <- hp %>%
       t() %>%
       tibble::as_tibble() %>%
@@ -162,14 +162,15 @@ logL_GP_mod <- function(hp,
                         hp_col_names,
                         output_ids,
                         priors) {
-  if(!(hp %>% is_tibble()) && length(output_ids) > 1){
+  # browser()
+  if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
     # 1. Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
       par_vector = hp,
       hp_names = hp_col_names,
       output_ids = output_ids
     )
-  } else if (!(hp %>% is_tibble()) && length(output_ids) == 1){
+  } else if (!(hp %>% tibble::is_tibble()) && length(output_ids) == 1){
     # browser()
     hp_tibble <- hp %>%
       t() %>%

@@ -189,6 +189,13 @@ train_magma <- function(data,
   # To call hyperpost() later on the right format
   raw_data <- data
 
+  data <- data %>%
+    # On groupe par toutes les colonnes qui définissent une clé...
+    group_by(Task_ID, Output_ID, Output, Input_ID) %>%
+    # ... et on ajoute un numéro d'observation unique à l'intérieur de ce groupe
+    mutate(obs_num = row_number()) %>%
+    ungroup()
+
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
   # In other words, inputs are no longer in "short" format; instead, we have one
@@ -212,7 +219,8 @@ train_magma <- function(data,
         sep = ";"
       )
     ) %>%
-    dplyr::ungroup()
+    dplyr::ungroup() %>%
+    dplyr::select(-obs_num)
 
   ## Check that tasks do not have duplicate inputs for each output
   task_duplicates <- data %>%
@@ -261,7 +269,7 @@ train_magma <- function(data,
       prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
 
       # Extract the prefix ("o1", "o2", etc.) from each element in all_input
-      all_input_prefixes <- str_extract(all_input, "o[0-9]+")
+      all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
       # Build m_0 using the lookup table; it will automatically repeat the correct
       # value for each prefix.
@@ -843,7 +851,7 @@ train_gp <- function(data,
         prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
 
         # Extract the prefix ("o1", "o2", etc.) from each element in all_input
-        input_obs_prefixes <- str_extract(input_obs, "o[0-9]+")
+        input_obs_prefixes <- stringr::str_extract(input_obs, "o[0-9]+")
 
         # Build m_0 using the lookup table; it will automatically repeat the correct
         # value for each prefix.

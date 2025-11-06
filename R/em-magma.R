@@ -214,6 +214,7 @@ m_step <- function(db,
                    pen_diag,
                    priors) {
 
+  # browser()
   list_hp_0 <- old_hp_0 %>% names()
   list_ID_task <- unique(db$Task_ID)
   output_ids_vector <- unique(db$Output_ID)
@@ -222,6 +223,8 @@ m_step <- function(db,
 
   # Extraire les a priori de la configuration pour les passer à l'optimiseur
   priors_for_optim <- purrr::map(priors, "prior")
+
+  hps_to_control_if_zero <- c("D_t")
 
   # =================================================================== #
   # Case 1: HPs are shared across tasks -> one optimisation over all data
@@ -253,6 +256,24 @@ m_step <- function(db,
       hp_col_names <- names(par)
     }
 
+    pivoted_names_regex <- paste0("^", hps_to_control_if_zero, "_\\d+$")
+    param_names <- names(par)
+
+    is_hp_to_check <- sapply(param_names, function(name) {
+      any(sapply(pivoted_names_regex, grepl, x = name))
+    })
+
+    # Identifier les HPs à fixer (bon nom ET valeur initiale de 0)
+    is_hp_to_fix <- is_hp_to_check & (par == 0)
+
+    # Créer les vecteurs de bornes
+    lower_bounds <- rep(-Inf, length(par))
+    upper_bounds <- rep(Inf, length(par))
+
+    # Appliquer les contraintes : borne inf = 0 et borne sup = 0
+    lower_bounds[is_hp_to_fix] <- 0
+    upper_bounds[is_hp_to_fix] <- 0
+
     # Optimise hyper-parameters of the task process
     result_optim <- stats::optim(
       par               = par,
@@ -265,6 +286,8 @@ m_step <- function(db,
       pen_diag          = pen_diag,
       hp_col_names      = hp_col_names,
       output_ids        = output_ids_vector,
+      lower             = lower_bounds,   # <-- NOUVEAU
+      upper             = upper_bounds,   # <-- NOUVEAU
       priors            = priors_for_optim,
       method            = "L-BFGS-B",
       control           = list(factr = 1e13, maxit = 25)
@@ -334,6 +357,24 @@ m_step <- function(db,
         hp_col_names <- names(par_t)
       }
 
+      pivoted_names_regex <- paste0("^", hps_to_control_if_zero, "_\\d+$")
+      param_names_t <- names(par_t)
+
+      is_hp_to_check_t <- sapply(param_names_t, function(name) {
+        any(sapply(all_names_to_check_regex, grepl, x = name))
+      })
+
+      # Identifier les HPs à fixer (bon nom ET valeur initiale de 0)
+      is_hp_to_fix_t <- is_hp_to_check_t & (par_t == 0)
+
+      # Créer les vecteurs de bornes
+      lower_bounds_t <- rep(-Inf, length(par_t))
+      upper_bounds_t <- rep(Inf, length(par_t))
+
+      # Appliquer les contraintes : borne inf = 0 et borne sup = 0
+      lower_bounds_t[is_hp_to_fix_t] <- 0
+      upper_bounds_t[is_hp_to_fix_t] <- 0
+
       # Optimisation for the single task 't'
       result_optim <- stats::optim(
         par               = par_t,
@@ -347,6 +388,8 @@ m_step <- function(db,
         hp_col_names      = hp_col_names,
         output_ids        = output_ids_vector,
         priors            = priors_for_optim,
+        lower             = lower_bounds_t, # <-- NOUVEAU
+        upper             = upper_bounds_t, # <-- NOUVEAU
         method            = "L-BFGS-B",
         control           = list(factr = 1e13, maxit = 25)
       )$par %>%

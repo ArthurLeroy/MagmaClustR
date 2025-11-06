@@ -118,8 +118,15 @@ pred_gp <- function(data = NULL,
   ## Extract the list of different output IDs
   list_ID_output <- data$Output_ID %>% unique()
 
+  data <- data %>%
+    # On groupe par toutes les colonnes qui définissent une clé...
+    group_by(Output_ID, Output, Input_ID) %>%
+    # ... et on ajoute un numéro d'observation unique à l'intérieur de ce groupe
+    mutate(obs_num = row_number()) %>%
+    ungroup()
+
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
-  # need to pivot data to obtain one row per observation of Output_ID.
+  # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
   # In other words, inputs are no longer in "short" format; instead, we have one
   # column per input.
   data <- data %>%
@@ -141,7 +148,33 @@ pred_gp <- function(data = NULL,
         sep = ";"
       )
     ) %>%
-    dplyr::ungroup()
+    dplyr::ungroup() %>%
+    dplyr::select(-obs_num)
+
+  # ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+  # # need to pivot data to obtain one row per observation of Output_ID.
+  # # In other words, inputs are no longer in "short" format; instead, we have one
+  # # column per input.
+  # data <- data %>%
+  #   tidyr::pivot_wider(
+  #     names_from = Input_ID,
+  #     values_from = Input,
+  #     names_prefix = "Input_"
+  #   ) %>%
+  #   # Keep 6 significant digits for Inputs to avoid numerical issues
+  #   dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+  #   rowwise() %>%
+  #   dplyr::mutate(
+  #     Reference = paste(
+  #       # Create output's prefix
+  #       paste0("o", Output_ID),
+  #       # Create the reference for each Output_ID
+  #       paste(c_across(starts_with("Input_")), collapse = ":"),
+  #       # Join output's prefix and reference
+  #       sep = ";"
+  #     )
+  #   ) %>%
+  #   dplyr::ungroup()
 
   ## Get input column names
   if ("Reference" %in% names(data)) {
@@ -320,8 +353,8 @@ pred_gp <- function(data = NULL,
       mean_map <- setNames(mean, paste0("o", unique_outputs_sorted))
 
       # Extract the prefix ("o1", "o2", etc.) from each element in all_input
-      input_obs_prefixes <- str_extract(input_obs, "o[0-9]+")
-      input_pred_prefixes <- str_extract(input_pred, "o[0-9]+")
+      input_obs_prefixes <- stringr::str_extract(input_obs, "o[0-9]+")
+      input_pred_prefixes <- stringr::str_extract(input_pred, "o[0-9]+")
 
       # Build m_0 using the lookup table; it will automatically repeat the correct
       # value for each prefix.
@@ -509,7 +542,7 @@ pred_gp <- function(data = NULL,
 #' @param trained_model A list, containing  the information coming from a
 #'    Magma model, previously trained using the \code{\link{train_magma}}
 #'    function. If \code{trained_model} is not provided, the arguments
-#'    \code{data}, \code{hp_0}, \code{hp_i}, \code{kern_0}, and \code{kern_i}
+#'    \code{data}, \code{hp_0}, \code{hp_t}, \code{kern_0}, and \code{kern_t}
 #'    are all required.
 #' @param data A tibble or data frame. Required columns: 'Input',
 #'    'Output'. Additional columns for covariates can be specified.
@@ -617,20 +650,27 @@ hyperposterior <- function(trained_model = NULL,
 
   }
 
+  data <- data %>%
+    # On groupe par toutes les colonnes qui définissent une clé...
+    group_by(Task_ID, Output_ID, Output, Input_ID) %>%
+    # ... et on ajoute un numéro d'observation unique à l'intérieur de ce groupe
+    mutate(obs_num = row_number()) %>%
+    ungroup()
+
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
   # In other words, inputs are no longer in "short" format; instead, we have one
   # column per input.
   data <- data %>%
-    pivot_wider(
+    tidyr::pivot_wider(
       names_from = Input_ID,
       values_from = Input,
       names_prefix = "Input_"
     ) %>%
     # Keep 6 significant digits for Inputs to avoid numerical issues
-    mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+    dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
     rowwise() %>%
-    mutate(
+    dplyr::mutate(
       Reference = paste(
         # Create output's prefix
         paste0("o", Output_ID),
@@ -640,7 +680,33 @@ hyperposterior <- function(trained_model = NULL,
         sep = ";"
       )
     ) %>%
-    ungroup()
+    dplyr::ungroup() %>%
+    dplyr::select(-obs_num)
+
+  # ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+  # # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
+  # # In other words, inputs are no longer in "short" format; instead, we have one
+  # # column per input.
+  # data <- data %>%
+  #   tidyr::pivot_wider(
+  #     names_from = Input_ID,
+  #     values_from = Input,
+  #     names_prefix = "Input_"
+  #   ) %>%
+  #   # Keep 6 significant digits for Inputs to avoid numerical issues
+  #   mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+  #   rowwise() %>%
+  #   mutate(
+  #     Reference = paste(
+  #       # Create output's prefix
+  #       paste0("o", Output_ID),
+  #       # Create the reference for each Output_ID
+  #       paste(c_across(starts_with("Input_")), collapse = ":"),
+  #       # Join output's prefix and reference
+  #       sep = ";"
+  #     )
+  #   ) %>%
+  #   ungroup()
 
   ## Check that tasks do not have duplicate inputs for each output
   task_duplicates <- data %>%
@@ -762,7 +828,7 @@ hyperposterior <- function(trained_model = NULL,
       prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
 
       # Extract the prefix ("o1", "o2", etc.) from each element in all_input
-      all_input_prefixes <- str_extract(all_input, "o[0-9]+")
+      all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
       # Build m_0 using the lookup table; it will automatically repeat the correct
       # value for each prefix.
@@ -1114,6 +1180,13 @@ pred_magma <- function(data = NULL,
     data <- data %>% dplyr::select(-Task_ID)
   }
 
+  data <- data %>%
+    # On groupe par toutes les colonnes qui définissent une clé...
+    group_by(Output_ID, Output, Input_ID) %>%
+    # ... et on ajoute un numéro d'observation unique à l'intérieur de ce groupe
+    mutate(obs_num = row_number()) %>%
+    ungroup()
+
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
   # In other words, inputs are no longer in "short" format; instead, we have one
@@ -1137,7 +1210,8 @@ pred_magma <- function(data = NULL,
         sep = ";"
       )
     ) %>%
-    dplyr::ungroup()
+    dplyr::ungroup() %>%
+    dplyr::select(-obs_num)
 
   ## Get input column names
   if ("Reference" %in% names(data)) {
@@ -1342,7 +1416,7 @@ pred_magma <- function(data = NULL,
           names_to = "Input_ID",
           values_to = "Input"
         ) %>%
-        mutate(Input_ID = str_remove(Input_ID, "Input_"))
+        mutate(Input_ID = stringr::str_remove(Input_ID, "Input_"))
 
       hyperpost <- hyperposterior(
         data = trained_model$ini_args$data,

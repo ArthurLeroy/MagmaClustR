@@ -462,7 +462,7 @@ hp <- function(kern = "SE",
                hp_config = NULL) {
   # browser()
   ## Initiate interval boundaries
-  min_val <- -3
+  min_val <- -7
   max_val <- 3
   # min_val_u <- -1
   # max_val_u <- 3
