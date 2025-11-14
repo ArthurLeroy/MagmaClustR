@@ -21,6 +21,7 @@
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    - convolution_kernel : the Convolution kernel used to manage MO scenario.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
@@ -54,7 +55,6 @@ kern_to_cov <- function(input,
                         hp,
                         deriv = NULL,
                         input_2 = NULL) {
-  # browser()
   ## If a second set of inputs is not provided, only 'input' against itself
   if (input_2 %>% is.null()) {
     input_2 <- input
@@ -72,22 +72,24 @@ kern_to_cov <- function(input,
   if (kern %>% rlang::is_function() && length(input$Output_ID %>% unique()) > 1
                                     && is.null(deriv)) {
     # Need a unique dataframe, containing all observed inputs of all outputs.
-    # The convolution_kernel() function generates the whole multioutputs
+    # The convolution_kernel() function generates the whole multi-output
     # covariance matrix.
 
     # Call convolution_kernel() with vectorized mode to generate the whole MO
     # covariance matrix.
     mat <- convolution_kernel(x = input, y = input_2, hp = hp, vectorized = TRUE)
 
-    # We select ONLY the columns that uniquely define a point (coordinates + Output_ID)
-    # to ensure consistent naming across different function calls.
-    # 1. Dynamically find all coordinate columns (starting with "Input")
+    # We select ONLY the columns that uniquely define a point
+    # (coordinates + Output_ID) to ensure consistent naming across different
+    # function calls.
+
+    # Dynamically find all coordinate columns (starting with "Input")
     coord_cols <- grep("^Input", names(input), value = TRUE)
 
-    # 2. Paste the coordinate values together for each row
+    # Paste the coordinate values together for each row
     pasted_coords <- do.call(paste, c(input[coord_cols], sep = ";"))
 
-    # 3. Prepend the output ID to create the final name
+    # Prepend the output ID to create the final name
     reference <- paste0("o", input$Output_ID, ";", pasted_coords)
 
     # Do the same for the second set of inputs if it's different
@@ -368,14 +370,13 @@ kern_to_cov <- function(input,
   if (!is.null(deriv)) {
     if ("Output_ID" %in% names(hp)){
       if (any(startsWith(deriv, "noise"))){
-        # 1. Extraire l'ID de l'hyperparamètre (ex: "noise_2" -> 2)
+        # Extract the ID of the hyper-parameter (ex: "noise_2" -> 2)
         deriv_id_str <- stringr::str_extract(deriv, "\\d+$")
         if (is.na(deriv_id_str)) {
-          stop("Le nom de la dérivée du bruit doit contenir un ID, ex: 'noise_1'")
+          stop("The derivative name should contain an ID, ex: 'noise_1'")
         }
         deriv_id <- as.integer(deriv_id_str)
 
-        # input <- input %>% dplyr::arrange(Output_ID)
         if ("Task_ID" %in% colnames(input)) {
           input <- input %>% dplyr::select(-Task_ID)
         }
@@ -396,13 +397,14 @@ kern_to_cov <- function(input,
             # Compute the matrix derivative according to the current HP
             current_noise_hp <- hp %>%
               dplyr::filter(Output_ID == id) %>%
-              pull(noise)
+              dplyr::pull(noise)
 
             if (length(current_noise_hp) == 0) {
               stop(paste("'Noise' parameter not found for Output_ID :", id))
             }
-            # browser()
 
+
+            # Create a sub-block of the whole noise matrix
             block_matrix <- cpp_noise(
               as.matrix(dplyr::select(subset_input, Input_1)),
               as.matrix(dplyr::select(subset_input_2, Input_1)),
@@ -445,10 +447,6 @@ kern_to_cov <- function(input,
   if ("deriv" %in% methods::formalArgs(kernel)) {
     ## Detect whether speed-up vectorised computation is provided
     if ("vectorized" %in% methods::formalArgs(kernel)) {
-      # input <- input %>%
-      #   dplyr::select(-Output_ID)
-      # input_2 <- input
-
       mat <- kernel(
         x = input,
         y = input_2,
@@ -554,7 +552,7 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 1e-10, deriv = NULL) {
 #' Compute the covariance matrices associated with all individuals in the
 #' database, taking into account their specific inputs and hyper-parameters.
 #'
-#' @param data A tibble or data frame of input data. Required column: 'ID'.
+#' @param data A tibble or data frame of input data. Required column: 'Task_ID'.
 #'   Suggested column: 'Input' (for indicating the reference input).
 #' @param kern A kernel function.
 #' @param hp A tibble or data frame, containing the hyper-parameters associated
@@ -572,24 +570,24 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 1e-10, deriv = NULL) {
 #' @examples
 #' TRUE
 list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
-  floop <- function(i) {
-    db_i <- data %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+  floop <- function(t) {
+    db_t <- data %>%
+      dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-Task_ID)
 
     ## To avoid throwing an error if 'Output' has already been removed
-    if ("Output" %in% names(db_i)) {
-      db_i <- db_i %>% dplyr::select(-.data$Output)
+    if ("Output" %in% names(db_t)) {
+      db_t <- db_t %>% dplyr::select(-Output)
     }
 
-    hp_i <- hp %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+    hp_t <- hp %>%
+      dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-Task_ID)
 
-    kern_to_cov(db_i, kern, hp_i, deriv = deriv) %>%
+    kern_to_cov(db_t, kern, hp_t, deriv = deriv) %>%
       return()
   }
-  sapply(unique(data$ID), floop, simplify = F, USE.NAMES = T) %>%
+  sapply(unique(data$Task_ID), floop, simplify = F, USE.NAMES = T) %>%
     return()
 }
 
@@ -599,7 +597,7 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
 #' in the database, taking into account their specific inputs and
 #' hyper-parameters.
 #'
-#' @param db A tibble or data frame of input data. Required column: 'ID'.
+#' @param db A tibble or data frame of input data. Required column: 'Task_ID'.
 #'   Suggested column: 'Input' (for indicating the reference input).
 #' @param kern A kernel function.
 #' @param hp A tibble or data frame, containing the hyper-parameters associated
@@ -619,79 +617,25 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
 #' @examples
 #' TRUE
 list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
-  floop <- function(i) {
-    db_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+  floop <- function(t) {
+    db_t <- db %>%
+      dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-Task_ID)
     ## To avoid throwing an error if 'Output' has already been removed
     if ("Output" %in% names(db_i)) {
-      db_i <- db_i %>% dplyr::select(-.data$Output)
+      db_t <- db_t %>% dplyr::select(-Output)
     }
 
-    hp_i <- hp %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+    hp_t <- hp %>%
+      dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-Task_ID)
 
-    kern_to_inv(db_i, kern, hp_i, pen_diag, deriv = deriv) %>%
+    kern_to_inv(db_t, kern, hp_t, pen_diag, deriv = deriv) %>%
       return()
   }
-  sapply(unique(db$ID), floop, simplify = F, USE.NAMES = T) %>%
+  sapply(unique(db$Task_ID), floop, simplify = F, USE.NAMES = T) %>%
     return()
 }
-
-
-#' Inverts blocks of a kernel matrix, one block per output.
-#'
-#' @param db A tibble or data frame of input data, must contain an "Output_ID" column.
-#' @param kern The kernel function to use.
-#' @param hp The hyperparameter tibble, which should contain an "Output_ID" column.
-#' @param pen_diag Penalty term added to the diagonal for stability.
-#' @param deriv A character, indicating according to which hyper-parameter the
-#'  derivative should be computed. If NULL (default), the function simply returns
-#'  the list of covariance matrices.
-#' @return A named list where each element is an inverted matrix block.
-#'
-list_outputs_blocks_to_inv <- function(db,
-                                       kern,
-                                       hp,
-                                       pen_diag,
-                                       deriv = NULL) {
-  # Inner function to process a single output
-  process_one_output <- function(current_output_id) {
-    if("Task_ID" %in% names(db) || "Output" %in% names(db)){
-      db <- db %>% dplyr::select(-c(Task_ID, Output))
-    }
-
-    # Extract the union of all reference inputs provided in the training data
-    # for the current output
-    all_inputs <- db %>%
-      dplyr::filter(Output_ID == current_output_id) %>%
-      dplyr::select(-Output_ID) %>%
-      unique() %>%
-      dplyr::arrange(Reference)
-
-    # Filter the hyperparameters for the current output
-    hp_output <- hp %>%
-      dplyr::filter(Output_ID == current_output_id)
-
-    # Make sure to remove the ID column if it exists
-    if ("Output_ID" %in% names(hp_output)) {
-      hp_output <- hp_output %>% dplyr::select(-Output_ID)
-    }
-
-    # Call the inversion function for this specific block
-    kern_to_inv(all_inputs, kern, hp_output, pen_diag, deriv = deriv) %>%
-      return()
-  }
-
-  # Apply the 'process_one_output' function to each unique output
-  sapply(unique(db$Output_ID),
-         process_one_output,
-         simplify = FALSE,
-         USE.NAMES = TRUE) %>%
-    return()
-}
-
 
 
 #' Inverse a matrix using an adaptive jitter term

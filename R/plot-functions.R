@@ -75,21 +75,21 @@ plot_db <- function(data, cluster = FALSE, legend = FALSE) {
 #'    If providing a 2-dimensional vector, the corresponding columns are used
 #'    for the x-axis and y-axis.
 #' @param data (Optional) A tibble or data frame. Required columns: 'Input',
-#'    'Output'. Additional columns for covariates can be specified. This
-#'    argument corresponds to the raw data on which the prediction has been
-#'    performed.
+#'    'Input_ID', 'Output', 'Output_ID'. This argument corresponds to the raw
+#'    data on which the prediction has been performed.
 #' @param data_train (Optional) A tibble or data frame, containing the training
 #'    data of the Magma model. The data set should have the same format as the
-#'    \code{data} argument with an additional required column 'ID' for
+#'    \code{data} argument with an additional required column 'Task_ID' for
 #'    identifying the different individuals/tasks. If provided, those data are
-#'    displayed as backward colourful points (each colour corresponding to one
+#'    displayed as backward colorful points (each color corresponding to one
 #'    individual/task).
 #' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
-#'    and associated 'Output' prior mean parameter of the GP prediction.
+#'    and associated 'Output'and 'Output_ID' prior mean parameter of the GP prediction.
 #' @param y_grid A vector, indicating the grid of values on the y-axis for which
 #'    probabilities should be computed for heatmaps of 1-dimensional
 #'    predictions. If NULL (default), a vector of length 50 is defined, ranging
-#'    between the min and max 'Output' values contained in \code{pred_gp}.
+#'    between the min and max 'Output' values for each Output_ID contained in
+#'    \code{pred_gp}.
 #' @param heatmap A logical value indicating whether the GP prediction should be
 #'    represented as a heatmap of probabilities for 1-dimensional inputs. If
 #'    FALSE (default), the mean curve and associated Credible Interval are
@@ -113,17 +113,20 @@ plot_db <- function(data, cluster = FALSE, legend = FALSE) {
 #' @param alpha_data_train A number, between 0 and 1, controlling transparency
 #'    of the \code{data_train} points.
 #'
-#' @return Visualisation of a Magma or GP prediction (optional: display data
-#'    points, training data points and the prior mean function). For 1-D
-#'    inputs, the prediction is represented as a mean curve and its associated
-#'    95%  Credible Interval, as a collection of samples drawn from the
-#'    posterior if \code{samples} = TRUE, or as a heatmap of probabilities if
-#'    \code{heatmap} = TRUE. For 2-D inputs, the prediction is represented as a
-#'    heatmap, where each couple of inputs on the x-axis and y-axis are
+#' @return A list of visualisation of a Magma (single or multi-output) or GP
+#'    prediction (single or multi-output) (optional: display data points,
+#'    training data points and the prior mean function). Each element of the
+#'    list corresponds to a prediction associated to one Output_ID; therefore,
+#'    the list is as long as there are different Output_ID in the data.
+#'    For 1-D inputs, the prediction is represented as a mean curve and its
+#'    associated 95%  Credible Interval, as a collection of samples drawn from
+#'    the posterior if \code{samples} = TRUE, or as a heatmap of probabilities
+#'    if \code{heatmap} = TRUE. For 2-D inputs, the prediction is represented as
+#'    a heatmap, where each couple of inputs on the x-axis and y-axis are
 #'    associated with a gradient of colours for the posterior mean values,
 #'    whereas the uncertainty is indicated by the transparency (the narrower is
 #'    the Credible Interval, the more opaque is the associated colour, and vice
-#'    versa)
+#'    versa).
 #'
 #' @export
 #'
@@ -144,7 +147,7 @@ plot_gp <- function(pred_gp,
                     size_data = 3,
                     size_data_train = 1,
                     alpha_data_train = 0.5) {
-  # browser()
+
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
   }
@@ -236,10 +239,10 @@ plot_gp <- function(pred_gp,
 
   ## Loop on each output
   plot_list <- purrr::map(unique_outputs, function(current_output_id) {
-    # browser()
-    # # Subset pred only on the current Output_ID
+    ## Subset pred only on the current Output_ID
     pred_subset <- pred %>% dplyr::filter(Output_ID == current_output_id)
 
+    # Subset data only on the current Output_ID
     data_subset <- NULL
     if (!is.null(data)) {
       data_subset <- if ("Output_ID" %in% names(data)) {
@@ -249,6 +252,7 @@ plot_gp <- function(pred_gp,
       }
     }
 
+    # Subset data_train only on the current Output_ID
     data_train_subset <- NULL
     if (!is.null(data_train)) {
       data_train_subset <- if ("Output_ID" %in% names(data_train)) {
@@ -258,6 +262,7 @@ plot_gp <- function(pred_gp,
       }
     }
 
+    # Subset prior_mean only on the current Output_ID
     prior_mean_subset <- NULL
     if (!is.null(prior_mean)) {
       prior_mean_subset <- if ("Output_ID" %in% names(prior_mean)) {
@@ -267,6 +272,7 @@ plot_gp <- function(pred_gp,
       }
     }
 
+    # Subset samples only on the current Output_ID
     samples_subset <- NULL
     if (samples && !is.null(all_samples)) {
       samples_subset <- all_samples %>% dplyr::filter(Output_ID == current_output_id)
@@ -401,7 +407,7 @@ plot_gp <- function(pred_gp,
                         "Ygrid" = y_grid
           ) %>%
           dplyr::mutate("Proba" = 2 *
-                          (1 - stats::pnorm(abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))))
+                          (1 - stats::pnorm(abs((data$Ygrid - data$Mean) / sqrt(data$Var)))))
 
         gg <- ggplot2::ggplot() +
           ggplot2::geom_raster(

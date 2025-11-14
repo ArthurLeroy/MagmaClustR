@@ -35,9 +35,9 @@ e_step <- function(db,
                    weight_inv_0,
                    pen_diag) {
 
-  # browser()
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
+
   # Get the union of all unique input points from the training data
   all_inputs <- db %>%
     dplyr::select(-c(Task_ID, Output)) %>%
@@ -49,10 +49,8 @@ e_step <- function(db,
     dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
     dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
     dplyr::select(c(Input_1, Reference, Output_ID))
-    # dplyr::arrange(Reference)
 
   all_input <- all_inputs %>%
-    # dplyr::arrange(Reference) %>%
     dplyr::pull(Reference)
 
   if(length(list_output_ID) == 1){
@@ -66,9 +64,8 @@ e_step <- function(db,
                        hp = hp_0)
 
   references <- rownames(cov_0)
-  # matrixcalc::is.positive.semi.definite(cov_0)
   inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
-  # matrixcalc::is.positive.semi.definite(inv_0)
+
   # Re-apply the stored names to the inverted matrix
   dimnames(inv_0) <- list(references, references)
   inv_0 <- weight_inv_0 * inv_0
@@ -94,7 +91,6 @@ e_step <- function(db,
       )
     } else if (length(list_output_ID) > 1 && kern_t %>% is.character()){
       # MO case with independent outputs
-
       hp_t_indiv <- hp_t_indiv %>% dplyr::select(-c(Task_ID, Output_ID))
 
       K_task_t <- kern_to_cov(
@@ -108,7 +104,6 @@ e_step <- function(db,
         dplyr::filter(Task_ID == t) %>%
         dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
         unique()
-        # dplyr::arrange(Reference)
 
       K_task_t <- kern_to_cov(
         input = all_inputs_t,
@@ -122,7 +117,6 @@ e_step <- function(db,
 
     # Invert the covariance matrix (this strips the names)
     K_inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
-    # paste0('Det de K_inv_t, avec t = ', t, ' : ', det(K_inv_t))
 
     # Re-apply the stored names to the inverted matrix
     dimnames(K_inv_t) <- list(task_references, task_references)
@@ -136,7 +130,7 @@ e_step <- function(db,
   # Create a named list of output values, split by task
   list_output_t <- base::split(db$Output, list(db$Task_ID))
 
-  ##--------------- Update Posterior Inverse Covariance ---------------##
+  ## Update Posterior Inverse Covariance ##
   post_inv <- inv_0
   for (inv_t in list_inv_t) {
     # Find the common input points between the mean process and the current task
@@ -152,7 +146,7 @@ e_step <- function(db,
     `rownames<-`(all_inputs %>% dplyr::pull(.data$Reference)) %>%
     `colnames<-`(all_inputs %>% dplyr::pull(.data$Reference))
 
-  ##--------------------- Update Posterior Mean ---------------------##
+  ## Update Posterior Mean ##
   weighted_0 <- inv_0 %*% m_0
 
   for (t in names(list_inv_t)) {
@@ -170,7 +164,7 @@ e_step <- function(db,
   # Compute the final posterior mean
   post_mean <- post_cov %*% weighted_0 %>% as.vector()
 
-  ## Part 4: Format and return the results
+  ## Format and return the results
   # Format the posterior mean into a tibble
   tib_mean <- tibble::tibble(all_inputs,
                              "Output" = post_mean)
@@ -182,10 +176,11 @@ e_step <- function(db,
 }
 
 
-#' @title Maximisation Step of the EM Algorithm (Simplified)
+#' @title Maximisation Step of the EM Algorithm
 #' @description Computes the optimal hyper-parameters of the kernels involved in the model.
 #'
-#' @param db A tibble or data frame. Required columns: Task_ID, Output_ID, Input_1, Output, Reference.
+#' @param db A tibble or data frame. Required columns:
+#'    Task_ID, Output_ID, Input_1, Output, Reference.
 #' @param m_0 Prior mean vector for the mean GP.
 #' @param kern_0 Kernel function for the mean GP.
 #' @param kern_t Kernel function for the individual task GPs.
@@ -195,9 +190,6 @@ e_step <- function(db,
 #' @param post_cov Posterior covariance from the E-step.
 #' @param shared_hp_tasks If TRUE, all tasks share the same hyper-parameter values.
 #' @param pen_diag A jitter term for matrix inversion.
-#' @param priors A list or tibble containing prior information, e.g.,
-#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
-#'   If NULL, performs ML estimation.
 #'
 #' @return A tibble containing the updated hyperparameters`hp_t`.
 #'
@@ -211,24 +203,16 @@ m_step <- function(db,
                    post_mean,
                    post_cov,
                    shared_hp_tasks,
-                   pen_diag,
-                   priors) {
+                   pen_diag) {
 
-  # browser()
   list_hp_0 <- old_hp_0 %>% names()
   list_ID_task <- unique(db$Task_ID)
   output_ids_vector <- unique(db$Output_ID)
 
+  # Do NOT optimise HPs of the mean process
   new_hp_0 <- old_hp_0
 
-  # Extraire les a priori de la configuration pour les passer à l'optimiseur
-  priors_for_optim <- purrr::map(priors, "prior")
-
-  hps_to_control_if_zero <- c("D_t")
-
-  # =================================================================== #
   # Case 1: HPs are shared across tasks -> one optimisation over all data
-  # =================================================================== #
   if (shared_hp_tasks) {
     cat("HPs are shared across tasks...\n")
 
@@ -239,7 +223,9 @@ m_step <- function(db,
         dplyr::slice(1) %>%
         dplyr::ungroup() %>%
         dplyr::select(-Task_ID, -l_u_t) %>%
-        tidyr::pivot_longer(cols = -Output_ID, names_to = "hp_name", values_to = "value") %>%
+        tidyr::pivot_longer(cols = -Output_ID,
+                            names_to = "hp_name",
+                            values_to = "value") %>%
         dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
         dplyr::select(specific_name, value) %>%
         tibble::deframe()
@@ -256,24 +242,6 @@ m_step <- function(db,
       hp_col_names <- names(par)
     }
 
-    pivoted_names_regex <- paste0("^", hps_to_control_if_zero, "_\\d+$")
-    param_names <- names(par)
-
-    is_hp_to_check <- sapply(param_names, function(name) {
-      any(sapply(pivoted_names_regex, grepl, x = name))
-    })
-
-    # Identifier les HPs à fixer (bon nom ET valeur initiale de 0)
-    is_hp_to_fix <- is_hp_to_check & (par == 0)
-
-    # Créer les vecteurs de bornes
-    lower_bounds <- rep(-Inf, length(par))
-    upper_bounds <- rep(Inf, length(par))
-
-    # Appliquer les contraintes : borne inf = 0 et borne sup = 0
-    lower_bounds[is_hp_to_fix] <- 0
-    upper_bounds[is_hp_to_fix] <- 0
-
     # Optimise hyper-parameters of the task process
     result_optim <- stats::optim(
       par               = par,
@@ -286,9 +254,6 @@ m_step <- function(db,
       pen_diag          = pen_diag,
       hp_col_names      = hp_col_names,
       output_ids        = output_ids_vector,
-      lower             = lower_bounds,   # <-- NOUVEAU
-      upper             = upper_bounds,   # <-- NOUVEAU
-      priors            = priors_for_optim,
       method            = "L-BFGS-B",
       control           = list(factr = 1e13, maxit = 25)
     )$par %>%
@@ -308,14 +273,12 @@ m_step <- function(db,
       # Single output case
       result_optim$Output_ID <- "1"
       result_optim <- result_optim %>%
-        mutate(Task_ID = list(list_ID_task)) %>%
-        unnest(Task_ID)
+        dplyr::mutate(Task_ID = list(list_ID_task)) %>%
+        tidyr::unnest(Task_ID)
       new_hp_t <- result_optim
     }
 
-    # =================================================================== #
     # Case 2: HPs are task-specific -> loop over tasks
-    # =================================================================== #
   } else {
     cat("HPs are task-specific.\n")
 
@@ -339,7 +302,9 @@ m_step <- function(db,
       if (length(output_ids_vector) > 1){
         hp_per_output <- old_hp_t_task %>%
           dplyr::select(-Task_ID, -l_u_t) %>%
-          tidyr::pivot_longer(cols = -Output_ID, names_to = "hp_name", values_to = "value") %>%
+          tidyr::pivot_longer(cols = -Output_ID,
+                              names_to = "hp_name",
+                              values_to = "value") %>%
           dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
           dplyr::select(specific_name, value) %>%
           tibble::deframe()
@@ -357,24 +322,6 @@ m_step <- function(db,
         hp_col_names <- names(par_t)
       }
 
-      pivoted_names_regex <- paste0("^", hps_to_control_if_zero, "_\\d+$")
-      param_names_t <- names(par_t)
-
-      is_hp_to_check_t <- sapply(param_names_t, function(name) {
-        any(sapply(all_names_to_check_regex, grepl, x = name))
-      })
-
-      # Identifier les HPs à fixer (bon nom ET valeur initiale de 0)
-      is_hp_to_fix_t <- is_hp_to_check_t & (par_t == 0)
-
-      # Créer les vecteurs de bornes
-      lower_bounds_t <- rep(-Inf, length(par_t))
-      upper_bounds_t <- rep(Inf, length(par_t))
-
-      # Appliquer les contraintes : borne inf = 0 et borne sup = 0
-      lower_bounds_t[is_hp_to_fix_t] <- 0
-      upper_bounds_t[is_hp_to_fix_t] <- 0
-
       # Optimisation for the single task 't'
       result_optim <- stats::optim(
         par               = par_t,
@@ -387,9 +334,6 @@ m_step <- function(db,
         pen_diag          = pen_diag,
         hp_col_names      = hp_col_names,
         output_ids        = output_ids_vector,
-        priors            = priors_for_optim,
-        lower             = lower_bounds_t, # <-- NOUVEAU
-        upper             = upper_bounds_t, # <-- NOUVEAU
         method            = "L-BFGS-B",
         control           = list(factr = 1e13, maxit = 25)
       )$par %>%
@@ -399,7 +343,10 @@ m_step <- function(db,
     }
 
     # Collect results from all tasks
-    optim_results_by_task <- sapply(list_ID_task, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
+    optim_results_by_task <- sapply(list_ID_task,
+                                    floop,
+                                    simplify = FALSE,
+                                    USE.NAMES = TRUE) %>%
       tibble::enframe(name = "Task_ID") %>%
       tidyr::unnest(cols = value)
 
@@ -413,7 +360,7 @@ m_step <- function(db,
           names_pattern = "(.+)_(\\d+)$"
         )
 
-      # --- Final standard formatting for the output tibble ---
+      # Final standard formatting for the output tibble
       final_hp_names <- old_hp_t %>% dplyr::select(-Task_ID, -Output_ID) %>% names()
       new_hp_t <- new_hp_t %>%
         dplyr::select(Task_ID, Output_ID, dplyr::all_of(final_hp_names)) %>%

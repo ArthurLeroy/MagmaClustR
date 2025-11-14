@@ -17,6 +17,7 @@
 sample_gp = function(
     pred_gp,
     nb_samples = 50){
+
   ## Extract the GP prediction
   pred <- pred_gp$pred
 

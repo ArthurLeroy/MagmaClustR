@@ -11,8 +11,8 @@
 #' @param data A tibble or data frame. Required columns: \code{Task_ID},
 #'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
 #'    columns for covariates can be specified.
-#'    The \code{Task_ID} column contains the unique names/codes used to identify each
-#'    individual/task (or batch of data).
+#'    The \code{Task_ID} column contains the unique names/codes used to identify
+#'    each individual/task (or batch of data).
 #'    The \code{Input_ID} contains the unique names/codes used to identify each
 #'    explanatory variable.
 #'    The \code{Input} column should define the value of the explanatory
@@ -56,6 +56,7 @@
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    - convolution_kernel: the Convolution kernel used to manage MO scenario.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
@@ -63,17 +64,11 @@
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_t A kernel function, associated with the individual GPs. ("SE",
-#'    "PERIO" and "RQ" are also available here).
-#' @param priors A list or tibble containing prior information, e.g.,
-#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
-#'   If NULL, performs ML estimation.
+#'    "PERIO", "RQ" and convolution_kernel are also available here).
 #' @param weight_inv_0 A number, indicating the weight that the user wants to
 #'  attribute to the inverse prior covariance inv_0.
 #' @param shared_hp_tasks A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all tasks. If TRUE, all tasks
-#'    share the same hyper-parameter values.
-#' @param shared_hp_outputs A logical value, indicating whether the set of
-#'    hyper-parameters is assumed to be common to all outputs. If TRUE, all outputs
 #'    share the same hyper-parameter values.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
@@ -90,9 +85,6 @@
 #'    stop after only one iteration of the E-step. This advanced feature is
 #'    mainly used to provide a faster approximation of the model selection
 #'    procedure, by preventing any optimisation over the hyper-parameters.
-#' @param priors A list or tibble containing prior information, e.g.,
-#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
-#'   If NULL, performs ML estimation.
 #'
 #' @details The user can specify custom kernel functions for the argument
 #'    \code{kern_0} and \code{kern_t}. The hyper-parameters used in the kernel
@@ -105,7 +97,7 @@
 #'
 #' @return A list, gathering the results of the EM algorithm used for training
 #'    in Magma. The elements of the list are:
-#'    - hp_0: A tibble of the trained hyper-parameters for the mean
+#'    - hp_0: A tibble of the initial hyper-parameters for the mean
 #'    process' kernel.
 #'    - hp_t: A tibble of all the trained hyper-parameters for the
 #'    task processes' kernels.
@@ -140,16 +132,14 @@ train_magma <- function(data,
                         ini_hp_t = NULL,
                         kern_0 = "SE",
                         kern_t = "SE",
-                        priors = NULL,
                         weight_inv_0 = 1e-4,
                         shared_hp_tasks = TRUE,
-                        shared_hp_outputs = FALSE,
                         grid_inputs = NULL,
                         pen_diag = 1e-10,
                         n_iter_max = 25,
                         cv_threshold = 1e-3,
                         fast_approx = FALSE) {
-  # browser()
+
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("Task_ID", "Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
@@ -190,9 +180,8 @@ train_magma <- function(data,
   raw_data <- data
 
   data <- data %>%
-    # On groupe par toutes les colonnes qui définissent une clé...
     group_by(Task_ID, Output_ID, Output, Input_ID) %>%
-    # ... et on ajoute un numéro d'observation unique à l'intérieur de ce groupe
+    # Add a unique number observation for the group
     mutate(obs_num = row_number()) %>%
     ungroup()
 
@@ -224,8 +213,8 @@ train_magma <- function(data,
 
   ## Check that tasks do not have duplicate inputs for each output
   task_duplicates <- data %>%
-    count(Task_ID, Reference) %>%
-    filter(n > 1)
+    dplyr::count(Task_ID, Reference) %>%
+    dplyr::filter(n > 1)
 
   if (nrow(task_duplicates) > 0) {
     stop("Error: At least one task has duplicates, i.e. several 'Output' values",
@@ -245,7 +234,6 @@ train_magma <- function(data,
     dplyr::select(c(Input_1, Reference))
 
   all_input <- all_inputs %>%
-    # dplyr::arrange(Reference) %>%
     dplyr::pull(Reference)
 
   ## Initialise m_0 according to the value provided by the user
@@ -317,20 +305,11 @@ train_magma <- function(data,
     if (ini_hp_0 %>% is.null()) {
       list_output_ID <- data$Output_ID %>% unique()
       hp_0 <- NULL
-      if (shared_hp_outputs) {
-        # --- Case shared hps between outputs ---
-        cat("Generate shared hps between outputs ...\n")
-        hp_0 <- hp(kern = kern_0,
-                   list_output_ID = list_output_ID,
-                   shared_hp_outputs = TRUE)
 
-      } else {
-        # --- Case distinct hps between outputs ---
-        cat("Generate distinct set of hps for each output ...\n")
-        hp_0 <- hp(kern = kern_0,
-                   list_output_ID = list_output_ID,
-                   shared_hp_outputs = FALSE)
-      }
+      cat("Generate distinct set of hps for each output ...\n")
+      hp_0 <- hp(kern = kern_0,
+                 list_output_ID = list_output_ID,
+                 shared_hp_outputs = FALSE)
 
       cat(
         "The 'ini_hp_0' argument has not been specified. Random values of",
@@ -360,7 +339,6 @@ train_magma <- function(data,
                  list_task_ID = list_ID_task,
                  list_output_ID = list_ID_output,
                  shared_hp_tasks = shared_hp_tasks,
-                 shared_hp_outputs = shared_hp_outputs,
                  noise = TRUE
       )
       cat(
@@ -386,41 +364,23 @@ train_magma <- function(data,
 
   ## Add a 'noise' hyper-parameter if absent
   if (!("noise" %in% names(hp_t))) {
-    # Shared noise between tasks AND outputs
-    if (shared_hp_tasks && shared_hp_outputs) {
-      hp_t <- hp_t %>%
-        dplyr::mutate(noise = hp(kern = "", noise = TRUE)$noise)
-
-      # Shared noise between outputs BUT NOT between tasks
-    } else if (!shared_hp_tasks && shared_hp_outputs) {
-      noise_per_task <- hp(
-        kern = "",
-        list_task_ID = unique(hp_t$Task_ID),
-        shared_hp_tasks = FALSE,
-        noise = TRUE
-      )
-      hp_t <- hp_t %>%
-        dplyr::left_join(noise_per_task, by = "Task_ID")
-
-      # Shared noise between tasks BUT NOT between outputs
-    } else if (shared_hp_tasks && !shared_hp_outputs) {
+    # Shared noise between tasks
+    if (shared_hp_tasks) {
       noise_per_output <- hp(
         kern = "",
         list_output_ID = unique(hp_t$Output_ID),
-        shared_hp_outputs = FALSE,
         noise = TRUE
       )
       hp_t <- hp_t %>%
         dplyr::left_join(noise_per_output, by = "Output_ID")
 
-      # Noise task and output specific
+      # Noise task specific
     } else {
       noise_per_combo <- hp(
         kern = "",
         list_task_ID = unique(hp_t$Task_ID),
         list_output_ID = unique(hp_t$Output_ID),
         shared_hp_tasks = FALSE,
-        shared_hp_outputs = FALSE,
         noise = TRUE
       )
       hp_t <- hp_t %>%
@@ -453,45 +413,6 @@ train_magma <- function(data,
                     weight_inv_0 = weight_inv_0,
                     pen_diag = pen_diag)
 
-    ########### GRAPH DE CONTROLE MU0 ###########
-    # if(length(list_ID_output) == 1){
-    #   post$mean$Output_ID <- as.factor("1")
-    # }
-    #
-    # tib_mean_prep <- post$mean %>%
-    #   dplyr::rename(Input = Input_1, Value = Output) %>%
-    #   dplyr::mutate(Source = paste0("Post mean (itération ", i, ")")) %>%
-    #   dplyr::select(Output_ID, Input, Value, Source)
-    #
-    # mu0_df_prep <- mu0_df %>%
-    #   dplyr::rename(Value = mean_value) %>%
-    #   dplyr::mutate(Source = "mu0 réel") %>%
-    #   dplyr::select(Output_ID, Input, Value, Source)
-    #
-    # combined_data <- bind_rows(tib_mean_prep, mu0_df_prep)
-    #
-    # control_plot <- ggplot(combined_data, aes(x = Input, y = Value)) +
-    #   geom_line(aes(color = Source), linewidth = 1) +
-    #   facet_wrap(
-    #     ~ Output_ID,
-    #     scales = "free",
-    #     ncol = 1,
-    #     labeller = as_labeller(function(value) {
-    #       paste("Output", value)
-    #     })
-    #   ) +
-    #   labs(
-    #     title = paste0("Post mean vs mu0 réel (itération ", i, ")"),
-    #     x = "Input",
-    #     y = "Output value",
-    #     color = "Type de courbe"
-    #   ) +
-    #   theme_minimal()
-    #
-    # print(control_plot)
-
-    #############################################
-
     # M-step of Magma
     new_hp <- m_step(db = data,
                       m_0 = m_0,
@@ -499,7 +420,6 @@ train_magma <- function(data,
                       kern_t = kern_t,
                       old_hp_0 = hp_0,
                       old_hp_t = hp_t,
-                      priors = priors,
                       post_mean = post$mean,
                       post_cov = post$cov,
                       shared_hp_tasks = shared_hp_tasks,
@@ -508,9 +428,6 @@ train_magma <- function(data,
 
     new_hp_0 <- new_hp$hp_0
     new_hp_t <- new_hp$hp_t
-
-    print(new_hp_0)
-    print(new_hp_t)
 
     ## Break after E-step if we can to compute the fast approximation
     if (fast_approx) {
@@ -543,9 +460,6 @@ train_magma <- function(data,
       break
     }
 
-    # Monitoring (MAP)
-    priors_for_monitoring <- purrr::map(priors, "prior")
-
     new_logL_monitoring <- logL_monitoring(
       hp_0 = new_hp_0,
       hp_t = new_hp_t,
@@ -556,8 +470,7 @@ train_magma <- function(data,
       weight_inv_0 = weight_inv_0,
       post_mean = post$mean,
       post_cov = post$cov,
-      pen_diag = pen_diag,
-      priors = priors_for_monitoring
+      pen_diag = pen_diag
     )
 
     diff_logL <- new_logL_monitoring - logL_monitoring
@@ -720,15 +633,13 @@ train_magma <- function(data,
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    - convolution_kernel: the Convolution kernel used to manage MO scenario.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param shared_hp_outputs A logical value, indicating whether the set of
-#'    hyper-parameters is assumed to be common to all outputs. If TRUE, all outputs
-#'    share the same hyper-parameter values.
 #' @param hyperpost A list, containing the elements 'mean' and 'cov',
 #'    the parameters of the hyper-posterior distribution of the mean process.
 #'    Typically, this argument should come from a previous learning using
@@ -752,9 +663,7 @@ train_gp <- function(data,
                      ini_hp = NULL,
                      kern = "SE",
                      hyperpost = NULL,
-                     shared_hp_outputs = FALSE,
                      pen_diag = 1e-10) {
-  # browser()
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
@@ -822,62 +731,57 @@ train_gp <- function(data,
 
   input_obs <- inputs_obs %>% dplyr::pull(Reference)
 
+  ## Set post_cov to 0 if we are not in Magma but in a classic GP training
+  post_cov <- 0
 
-  if (!is.null(hyperpost)) {
-    ## A COMPLETER (UTILE UNIQUEMENT POUR MAGMA, PAS EN MO CLASSIQUE)
-  } else {
-    ## Set post_cov to 0 if we are not in Magma but in a classic GP training
-    post_cov <- 0
+  ## Extract the values of the hyper-posterior mean at reference Input
+  ## Initialise m_0 according to the value provided by the user
+  if (prior_mean %>% is.null()) {
+    mean <- rep(0, length(input_obs))
+    cat(
+      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+      "function is thus set to be 0 everywhere for all outputs.\n \n"
+    )
+  } else if (prior_mean %>% is.vector()) {
 
-    ## Extract the values of the hyper-posterior mean at reference Input
-    ## Initialise m_0 according to the value provided by the user
-    if (prior_mean %>% is.null()) {
-      mean <- rep(0, length(input_obs))
+    if (length(prior_mean) == length(input_obs)) {
+      mean <- prior_mean
+    } else if (length(prior_mean) == length(data$Output_ID %>% unique())) {
+      # Get the unique and sorted Output_IDs
+      unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
+
+      # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
+      # This assumes the prior_mean vector is provided in the sorted order of
+      # Output_IDs.
+      prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
+
+      # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      input_obs_prefixes <- stringr::str_extract(input_obs, "o[0-9]+")
+
+      # Build m_0 using the lookup table; it will automatically repeat the correct
+      # value for each prefix.
+      mean <- prior_mean_map[input_obs_prefixes] %>% unname()
+
       cat(
-        "The 'prior_mean' argument has not been specified. The hyper_prior mean",
-        "function is thus set to be 0 everywhere for all outputs.\n \n"
-      )
-    } else if (prior_mean %>% is.vector()) {
-
-      if (length(prior_mean) == length(input_obs)) {
-        mean <- prior_mean
-      } else if (length(prior_mean) == length(data$Output_ID %>% unique())) {
-        # Get the unique and sorted Output_IDs
-        unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
-
-        # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
-        # This assumes the prior_mean vector is provided in the sorted order of
-        # Output_IDs.
-        prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
-
-        # Extract the prefix ("o1", "o2", etc.) from each element in all_input
-        input_obs_prefixes <- stringr::str_extract(input_obs, "o[0-9]+")
-
-        # Build m_0 using the lookup table; it will automatically repeat the correct
-        # value for each prefix.
-        mean <- prior_mean_map[input_obs_prefixes] %>% unname()
-
-        cat(
-          "A constant hyper_prior mean has been set for each output.\n \n"
-        )
-      } else {
-        stop(
-          "The 'prior_mean' argument is of length ", length(prior_mean),
-          ", whereas the grid of training inputs is of length ",
-          length(input_obs)
-        )
-      }
-
-    } else if (prior_mean %>% is.function()) {
-      mean <- prior_mean(input_obs %>%
-                           dplyr::select(-Reference)
+        "A constant hyper_prior mean has been set for each output.\n \n"
       )
     } else {
       stop(
-        "Incorrect format for the 'prior_mean' argument. Please read ",
-        "?hyperposterior() for details."
+        "The 'prior_mean' argument is of length ", length(prior_mean),
+        ", whereas the grid of training inputs is of length ",
+        length(input_obs)
       )
     }
+
+  } else if (prior_mean %>% is.function()) {
+    mean <- prior_mean(input_obs %>%
+                         dplyr::select(-Reference)
+    )
+  } else {
+    stop(
+      "Incorrect format for the 'prior_mean' argument. Please read ",
+      "?hyperposterior() for details."
+    )
   }
 
   ## Initialise the mean process' HPs according to user's values
@@ -900,33 +804,16 @@ train_gp <- function(data,
     if (ini_hp %>% is.null()) {
       list_output_ID <- data$Output_ID %>% unique()
       hp <- NULL
-      if (shared_hp_outputs) {
-        # --- Case shared hps between outputs ---
-        cat("Generate shared hps between outputs ...\n")
-        hp <- hp(kern = kern,
-                 list_task_ID = 1,
-                 list_output_ID = list_output_ID,
-                 shared_hp_outputs = TRUE,
-                 noise = TRUE)
+      # Case distinct hps between outputs
+      cat("Generate distinct set of hps for each output ...\n")
+      hp <- hp(kern = kern,
+               list_task_ID = 1,
+               list_output_ID = list_output_ID,
+               noise = TRUE)
 
-        if('Task_ID' %in% colnames(hp)){
-          hp <- hp %>%
-            dplyr::select(-Task_ID)
-        }
-
-      } else {
-        # --- Case distinct hps between outputs ---
-        cat("Generate distinct set of hps for each output ...\n")
-        hp <- hp(kern = kern,
-                 list_task_ID = 1,
-                 list_output_ID = list_output_ID,
-                 shared_hp_outputs = FALSE,
-                 noise = TRUE)
-
-        if('Task_ID' %in% colnames(hp)){
-          hp <- hp %>%
-            dplyr::select(-Task_ID)
-        }
+      if('Task_ID' %in% colnames(hp)){
+        hp <- hp %>%
+          dplyr::select(-Task_ID)
       }
 
       cat(
@@ -962,15 +849,6 @@ train_gp <- function(data,
     hp_col_names <- names(par)
   }
 
-  lower_bounds <- rep(-Inf, length(par))
-  upper_bounds <- rep(+Inf, length(par))
-
-  names(lower_bounds) <- names(par)
-  names(upper_bounds) <- names(par)
-
-  # upper_bounds["noise_1"] <- -2.0
-  # upper_bounds["noise_2"] <- -2.0
-
   hp_new <- stats::optim(
     par = par,
     fn = logL_GP,
@@ -981,8 +859,6 @@ train_gp <- function(data,
     post_cov = post_cov,
     pen_diag = pen_diag,
     hp_col_names = hp_col_names,
-    lower = lower_bounds,
-    upper = upper_bounds,
     method = "L-BFGS-B",
     control = list(factr = 1e13, maxit = 25)
   )$par %>%

@@ -18,8 +18,7 @@ convolution_kernel <- function(x,
                                hp,
                                vectorized = FALSE,
                                deriv = NULL) {
-  # browser()
-  # Le bloc non-vectorisé est principalement pour les calculs point par point
+  # Non vectorized case
   if (!vectorized) {
     l_i <- exp(hp[["lengthscale_output1"]])
     l_j <- exp(hp[["lengthscale_output2"]])
@@ -36,11 +35,13 @@ convolution_kernel <- function(x,
     K <- pre_factor * exp_term
 
   } else {
-    # --- Bloc vectorisé pour construire la matrice de covariance complète ---
+    # Vectorized case, which allows to build an entire covariance matrix
     if (!"Output_ID" %in% names(x) || !"Output_ID" %in% names(hp)) {
       stop("'input' and 'hp' must contain an 'Output_ID' column for vectorized mode.")
     }
 
+    # Important: all HPs ID must be numeric (otherwise it raises an error
+    # further in the code of the kernel)
     x_ids_numeric <- as.numeric(as.character(x$Output_ID))
     y_ids_numeric <- as.numeric(as.character(y$Output_ID))
     hp_ids_numeric <- as.numeric(as.character(hp$Output_ID))
@@ -51,10 +52,13 @@ convolution_kernel <- function(x,
 
     input_dim <- ncol(x_coords)
 
+    # Match inputs indices with HPs indices, to get each input observed
+    # associated to the right Output_ID HPs.
     # Recherche robuste avec les IDs maintenant numériques
     indices_x <- match(x_ids_numeric, hp_ids_numeric)
     indices_y <- match(y_ids_numeric, hp_ids_numeric)
 
+    # Exponentialisation of HPs to avoid numerical problems during optimisation
     l_vec_1 <- exp(hp$l_t[indices_x])
     l_vec_2 <- exp(hp$l_t[indices_y])
     S_vec_1 <- exp(hp$S_t[indices_x])
@@ -64,17 +68,7 @@ convolution_kernel <- function(x,
     x_coords_to_dist <- x_coords
     y_coords_to_dist <- y_coords
 
-    if (input_dim == 1) {
-      # Le délai n'est appliqué que si l'entrée est 1D
-      D_vec_1 <- hp$D_t[indices_x] # Pas d'exponentielle
-      D_vec_2 <- hp$D_t[indices_y] # Pas d'exponentielle
-
-      # On pré-shift les coordonnées avant de les passer à cpp_dist
-      x_coords_to_dist <- x_coords - D_vec_1
-      y_coords_to_dist <- y_coords - D_vec_2
-    }
-
-    # cpp_dist calcule la distance carrée, qu'elle soit shiftée (1D) ou non (>1D)
+    # Compute each term of the convolution kernel
     distance_sq <- cpp_dist(x_coords_to_dist, y_coords_to_dist)
     denominator_sum <- outer(l_vec_1, l_vec_2, FUN = "+") + l_u_val
     S_prod          <- outer(S_vec_1, S_vec_2, FUN = "*")
@@ -89,7 +83,6 @@ convolution_kernel <- function(x,
   }
 
   # Partial derivative computation
-
   hp_id_str <- stringr::str_extract(deriv, "\\d+$")
   if (is.na(hp_id_str) && deriv != "l_u_t") {
     stop("The name of the derivative should end with a number, ex: 'l_t_1'.")
@@ -104,37 +97,28 @@ convolution_kernel <- function(x,
   if (startsWith(deriv, "l_t_")) {
     common_deriv_denom <- K * ((-0.5 / denominator_sum) + (0.5 * distance_sq / (denominator_sum^2)))
 
-    # On a besoin des vecteurs l_i et l_j (que l'on a nommés l_vec_1 et l_vec_2 plus haut)
+    # We need l_i and l_j, which corresponds for now to l_vec_1 and l_vec_2
     N <- nrow(x)
     M <- nrow(y)
 
-    # Crée une matrice où chaque cellule (i,j) contient la valeur de l_i
+    # Create a matrix in which each (i, j) contains l_i
     l_i_mat <- matrix(l_vec_1, nrow = N, ncol = M)
 
-    # Crée une matrice où chaque cellule (i,j) contient la valeur de l_j
+    # Create a matrix in which each (i, j) contains l_j
     l_j_mat <- matrix(l_vec_2, nrow = N, ncol = M, byrow = TRUE)
 
-    # Crée un "interrupteur" qui s'allume (vaut 1) pour les lignes où l'output i est k
+    # Create a "switch", which turns on (= 1) for rows where Output i is equal
+    # to k
     mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
 
-    # Crée un "interrupteur" qui s'allume (vaut 1) pour les colonnes où l'output j est k
+    # Create a "switch", which turns on (= 1) for rows where Output j is equal
+    # to k
     mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
 
-    # La formule correcte : l_i * I(i=k) + l_j * I(j=k) est implémentée ici
+    # l_i * I(i=k) + l_j * I(j=k)
     chain_rule_matrix <- l_i_mat * mask_i_is_k + l_j_mat * mask_j_is_k
 
     return(common_deriv_denom * chain_rule_matrix)
-
-    # chain_rule_factor <- exp(hp$l_t[hp_ids_numeric == hp_id])
-    #
-    # N <- nrow(x)
-    # M <- nrow(y)
-    # mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
-    # mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
-    #
-    # factor_matrix <- mask_i_is_k + mask_j_is_k
-    #
-    # return(common_deriv_denom * chain_rule_factor * factor_matrix)
 
   } else if (startsWith(deriv, "S_t_")) {
     N <- nrow(x)
@@ -144,51 +128,6 @@ convolution_kernel <- function(x,
 
     pd <- K * (mask_i_is_k + mask_j_is_k)
     return(pd)
-
-  } else if (startsWith(deriv, "D_t_")) {
-    # --- MODIFIÉ : Dérivée pour D_t_k avec "switch" 1D ---
-    N <- nrow(x)
-    M <- nrow(y)
-
-    # Si dim > 1, D_t n'a pas d'effet sur K, donc la dérivée est 0.
-    if (input_dim > 1) {
-      return(matrix(0, nrow = N, ncol = M))
-    }
-
-    # dK/dD_k = (dK/d(dist_sq)) * (d(dist_sq)/dD_k)
-
-    # Terme 1: (dK/d(dist_sq))
-    common_term <- K * (-0.5 / denominator_sum)
-
-    # Terme 2: (d(dist_sq)/dD_k)
-    # dist_sq = ((x_i - D_i) - (y_j - D_j))^2
-    # d/dD_k(dist_sq) = 2 * ((x_i - D_i) - (y_j - D_j)) * d/dD_k(x_i - D_i - y_j + D_j)
-    # d/dD_k(...) = -I(i=k) + I(j=k)
-
-    # Recalculons les matrices nécessaires
-    if (!exists("x_coords_to_dist")) { # Au cas où on appelle la dérivée sans K
-      coord_cols <- names(x)[sapply(x, is.numeric) & names(x) != "Output_ID"]
-      x_coords <- as.matrix(x[, coord_cols, drop = FALSE])
-      y_coords <- as.matrix(y[, coord_cols, drop = FALSE])
-      D_vec_1 <- hp$D_t[indices_x]
-      D_vec_2 <- hp$D_t[indices_y]
-      x_coords_to_dist <- x_coords - D_vec_1
-      y_coords_to_dist <- y_coords - D_vec_2
-    }
-
-    # A_mat = ((x_i - D_i) - (y_j - D_j))
-    A_mat <- outer(x_coords_to_dist[,1], y_coords_to_dist[,1], FUN = "-")
-
-    # Masques I(i=k) et I(j=k)
-    mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
-    mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
-
-    # d(dist_sq)/dD_k = 2 * A_mat * (I(j=k) - I(i=k))
-    pd_dist_sq <- 2 * A_mat * (mask_j_is_k - mask_i_is_k)
-
-    pd <- common_term * pd_dist_sq
-    return(pd)
-    # --- Fin de la modification ---
 
   } else if (deriv == "l_u_t") {
     # Common_term
@@ -457,19 +396,16 @@ hp <- function(kern = "SE",
                list_task_ID = NULL,
                list_output_ID = NULL,
                shared_hp_tasks = TRUE,
-               shared_hp_outputs = TRUE,
+               shared_hp_outputs = FALSE,
                noise = FALSE,
                hp_config = NULL) {
-  # browser()
+
   ## Initiate interval boundaries
   min_val <- -7
   max_val <- 3
-  # min_val_u <- -1
-  # max_val_u <- 3
   min_noise <- -5
   max_noise <- -1
 
-  # browser()
   # Convolution case
   if (is.function(kern)) {
     kern_name <- deparse(substitute(kern))
@@ -486,7 +422,6 @@ hp <- function(kern = "SE",
         output_id   = list_output_ID,
         lt_min      = -2, lt_max      = 2,
         St_min      = -2, St_max      = 2,
-        Dt_min      = -10, Dt_max     = 10,
         lu_min      = -2, lu_max      = 0,
         noise_min   = -5, noise_max   = -2
       )
@@ -502,11 +437,12 @@ hp <- function(kern = "SE",
     if (shared_hp_tasks && shared_hp_outputs) {
       hps_to_add <- tibble::tibble(
         l_t = stats::runif(1, hp_config$lt_min[1], hp_config$lt_max[1]),
-        S_t = stats::runif(1, hp_config$St_min[1], hp_config$St_max[1]),
-        D_t = stats::runif(1, hp_config$Dt_min[1], hp_config$Dt_max[1])
+        S_t = stats::runif(1, hp_config$St_min[1], hp_config$St_max[1])
       )
       if (noise) {
-        hps_to_add$noise <- stats::runif(1, hp_config$noise_min[1], hp_config$noise_max[1])
+        hps_to_add$noise <- stats::runif(1,
+                                         hp_config$noise_min[1],
+                                         hp_config$noise_max[1])
       }
       final_hp <- tidyr::crossing(base_ids, hps_to_add)
 
@@ -515,8 +451,7 @@ hp <- function(kern = "SE",
         dplyr::transmute(
           Output_ID = as.character(output_id),
           l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
-          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y)),
-          D_t = purrr::map2_dbl(Dt_min, Dt_max, ~stats::runif(1, .x, .y))
+          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
         )
       if (noise) {
         hps_per_output$noise <- purrr::map2_dbl(hp_config$noise_min,
@@ -529,8 +464,7 @@ hp <- function(kern = "SE",
       hps_per_task <- tibble::tibble(
         Task_ID = as.character(list_task_ID),
         l_t = stats::runif(num_tasks, hp_config$lt_min[1], hp_config$lt_max[1]),
-        S_t = stats::runif(num_tasks, hp_config$St_min[1], hp_config$St_max[1]),
-        D_t = stats::runif(num_tasks, hp_config$Dt_min[1], hp_config$Dt_max[1])
+        S_t = stats::runif(num_tasks, hp_config$St_min[1], hp_config$St_max[1])
       )
       if (noise) {
         hps_per_task$noise <- stats::runif(num_tasks,
@@ -546,8 +480,7 @@ hp <- function(kern = "SE",
                          by = "Output_ID") %>%
         dplyr::mutate(
           l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
-          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y)),
-          D_t = purrr::map2_dbl(Dt_min, Dt_max, ~stats::runif(1, .x, .y))
+          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
         ) %>%
         dplyr::select(Task_ID, Output_ID, l_t, S_t, D_t)
       if (noise) {
@@ -564,7 +497,7 @@ hp <- function(kern = "SE",
       final_hp <- hps_unique
     }
 
-    # --- Gestion de l_u_t (ne dépend que des tâches) ---
+    # Manage l_u_t case, which does not depend on output but only on task
     if (shared_hp_tasks) {
       final_hp$l_u_t <- stats::runif(1, hp_config$lu_min[1], hp_config$lu_max[1])
     } else {
@@ -579,7 +512,6 @@ hp <- function(kern = "SE",
 
   } else {
     # Case 2: Kernel is provided as a string (e.g., "SE", "SE + PERIO")
-    # This logic remains as it was in your original function.
     base_ids <- NULL
     n_draws <- 1
 
@@ -645,10 +577,12 @@ hp <- function(kern = "SE",
       if (!shared_hp_tasks && !shared_hp_outputs) {
         final_hp <- dplyr::bind_cols(base_ids, generated_hps)
       } else if (!shared_hp_tasks && shared_hp_outputs) {
-        task_hps <- dplyr::bind_cols(Task_ID = as.character(list_task_ID), generated_hps)
+        task_hps <- dplyr::bind_cols(Task_ID = as.character(list_task_ID),
+                                     generated_hps)
         final_hp <- dplyr::left_join(base_ids, task_hps, by = "Task_ID")
       } else if (shared_hp_tasks && !shared_hp_outputs) {
-        output_hps <- dplyr::bind_cols(Output_ID = as.character(list_output_ID), generated_hps)
+        output_hps <- dplyr::bind_cols(Output_ID = as.character(list_output_ID),
+                                       generated_hps)
         final_hp <- dplyr::left_join(base_ids, output_hps, by = "Output_ID")
       } else {
         final_hp <- tidyr::crossing(base_ids, generated_hps)
@@ -663,133 +597,4 @@ hp <- function(kern = "SE",
 
     return(final_hp)
   }
-}
-
-
-#' @title Generate Initial Hyperparameters for Tasks and Outputs
-#' @description Creates an initial `hp_t` tibble based on prior distributions,
-#'   handling both shared and specific hyperparameters.
-#'
-#' @param hp_t_config A named list where each element defines a prior.
-#'   Names can be generic (`l_t`) or specific (`l_t_T1`, `l_t_Oa`, `l_t_T1_Oa`)
-#'   following the format `baseName_taskID_outputID`.
-#' @param task_ids A vector of unique task IDs.
-#' @param output_ids A vector of unique output IDs.
-#' @param base_hp_names A character vector of the base hyperparameter names
-#'   (e.g., `c("l_u_t", "l_t", "S_t", "noise")`).
-#' @param shared_tasks A boolean. If `TRUE`, HPs are identical across all tasks
-#'   (unless a specific output prior is provided when `shared_hp_outputs = FALSE`).
-#' @param shared_hp_outputs A boolean. If `TRUE`, HPs are identical across all outputs.
-#'
-#' @return A tibble `hp_t` with initial values for each combination
-#'   of `Task_ID` and `Output_ID`.
-
-generate_initial_hp_t <- function(hp_t_config,
-                                  task_ids,
-                                  output_ids,
-                                  base_hp_names,
-                                  shared_tasks = TRUE,
-                                  shared_hp_outputs = TRUE) {
-
-  # Create the base tibble with all combinations
-  hp_t <- tidyr::crossing(Task_ID = task_ids, Output_ID = output_ids)
-
-  # --- Case 1: HPs shared across all tasks AND all outputs ---
-  if (shared_tasks && shared_hp_outputs) {
-    initial_values <- list()
-    for (name in base_hp_names) {
-      prior <- hp_t_config[[name]]$prior
-      if (is.null(prior)) stop(paste("Error: Generic prior is missing for HP:", name))
-
-      value <- switch(prior$dist,
-                      "gamma"    = prior$shape / prior$rate,
-                      "invgamma" = if (prior$shape > 1) prior$scale / (prior$shape - 1) else NA,
-                      "normal"   = prior$mean,
-                      stop(paste("Unsupported prior distribution:", prior$dist))
-      )
-      initial_values[[name]] <- value
-    }
-    hp_t <- dplyr::bind_cols(hp_t, tibble::as_tibble(initial_values))
-  }
-
-  # --- Case 2: HPs specific to each task, but shared across outputs ---
-  else if (!shared_tasks && shared_hp_outputs) {
-    for (hp_name in base_hp_names) {
-      values_for_tasks <- sapply(task_ids, function(current_task) {
-        specific_name <- paste0(hp_name, "_", current_task)
-
-        prior_name <- if (specific_name %in% names(hp_t_config)) specific_name else hp_name
-        prior <- hp_t_config[[prior_name]]$prior
-        if (is.null(prior)) stop(paste("Error: No prior for HP:", hp_name, "for task:", current_task))
-
-        switch(prior$dist,
-               "gamma"    = prior$shape / prior$rate,
-               "invgamma" = if (prior$shape > 1) prior$scale / (prior$shape - 1) else NA,
-               "normal"   = prior$mean,
-               stop(paste("Unsupported prior:", prior$dist)))
-      })
-      values_tibble <- tibble(Task_ID = task_ids, !!hp_name := values_for_tasks)
-      hp_t <- dplyr::left_join(hp_t, values_tibble, by = "Task_ID")
-    }
-  }
-
-  # --- Case 3: HPs shared across tasks, but specific to each output ---
-  else if (shared_tasks && !shared_hp_outputs) {
-    for (hp_name in base_hp_names) {
-      values_for_outputs <- sapply(output_ids, function(current_output) {
-        specific_name <- paste0(hp_name, "_", current_output)
-
-        prior_name <- if (specific_name %in% names(hp_t_config)) specific_name else hp_name
-        prior <- hp_t_config[[prior_name]]$prior
-        if (is.null(prior)) stop(paste("Error: No prior for HP:", hp_name, "for output:", current_output))
-
-        switch(prior$dist,
-               "gamma"    = prior$shape / prior$rate,
-               "invgamma" = if (prior$shape > 1) prior$scale / (prior$shape - 1) else NA,
-               "normal"   = prior$mean,
-               stop(paste("Unsupported prior:", prior$dist)))
-      })
-      values_tibble <- tibble(Output_ID = output_ids, !!hp_name := values_for_outputs)
-      hp_t <- dplyr::left_join(hp_t, values_tibble, by = "Output_ID")
-    }
-  }
-
-  # --- Case 4: HPs specific to each combination of task AND output ---
-  else if (!shared_tasks && !shared_hp_outputs) {
-    # Iterate over each hyperparameter name
-    for (hp_name in base_hp_names) {
-      # Use purrr::map2_dbl to apply a function over each pair of Task_ID and Output_ID
-      hp_values <- purrr::map2_dbl(hp_t$Task_ID, hp_t$Output_ID, function(current_task, current_output) {
-
-        # Hierarchical search logic for the prior
-        name_task_output <- paste0(hp_name, "_", current_task, "_", current_output)
-        name_task        <- paste0(hp_name, "_", current_task)
-        name_output      <- paste0(hp_name, "_", current_output)
-
-        prior_name <- if (name_task_output %in% names(hp_t_config)) {
-          name_task_output
-        } else if (name_task %in% names(hp_t_config)) {
-          name_task
-        } else if (name_output %in% names(hp_t_config)) {
-          name_output
-        } else {
-          hp_name
-        }
-
-        prior <- hp_t_config[[prior_name]]$prior
-        if (is.null(prior)) stop(paste("Error: No prior for HP:", hp_name, "for combo:", current_task, current_output))
-
-        switch(prior$dist,
-               "gamma"    = prior$shape / prior$rate,
-               "invgamma" = if (prior$shape > 1) prior$scale / (prior$shape - 1) else NA,
-               "normal"   = prior$mean,
-               stop(paste("Unsupported prior:", prior$dist)))
-      })
-
-      # Assign the computed values as a new column in the tibble
-      hp_t[[hp_name]] <- hp_values
-    }
-  }
-
-  return(hp_t)
 }

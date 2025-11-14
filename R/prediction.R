@@ -48,6 +48,7 @@
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    - convolution_kernel : the Convolution kernel used to manage MO scenario.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
@@ -61,12 +62,14 @@
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
-#' @return A tibble, representing the GP predictions as two column 'Mean' and
+#' @return A list, containing:
+#'    - a tibble, representing the GP predictions as two column 'Mean' and
 #'   'Var', evaluated on the \code{grid_inputs}. The column 'Input' and
 #'   additional covariates columns are associated to each predicted values.
 #'    If the \code{get_full_cov} argument is TRUE, the function returns a list,
 #'    in which the tibble described above is defined as 'pred' and the full
-#'    posterior covariance matrix is defined as 'cov'.
+#'    posterior covariance matrix is defined as 'cov';
+#'    - a matrix, corresponding to t(cov_crossed) %*% inv_obs
 #' @export
 #'
 #' @examples
@@ -79,7 +82,7 @@ pred_gp <- function(data = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
                     pen_diag = 1e-10) {
-  # browser()
+
   ## Create a dummy dataset if no data is provided
   if(data %>% is.null()){
     data = tibble::tibble(
@@ -119,11 +122,10 @@ pred_gp <- function(data = NULL,
   list_ID_output <- data$Output_ID %>% unique()
 
   data <- data %>%
-    # On groupe par toutes les colonnes qui définissent une clé...
-    group_by(Output_ID, Output, Input_ID) %>%
-    # ... et on ajoute un numéro d'observation unique à l'intérieur de ce groupe
-    mutate(obs_num = row_number()) %>%
-    ungroup()
+    dplyr::group_by(Output_ID, Output, Input_ID) %>%
+    # Add a unique number observation for the group
+    dplyr::mutate(obs_num = row_number()) %>%
+    dplyr::ungroup()
 
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
@@ -150,31 +152,6 @@ pred_gp <- function(data = NULL,
     ) %>%
     dplyr::ungroup() %>%
     dplyr::select(-obs_num)
-
-  # ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
-  # # need to pivot data to obtain one row per observation of Output_ID.
-  # # In other words, inputs are no longer in "short" format; instead, we have one
-  # # column per input.
-  # data <- data %>%
-  #   tidyr::pivot_wider(
-  #     names_from = Input_ID,
-  #     values_from = Input,
-  #     names_prefix = "Input_"
-  #   ) %>%
-  #   # Keep 6 significant digits for Inputs to avoid numerical issues
-  #   dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
-  #   rowwise() %>%
-  #   dplyr::mutate(
-  #     Reference = paste(
-  #       # Create output's prefix
-  #       paste0("o", Output_ID),
-  #       # Create the reference for each Output_ID
-  #       paste(c_across(starts_with("Input_")), collapse = ":"),
-  #       # Join output's prefix and reference
-  #       sep = ";"
-  #     )
-  #   ) %>%
-  #   dplyr::ungroup()
 
   ## Get input column names
   if ("Reference" %in% names(data)) {
@@ -263,7 +240,8 @@ pred_gp <- function(data = NULL,
 
       inputs_pred <- tibble::tibble("Input_1" = rep(input_temp,
                                                     times = nrow(unique_outputs)),
-                                    "Output_ID" = rep(unique_outputs %>% as_vector(),
+                                    "Output_ID" = rep(unique_outputs %>%
+                                                        purrr::as_vector(),
                                                       each = length(input_temp))) %>%
         dplyr::rowwise() %>%
         dplyr::mutate(
@@ -312,11 +290,13 @@ pred_gp <- function(data = NULL,
     ## Test whether 'data' has the same columns as grid_inputs
     if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
       input_pred <- grid_inputs %>%
-        # dplyr::arrange(Reference) %>% # Ne surtout pas arrange avec Reference à cause de l'ordre lexico
+        # DO NOT arrange Reference because of the lexicographic order
+        # (not armful but unnecessary in Magma case, tragic in MO case)
         dplyr::pull(Reference)
 
       inputs_pred <- grid_inputs %>%
-        # dplyr::arrange(Reference) %>% # Ne surtout pas arrange avec Reference à cause de l'ordre lexico
+        # DO NOT arrange Reference because of the lexicographic order
+        # (not armful but unnecessary in Magma case, tragic in MO case)
         dplyr::select(names(inputs_obs))
     } else {
       stop(
@@ -459,8 +439,6 @@ pred_gp <- function(data = NULL,
                                  dplyr:: select(-Output_ID))
   }
 
-  # browser()
-
   ## Order data_obs - mean_obs according to the column names of inv_obs
   obs <- data_obs - mean_obs
   obs <- obs[colnames(inv_obs)]
@@ -509,7 +487,7 @@ pred_gp <- function(data = NULL,
   if (plot) {
 
     ## Display samples only in 1D and Credible Interval otherwise
-    display_samples = dplyr::if_else(ncol(pred_gp) == 3, TRUE, FALSE)
+    display_samples = dplyr::if_else(ncol(pred_gp) == 4, TRUE, FALSE)
 
     plot_gp(
       list('pred' = pred_gp, 'cov' = pred_cov),
@@ -570,6 +548,7 @@ pred_gp <- function(data = NULL,
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    - convolution_kernel : the Convolution kernel used to manage MO scenario.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
@@ -578,7 +557,7 @@ pred_gp <- function(data = NULL,
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not). Recovered from
 #'    \code{trained_model} if not provided.
 #' @param kern_t A kernel function, associated with the task GPs. ("SE",
-#'    "PERIO" and "RQ" are aso available here). Recovered from
+#'    "PERIO", "RQ" and convolution_kernel are aso available here). Recovered from
 #'    \code{trained_model} if not provided.
 #' @param weight_inv_0 A number, indicating the weight that the user wants to
 #'  attribute to the inverse prior covariance inv_0.
@@ -627,7 +606,7 @@ hyperposterior <- function(trained_model = NULL,
                            prior_mean = NULL,
                            grid_inputs = NULL,
                            pen_diag = 1e-10) {
-  # browser()
+
   ## Check whether a model trained by train_magma() is provided
   if(trained_model %>% is.null()){
     ## Check whether all mandatory arguments are present otherwise
@@ -651,9 +630,8 @@ hyperposterior <- function(trained_model = NULL,
   }
 
   data <- data %>%
-    # On groupe par toutes les colonnes qui définissent une clé...
     group_by(Task_ID, Output_ID, Output, Input_ID) %>%
-    # ... et on ajoute un numéro d'observation unique à l'intérieur de ce groupe
+    # Add a unique number observation for the group
     mutate(obs_num = row_number()) %>%
     ungroup()
 
@@ -683,35 +661,10 @@ hyperposterior <- function(trained_model = NULL,
     dplyr::ungroup() %>%
     dplyr::select(-obs_num)
 
-  # ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
-  # # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
-  # # In other words, inputs are no longer in "short" format; instead, we have one
-  # # column per input.
-  # data <- data %>%
-  #   tidyr::pivot_wider(
-  #     names_from = Input_ID,
-  #     values_from = Input,
-  #     names_prefix = "Input_"
-  #   ) %>%
-  #   # Keep 6 significant digits for Inputs to avoid numerical issues
-  #   mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
-  #   rowwise() %>%
-  #   mutate(
-  #     Reference = paste(
-  #       # Create output's prefix
-  #       paste0("o", Output_ID),
-  #       # Create the reference for each Output_ID
-  #       paste(c_across(starts_with("Input_")), collapse = ":"),
-  #       # Join output's prefix and reference
-  #       sep = ";"
-  #     )
-  #   ) %>%
-  #   ungroup()
-
   ## Check that tasks do not have duplicate inputs for each output
   task_duplicates <- data %>%
-    count(Task_ID, Reference) %>%
-    filter(n > 1)
+    dplyr::count(Task_ID, Reference) %>%
+    dplyr::filter(n > 1)
 
   if (nrow(task_duplicates) > 0) {
     stop("Error: At least one task has duplicates, i.e. several 'Output' values",
@@ -741,10 +694,10 @@ hyperposterior <- function(trained_model = NULL,
       dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
       dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
       dplyr::select(c(Input_1, Reference))
-      # dplyr::select(c(Input_1, Reference, Output_ID))
 
     all_input <- all_inputs %>%
-      # dplyr::arrange(Reference) %>%
+      ## DO NOT arrange Reference because of the lexicographic order
+      # (not armful but unnecessary in Magma case, tragic in MO case)
       dplyr::pull(Reference)
     cat(
       "The argument 'grid_inputs' is NULL, the hyper-posterior distribution",
@@ -797,7 +750,8 @@ hyperposterior <- function(trained_model = NULL,
       dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
       dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
       dplyr::select(c(Input_1, Reference, Output_ID))
-      # dplyr::arrange(Reference)
+    # DO NOT arrange Reference because of the lexicographic order
+    # (not armful but unnecessary in Magma case, tragic in MO case)
 
     all_input <- all_inputs %>% dplyr::pull(Reference)
 
@@ -871,7 +825,6 @@ hyperposterior <- function(trained_model = NULL,
                          hp = hp_0)
 
     all_references <- rownames(cov_0)
-    # matrixcalc::is.positive.semi.definite(cov_0)
     inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
     # matrixcalc::is.positive.semi.definite(inv_0)
     # Re-apply the stored names to the inverted matrix
@@ -884,9 +837,7 @@ hyperposterior <- function(trained_model = NULL,
                            dplyr::select(-Output_ID))
 
     all_references <- rownames(cov_0)
-    # matrixcalc::is.positive.semi.definite(cov_0)
     inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
-    # matrixcalc::is.positive.semi.definite(inv_0)
     # Re-apply the stored names to the inverted matrix
     dimnames(inv_0) <- list(all_references, all_references)
     inv_0 <- weight_inv_0 * inv_0
@@ -920,7 +871,8 @@ hyperposterior <- function(trained_model = NULL,
         dplyr::filter(Task_ID == t) %>%
         dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
         unique()
-        # dplyr::arrange(Reference)
+        ## DO NOT arrange Reference because of the lexicographic order
+        # (not armful but unnecessary in Magma case, tragic in MO case)
 
       K_task_t <- kern_to_cov(
         input = all_inputs_t,
@@ -934,7 +886,6 @@ hyperposterior <- function(trained_model = NULL,
 
     # Invert the covariance matrix (this strips the names)
     K_inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
-    # paste0('Det de K_inv_t, avec t = ', t, ' : ', det(K_inv_t))
 
     # Re-apply the stored names to the inverted matrix
     dimnames(K_inv_t) <- list(task_references, task_references)
@@ -948,10 +899,9 @@ hyperposterior <- function(trained_model = NULL,
   # Create a named list of output values, split by task
   list_output_t <- base::split(data$Output, list(data$Task_ID))
 
-  ##--------------- Update Posterior Inverse Covariance ---------------##
+  ## Update Posterior Inverse Covariance
   post_inv <- inv_0
   for (inv_t in list_inv_t) {
-    # browser()
     # Find the common input points between the mean process and the current task
     co_input <- intersect(row.names(inv_t), row.names(post_inv))
 
@@ -972,7 +922,7 @@ hyperposterior <- function(trained_model = NULL,
       `colnames<-`(all_inputs$Reference)
   }
 
-  ##--------------------- Update Posterior Mean ---------------------##
+  ## Update Posterior Mean
   weighted_0 <- inv_0 %*% m_0
 
   for (t in names(list_inv_t)) {
@@ -1059,6 +1009,7 @@ hyperposterior <- function(trained_model = NULL,
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    - convolution_kernel : the Convolution kernel used to manage MO scenario.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
@@ -1087,14 +1038,16 @@ hyperposterior <- function(trained_model = NULL,
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
-#' @return A tibble, representing Magma predictions as two column 'Mean' and
+#' @return A list, containing :
+#'    - a tibble, representing Magma predictions as two column 'Mean' and
 #'   'Var', evaluated on the \code{grid_inputs}. The column 'Input' and
 #'   additional covariates columns are associated to each predicted values.
 #'    If the \code{get_full_cov} or \code{get_hyperpost} arguments are TRUE,
 #'    the function returns a list, in which the tibble described above is
 #'    defined as 'pred_gp' and the full posterior covariance matrix is
 #'    defined as 'cov', and the hyper-posterior distribution of the mean process
-#'    is defined as 'hyperpost'.
+#'    is defined as 'hyperpost';
+#'    - a ponderation matrix, corresponding to t(cov_crossed) %*% inv_obs.
 #' @export
 #'
 #' @examples
@@ -1109,7 +1062,7 @@ pred_magma <- function(data = NULL,
                        get_full_cov = FALSE,
                        plot = TRUE,
                        pen_diag = 1e-10) {
-  # browser()
+
   ## Return the mean process if no data is provided
   if(data %>% is.null()){
     ## Check whether trained_model is provided
@@ -1181,11 +1134,10 @@ pred_magma <- function(data = NULL,
   }
 
   data <- data %>%
-    # On groupe par toutes les colonnes qui définissent une clé...
-    group_by(Output_ID, Output, Input_ID) %>%
-    # ... et on ajoute un numéro d'observation unique à l'intérieur de ce groupe
-    mutate(obs_num = row_number()) %>%
-    ungroup()
+    dplyr::group_by(Output_ID, Output, Input_ID) %>%
+    # Add a unique number observation for the group
+    dplyr::mutate(obs_num = row_number()) %>%
+    dplyr::ungroup()
 
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
@@ -1300,7 +1252,8 @@ pred_magma <- function(data = NULL,
 
       inputs_pred <- tibble::tibble("Input_1" = rep(input_temp,
                                                     times = nrow(unique_outputs)),
-                                    "Output_ID" = rep(unique_outputs %>% as_vector(),
+                                    "Output_ID" = rep(unique_outputs %>%
+                                                        purrr::as_vector(),
                                                       each = length(input_temp))) %>%
         dplyr::rowwise() %>%
         dplyr::mutate(
@@ -1349,11 +1302,13 @@ pred_magma <- function(data = NULL,
     ## Test whether 'data' has the same columns as grid_inputs
     if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
       input_pred <- grid_inputs %>%
-        # dplyr::arrange(Reference) %>%
+        # DO NOT arrange Reference because of the lexicographic order
+        # (not armful but unnecessary in Magma case, tragic in MO case)
         dplyr::pull(Reference)
 
       inputs_pred <- grid_inputs %>%
-        # dplyr::arrange(Reference) %>%
+        # DO NOT arrange Reference because of the lexicographic order
+        # (not armful but unnecessary in Magma case, tragic in MO case)
         dplyr::select(names(inputs_obs))
     } else {
       stop(
@@ -1371,7 +1326,8 @@ pred_magma <- function(data = NULL,
 
   ## Define the union of all distinct reference Input
   all_inputs <- dplyr::union(inputs_obs, inputs_pred)
-    # dplyr::arrange(Reference)
+  # DO NOT arrange Reference because of the lexicographic order
+  # (not armful but unnecessary in Magma case, tragic in MO case)
   all_input <- all_inputs$Reference
 
 
@@ -1441,7 +1397,8 @@ pred_magma <- function(data = NULL,
 
   mean_obs <- hyperpost$mean %>%
     dplyr::filter(Reference %in% input_obs) %>%
-    # dplyr::arrange(Reference) %>%
+    # DO NOT arrange Reference because of the lexicographic order
+    # (not armful but unnecessary in Magma case, tragic in MO case)
     dplyr::pull(Output)
 
   names(mean_obs) <- (hyperpost$mean %>%
@@ -1449,7 +1406,8 @@ pred_magma <- function(data = NULL,
 
   mean_pred <- hyperpost$mean %>%
     dplyr::filter(Reference %in% input_pred) %>%
-    # dplyr::arrange(Reference) %>%
+    # DO NOT arrange Reference because of the lexicographic order
+    # (not armful but unnecessary in Magma case, tragic in MO case)
     dplyr::pull(Output)
 
   names(mean_pred) <- (hyperpost$mean %>%
@@ -1538,9 +1496,13 @@ pred_magma <- function(data = NULL,
   if(length(inputs_obs$Output_ID %>% unique()) == 1){
     inputs_obs <- inputs_obs %>%
       dplyr::select(-Output_ID)
+    # DO NOT arrange Reference because of the lexicographic order
+    # (not armful but unnecessary in Magma case, tragic in MO case)
 
     inputs_pred <- inputs_pred %>%
       dplyr::select(-Output_ID)
+    # DO NOT arrange Reference because of the lexicographic order
+    # (not armful but unnecessary in Magma case, tragic in MO case)
   }
 
   ## Sum the covariance matrices on observed inputs and compute the inverse
@@ -1610,7 +1572,7 @@ pred_magma <- function(data = NULL,
     res[["cov"]] <- pred_cov
 
     ## Display samples only in 1D and Credible Interval otherwise
-    display_samples = dplyr::if_else(ncol(pred_gp) == 3, TRUE, FALSE)
+    display_samples = dplyr::if_else(ncol(pred_gp) == 4, TRUE, FALSE)
 
     ## Plot results
     plot_gp(res,

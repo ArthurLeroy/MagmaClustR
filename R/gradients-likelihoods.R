@@ -10,6 +10,8 @@
 #'    individual in Magma.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
+#' @param hp_col_names A character vector with the names of the hyper-parameters
+#'   (e.g., c("l_t", "S_t")).
 #'
 #' @return A named vector, corresponding to the value of the hyper-parameters
 #'    gradients for the Gaussian log-Likelihood (where the covariance can be the
@@ -26,9 +28,9 @@ gr_GP <- function(hp,
                   post_cov,
                   pen_diag,
                   hp_col_names) {
-  # browser()
+
   if(!(hp %>% tibble::is_tibble()) && length(db$Output_ID %>% unique()) > 1){
-    # 1. Reconstruct the structured HP tibble from the flat vector
+    # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
       par_vector = hp,
       hp_names = hp_col_names,
@@ -46,8 +48,8 @@ gr_GP <- function(hp,
 
   list_ID_outputs <- db$Output_ID %>% unique()
 
-  # 2. Build and invert the full multi-output covariance matrix
-  #    'inputs' must contain the 'Output_ID' column for the kernel to work
+  # Build and invert the full multi-output covariance matrix
+  # 'inputs' must contain the 'Output_ID' column for the kernel to work
   if(length(list_ID_outputs) > 1 && !(kern %>% is.character())){
     # MO inversion of the TASK covariance
     # Call kern_to_cov directly.
@@ -132,9 +134,6 @@ gr_GP <- function(hp,
 #' @param pen_diag A jitter term for numerical stability.
 #' @param hp_col_names A character vector with the names of the hyper-parameters.
 #' @param output_ids A character vector with the unique IDs of the outputs.
-#' @param priors A list or tibble containing prior information, e.g.,
-#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
-#'   If NULL, performs ML estimation.
 #'
 #' @return A named vector of gradients for each hyper-parameter.
 #'
@@ -147,10 +146,10 @@ gr_GP_mod <- function(hp,
                       pen_diag,
                       hp_col_names,
                       output_ids,
-                      priors,
                       ...) {
+
   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
-    # 1. Reconstruct the structured HP tibble from the flat vector
+    # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
       par_vector = hp,
       hp_names = hp_col_names,
@@ -167,8 +166,8 @@ gr_GP_mod <- function(hp,
   }
 
   list_ID_outputs <- db$Output_ID %>% unique()
-  # 2. Build and invert the full multi-output covariance matrix
-  #    'inputs' must contain the 'Output_ID' column for the kernel to work
+  # Build and invert the full multi-output covariance matrix
+  # 'inputs' must contain the 'Output_ID' column for the kernel to work
   if(length(list_ID_outputs) > 1 && !(kern %>% is.character())){
     # MO inversion of the TASK covariance
     # Call kern_to_cov directly.
@@ -202,7 +201,6 @@ gr_GP_mod <- function(hp,
       dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
       dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
       dplyr::select(c(Input_1, Reference))
-      # dplyr::arrange(Reference)
 
     if("Task_ID" %in% colnames(all_inputs)){
       all_inputs <- all_inputs %>% select(-Task_ID)
@@ -217,13 +215,13 @@ gr_GP_mod <- function(hp,
     )
   }
 
-  # 3. Compute the term common to all partial derivatives
+  # Compute the term common to all partial derivatives
   prod_inv <- inv %*% (db$Output - mean)
 
   common_term <- prod_inv %*% t(prod_inv) +
     inv %*% (post_cov %*% inv - diag(1, nrow(db)))
 
-  # 4. Loop over HPs to compute the gradient for each
+  # Loop over HPs to compute the gradient for each
   # The derivative names must match what the kernel expects in its 'deriv'
   ## argument
   floop <- function(deriv_name) {
@@ -246,7 +244,6 @@ gr_GP_mod <- function(hp,
         dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
         dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
         dplyr::select(c(Input_1, Reference))
-        # dplyr::arrange(Reference)
 
       if("Task_ID" %in% colnames(all_inputs)){
         all_inputs <- all_inputs %>% select(-Task_ID)
@@ -267,61 +264,7 @@ gr_GP_mod <- function(hp,
   # Return a named vector of gradients
   neg_grad_Q  <- sapply(hp_col_names, floop, USE.NAMES = TRUE)
 
-  # 5. Add the negative gradient of the log-prior for MAP
-  neg_grad_log_prior <- rep(0, length(neg_grad_Q))
-  names(neg_grad_log_prior) <- names(neg_grad_Q)
-
-  if (length(priors)!=0) {
-    # On itère sur chaque nom de paramètre du vecteur d'optimisation (ex: "l_t_1")
-    for (param_name in names(neg_grad_log_prior)) {
-
-      # --- ÉTAPE 1 : Extraire le nom de la colonne (ex: "l_t_1" -> "l_t") ---
-      col_name <- gsub("_\\d+$", "", param_name)
-
-      # Vérifier si un prior est défini pour ce type de paramètre
-      if (col_name %in% names(priors)) {
-
-        # --- ÉTAPE 2 : Extraire l'index de la ligne (ex: "l_t_1" -> 1) ---
-        # On utilise une expression régulière pour trouver le nombre à la fin
-        output_index_str <- sub(".*_(\\d+)$", "\\1", param_name)
-
-        # Si un nombre est trouvé, on le convertit. Sinon (cas de "l_u_t"), on prend la 1ère ligne.
-        row_index <- if (grepl("\\d+", output_index_str)) {
-          as.numeric(output_index_str)
-        } else {
-          1
-        }
-
-        # --- ÉTAPE 3 : Récupérer la valeur unique de l'HP ---
-        current_hp_value <- hp_tibble[[col_name]][row_index]
-
-        # --- ÉTAPE 4 : Calculer le gradient comme avant ---
-        prior_info <- priors[[col_name]]
-        grad_log_p <- 0
-
-        if (prior_info$dist == "invgamma") {
-          alpha <- prior_info$shape
-          beta <- prior_info$scale
-          grad_log_p <- - (alpha + 1) / current_hp_value + beta / (current_hp_value^2)
-        } else if (prior_info$dist == "gamma") {
-          alpha <- prior_info$shape
-          beta <- prior_info$rate
-          grad_log_p <- (alpha - 1) / current_hp_value - beta
-        } else if (prior_info$dist == "normal") {
-          mu <- prior_info$mean
-          sigma <- prior_info$sd
-          grad_log_p <- - (current_hp_value - mu) / (sigma^2)
-        }
-
-        if(is.na(grad_log_p) || is.infinite(grad_log_p)) grad_log_p <- 0
-
-        # --- ÉTAPE 5 : Assigner le gradient à la bonne place ---
-        neg_grad_log_prior[param_name] <- -grad_log_p
-      }
-    }
-  }
-
-  final_gradient <- neg_grad_Q + neg_grad_log_prior
+  final_gradient <- neg_grad_Q
   return(final_gradient)
 }
 
@@ -341,9 +284,6 @@ gr_GP_mod <- function(hp,
 #' @param pen_diag A jitter term for numerical stability.
 #' @param hp_col_names A character vector with the names of the hyper-parameters.
 #' @param output_ids A character vector with the unique IDs of the outputs.
-#' @param priors A list or tibble containing prior information, e.g.,
-#'   list(l_t = list(dist = "invgamma", shape = 2, scale = 1), ...).
-#'   If NULL, performs ML estimation.
 #'
 #' @return A named vector, the total gradient across all tasks.
 #'
@@ -355,8 +295,7 @@ gr_GP_mod_shared_tasks <- function(hp,
                                 post_cov,
                                 pen_diag,
                                 hp_col_names,
-                                output_ids,
-                                priors) {
+                                output_ids) {
 
   # Loop over each task ID to compute its gradient vector
   funloop <- function(t) {
@@ -371,7 +310,6 @@ gr_GP_mod_shared_tasks <- function(hp,
       dplyr::pull(Output)
 
     post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
-    # browser()
     # Call the single-task gradient function, passing all arguments through
     gr_GP_mod(
       hp = hp,
@@ -381,8 +319,7 @@ gr_GP_mod_shared_tasks <- function(hp,
       post_cov = post_cov_t,
       pen_diag = pen_diag,
       hp_col_names = hp_col_names,
-      output_ids = output_ids,
-      priors = priors
+      output_ids = output_ids
     )
 
   }
