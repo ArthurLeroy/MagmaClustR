@@ -147,7 +147,6 @@ plot_gp <- function(pred_gp,
                     size_data = 3,
                     size_data_train = 1,
                     alpha_data_train = 0.5) {
-
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
   }

@@ -1078,7 +1078,6 @@ pred_magma <- function(data = NULL,
         hyperpost = trained_model$hyperpost
 
       } else{
-        # browser()
         ## Recompute the mean process at the required inputs if necessary
         hyperpost = hyperposterior(
           trained_model = trained_model,
@@ -1121,6 +1120,8 @@ pred_magma <- function(data = NULL,
     }
   }
 
+  ## Keep a version of raw 'data-to-predict' (used only if plot == TRUE)
+  raw_data <- data
 
   ## Remove the 'ID' column if present
   if ("Task_ID" %in% names(data)) {
@@ -1574,12 +1575,19 @@ pred_magma <- function(data = NULL,
     ## Display samples only in 1D and Credible Interval otherwise
     display_samples = dplyr::if_else(ncol(pred_gp) == 4, TRUE, FALSE)
 
+    if(length(data_train$Output_ID %>% unique()) == 1){
+      res$pred$Output_ID <- as.factor("1")
+    }
+
     ## Plot results
     plot_gp(res,
-            data = data,
-            data_train = data_train,
+            data = raw_data,
+            data_train = data_train %>%
+              group_by(Task_ID, Output_ID, Output, Input_ID) %>%
+              mutate(obs_num = row_number()) %>%
+              ungroup(),
             prior_mean = hyperpost$mean %>%
-              dplyr::select(-.data$Reference),
+              dplyr::select(-Reference),
             samples = display_samples
             ) %>%
       print()

@@ -205,94 +205,224 @@ regularize_data <- function(data,
 #' @export
 regularise_data <- regularize_data
 
-#' Run a k-means algorithm to initialise clusters' allocation
+#' #' Run a k-means algorithm to initialise clusters' allocation
+#' #'
+#' #' @param data A tibble containing common Input and associated Output values
+#' #'   to cluster.
+#' #' @param k A number of clusters assumed for running the kmeans algorithm.
+#' #' @param nstart A number, indicating how many re-starts of kmeans are set.
+#' #' @param summary A boolean, indicating whether we want an outcome summary
+#' #'
+#' #' @return A tibble containing the initial clustering obtained through kmeans.
+#' #'
+#' #' @keywords internal
+#' #'
+#' #' @examples
+#' #' TRUE
+#' ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
+#'   # if (!identical(
+#'   #   unique(data$Input),
+#'   #   data %>%
+#'   #     dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
+#'   #     dplyr::pull(.data$Input)
+#'   # )) {
+#'   floop <- function(i) {
+#'     obs_i <- data %>%
+#'       dplyr::filter(.data$ID == i) %>%
+#'       dplyr::pull(.data$Output)
+#'     tibble::tibble(
+#'       "ID" = i,
+#'       "Input" = seq_len(3),
+#'       "Output" = c(min(obs_i), mean(obs_i), max(obs_i))
+#'     ) %>%
+#'       return()
+#'   }
+#'   db_regular <- unique(data$ID) %>%
+#'     lapply(floop) %>%
+#'     dplyr::bind_rows() %>%
+#'     dplyr::select(c(.data$ID, .data$Input, .data$Output))
+#'   # } else {
+#'   #   db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
+#'   # }
 #'
-#' @param data A tibble containing common Input and associated Output values
-#'   to cluster.
-#' @param k A number of clusters assumed for running the kmeans algorithm.
-#' @param nstart A number, indicating how many re-starts of kmeans are set.
-#' @param summary A boolean, indicating whether we want an outcome summary
+#'   res <- db_regular %>%
+#'     tidyr::spread(key = .data$Input, value = .data$Output) %>%
+#'     dplyr::select(-.data$ID) %>%
+#'     stats::kmeans(centers = k, nstart = nstart)
 #'
-#' @return A tibble containing the initial clustering obtained through kmeans.
+#'   if (summary) {
+#'     res %>% print()
+#'   }
 #'
-#' @keywords internal
+#'   broom::augment(
+#'     res,
+#'     db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)
+#'   ) %>%
+#'     dplyr::select(c(.data$ID, .data$.cluster)) %>%
+#'     dplyr::rename(Cluster_ini = .data$.cluster) %>%
+#'     dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
+#'     return()
+#' }
+
+
+#' Output-Specific K-Means Initialization
 #'
-#' @examples
-#' TRUE
+#' @description
+#' Performs an independent K-means clustering for each Output_ID.
+#' It aggregates the 'Output' values by 'Task_ID' to extract summary features
+#' (min, mean, max) before clustering.
+#'
+#' @param data A tibble containing columns: 'Task_ID', 'Input_ID', 'Input',
+#'  Output', 'Output_ID'.
+#' @param k Integer. Number of clusters (applied to each output).
+#' @param nstart Integer. Number of random sets for k-means.
+#' @param summary Logical. If TRUE, prints the k-means result for each output.
+
 ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
-  # if (!identical(
-  #   unique(data$Input),
-  #   data %>%
-  #     dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
-  #     dplyr::pull(.data$Input)
-  # )) {
-  floop <- function(i) {
-    obs_i <- data %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Output)
+  # Get list of unique outputs
+  list_outputs <- unique(data$Output_ID) %>% sort()
+
+  # Define a local function to run K-means on a single output subset
+  run_kmeans_on_subset <- function(sub_data, current_output) {
+
+    # Feature Extraction
+    # Group by 'Task_ID' (the curve identifier)
+    features_df <- sub_data %>%
+      dplyr::group_by(.data$Task_ID) %>%
+      dplyr::summarise(
+        val_min  = min(.data$Output, na.rm = TRUE),
+        val_mean = mean(.data$Output, na.rm = TRUE),
+        val_max  = max(.data$Output, na.rm = TRUE),
+        .groups  = "drop"
+      ) %>%
+      tidyr::drop_na()
+
+    # Prepare Matrix for K-Means
+    # Remove the identifier to keep only numerical features
+    mat_kmeans <- features_df %>%
+      dplyr::select(-.data$Task_ID)
+
+    # Run K-Means
+    # Safety check: enough tasks to form k clusters?
+    if (nrow(mat_kmeans) < k) {
+      stop(sprintf("Not enough tasks in Output %s (n=%d) to form %d clusters.",
+                   current_output, nrow(mat_kmeans), k))
+    }
+
+    res_km <- stats::kmeans(mat_kmeans, centers = k, nstart = nstart)
+
+    if (summary) {
+      cat(sprintf("\n K-Means Summary for Output %s \n", current_output))
+      print(res_km)
+    }
+
+    # Format Result
+    # Re-associate Task_ID with the found cluster
     tibble::tibble(
-      "ID" = i,
-      "Input" = seq_len(3),
-      "Output" = c(min(obs_i), mean(obs_i), max(obs_i))
+      Task_ID = features_df$Task_ID,
+      Output_ID = current_output,
+      Cluster_ini = paste0("K", res_km$cluster)
     ) %>%
       return()
   }
-  db_regular <- unique(data$ID) %>%
-    lapply(floop) %>%
-    dplyr::bind_rows() %>%
-    dplyr::select(c(.data$ID, .data$Input, .data$Output))
-  # } else {
-  #   db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
-  # }
 
-  res <- db_regular %>%
-    tidyr::spread(key = .data$Input, value = .data$Output) %>%
-    dplyr::select(-.data$ID) %>%
-    stats::kmeans(centers = k, nstart = nstart)
+  # Apply independently for each Output_ID
+  results_df <- purrr::map_dfr(list_outputs, function(out_id) {
+    sub_data <- data %>% dplyr::filter(.data$Output_ID == out_id)
+    run_kmeans_on_subset(sub_data, out_id)
+  })
 
-  if (summary) {
-    res %>% print()
-  }
-
-  broom::augment(
-    res,
-    db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)
-  ) %>%
-    dplyr::select(c(.data$ID, .data$.cluster)) %>%
-    dplyr::rename(Cluster_ini = .data$.cluster) %>%
-    dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
-    return()
+  return(results_df)
 }
 
 
-#' Mixture initialisation with kmeans
+#' #' Mixture initialisation with kmeans
+#' #'
+#' #' Provide an initial kmeans allocation of the individuals/tasks in a dataset
+#' #' into a definite number of clusters, and return the associated mixture
+#' #' probabilities.
+#' #'
+#' #' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
+#' #'    , \code{Output}.
+#' #' @param k A number, indicating the number of clusters.
+#' #' @param name_clust A vector of characters. Each element should correspond to
+#' #'    the name of one cluster.
+#' #' @param nstart A number of restart used in the underlying kmeans algorithm
+#' #'
+#' #' @return A tibble indicating for each \code{ID} in which cluster it belongs
+#' #'    after a kmeans initialisation.
+#' #'
+#' #' @keywords internal
+#' #'
+#' #' @examples
+#' #' TRUE
+#' ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
+#'   db_ini <- ini_kmeans(data, k, nstart) %>%
+#'     dplyr::mutate(value = 1) %>%
+#'     tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0)
 #'
-#' Provide an initial kmeans allocation of the individuals/tasks in a dataset
-#' into a definite number of clusters, and return the associated mixture
-#' probabilities.
+#'   if (!is.null(name_clust)) {
+#'     names(db_ini) <- c("ID", name_clust)
+#'   }
 #'
-#' @param data A tibble or data frame. Required columns: \code{ID}, \code{Input}
-#'    , \code{Output}.
-#' @param k A number, indicating the number of clusters.
-#' @param name_clust A vector of characters. Each element should correspond to
-#'    the name of one cluster.
-#' @param nstart A number of restart used in the underlying kmeans algorithm
-#'
-#' @return A tibble indicating for each \code{ID} in which cluster it belongs
-#'    after a kmeans initialisation.
-#'
-#' @keywords internal
-#'
-#' @examples
-#' TRUE
-ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
-  db_ini <- ini_kmeans(data, k, nstart) %>%
-    dplyr::mutate(value = 1) %>%
-    tidyr::spread(key = .data$Cluster_ini, value = .data$value, fill = 0)
+#'   return(db_ini)
+#' }
 
+
+#' Mixture initialization with Output-Specific K-means
+#'
+#' @description
+#' Provide an initial K-means allocation of the tasks into a definite number of
+#' clusters, performed independently for each Output.
+#' It returns a tibble where the cluster membership is one-hot encoded (0 or 1)
+#' for each Task and Output combination.
+#'
+#' @param data A tibble. Required columns: `Task_ID`, `Input`, `Input_ID`,
+#'  `Output`, `Output_ID`.
+#' @param k A number, indicating the number of clusters per output.
+#' @param name_clust A vector of characters. Custom names for the clusters.
+#'    If NULL, defaults to "K1", "K2", etc.
+#' @param nstart A number of restarts used in the underlying kmeans algorithm.
+#'
+#' @return A tibble containing `Task_ID`, `Output_ID`, and one column per cluster
+#'    (containing 1 if the task belongs to the cluster for that output, 0 otherwise).
+#'
+#' @export
+ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
+
+  # Run the updated independent K-means
+  # Returns columns: Task_ID, Output_ID, Cluster_ini (e.g., "K1", "K2")
+  db_ini <- ini_kmeans(data, k, nstart)
+
+  # Pivot to Matrix/Probabilities format (One-Hot Encoding)
+  # We transform "K1" into a column "K1" with value 1, others 0.
+  db_mixture <- db_ini %>%
+    dplyr::mutate(value = 1) %>%
+    tidyr::pivot_wider(
+      names_from = .data$Cluster_ini,
+      values_from = .data$value,
+      values_fill = 0
+    )
+
+  # Rename cluster columns if custom names are provided
   if (!is.null(name_clust)) {
-    names(db_ini) <- c("ID", name_clust)
+    # Validation: ensure length matches k
+    if(length(name_clust) != k) {
+      stop("The length of 'name_clust' must match the number of clusters 'k'.")
+    }
+
+    # We assume the columns are generated in order K1, K2...
+    # The first 2 columns are Task_ID and Output_ID, the rest are clusters.
+    # This renaming assumes pivot_wider kept the alphanumeric order of K1..Kk
+    cluster_col_indices <- 3:ncol(db_mixture)
+
+    # Safety check
+    if(length(cluster_col_indices) != k) {
+      warning("Number of cluster columns found differs from 'k'. Renaming might be incorrect.")
+    }
+
+    colnames(db_mixture)[cluster_col_indices] <- name_clust
   }
 
-  return(db_ini)
+  return(db_mixture)
 }

@@ -482,7 +482,7 @@ hp <- function(kern = "SE",
           l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
           S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
         ) %>%
-        dplyr::select(Task_ID, Output_ID, l_t, S_t, D_t)
+        dplyr::select(Task_ID, Output_ID, l_t, S_t)
       if (noise) {
         hps_unique <- base_ids %>%
           dplyr::left_join(hp_config %>%

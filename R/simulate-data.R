@@ -722,6 +722,205 @@ simulate_multi_output_data_convol <- function(
 }
 
 
+#' Simulate a Multi-Output, Multi-Task, Clustered Dataset (Convolution Kernel)
+#'
+#' @description
+#' Generates a synthetic dataset structured for MagmaClust models.
+#' Returns a tibble of task hyperparameters that includes a 'Cluster_ID' column.
+#'
+#' @param nb_clusters Integer. The number of underlying clusters to generate.
+#' @param tasks_per_cluster Integer. The number of tasks to simulate per cluster.
+#' @param points_per_output_grid Numeric vector. Points for the dense grid per output.
+#' @param grid_ranges List of numeric vectors (length 2). Input domain c(min, max).
+#' @param prior_means Vector or List. Prior means for the mean processes.
+#' @param shared_hp_clusts Logical. If TRUE, clusters share the same HP values.
+#' @param hp_config_mean_process Tibble. HP configuration for mean processes.
+#' @param hp_config_tasks Tibble. HP configuration for tasks.
+#' @param n_points_per_task_range Numeric vector c(min, max).
+#' @param shared_hp_tasks Logical. If TRUE, tasks share the same HP values.
+#' @param shared_hp_outputs Logical. If TRUE, outputs share the same HP values.
+#' @param shared_grid_outputs Logical. If TRUE, outputs share the same grid outputs.
+#'
+#' @return A list containing simulated data and hyperparameters (with Cluster_ID).
+#' @export
+
+simulate_magmaclust_data_convol <- function(
+    nb_clusters = 3,
+    tasks_per_cluster = 10,
+    points_per_output_grid = c(500, 150),
+    grid_ranges = list(c(0, 10), c(0, 10)),
+    prior_means = c(0, 0),
+    shared_hp_clusts = FALSE,
+    hp_config_mean_process = tibble::tibble(
+      output_id = 1:2,
+      l0_min = c(-3, -3), l0_max = c(3, 3),
+      S0_min = c(-3, -3), S0_max = c(3, 3),
+      lu0_min = c(-1, -1), lu0_max = c(3, 3)
+    ),
+    hp_config_tasks = tibble::tibble(
+      output_id = 1:2,
+      lt_min = c(-3, -3), lt_max = c(3, 3),
+      St_min = c(-3, -3), St_max = c(3, 3),
+      noise_min = c(-3, -3), noise_max = c(0, 0),
+      lu_min = c(-1, -1), lu_max = c(3, 3)
+    ),
+    n_points_per_task_range = c(5, 20),
+    shared_hp_tasks = FALSE,
+    shared_hp_outputs = FALSE,
+    shared_grid_outputs = FALSE
+) {
+
+  num_outputs <- length(points_per_output_grid)
+
+  # Control step
+  expected_rows <- if(shared_hp_clusts) num_outputs else (num_outputs * nb_clusters)
+
+  if(nrow(hp_config_mean_process) != expected_rows) stop("Dimension mismatch in hp_config_mean_process.")
+  if(nrow(hp_config_tasks) != expected_rows) stop("Dimension mismatch in hp_config_tasks.")
+
+  # Prior means
+  list_prior_means <- list()
+  if (is.list(prior_means)) {
+    list_prior_means <- prior_means
+  } else if (is.vector(prior_means)) {
+    if (length(prior_means) == num_outputs * nb_clusters) {
+      for (k in 1:nb_clusters) {
+        indices_k <- seq(from = k, to = length(prior_means), by = nb_clusters)
+        list_prior_means[[k]] <- prior_means[indices_k]
+      }
+    } else if (length(prior_means) == num_outputs) {
+      for (k in 1:nb_clusters) list_prior_means[[k]] <- prior_means
+    } else {
+      stop("Invalid prior_means length.")
+    }
+  }
+
+  # Hyper-parameters definition
+  list_config_mp <- vector("list", nb_clusters)
+  list_config_tasks <- vector("list", nb_clusters)
+
+  if (shared_hp_clusts) {
+    # HPs are shared among clusters
+    paste("Hyper-parameters are supposed to be the same for each cluster within ",
+          "each Output_ID.")
+
+    fix_values <- function(config) {
+      new_config <- config
+      params <- names(config) %>% grep("_min$", ., value = TRUE) %>% gsub("_min$", "", .)
+      for(p in params) {
+        vals <- runif(nrow(config), config[[paste0(p, "_min")]], config[[paste0(p, "_max")]])
+        new_config[[paste0(p, "_min")]] <- vals
+        new_config[[paste0(p, "_max")]] <- vals
+      }
+      return(new_config)
+    }
+    fixed_mp_config <- fix_values(hp_config_mean_process)
+    fixed_task_config <- fix_values(hp_config_tasks)
+
+    for(k in 1:nb_clusters) {
+      list_config_mp[[k]] <- fixed_mp_config
+      list_config_tasks[[k]] <- fixed_task_config
+    }
+  } else {
+    # HPs are distinct for each cluster
+    paste("Hyper-parameters are supposed to be cluster-specific within each ",
+          "Output_ID.")
+    for (k in 1:nb_clusters) {
+      indices_k <- seq(from = k, to = nrow(hp_config_mean_process), by = nb_clusters)
+      list_config_mp[[k]] <- hp_config_mean_process %>% dplyr::slice(indices_k)
+      list_config_tasks[[k]] <- hp_config_tasks %>% dplyr::slice(indices_k)
+    }
+  }
+
+  # Loop over clusters
+  cat(sprintf("Simulation started: %d Clusters x %d Outputs.\n", nb_clusters, num_outputs))
+
+  cluster_results <- purrr::map(1:nb_clusters, function(k) {
+
+    config_mp_k <- list_config_mp[[k]]
+    config_tasks_k <- list_config_tasks[[k]]
+
+    # Reinitialise HPs
+    config_mp_k$output_id <- 1:num_outputs
+    config_tasks_k$output_id <- 1:num_outputs
+
+    # Generate mean processes (one for each cluster)
+    mp_info_k <- generate_mean_process_convol(
+      points_per_output = points_per_output_grid,
+      grid_ranges = grid_ranges,
+      hp_config_mean_process = config_mp_k,
+      prior_means = list_prior_means[[k]],
+      noise_0 = NULL,
+      shared_grid_outputs = shared_grid_outputs,
+      shared_hp_outputs = shared_hp_outputs
+    )
+
+    # Formate data of the mean process
+    mp_df_k <- mp_info_k$mean_process_df %>%
+      dplyr::mutate(Cluster_ID = factor(k))
+
+    mp_hps_k <- tibble::tibble(
+      Cluster_ID = factor(k),
+      Output_ID = 1:num_outputs,
+      l0  = mp_info_k$list_l0,
+      S0  = mp_info_k$list_S0,
+      lu0 = mp_info_k$list_lu0
+    )
+
+    # Generate Task Hyperparameters
+    start_task_id <- (k - 1) * tasks_per_cluster + 1
+    end_task_id   <- k * tasks_per_cluster
+    task_ids_k    <- start_task_id:end_task_id
+
+    tasks_hps_k <- hp(
+      kern = convolution_kernel,
+      list_task_ID = task_ids_k,
+      list_output_ID = 1:num_outputs,
+      shared_hp_tasks = shared_hp_tasks,
+      shared_hp_outputs = shared_hp_outputs,
+      noise = TRUE,
+      hp_config = config_tasks_k
+    ) %>%
+      dplyr::mutate(Cluster_ID = factor(k))
+
+    # Generate Task Data
+    tasks_data_list <- purrr::map(task_ids_k, ~{
+      current_task_hp <- tasks_hps_k %>% dplyr::filter(Task_ID == .x)
+      generate_single_task_data(
+        task_id = .x,
+        mean_process_info = mp_info_k,
+        task_hp_tibble = current_task_hp,
+        n_points_range = n_points_per_task_range
+      )
+    })
+
+    cluster_tasks_df <- dplyr::bind_rows(tasks_data_list) %>%
+      dplyr::mutate(Cluster_ID = factor(k))
+
+    return(list(
+      data = cluster_tasks_df,
+      mp_df = mp_df_k,
+      mp_info = mp_info_k,
+      mp_hps = mp_hps_k,
+      tasks_hps = tasks_hps_k
+    ))
+  })
+
+  # Aggregate
+  cat("Simulation completed.\n")
+
+  return(list(
+    simulated_data_df = purrr::map_dfr(cluster_results, "data"),
+    mean_processes_df = purrr::map_dfr(cluster_results, "mp_df"),
+    hyperparameters = list(
+      mean_process_hps = purrr::map_dfr(cluster_results, "mp_hps"),
+      tasks_hps = purrr::map_dfr(cluster_results, "tasks_hps")
+    )
+  ))
+}
+
+
+
 #' @title Splits a dataframe into training and test sets.
 #' @description This function splits a dataframe using one of two methods:
 #'   1.  **Zone-based split:** If `zones_definition` is provided, it splits data

@@ -397,8 +397,6 @@ train_magma <- function(data,
   logL_monitoring <- -Inf
   seq_loglikelihood <- c()
 
-  # browser()
-
   for (i in 1:n_iter_max){
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
@@ -1024,18 +1022,19 @@ train_magmaclust <- function(data,
                              nb_cluster = NULL,
                              prior_mean_k = NULL,
                              ini_hp_k = NULL,
-                             ini_hp_i = NULL,
+                             ini_hp_t = NULL,
                              kern_k = "SE",
-                             kern_i = "SE",
+                             kern_t = "SE",
                              ini_mixture = NULL,
-                             common_hp_k = TRUE,
-                             common_hp_i = TRUE,
+                             shared_hp_clusts = TRUE,
+                             shared_hp_tasks = TRUE,
                              grid_inputs = NULL,
                              pen_diag = 1e-10,
                              n_iter_max = 25,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
 
+  browser()
   ## Stop and send to train_magma() if nb_cluster == 1
   if(!is.null(nb_cluster)){
     if(nb_cluster < 2){
@@ -1048,21 +1047,24 @@ train_magmaclust <- function(data,
 
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
-    if (!all(c("ID", "Output", "Input") %in% names(data))) {
+    if (!all(c("Task_ID", "Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
       stop(
         "The 'data' argument should be a tibble or a data frame containing ",
-        "at least the mandatory column names: 'ID', 'Output' and 'Input'"
+        "at least the mandatory column names: 'Task_ID', 'Input_ID', 'Input'",
+        "'Output' and 'Output_ID'"
       )
     }
   } else {
     stop(
       "The 'data' argument should be a tibble or a data frame containing ",
-      "at least the mandatory column names: 'ID', 'Output' and 'Input'"
+      "at least the mandatory column names: 'Task_ID', 'Input_ID', 'Input'",
+      "'Output' and 'Output_ID'"
     )
   }
 
-  ##Convert all non ID columns to double (implicitly throw error if not numeric)
-  data = data %>% dplyr::mutate(dplyr::across(- .data$ID, as.double))
+  ## Convert all non ID columns to double (implicitly throw error if not numeric)
+  data = data %>% dplyr::mutate(dplyr::across(-c(Task_ID, Input_ID, Output_ID),
+                                              as.double))
 
   ## Check the number of cluster
   if (nb_cluster %>% is.null()) {
@@ -1076,7 +1078,7 @@ train_magmaclust <- function(data,
 
   ## Retrieve or create the names of the clusters
   if (!is.null(ini_hp_k)) {
-    ID_k <- ini_hp_k$ID %>% unique()
+    ID_k <- ini_hp_k$Cluster_ID %>% unique()
     if (length(ID_k) != nb_cluster) {
       stop(
         "The argument 'ini_hp_k' provides hyper-parameters for a number of ",
@@ -1087,102 +1089,154 @@ train_magmaclust <- function(data,
     ID_k <- paste0("K", 1:nb_cluster)
   }
 
+  ## Remove possible missing data
+  data <- data %>% tidyr::drop_na()
   ## Certify that IDs are of type 'character'
-  data$ID <- data$ID %>% as.character()
-  ## Extract the list of different IDs
-  list_ID <- data$ID %>% unique()
+  data$Task_ID <- data$Task_ID %>% as.character()
+  ## Extract the list of different task IDs
+  list_ID_task <- data$Task_ID %>% unique()
+  ## Extract the list of different output IDs
+  list_ID_output <- data$Output_ID %>% unique()
 
   ## Get input column names
   names_col <- data %>%
-    dplyr::select(-c(.data$ID,.data$Output)) %>%
+    dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
     names()
 
-  ## Keep 6 significant digits for entries to avoid numerical errors and
-  ## Add a Reference column for identification and sort according to it
-  data <- data %>% purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep=":",
-                 remove = FALSE) %>%
-    tidyr::drop_na() %>%
-    dplyr::group_by(.data$ID) %>%
-    dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
-    dplyr::ungroup()
+  ## Check if there is duplicates in data
+  duplicates <- data %>%
+    count(Task_ID, Output_ID, Output, Input_ID, Input) %>%
+    filter(n > 1)
 
-  ## Check that individuals do not have duplicate inputs
-  if(!(setequal(data %>% dplyr::select(-.data$Output),
-                data %>% dplyr::select(-.data$Output) %>% unique() ))
-     ){
-    stop("At least one individual have several Outputs on the same grid point.",
-         " Please read ?train_magma() for further details."
-    )
+  if (nrow(duplicates) > 0) {
+    print(duplicates)
+    stop("Data contains duplicates. Please drop them before using train_magma().")
+  }
+
+  # To call hyperpost() later on the right format
+  raw_data <- data
+
+  data <- data %>%
+    group_by(Task_ID, Output_ID, Output, Input_ID) %>%
+    # Add a unique number observation for the group
+    mutate(obs_num = row_number()) %>%
+    ungroup()
+
+  ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+  # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
+  # In other words, inputs are no longer in "short" format; instead, we have one
+  # column per input.
+  data <- data %>%
+    tidyr::pivot_wider(
+      names_from = Input_ID,
+      values_from = Input,
+      names_prefix = "Input_"
+    ) %>%
+    # Keep 6 significant digits for Inputs to avoid numerical issues
+    dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+    rowwise() %>%
+    dplyr::mutate(
+      Reference = paste(
+        # Create output's prefix
+        paste0("o", Output_ID),
+        # Create the reference for each Output_ID
+        paste(c_across(starts_with("Input_")), collapse = ":"),
+        # Join output's prefix and reference
+        sep = ";"
+      )
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(-obs_num)
+
+  ## Check that tasks do not have duplicate inputs for each output
+  task_duplicates <- data %>%
+    dplyr::count(Task_ID, Reference) %>%
+    dplyr::filter(n > 1)
+
+  if (nrow(task_duplicates) > 0) {
+    stop("Error: At least one task has duplicates, i.e. several 'Output' values",
+         " for the same 'Output_ID'.")
   }
 
   ## Extract the union of all reference inputs provided in the training data
-  all_input <- data %>%
-    dplyr::pull(.data$Reference) %>%
-    unique() %>%
-    sort()
-
   all_inputs <- data %>%
-    dplyr::select(-c(.data$ID, .data$Output)) %>%
+    dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
     unique() %>%
-    dplyr::arrange(.data$Reference)
+    tidyr::separate(Reference,
+                    into = c("Output_ID_temp", "Input_temp"),
+                    sep = ";",
+                    remove = FALSE) %>%
+    dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+    dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+    dplyr::select(c(Input_1, Reference))
 
-  ## Initialise the individual process' HPs according to user's values
-  if (kern_i %>% is.function()) {
-    if (ini_hp_i %>% is.null()) {
+  all_input <- all_inputs %>%
+    dplyr::pull(Reference)
+
+  ## Initialise the task process' hp according to user's values
+  if (kern_t %>% is.function()) {
+    if (ini_hp_t %>% is.null()) {
       stop(
-        "When using a custom kernel function the 'ini_hp_i' argument is ",
+        "When using a custom kernel function the 'ini_hp_t' argument is ",
         "mandatory, in order to provide the name of the hyper-parameters. ",
         "You can use the function 'hp()' to easily generate a tibble of random",
         " hyper-parameters with the desired format for initialisation."
       )
+    } else {
+      hp_t <- ini_hp_t
     }
   } else {
-    if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(kern_i,
-                 list_ID = list_ID,
-                 common_hp = common_hp_i,
+    if (ini_hp_t %>% is.null()) {
+      hp_t <- hp(kern = kern_t,
+                 list_task_ID = list_ID_task,
+                 list_output_ID = list_ID_output,
+                 shared_hp_tasks = shared_hp_tasks,
                  noise = TRUE
       )
       cat(
-        "The 'ini_hp_i' argument has not been specified. Random values of",
-        "hyper-parameters for the individual processes are used as",
+        "The 'ini_hp_t' argument has not been specified. Random values of",
+        "hyper-parameters for the task and individuals processes are used as",
         "initialisation.\n \n"
       )
-    } else if (!("ID" %in% names(ini_hp_i))) {
-      ## Create a full tibble of common HPs if the column ID is not specified
-      hp_i <- tibble::tibble(
-        ID = list_ID,
-        dplyr::bind_rows(ini_hp_i)
+    } else if (!("Task_ID" %in% names(ini_hp_t))) {
+      ## Create a full tibble of shared HPs if the column Task_ID is not specified
+      hp_t <- tibble::tibble('Task_ID' = list_ID_task,
+                             dplyr::bind_rows(ini_hp_t)
       )
-      cat(
-        "No 'ID' column in the 'ini_hp_i' argument. The same hyper-parameter",
-        "values have been duplicated for every 'ID' present in the 'data'.\n \n"
-      )
-    } else if (!(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
-                 all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))) {
+    } else if (!(all(as.character(ini_hp_t$Task_ID) %in% as.character(list_ID_task)) &
+                 all(as.character(list_ID_task) %in% as.character(ini_hp_t$Task_ID)))) {
       stop(
-        "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
+        "The 'Task_ID' column in 'ini_hp_t' is different from the 'Task_ID' of the ",
         "'data'."
       )
     } else {
-      hp_i <- ini_hp_i
+      hp_t <- ini_hp_t
     }
   }
 
   ## Add a 'noise' hyper-parameter if absent
-  if (!("noise" %in% names(hp_i))) {
-    if (common_hp_i) {
-      hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
+  if (!("noise" %in% names(hp_t))) {
+    # Shared noise between tasks
+    if (shared_hp_tasks) {
+      noise_per_output <- hp(
+        kern = "",
+        list_output_ID = unique(hp_t$Output_ID),
+        noise = TRUE
+      )
+      hp_t <- hp_t %>%
+        dplyr::left_join(noise_per_output, by = "Output_ID")
+
+      # Noise task specific
     } else {
-      hp_i <- hp_i %>%
-        dplyr::left_join(hp(NULL,
-                            list_ID = hp_i$ID,
-                            noise = T),
-                         by = "ID"
-        )
+      noise_per_combo <- hp(
+        kern = "",
+        list_task_ID = unique(hp_t$Task_ID),
+        list_output_ID = unique(hp_t$Output_ID),
+        shared_hp_tasks = FALSE,
+        noise = TRUE
+      )
+      hp_t <- hp_t %>%
+        dplyr::left_join(noise_per_combo, by = c("Task_ID", "Output_ID"))
     }
   }
 
@@ -1199,8 +1253,9 @@ train_magmaclust <- function(data,
   } else {
     if (ini_hp_k %>% is.null()) {
       hp_k <- hp(kern_k,
-                 list_ID = ID_k,
-                 common_hp = common_hp_k,
+                 list_task_ID = ID_k,
+                 list_output_ID = list_ID_output,
+                 shared_hp_tasks = shared_hp_clusts,
                  noise = F
       )
       cat(
@@ -1208,15 +1263,15 @@ train_magmaclust <- function(data,
         "hyper-parameters for the mean processes are used as",
         "initialisation.\n \n"
       )
-    } else if (!("ID" %in% names(ini_hp_k))) {
-      ## Create a full tibble of common HPs if the column ID is not specified
+    } else if (!("Clust_ID" %in% names(ini_hp_k))) {
+      ## Create a full tibble of shared HPs if the column Task_ID is not specified
       hp_k <- tibble::tibble(
-        'ID' = ID_k,
+        'Task_ID' = ID_k,
         dplyr::bind_rows(ini_hp_k)
       )
       cat(
-        "No 'ID' column in the 'ini_hp_k' argument. The same hyper-parameter",
-        "values have been duplicated for every cluster's 'ID'.\n \n"
+        "No 'Clust_ID' column in the 'ini_hp_k' argument. The same hyper-parameter",
+        "values have been duplicated for every cluster's 'Clust_ID'.\n \n"
       )
     } else {
       hp_k <- ini_hp_k
@@ -1237,29 +1292,59 @@ train_magmaclust <- function(data,
   } else if (prior_mean_k[[1]] %>% is.function()) {
     ## Create a list named by cluster with evaluation of the mean at all Input
     for (k in 1:nb_cluster) {
-      all_inputs %>% dplyr::select(-.data$Reference)
+      ## Correct
+      all_inputs %>% dplyr::select(- c(Output_ID, Reference))
       m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_inputs)
     }
   } else if (prior_mean_k %>% is.vector()) {
-    if (length(prior_mean_k) == nb_cluster) {
+    if (length(prior_mean_k) == nb_cluster*length(list_ID_output)) {
+      ## Get the unique and sorted Output_IDs
+      unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
+
+      ## Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
+
       ## Create a list named by cluster with evaluation of the mean at all Input
       for (k in 1:nb_cluster) {
-        m_k[[ID_k[k]]] <- rep(prior_mean_k[[k]], length(all_input))
+        # Extract prior mean specific to cluster 'k' for all outputs
+        indices_cluster_k <- seq(from = k, to = length(prior_mean_k), by = nb_cluster)
+        vals_cluster_k <- prior_mean_k[indices_cluster_k]
+
+        # Create a correspondace table between each output and all its clusters
+        prior_mean_map <- setNames(vals_cluster_k, paste0("o", unique_outputs_sorted))
+
+        # Build m_k using the lookup table; it will automatically repeat the correct
+        # value for each prefix.
+        m_k[[ID_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
       }
-    } else if (length(prior_mean_k) == 1) {
+    } else if (length(prior_mean_k) == length(data$Output_ID %>% unique())) {
+      # Je pense correct
+      # Get the unique and sorted Output_IDs
+      unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
+
+      # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
+      # This assumes the prior_mean vector is provided in the sorted order of
+      # Output_IDs.
+      prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
+
+      # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
+
       ## Create a list named by cluster with evaluation of the mean at all Input
       for (k in 1:nb_cluster) {
-        m_k[[ID_k[k]]] <- rep(prior_mean_k, length(all_input))
+        # Build m_k using the lookup table; it will automatically repeat the correct
+        # value for each prefix.
+        m_k[[ID_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
       }
       cat(
-        "The provided 'prior_mean' argument is of length 1. Thus, the same",
-        "hyper-prior constant mean function has been set for each",
+        "The provided 'prior_mean' argument is equal to the number of Output_ID.",
+        "Thus, the same hyper-prior constant mean function has been set for each",
         "cluster.\n \n "
       )
     } else {
       stop(
         "The 'prior_mean_k' argument is of length ", length(prior_mean_k),
-        ", whereas there are ", length(hp_k$ID), " clusters."
+        ", whereas there are ", length(hp_k$Task_ID), " clusters."
       )
     }
   } else {

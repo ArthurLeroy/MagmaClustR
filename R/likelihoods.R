@@ -352,6 +352,7 @@ logL_monitoring <- function(hp_0,
                             post_cov,
                             pen_diag,
                             weight_inv_0) {
+
   # Get the union of all unique input points from the training data
   all_inputs <- db %>%
     dplyr::select(-c(Task_ID, Output)) %>%
