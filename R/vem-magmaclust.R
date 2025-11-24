@@ -4,15 +4,17 @@
 #' the parameters of the hyper-posteriors distributions
 #' for the mean processes and mixture variables involved in MagmaClust.
 #'
-#' @param db A tibble or data frame. Columns required: ID, Input, Output.
-#'    Additional columns for covariates can be specified.
+#' @param db A tibble or data frame. Columns required: ID, Input_ID, Input,
+#'    Output_ID, Output.
 #' @param m_k A named list of vectors, corresponding to the prior mean
 #'    parameters of the K mean GPs.
 #' @param kern_k A kernel function, associated with the K mean GPs.
-#' @param kern_i A kernel function, associated with the M individual GPs.
+#' @param kern_t A kernel function, associated with the M individual GPs.
+#' @param weight_inv_k A number, indicating the weight that the user wants to
+#'  attribute to the inverse prior covariances inv_k.
 #' @param hp_k A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_k}.
-#' @param hp_i A named vector, tibble or data frame of hyper-parameters
+#' @param hp_t A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_i}.
 #' @param old_mixture A list of mixture values from the previous iteration.
 #' @param iter A number, indicating the current iteration of the VEM algorithm.
@@ -32,38 +34,131 @@
 ve_step <- function(db,
                     m_k,
                     kern_k,
-                    kern_i,
+                    kern_t,
+                    weight_inv_k,
                     hp_k,
-                    hp_i,
+                    hp_t,
                     old_mixture,
                     iter,
                     pen_diag) {
 
-  ## Extract the union of all reference inputs provided in the training data
-  all_inputs <- db %>%
-    dplyr::select(-.data$ID,-.data$Output) %>%
-    unique() %>%
-    dplyr::arrange(.data$Reference)
+  browser()
 
-  all_input <- all_inputs %>% dplyr::pull(.data$Reference)
+  list_ID_task <- unique(db$Task_ID)
+  list_output_ID <-  db$Output_ID %>% unique()
+
+  # Get the union of all unique input points from the training data
+  all_inputs <- db %>%
+    dplyr::select(-c(Task_ID, Output)) %>%
+    unique() %>%
+    tidyr::separate(Reference,
+                    into = c("Output_ID_temp", "Input_temp"),
+                    sep = ";",
+                    remove = FALSE) %>%
+    dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+    dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+    dplyr::select(c(Input_1, Reference, Output_ID))
+
+  all_input <- all_inputs %>%
+    dplyr::pull(Reference)
 
   ## Sort the database according to Reference
-  db <- db %>% dplyr::arrange(.data$Reference, .by_group = TRUE)
+  ## WARNING: ARRRANGE !!!!!
+  db <- db %>% dplyr::arrange(Reference, .by_group = TRUE)
 
   prop_mixture_k <- hp_k %>%
-    dplyr::pull(.data$prop_mixture, name = .data$ID)
+    dplyr::select(c(Cluster_ID, Output_ID, prop_mixture))
 
   ## Format a sequence of inputs for all clusters
-  t_clust <- tidyr::expand_grid("ID" = names(m_k),
+  t_clust <- tidyr::expand_grid("Cluster_ID" = names(m_k),
                                 all_inputs
   )
 
-  ## Compute all the inverse covariance matrices
-  list_inv_k <- list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag)
-  list_inv_i <- list_kern_to_inv(db, kern_i, hp_i, pen_diag)
+  list_inv_k <- list()
+  list_inv_t <- list()
+
+  # Loop over clusters
+  for(k in t_clust$Cluster_ID %>% unique){
+    # Subset t_clust and hp_k on k cluster
+    t_clust_k <- t_clust %>%
+      dplyr::filter(Cluster_ID == k)
+
+    hp_k_subset <- hp_k %>%
+      dplyr::filter(Cluster_ID == k)
+
+    # Compute the covariance matrix of the mean process of the
+    # k cluster
+    cov_k <- kern_to_cov(input = all_inputs,
+                         kern = kern_k,
+                         hp = hp_k_subset %>%
+                           dplyr::select(-Cluster_ID))
+
+    references <- rownames(cov_k)
+    inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
+
+    # Re-apply the stored names to the inverted matrix
+    dimnames(inv_k) <- list(references, references)
+    inv_k <- weight_inv_k * inv_k
+    list_inv_k[[k]] <- inv_k
+  }
+
+
+  # Loop over tasks
+  for (t in list_ID_task) {
+    # Isolate the data and HPs for the current task
+    db_t <- db %>% dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-c(Output, Task_ID))
+    hp_t_indiv <- hp_t %>% dplyr::filter(Task_ID == t)
+
+    if(length(list_output_ID) > 1 && !(kern_t %>% is.character())){
+      # MO case with dependent outputs
+      # Call kern_to_cov directly.
+      # It will handle the multi-output structure and the noise addition internally.
+      # 'kern_t' is expected to be the 'convolution_kernel' function.
+      K_task_t <- kern_to_cov(
+        input = db_t,
+        kern = kern_t,
+        hp = hp_t_indiv
+      )
+    } else if (length(list_output_ID) > 1 && kern_t %>% is.character()){
+      # MO case with independent outputs
+      hp_t_indiv <- hp_t_indiv %>% dplyr::select(-c(Task_ID, Output_ID))
+
+      K_task_t <- kern_to_cov(
+        input = db_t,
+        kern = kern_t,
+        hp = hp_t_indiv
+      )
+    } else{
+      # Extract all_inputs to call kern_to_cov() on the single output case
+      all_inputs_t <- db %>%
+        dplyr::filter(Task_ID == t) %>%
+        dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
+        unique()
+
+      K_task_t <- kern_to_cov(
+        input = all_inputs_t,
+        kern = kern_t,
+        hp = hp_t_indiv
+      )
+    }
+
+    # Store the correct row/column names before they are lost during inversion
+    task_references <- rownames(K_task_t)
+
+    # Invert the covariance matrix (this strips the names)
+    K_inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
+
+    # Re-apply the stored names to the inverted matrix
+    dimnames(K_inv_t) <- list(task_references, task_references)
+
+    # Add the inverted matrix to the list
+    # The rownames are already correctly set by kern_to_cov
+    list_inv_t[[t]] <- K_inv_t
+  }
 
   ## Create a named list of Output values for all individuals
-  list_output_i <- base::split(db$Output, list(db$ID))
+  list_output_t <- base::split(db$Output, list(db$Task_ID))
 
   ## Update each mu_k parameters for each cluster ##
   floop <- function(k) {
@@ -150,7 +245,7 @@ ve_step <- function(db,
 }
 
 
-#' V-Step of the VEM algorithm
+#' M-Step of the VEM algorithm
 #'
 #' Maximization step of the Variational EM algorithm used to compute
 #' hyper-parameters of all the kernels involved in MagmaClust.

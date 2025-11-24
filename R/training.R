@@ -931,12 +931,12 @@ train_gp <- function(data,
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_k}. The \code{\link{hp}} function can be used to draw
 #'    custom hyper-parameters with the correct format.
-#' @param ini_hp_i A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}, the individual processes' kernel.
-#'    Required column : \code{ID}. The \code{ID} column contains the unique
+#' @param ini_hp_t A tibble or data frame of hyper-parameters
+#'    associated with \code{kern_t}, the individual processes' kernel.
+#'    Required column : \code{Task_ID}. The \code{ID} column contains the unique
 #'    names/codes used to identify each individual/task. The other columns
 #'    should be named according to the hyper-parameters that are used in
-#'    \code{kern_i}. The \code{\link{hp}} function can be used to draw
+#'    \code{kern_t}. The \code{\link{hp}} function can be used to draw
 #'    custom hyper-parameters with the correct format.
 #' @param kern_k A kernel function, associated with the mean GPs.
 #'    Several popular kernels
@@ -948,20 +948,23 @@ train_gp <- function(data,
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    - convolution_kernel: the Convolution kernel used to manage MO scenario.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param kern_i A kernel function, associated with the individual GPs. (See
+#' @param kern_t A kernel function, associated with the individual GPs. (See
 #'    details above in \code{kern_k}).
+#' @param weight_inv_k A number, indicating the weight that the user wants to
+#'  attribute to the inverse prior covariances inv_k.
 #' @param ini_mixture Initial values of the probability to belong to each
 #'    cluster for each individual (\code{\link{ini_mixture}} can be used for
 #'    a k-means initialisation. Used by default if NULL).
-#' @param common_hp_k A boolean indicating whether hyper-parameters are common
+#' @param shared_hp_clusts A boolean indicating whether hyper-parameters are common
 #'    among the mean GPs.
-#' @param common_hp_i A boolean indicating whether hyper-parameters are common
+#' @param shared_hp_tasks A boolean indicating whether hyper-parameters are common
 #'    among the individual GPs.
 #' @param grid_inputs A vector, indicating the grid of additional reference
 #'    inputs on which the mean processes' hyper-posteriors should be evaluated.
@@ -1025,6 +1028,7 @@ train_magmaclust <- function(data,
                              ini_hp_t = NULL,
                              kern_k = "SE",
                              kern_t = "SE",
+                             weight_inv_k = 1e-5,
                              ini_mixture = NULL,
                              shared_hp_clusts = TRUE,
                              shared_hp_tasks = TRUE,
@@ -1034,7 +1038,6 @@ train_magmaclust <- function(data,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
 
-  browser()
   ## Stop and send to train_magma() if nb_cluster == 1
   if(!is.null(nb_cluster)){
     if(nb_cluster < 2){
@@ -1249,6 +1252,8 @@ train_magmaclust <- function(data,
         "You can use the function 'hp()' to easily generate a tibble of random",
         " hyper-parameters with the desired format for initialisation."
       )
+    } else {
+      hp_k <- ini_hp_k
     }
   } else {
     if (ini_hp_k %>% is.null()) {
@@ -1263,7 +1268,7 @@ train_magmaclust <- function(data,
         "hyper-parameters for the mean processes are used as",
         "initialisation.\n \n"
       )
-    } else if (!("Clust_ID" %in% names(ini_hp_k))) {
+    } else if (!("Cluster_ID" %in% names(ini_hp_k))) {
       ## Create a full tibble of shared HPs if the column Task_ID is not specified
       hp_k <- tibble::tibble(
         'Task_ID' = ID_k,
@@ -1280,10 +1285,14 @@ train_magmaclust <- function(data,
 
   ## Initialise m_k according to the value provided by the user
   m_k <- list()
+
+  # Define clusters' names
+  names_k <- paste0("K", 1:nb_cluster)
+
   if (prior_mean_k %>% is.null()) {
     ## Create a list named by cluster with evaluation of the mean at all Input
     for (k in 1:nb_cluster) {
-      m_k[[ID_k[k]]] <- rep(0, length(all_input))
+      m_k[[names_k[k]]] <- rep(0, length(all_input))
     }
     cat(
       "The 'prior_mean' argument has not been specified. The hyper_prior mean",
@@ -1294,64 +1303,43 @@ train_magmaclust <- function(data,
     for (k in 1:nb_cluster) {
       ## Correct
       all_inputs %>% dplyr::select(- c(Output_ID, Reference))
-      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_inputs)
+      m_k[[names_k[k]]] <- prior_mean_k[[k]](all_inputs)
     }
   } else if (prior_mean_k %>% is.vector()) {
-    if (length(prior_mean_k) == nb_cluster*length(list_ID_output)) {
-      ## Get the unique and sorted Output_IDs
+    if (length(prior_mean_k) == nb_cluster * length(list_ID_output)) {
+
+      # Get the Output_ID sorted
       unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
 
-      ## Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      # Extract the prefix of each point of the grid all_input (ex: "o1", "o2")
       all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
-      ## Create a list named by cluster with evaluation of the mean at all Input
+      ## Create a list named by cluster
       for (k in 1:nb_cluster) {
-        # Extract prior mean specific to cluster 'k' for all outputs
+
+        # Extract mean for the k cluster
         indices_cluster_k <- seq(from = k, to = length(prior_mean_k), by = nb_cluster)
         vals_cluster_k <- prior_mean_k[indices_cluster_k]
 
-        # Create a correspondace table between each output and all its clusters
+        # Create a corresponding table
         prior_mean_map <- setNames(vals_cluster_k, paste0("o", unique_outputs_sorted))
 
-        # Build m_k using the lookup table; it will automatically repeat the correct
-        # value for each prefix.
-        m_k[[ID_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
+        # Assign it to the correctly named element of the list
+        m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
       }
+
     } else if (length(prior_mean_k) == length(data$Output_ID %>% unique())) {
-      # Je pense correct
-      # Get the unique and sorted Output_IDs
+      # One mean per Output (all clusters share the same)
       unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
-
-      # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
-      # This assumes the prior_mean vector is provided in the sorted order of
-      # Output_IDs.
-      prior_mean_map <- setNames(prior_mean, paste0("o", unique_outputs_sorted))
-
-      # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      prior_mean_map <- setNames(prior_mean_k, paste0("o", unique_outputs_sorted))
       all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
-      ## Create a list named by cluster with evaluation of the mean at all Input
       for (k in 1:nb_cluster) {
-        # Build m_k using the lookup table; it will automatically repeat the correct
-        # value for each prefix.
-        m_k[[ID_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
+        m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
       }
-      cat(
-        "The provided 'prior_mean' argument is equal to the number of Output_ID.",
-        "Thus, the same hyper-prior constant mean function has been set for each",
-        "cluster.\n \n "
-      )
     } else {
-      stop(
-        "The 'prior_mean_k' argument is of length ", length(prior_mean_k),
-        ", whereas there are ", length(hp_k$Task_ID), " clusters."
-      )
+      stop("Incorrect length for prior_mean_k")
     }
-  } else {
-    stop(
-      "Incorrect format for the 'prior_mean_k' argument. Please read ",
-      "?train_magmaclust() for details."
-    )
   }
 
   ## Track the total training time
@@ -1380,15 +1368,32 @@ train_magmaclust <- function(data,
          "?ini_mixture() for further details.")
   }
 
-  hp_k[["prop_mixture"]] <- mixture %>%
-    dplyr::select(-.data$ID) %>%
-    colMeans() %>%
-    as.vector()
+  # Compute proportions of mixture for each Output_ID independantly
+  prop_mixture_by_output <- mixture %>%
+    dplyr::select(-Task_ID) %>%
+    dplyr::group_by(Output_ID) %>%
+    dplyr::summarise(
+      dplyr::across(dplyr::everything(), mean),
+      .groups = "drop"
+    )
+
+  prop_long <- prop_mixture_by_output %>%
+    tidyr::pivot_longer(
+      cols = -Output_ID,
+      names_to = "Cluster_ID",
+      values_to = "prop_mixture"
+    )
+
+  hp_k <- hp_k %>%
+    # dplyr::mutate(Cluster_ID = as.character(Cluster_ID)) %>%
+    dplyr::left_join(prop_long, by = c("Output_ID", "Cluster_ID")) %>%
+    dplyr::mutate(Cluster_ID = as.factor(Cluster_ID))
 
   ## Keep an history of the (possibly random) initial values of hyper-parameters
-  hp_i_ini <- hp_i
+  hp_t_ini <- hp_t
   hp_k_ini <- hp_k
   mixture_ini <- mixture
+
   ## Iterate VE-step and VM-step until convergence
   for (i in 1:n_iter_max)
   {
@@ -1400,9 +1405,10 @@ train_magmaclust <- function(data,
       data,
       m_k,
       kern_k,
-      kern_i,
+      kern_t,
+      weight_inv_k,
       hp_k,
-      hp_i,
+      hp_t,
       mixture,
       iter = i,
       pen_diag

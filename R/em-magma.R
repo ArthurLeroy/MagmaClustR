@@ -58,7 +58,7 @@ e_step <- function(db,
       dplyr::select(-Output_ID)
   }
 
-  # Compute the convolutional covariance matrix of the mean process
+  # Compute the covariance matrix of the mean process
   cov_0 <- kern_to_cov(input = all_inputs,
                        kern = kern_0,
                        hp = hp_0)

@@ -288,11 +288,11 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
     # Feature Extraction
     # Group by 'Task_ID' (the curve identifier)
     features_df <- sub_data %>%
-      dplyr::group_by(.data$Task_ID) %>%
+      dplyr::group_by(Task_ID) %>%
       dplyr::summarise(
-        val_min  = min(.data$Output, na.rm = TRUE),
-        val_mean = mean(.data$Output, na.rm = TRUE),
-        val_max  = max(.data$Output, na.rm = TRUE),
+        val_min  = min(Output, na.rm = TRUE),
+        val_mean = mean(Output, na.rm = TRUE),
+        val_max  = max(Output, na.rm = TRUE),
         .groups  = "drop"
       ) %>%
       tidyr::drop_na()
@@ -300,7 +300,7 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
     # Prepare Matrix for K-Means
     # Remove the identifier to keep only numerical features
     mat_kmeans <- features_df %>%
-      dplyr::select(-.data$Task_ID)
+      dplyr::select(-Task_ID)
 
     # Run K-Means
     # Safety check: enough tasks to form k clusters?

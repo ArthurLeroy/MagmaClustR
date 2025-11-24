@@ -437,7 +437,7 @@ generate_mean_process_convol <- function(
 
   # Create an HPs tibble for the mean process
   hp_tibble_for_kernel <- tibble::tibble(
-    Output_ID = 1:num_outputs,
+    Output_ID = as.factor(1:num_outputs),
     l_t       = l0_vals,
     S_t       = S0_vals,
     l_u_t     = lu0_vals
@@ -676,8 +676,8 @@ simulate_multi_output_data_convol <- function(
   cat("Generating hyperparameters for all tasks...\n")
   all_tasks_hps <- hp(
     kern = convolution_kernel,
-    list_task_ID = 1:num_tasks,
-    list_output_ID = 1:nrow(hp_config_tasks),
+    list_task_ID = as.factor(1:num_tasks),
+    list_output_ID = as.factor(1:nrow(hp_config_tasks)),
     shared_hp_tasks = shared_hp_tasks,
     shared_hp_outputs = shared_hp_outputs,
     noise = TRUE,
@@ -841,8 +841,8 @@ simulate_magmaclust_data_convol <- function(
     config_tasks_k <- list_config_tasks[[k]]
 
     # Reinitialise HPs
-    config_mp_k$output_id <- 1:num_outputs
-    config_tasks_k$output_id <- 1:num_outputs
+    config_mp_k$output_id <- as.factor(1:num_outputs)
+    config_tasks_k$output_id <- as.factor(1:num_outputs)
 
     # Generate mean processes (one for each cluster)
     mp_info_k <- generate_mean_process_convol(
@@ -857,11 +857,11 @@ simulate_magmaclust_data_convol <- function(
 
     # Formate data of the mean process
     mp_df_k <- mp_info_k$mean_process_df %>%
-      dplyr::mutate(Cluster_ID = factor(k))
+      dplyr::mutate(Cluster_ID = paste0("K", factor(k)))
 
     mp_hps_k <- tibble::tibble(
-      Cluster_ID = factor(k),
-      Output_ID = 1:num_outputs,
+      Cluster_ID = paste0("K", factor(k)),
+      Output_ID = as.factor(1:num_outputs),
       l0  = mp_info_k$list_l0,
       S0  = mp_info_k$list_S0,
       lu0 = mp_info_k$list_lu0
@@ -874,14 +874,14 @@ simulate_magmaclust_data_convol <- function(
 
     tasks_hps_k <- hp(
       kern = convolution_kernel,
-      list_task_ID = task_ids_k,
-      list_output_ID = 1:num_outputs,
+      list_task_ID = as.factor(task_ids_k),
+      list_output_ID = as.factor(1:num_outputs),
       shared_hp_tasks = shared_hp_tasks,
       shared_hp_outputs = shared_hp_outputs,
       noise = TRUE,
       hp_config = config_tasks_k
     ) %>%
-      dplyr::mutate(Cluster_ID = factor(k))
+      dplyr::mutate(Cluster_ID = paste0("K",factor(k)))
 
     # Generate Task Data
     tasks_data_list <- purrr::map(task_ids_k, ~{
