@@ -453,7 +453,8 @@ logL_monitoring <- function(hp_0,
 #'
 #' @param hp A tibble, data frame or named vector of hyper-parameters.
 #' @param db A tibble containing data we want to evaluate the logL on.
-#'    Required columns: Input, Output. Additional covariate columns are allowed.
+#'    Required columns: Task_ID, Input, Output, Output_ID. Additional covariate
+#'    columns are allowed.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
 #'    of each cluster for the new individual/task.
 #' @param mean A list of hyper-posterior mean parameters for all clusters.
@@ -485,22 +486,23 @@ sum_logL_GP_clust <- function(hp,
                               prop_mixture = NULL,
                               pen_diag) {
 
+  # browser()
   ## Extract the observed (reference) Input
   input_obs <- db %>%
-    dplyr::arrange(.data$Reference) %>%
-    dplyr::pull(.data$Reference)
+    dplyr::arrange(Reference) %>% ###### ATTENTION AU ARRANGE
+    dplyr::pull(Reference)
 
   ## Remove 'ID' if present in 'db'
-  if ("ID" %in% names(db)) {
-    db <- db %>% dplyr::select(-.data$ID)
+  if ("Task_ID" %in% names(db)) {
+    db <- db %>% dplyr::select(-Task_ID)
   }
 
   ## Loop over the K clusters
   floop <- function(k) {
     tau_k <- mixture[[k]]
     mean_k <- mean[[k]] %>%
-      dplyr::filter(.data$Reference %in% input_obs) %>%
-      dplyr::pull(.data$Output)
+      dplyr::filter(Reference %in% input_obs) %>%
+      dplyr::pull(Output)
 
     cov_k <- post_cov[[k]][
       as.character(input_obs),

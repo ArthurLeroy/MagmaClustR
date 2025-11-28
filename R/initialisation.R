@@ -265,74 +265,63 @@ regularise_data <- regularize_data
 #' }
 
 
-#' Output-Specific K-Means Initialization
+#' Run a k-means algorithm to initialise clusters' allocation for Multi-Output data
 #'
-#' @description
-#' Performs an independent K-means clustering for each Output_ID.
-#' It aggregates the 'Output' values by 'Task_ID' to extract summary features
-#' (min, mean, max) before clustering.
+#' @param data A tibble containing `Task_ID`, `Input`, `Output`, and `Output_ID`
+#'  columns.
+#' @param k A number of clusters assumed for running the kmeans algorithm.
+#' @param nstart A number, indicating how many re-starts of kmeans are set.
+#' @param summary A boolean, indicating whether we want an outcome summary
 #'
-#' @param data A tibble containing columns: 'Task_ID', 'Input_ID', 'Input',
-#'  Output', 'Output_ID'.
-#' @param k Integer. Number of clusters (applied to each output).
-#' @param nstart Integer. Number of random sets for k-means.
-#' @param summary Logical. If TRUE, prints the k-means result for each output.
-
+#' @return A tibble containing the initial clustering obtained through kmeans.
+#'
+#' @keywords internal
+#'
+#' @examples
+#' TRUE
 ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
-  # Get list of unique outputs
-  list_outputs <- unique(data$Output_ID) %>% sort()
 
-  # Define a local function to run K-means on a single output subset
-  run_kmeans_on_subset <- function(sub_data, current_output) {
+  # Extract data features by Task_ID & Output_ID
+  features_step <- data %>%
+    dplyr::group_by(Task_ID, Output_ID) %>%
+    dplyr::summarise(
+      val_min  = min(Output, na.rm = TRUE),
+      val_mean = mean(Output, na.rm = TRUE),
+      val_max  = max(Output, na.rm = TRUE),
+      .groups = "drop"
+    )
 
-    # Feature Extraction
-    # Group by 'Task_ID' (the curve identifier)
-    features_df <- sub_data %>%
-      dplyr::group_by(Task_ID) %>%
-      dplyr::summarise(
-        val_min  = min(Output, na.rm = TRUE),
-        val_mean = mean(Output, na.rm = TRUE),
-        val_max  = max(Output, na.rm = TRUE),
-        .groups  = "drop"
-      ) %>%
-      tidyr::drop_na()
+  # Pivot to get a unique vector for each Task_ID
+  db_wide <- features_step %>%
+    tidyr::pivot_wider(
+      names_from = Output_ID,
+      values_from = c("val_min", "val_mean", "val_max"),
+      names_sep = "_Out"
+    )
 
-    # Prepare Matrix for K-Means
-    # Remove the identifier to keep only numerical features
-    mat_kmeans <- features_df %>%
-      dplyr::select(-Task_ID)
 
-    # Run K-Means
-    # Safety check: enough tasks to form k clusters?
-    if (nrow(mat_kmeans) < k) {
-      stop(sprintf("Not enough tasks in Output %s (n=%d) to form %d clusters.",
-                   current_output, nrow(mat_kmeans), k))
-    }
+  # Isolate numerical data
+  data_for_kmeans <- db_wide %>%
+    dplyr::select(-Task_ID)
 
-    res_km <- stats::kmeans(mat_kmeans, centers = k, nstart = nstart)
+  # Scaling on each Output_ID
+  data_scaled <- scale(data_for_kmeans)
 
-    if (summary) {
-      cat(sprintf("\n K-Means Summary for Output %s \n", current_output))
-      print(res_km)
-    }
+  km_res <- stats::kmeans(data_scaled, centers = k, nstart = nstart)
 
-    # Format Result
-    # Re-associate Task_ID with the found cluster
-    tibble::tibble(
-      Task_ID = features_df$Task_ID,
-      Output_ID = current_output,
-      Cluster_ini = paste0("K", res_km$cluster)
-    ) %>%
-      return()
+  if (summary) {
+    print(km_res)
   }
 
-  # Apply independently for each Output_ID
-  results_df <- purrr::map_dfr(list_outputs, function(out_id) {
-    sub_data <- data %>% dplyr::filter(.data$Output_ID == out_id)
-    run_kmeans_on_subset(sub_data, out_id)
-  })
 
-  return(results_df)
+  # Format results into a tibble
+  # Each Task_ID is associated to its cluster
+  result <- tibble::tibble(
+    Task_ID = db_wide$Task_ID,
+    Cluster_ini = paste0("K", km_res$cluster)
+  )
+
+  return(result)
 }
 
 
@@ -369,38 +358,35 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
 #' }
 
 
-#' Mixture initialization with Output-Specific K-means
+#' Mixture initialization for Multi-Output MagmaClust
 #'
 #' @description
-#' Provide an initial K-means allocation of the tasks into a definite number of
-#' clusters, performed independently for each Output.
-#' It returns a tibble where the cluster membership is one-hot encoded (0 or 1)
-#' for each Task and Output combination.
+#' Provide an initial allocation of the tasks into a definite number of clusters.
+#' This is performed jointly on all outputs: a Task is assigned to a cluster
+#' based on its global multi-output behavior.
 #'
-#' @param data A tibble. Required columns: `Task_ID`, `Input`, `Input_ID`,
-#'  `Output`, `Output_ID`.
-#' @param k A number, indicating the number of clusters per output.
+#' @param data A tibble containing Task_ID, Input, Output, and Output_ID columns.
+#' @param k A number, indicating the number of clusters.
 #' @param name_clust A vector of characters. Custom names for the clusters.
 #'    If NULL, defaults to "K1", "K2", etc.
 #' @param nstart A number of restarts used in the underlying kmeans algorithm.
 #'
-#' @return A tibble containing `Task_ID`, `Output_ID`, and one column per cluster
-#'    (containing 1 if the task belongs to the cluster for that output, 0 otherwise).
+#' @return A tibble containing `Task_ID` and one column per cluster
+#'    (containing 1 if the task belongs to the cluster, 0 otherwise).
 #'
 #' @export
 ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
 
-  # Run the updated independent K-means
-  # Returns columns: Task_ID, Output_ID, Cluster_ini (e.g., "K1", "K2")
+  # Run the Multi-Output K-means
   db_ini <- ini_kmeans(data, k, nstart)
 
-  # Pivot to Matrix/Probabilities format (One-Hot Encoding)
-  # We transform "K1" into a column "K1" with value 1, others 0.
+  # Pivot the matrix/probabilities format (One-Hot Encoding)
+  # The Result has shape: N_tasks x (1 + K) -> Column Task_ID + K cluster columns
   db_mixture <- db_ini %>%
     dplyr::mutate(value = 1) %>%
     tidyr::pivot_wider(
-      names_from = .data$Cluster_ini,
-      values_from = .data$value,
+      names_from = Cluster_ini,
+      values_from = value,
       values_fill = 0
     )
 
@@ -411,17 +397,17 @@ ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
       stop("The length of 'name_clust' must match the number of clusters 'k'.")
     }
 
-    # We assume the columns are generated in order K1, K2...
-    # The first 2 columns are Task_ID and Output_ID, the rest are clusters.
-    # This renaming assumes pivot_wider kept the alphanumeric order of K1..Kk
-    cluster_col_indices <- 3:ncol(db_mixture)
+    # Identify cluster columns: All columns except 'Task_ID'
+    cluster_cols <- setdiff(colnames(db_mixture), "Task_ID")
 
-    # Safety check
-    if(length(cluster_col_indices) != k) {
-      warning("Number of cluster columns found differs from 'k'. Renaming might be incorrect.")
+    # Safety check: ensure we found exactly k columns
+    if(length(cluster_cols) != k) {
+      warning(paste("Expected", k, "cluster columns but found", length(cluster_cols),
+                    ". Check if K-means produced empty clusters."))
     }
 
-    colnames(db_mixture)[cluster_col_indices] <- name_clust
+    # Rename. Note: We must ensure the order matches the K-means output (K1, K2...)
+    colnames(db_mixture)[match(cluster_cols, colnames(db_mixture))] <- name_clust
   }
 
   return(db_mixture)

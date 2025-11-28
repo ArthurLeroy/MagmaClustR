@@ -900,17 +900,20 @@ train_gp <- function(data,
 #' parameters of the Gaussian hyper-posterior distributions of the mean
 #' processes.
 #'
-#' @param data A tibble or data frame. Columns required: \code{ID}, \code{Input}
-#'    , \code{Output}. Additional columns for covariates can be specified.
-#'    The \code{ID} column contains the unique names/codes used to identify each
-#'    individual/task (or batch of data).
-#'    The \code{Input} column should define the variable that is used as
-#'    reference for the observations (e.g. time for longitudinal data). The
-#'    \code{Output} column specifies the observed values (the response
-#'    variable). The data frame can also provide as many covariates as desired,
-#'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference \code{Input}.
+#' @param data A tibble or data frame. Required columns: \code{Task_ID},
+#'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
+#'    columns for covariates can be specified.
+#'    The \code{Task_ID} column contains the unique names/codes used to identify
+#'    each individual/task (or batch of data).
+#'    The \code{Input_ID} contains the unique names/codes used to identify each
+#'    explanatory variable.
+#'    The \code{Input} column should define the value of the explanatory
+#'    variables that are used as reference for the observations (e.g. time for
+#'    longitudinal data).
+#'    The \code{Output_ID} contains the unique names/codes used to identify each
+#'    output (response) variable.
+#'    The \code{Output} column specifies the observed values (the response
+#'    variables).
 #' @param nb_cluster A number, indicating the number of clusters of
 #'    individuals/tasks that are assumed to exist among the dataset.
 #' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
@@ -1037,7 +1040,6 @@ train_magmaclust <- function(data,
                              n_iter_max = 25,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
-
   ## Stop and send to train_magma() if nb_cluster == 1
   if(!is.null(nb_cluster)){
     if(nb_cluster < 2){
@@ -1368,26 +1370,13 @@ train_magmaclust <- function(data,
          "?ini_mixture() for further details.")
   }
 
-  # Compute proportions of mixture for each Output_ID independantly
-  prop_mixture_by_output <- mixture %>%
-    dplyr::select(-Task_ID) %>%
-    dplyr::group_by(Output_ID) %>%
-    dplyr::summarise(
-      dplyr::across(dplyr::everything(), mean),
-      .groups = "drop"
-    )
+  # Compute mixture proporitions (named vector of length K)
+  props <- mixture %>%
+    dplyr::select(dplyr::all_of(ID_k)) %>%
+    colMeans()
 
-  prop_long <- prop_mixture_by_output %>%
-    tidyr::pivot_longer(
-      cols = -Output_ID,
-      names_to = "Cluster_ID",
-      values_to = "prop_mixture"
-    )
-
-  hp_k <- hp_k %>%
-    # dplyr::mutate(Cluster_ID = as.character(Cluster_ID)) %>%
-    dplyr::left_join(prop_long, by = c("Output_ID", "Cluster_ID")) %>%
-    dplyr::mutate(Cluster_ID = as.factor(Cluster_ID))
+  # Assign correctly each mixture proportion to its associated cluster
+  hp_k[["prop_mixture"]] <- as.numeric(props[as.character(hp_k$Cluster_ID)])
 
   ## Keep an history of the (possibly random) initial values of hyper-parameters
   hp_t_ini <- hp_t
@@ -1419,9 +1408,9 @@ train_magmaclust <- function(data,
       ## Track the ELBO values
       seq_elbo <- elbo_monitoring_VEM(
         hp_k,
-        hp_i,
+        hp_t,
         data,
-        kern_i,
+        kern_t,
         kern_k,
         hyperpost = post,
         m_k = m_k,
@@ -1435,21 +1424,20 @@ train_magmaclust <- function(data,
     ## VM-Step of MagmaClsut
     new_hp <- vm_step(data,
                       hp_k,
-                      hp_i,
+                      hp_t,
                       list_mu_param = post,
                       kern_k,
-                      kern_i,
+                      kern_t,
                       m_k,
-                      common_hp_k,
-                      common_hp_i,
+                      shared_hp_tasks,
                       pen_diag
     ) # %>% suppressMessages()
 
     new_hp_k <- new_hp$hp_k
-    new_hp_i <- new_hp$hp_i
+    new_hp_t <- new_hp$hp_t
 
     ## In case something went wrong during the optimization
-    if (any(is.na(new_hp_k)) | any(is.na(new_hp_i))) {
+    if (any(is.na(new_hp_k)) | any(is.na(new_hp_t))) {
       warning(paste0("The M-step encountered an error at iteration : ", i))
       warning(
         "Training has stopped and hyper-parameters values from the ",
@@ -1461,9 +1449,9 @@ train_magmaclust <- function(data,
     ## Monitoring of the elbo
     new_elbo_monitoring <- elbo_monitoring_VEM(
       new_hp_k,
-      new_hp_i,
+      new_hp_t,
       data,
-      kern_i,
+      kern_t,
       kern_k,
       hyperpost = post,
       m_k = m_k,
@@ -1481,7 +1469,7 @@ train_magmaclust <- function(data,
 
     ## Update HPs values and the elbo monitoring
     hp_k <- new_hp_k
-    hp_i <- new_hp_i
+    hp_t <- new_hp_t
     mixture <- post$mixture
     elbo_monitoring <- new_elbo_monitoring
 
@@ -1571,12 +1559,12 @@ train_magmaclust <- function(data,
     "nb_cluster" = nb_cluster,
     "prior_mean_k" = prior_mean_k,
     "ini_hp_k" = hp_k_ini,
-    "ini_hp_i" = hp_i_ini,
+    "ini_hp_t" = hp_t_ini,
     "kern_k" = kern_k,
-    "kern_i" = kern_i,
+    "kern_t" = kern_t,
     "ini_mixture" = mixture_ini,
-    "common_hp_k" = common_hp_k,
-    "common_hp_i" = common_hp_i,
+    "shared_hp_clusts" = shared_hp_clusts,
+    "shared_hp_tasks" = shared_hp_tasks,
     "n_iter_max" = n_iter_max,
     "pen_diag" = pen_diag,
     "cv_threshold" = cv_threshold
@@ -1585,7 +1573,7 @@ train_magmaclust <- function(data,
   ## Create and return the list of elements from the trained model
   list(
     "hp_k" = hp_k,
-    "hp_i" = hp_i,
+    "hp_t" = hp_t,
     "hyperpost" = post,
     "ini_args" = fct_args,
     "seq_elbo" = seq_elbo,
@@ -1845,6 +1833,7 @@ train_gp_clust <- function(data,
       break
     }
 
+    # browser()
     ## E step
     new_mixture <- update_mixture(
       data,

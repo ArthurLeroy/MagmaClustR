@@ -42,7 +42,7 @@ ve_step <- function(db,
                     iter,
                     pen_diag) {
 
-  browser()
+  # browser()
 
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
@@ -163,20 +163,20 @@ ve_step <- function(db,
   ## Update each mu_k parameters for each cluster ##
   floop <- function(k) {
     post_inv <- list_inv_k[[k]]
-    tau_k <- old_mixture %>% dplyr::select(.data$ID, k)
-    for (i in list_inv_i %>% names())
+    tau_k <- old_mixture %>% dplyr::select(Task_ID, k)
+    for (t in list_inv_t %>% names())
     {
       ## Extract the corresponding mixture probability
-      tau_i_k <- tau_k %>%
-        dplyr::filter(.data$ID == i) %>%
+      tau_t_k <- tau_k %>%
+        dplyr::filter(Task_ID == t) %>%
         dplyr::pull(k)
 
-      inv_i <- list_inv_i[[i]]
+      inv_t <- list_inv_t[[t]]
       ## Collect input's common indices between mean and individual processes
-      co_input <- intersect(row.names(inv_i), row.names(post_inv))
+      co_input <- intersect(row.names(inv_t), row.names(post_inv))
       ## Sum the common inverse covariance's terms
       post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
-        tau_i_k * inv_i[co_input, co_input]
+        tau_t_k * inv_t[co_input, co_input]
     }
 
     post_inv %>%
@@ -191,27 +191,26 @@ ve_step <- function(db,
                   USE.NAMES = TRUE)
 
   ## Update the posterior mean for each cluster ##
-
   floop2 <- function(k) {
     prior_mean <- m_k[[k]]
     prior_inv <- list_inv_k[[k]]
-    tau_k <- old_mixture %>% dplyr::select(.data$ID, k)
+    tau_k <- old_mixture %>% dplyr::select(Task_ID, k)
 
     weighted_mean <- prior_inv %*% prior_mean
 
-    for (i in list_inv_i %>% names())
+    for (t in list_inv_t %>% names())
     {
       ## Extract the corresponding mixture probability
-      tau_i_k <- tau_k %>%
-        dplyr::filter(.data$ID == i) %>%
+      tau_t_k <- tau_k %>%
+        dplyr::filter(Task_ID == t) %>%
         dplyr::pull(k)
       ## Compute the weighted mean for the i-th individual
-      weighted_i <- tau_i_k * list_inv_i[[i]] %*% list_output_i[[i]]
+      weighted_t <- tau_t_k * list_inv_t[[t]] %*% list_output_t[[t]]
       ## Collect input's common indices between mean and individual processes
-      co_input <- intersect(row.names(weighted_i), row.names(weighted_mean))
+      co_input <- intersect(row.names(weighted_t), row.names(weighted_mean))
       ## Sum the common weighted mean's terms
       weighted_mean[co_input, ] <- weighted_mean[co_input, ] +
-        weighted_i[co_input, ]
+        weighted_t[co_input, ]
     }
 
     ## Compute the updated mean parameter
@@ -229,8 +228,8 @@ ve_step <- function(db,
       db,
       mean_k,
       cov_k,
-      hp_i,
-      kern_i,
+      hp_t,
+      kern_t,
       prop_mixture_k,
       pen_diag
     )
@@ -250,20 +249,21 @@ ve_step <- function(db,
 #' Maximization step of the Variational EM algorithm used to compute
 #' hyper-parameters of all the kernels involved in MagmaClust.
 #'
-#' @param db A tibble or data frame. Columns required: ID, Input, Output.
-#'    Additional columns for covariates can be specified.
+#' @param db A tibble or data frame. Columns required: Task_ID, Input_ID, Input,
+#'    Output_ID, Output.
 #' @param list_mu_param List of parameters of the K mean GPs.
 #' @param kern_k A kernel used to compute the covariance matrix of the mean GP
 #'    at corresponding timestamps.
-#' @param kern_i A kernel used to compute the covariance matrix of individuals
+#' @param kern_t A kernel used to compute the covariance matrix of individuals
 #'    GP at corresponding timestamps.
 #' @param m_k A named list of prior mean parameters for the K mean GPs.
-#'    Length = 1 or nrow(unique(db$Input))
-#' @param common_hp_k A boolean indicating whether hp are common among
-#'    mean GPs (for each mu_k)
-#' @param common_hp_i A boolean indicating whether hp are common among
-#'    individual GPs (for each y_i)
-#' @param old_hp_i A named vector, tibble or data frame, containing the
+#'    Length = 1 or length(unique(db$Output_ID) or
+#'    nb_cluster*length(unique(db$Output_ID).
+#' @param shared_hp_clusts A boolean indicating whether hyper-parameters are common
+#'    among the mean GPs.
+#' @param shared_hp_tasks A boolean indicating whether hyper-parameters are common
+#'    among the individual GPs.
+#' @param old_hp_t A named vector, tibble or data frame, containing the
 #'    hyper-parameters from the previous  M-step (or initialisation) associated
 #'    with the individual GPs.
 #' @param old_hp_k A named vector, tibble or data frame, containing the
@@ -274,9 +274,9 @@ ve_step <- function(db,
 #'
 #' @return A named list, containing the elements \code{hp_k}, a tibble
 #'    containing the hyper-parameters associated with each cluster,
-#'    \code{hp_i}, a tibble containing the hyper-parameters
+#'    \code{hp_t}, a tibble containing the hyper-parameters
 #'    associated with the individual GPs, and \code{prop_mixture_k},
-#'    a tibble containing the hyper-parameters associated with each individual,
+#'    a tibble containing the hyper-parameters associated with each task,
 #'    indicating the probabilities to belong to each cluster.
 #'
 #' @keywords internal
@@ -285,25 +285,26 @@ ve_step <- function(db,
 #' TRUE
 vm_step <- function(db,
                     old_hp_k,
-                    old_hp_i,
+                    old_hp_t,
                     list_mu_param,
                     kern_k,
-                    kern_i,
+                    kern_t,
                     m_k,
-                    common_hp_k,
-                    common_hp_i,
-                    pen_diag) {
+                    pen_diag,
+                    shared_hp_tasks) {
 
+  # browser()
   list_ID_k <- names(m_k)
-  list_ID_i <- unique(db$ID)
+  list_ID_t <- unique(db$Task_ID)
+  output_ids_vector <- unique(db$Output_ID)
 
-  list_hp_i <- old_hp_i %>%
-    dplyr::select(-.data$ID) %>%
+  list_hp_t <- old_hp_t %>%
+    dplyr::select(-Task_ID) %>%
     names()
 
   list_hp_k <- old_hp_k %>%
-    dplyr::select(-.data$ID) %>%
-    dplyr::select(-.data$prop_mixture) %>%
+    # dplyr::select(-Task_ID) %>%
+    dplyr::select(-prop_mixture) %>%
     names()
 
   ## Detect whether kernel_k provides derivatives for its hyper-parameters
@@ -314,134 +315,150 @@ vm_step <- function(db,
     }
   }
 
-  ## Detect whether kernel_i provides derivatives for its hyper-parameters
-  if (kern_i %>% is.function()) {
-    if (!("deriv" %in% methods::formalArgs(kern_i))) {
-      gr_clust_multi_GP_common_hp_i <- NULL
+  ## Detect whether kernel_t provides derivatives for its hyper-parameters
+  if (kern_t %>% is.function()) {
+    if (!("deriv" %in% methods::formalArgs(kern_t))) {
+      gr_clust_multi_GP_common_hp_t <- NULL
       gr_clust_multi_GP <- NULL
     }
   }
 
   ## Check whether hyper-parameters are common to all individuals
-  if (common_hp_i) {
-    ## Extract the hyper-parameters associated with the i-th individual
-    par_i <- old_hp_i %>%
-      dplyr::select(-.data$ID) %>%
-      dplyr::slice(1)
+  if (shared_hp_tasks) {
+    if (length(db$Output_ID %>% unique()) > 1){
+      # Prepare parameters for optim() in MO case
+      hp_per_output <- old_hp_t %>%
+        dplyr::group_by(Output_ID) %>%
+        dplyr::slice(1) %>%
+        dplyr::ungroup() %>%
+        dplyr::select(-Task_ID, -l_u_t, -Cluster_ID) %>%
+        tidyr::pivot_longer(cols = -Output_ID,
+                            names_to = "hp_name",
+                            values_to = "value") %>%
+        dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
+        dplyr::select(specific_name, value) %>%
+        tibble::deframe()
+
+      shared_hp_l_u_t <- old_hp_t$l_u_t[1]
+      names(shared_hp_l_u_t) <- "l_u_t"
+      par_t <- c(hp_per_output, shared_hp_l_u_t)
+      hp_col_names <- names(par_t)
+    } else {
+      # Prepare parameters for optim() in single output case
+      par_t <- old_hp_t %>%
+        dplyr::select(-c(Task_ID, Output_ID)) %>%
+        dplyr::slice(1)
+      hp_col_names <- names(par)
+    }
 
     ## Optimise hyper-parameters of the individual processes
-    new_hp_i <- stats::optim(
-      par = par_i,
-      fn = elbo_clust_multi_GP_common_hp_i,
-      gr = gr_clust_multi_GP_common_hp_i,
+    new_hp_t <- stats::optim(
+      par = par_t,
+      fn = elbo_clust_multi_GP_shared_hp_tasks,
+      gr = gr_clust_multi_GP_shared_hp_tasks,
       db = db,
       hyperpost = list_mu_param,
-      kern = kern_i,
+      kern = kern_t,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
+      hp_col_names = hp_col_names,
+      output_ids = output_ids_vector,
       control = list(factr = 1e13, maxit = 25)
     )$par %>%
-      tibble::as_tibble_row() %>%
-      tidyr::uncount(weights = length(list_ID_i)) %>%
-      dplyr::mutate("ID" = list_ID_i, .before = 1)
+      tibble::as_tibble_row()
+
+    # Reshape results
+    if (length(db$Output_ID %>% unique()) > 1){
+      # MO case
+      new_hp_t <- new_hp_t %>%
+        tidyr::pivot_longer(
+          cols = -dplyr::any_of("l_u_t"),
+          names_to = c(".value", "Output_ID"),
+          names_pattern = "(.+)_(\\d+)$"
+        ) %>%
+        tidyr::crossing(Task_ID = list_ID_t, .)
+    } else {
+      # Single output case
+      new_hp_t$Output_ID <- "1"
+      new_hp_t <- new_hp_t %>%
+        dplyr::mutate(Task_ID = list(list_ID_t)) %>%
+        tidyr::unnest(Task_ID)
+      new_hp_t <- new_hp_t
+    }
   } else {
-    loop2 <- function(i) {
-      ## Extract the hyper-parameters associated with the i-th individual
-      par_i <- old_hp_i %>%
-        dplyr::filter(.data$ID == i) %>%
-        dplyr::select(-.data$ID)
-      ## Extract the data associated with the i-th individual
-      db_i <- db %>% dplyr::filter(.data$ID == i)
+    cat("HPs are task-specific.\n")
+
+    floop <- function(t) {
+      cat(paste0("Optimizing for task ", t, "...\n"))
+      # Filter data for the current task
+      db_t <- db %>% dplyr::filter(Task_ID == t) %>%
+        dplyr::select(-Task_ID)
+
+      input_t <- db_t %>% dplyr::pull(Reference)
+
+      post_mean_t <- post_mean %>%
+        dplyr::filter(Reference %in% input_t) %>%
+        dplyr::pull(Output)
+
+      post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
+
+      old_hp_t_task <- old_hp_t %>% dplyr::filter(Task_ID == t)
+
+      # Prepare parameters for optim() for this specific task
+      if (length(db$Output_ID %>% unique()) > 1){
+        hp_per_output <- old_hp_t_task %>%
+          dplyr::select(-Task_ID, -l_u_t) %>%
+          tidyr::pivot_longer(cols = -Output_ID,
+                              names_to = "hp_name",
+                              values_to = "value") %>%
+          dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
+          dplyr::select(specific_name, value) %>%
+          tibble::deframe()
+
+        shared_hp <- old_hp_t_task$l_u_t[1]
+        names(shared_hp) <- "l_u_t"
+
+        par_t <- c(hp_per_output, shared_hp)
+        hp_col_names <- names(par_t)
+      } else {
+        ## Extract the hyper-parameters associated with the i-th individual
+        par_t <- old_hp_t %>%
+          dplyr::filter(Task_ID == t) %>%
+          dplyr::select(-c(Task_ID, Output_ID))
+        hp_col_names <- names(par_t)
+      }
 
       ## Optimise hyper-parameters of the individual processes
       stats::optim(
-        par = par_i,
+        par = par_t,
         fn = elbo_clust_multi_GP,
         gr = gr_clust_multi_GP,
-        db = db_i,
+        db = db_t,
         pen_diag = pen_diag,
         hyperpost = list_mu_param,
-        kern = kern_i,
+        kern = kern_t,
         method = "L-BFGS-B",
+        hp_col_names = hp_col_names,
+        output_ids = output_ids,
         control = list(factr = 1e13, maxit = 25)
       )$par %>%
-        tibble::as_tibble_row() %>%
-        return()
+        tibble::as_tibble_row()
     }
-    new_hp_i <- sapply(list_ID_i, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
-      tibble::enframe(name = "ID") %>%
-      tidyr::unnest(cols = .data$value)
+    new_hp_t <- sapply(list_ID_t, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
+      tibble::enframe(name = "Task_ID") %>%
+      tidyr::unnest(cols = value)
   }
 
   ## Compute the prop mixture of each cluster
   prop_mixture <- list_mu_param$mixture %>%
-    dplyr::select(-.data$ID) %>%
+    dplyr::select(-Task_ID) %>%
     colMeans()
 
-  ## Check whether hyper-parameters are common to all cluster
-  if (common_hp_k) {
-    ## Extract the hyper-parameters associated with the k-th cluster
-    par_k <- old_hp_k %>%
-      dplyr::select(-.data$ID) %>%
-      dplyr::slice(1) %>%
-      dplyr::select(-.data$prop_mixture)
 
-    ## Optimise hyper-parameters of the processes of each cluster
-    new_hp_k <- stats::optim(
-      par = par_k,
-      fn = elbo_GP_mod_common_hp_k,
-      gr = gr_GP_mod_common_hp_k,
-      db = list_mu_param$mean,
-      mean = m_k,
-      kern = kern_k,
-      post_cov = list_mu_param$cov,
-      pen_diag = pen_diag,
-      method = "L-BFGS-B",
-      control = list(factr = 1e13, maxit = 25)
-    )$par %>%
-      tibble::as_tibble_row() %>%
-      tidyr::uncount(weights = length(list_ID_k)) %>%
-      dplyr::mutate("ID" = list_ID_k, .before = 1) %>%
-      dplyr::mutate("prop_mixture" = prop_mixture)
-  } else {
-    loop <- function(k) {
-      ## Extract the hyper-parameters associated with the k-th cluster
-      par_k <- old_hp_k %>%
-        dplyr::filter(.data$ID == k) %>%
-        dplyr::select(-.data$ID) %>%
-        dplyr::select(-.data$prop_mixture)
-      ## Extract the data associated with the k-th cluster
-      db_k <- list_mu_param$mean[[k]]
-      ## Extract the mean values associated with the k-th specific inputs
-      mean_k <- m_k[[k]]
-      ## Extract the covariance values associated with the k-th specific inputs
-      post_cov_k <- list_mu_param$cov[[k]]
-
-      ## Optimise hyper-parameters of the processes of each cluster
-      stats::optim(
-        par = par_k,
-        logL_GP_mod,
-        gr = gr_GP_mod,
-        db = db_k,
-        mean = mean_k,
-        kern = kern_k,
-        post_cov = post_cov_k,
-        pen_diag = pen_diag,
-        method = "L-BFGS-B",
-        control = list(factr = 1e13, maxit = 25)
-      )$par %>%
-        tibble::as_tibble_row() %>%
-        return()
-    }
-    new_hp_k <- sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
-      tibble::enframe(name = "ID") %>%
-      tidyr::unnest_wider(.data$value) %>%
-      dplyr::mutate("prop_mixture" = prop_mixture)
-  }
 
   list(
-    "hp_k" = new_hp_k,
-    "hp_i" = new_hp_i
+    "hp_k" = old_hp_k,
+    "hp_t" = new_hp_t
   ) %>%
     return()
 }
@@ -478,63 +495,101 @@ update_mixture <- function(db,
                            kern,
                            prop_mixture,
                            pen_diag) {
-  c_i <- 0
-  c_k <- 0
-  ID_i <- unique(db$ID)
-  ID_k <- names(mean_k)
-  mat_elbo <- matrix(NA, nrow = length(ID_k), ncol = length(ID_i))
-  vec_prop <- c()
 
-  for (i in ID_i)
-  {
-    c_i <- c_i + 1
-    ## Extract the i-th specific Input
-    input_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::pull(.data$Reference)
-    ## Extract the i-th specific hyper-parameters
-    hp_i <- hp %>%
-      dplyr::filter(.data$ID == i)
-    ## Extract the data associated with the i-th individual
-    db_i <- db %>%
-      dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+  # 1. Initialisation des identifiants
+  ID_t <- unique(db$Task_ID)
+  ID_k <- names(mean_k) # c("K1", "K2", ...)
 
-    for (k in ID_k)
-    {
-      c_k <- c_k + 1
+  # 2. Extraction du vecteur des proportions (Optimisation)
+  # Au lieu de le chercher dans la boucle, on le prépare une fois pour toutes.
+  # prop_mixture est un tibble: Cluster_ID, Output_ID, prop_mixture
+  # Comme la prop est la même pour tous les Output_ID d'un cluster, on prend la première occurence.
 
-      ## Create a vector of proportion with the clusters in adequate order
-      vec_prop[c_k] <- prop_mixture[[k]]
-      ## Extract the mean values associated with the i-th specific inputs
-      mean_k_i <- mean_k[[k]] %>%
-        dplyr::filter(.data$Reference %in% input_i) %>%
-        dplyr::pull(.data$Output)
-      ## Extract the covariance values associated with the i-th specific inputs
-      cov_k_i <- cov_k[[k]][as.character(input_i), as.character(input_i)]
+  vec_prop_map <- prop_mixture %>%
+    dplyr::select(Cluster_ID, prop_mixture) %>%
+    dplyr::distinct() %>%
+    tibble::deframe() # Crée un vecteur nommé c("K1" = 0.5, "K2" = 0.5)
 
-      mat_elbo[c_k, c_i] <- -logL_GP_mod(
-        hp_i,
-        db_i,
-        mean_k_i,
+  # On s'assure que l'ordre correspond à ID_k
+  vec_prop <- vec_prop_map[ID_k]
+
+  # Matrice pour stocker les log-vraisemblances p(y | Z=k)
+  # Lignes = Clusters, Colonnes = Tâches
+  mat_logL <- matrix(NA, nrow = length(ID_k), ncol = length(ID_t))
+
+  # 3. Boucle sur les tâches
+  # (On peut utiliser seq_along pour éviter les compteurs manuels c_t)
+  for (i_t in seq_along(ID_t)) {
+
+    t <- ID_t[i_t]
+
+    ## Extract data for task t
+    # db_t contient TOUS les outputs pour la tâche t (c'est crucial pour le MO)
+    db_t <- db %>%
+      dplyr::filter(Task_ID == t) %>%
+      dplyr::select(-Task_ID)
+
+    # input_t doit contenir les références de TOUS les points de TOUS les outputs
+    # pour construire la bonne matrice de covariance jointe
+    input_t <- db_t %>% dplyr::pull(Reference)
+
+    ## Extract hyper-parameters for task t
+    hp_t <- hp %>% dplyr::filter(Task_ID == t)
+
+    # 4. Boucle sur les clusters
+    for (i_k in seq_along(ID_k)) {
+
+      k <- ID_k[i_k]
+
+      ## Extract Mean Process for Cluster k
+      # On filtre sur 'input_t' pour récupérer les moyennes correspondant exactement
+      # aux points observés de la tâche (Output 1 ET Output 2...)
+      mean_k_t <- mean_k[[k]] %>%
+        dplyr::filter(Reference %in% input_t) %>%
+        # Assurons-nous que l'ordre est le même que dans db_t
+        dplyr::arrange(match(Reference, input_t)) %>%
+        dplyr::pull(Output)
+
+      ## Extract Covariance Process for Cluster k
+      # C'est ici que la covariance CROISÉE est récupérée si 'cov_k' est bien construite
+      cov_k_t <- cov_k[[k]][as.character(input_t), as.character(input_t)]
+
+      ## Calcul de la Log-Vraisemblance Multi-Output
+      # logL_GP_mod doit être capable de gérer des vecteurs/matrices MO
+      mat_logL[i_k, i_t] <- logL_GP_mod(
+        hp_t,
+        db_t,
+        mean_k_t,
         kern,
-        cov_k_i,
+        cov_k_t,
         pen_diag
       )
     }
-    c_k <- 0
   }
 
-  ## We need to use the 'log-sum-exp' trick: exp(x - max(x))/sum exp(x - max(x))
-  ## to remain numerically stable
-  mat_L <- mat_elbo %>% apply(2, function(x) exp(x - max(x)))
+  # 5. Calcul des Responsabilités (Softmax avec Log-Sum-Exp trick)
+  # mat_logL contient log p(y | k)
+  # On veut : tau_ik = pi_k * p(y|k) / sum(...)
+  # Soit en log : log(tau) = log(pi_k) + log p(y|k) - log(sum(...))
 
-  (vec_prop * mat_L) %>%
-    apply(2, function(x) x / sum(x)) %>%
-    `rownames<-`(ID_k) %>%
-    t() %>%
+  # Ajout du log-prior (log pi_k) à la log-vraisemblance
+  log_numerator <- mat_logL + log(vec_prop)
+
+  # Application du Log-Sum-Exp par colonne (par tâche) pour normaliser
+  # T_ik = exp( Num_ik - max_j(Num_ij) ) / sum_j( exp( Num_ij - max ) )
+
+  mat_tau <- apply(log_numerator, 2, function(col_scores) {
+    max_score <- max(col_scores)
+    exp_scores <- exp(col_scores - max_score)
+    return(exp_scores / sum(exp_scores))
+  })
+
+  # 6. Mise en forme du résultat
+  mat_tau %>%
+    t() %>% # Transpose pour avoir Tâches x Clusters
     round(5) %>%
     tibble::as_tibble() %>%
-    dplyr::mutate("ID" = ID_i, .before = 1) %>%
+    `colnames<-`(ID_k) %>% # Nomme les colonnes K1, K2...
+    dplyr::mutate("Task_ID" = ID_t, .before = 1) %>%
     return()
 }
