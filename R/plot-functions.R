@@ -952,6 +952,257 @@ plot_gif <- function(pred_gp,
 #'
 #' @examples
 #' TRUE
+# plot_magmaclust <- function(pred_clust,
+#                             cluster = "all",
+#                             x_input = NULL,
+#                             data = NULL,
+#                             data_train = NULL,
+#                             col_clust = FALSE,
+#                             prior_mean = NULL,
+#                             y_grid = NULL,
+#                             heatmap = FALSE,
+#                             samples = FALSE,
+#                             nb_samples = 50,
+#                             plot_mean = TRUE,
+#                             alpha_samples = 0.3,
+#                             prob_CI = 0.95,
+#                             size_data = 3,
+#                             size_data_train = 1,
+#                             alpha_data_train = 0.5
+#                             ) {
+#
+#   ## Check prob_CI format
+#   if (prob_CI < 0 | prob_CI > 1) {
+#     stop("The 'prob_CI' argument should be a number between 0 and 1.")
+#   }
+#
+#   ## Check format for prediction
+#   if (!is.list(pred_clust)) {
+#     stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
+#   }
+#   ## Check presence of 'pred'
+#   if (!("pred" %in% names(pred_clust))) {
+#     stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
+#   }
+#   ## Check presence of 'mixture'
+#   if (!("mixture" %in% names(pred_clust))) {
+#     stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
+#   }
+#   ## Check presence of 'mixture_pred'
+#   if (!("mixture_pred" %in% names(pred_clust))) {
+#     stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
+#   }
+#
+#   pred <- pred_clust$pred
+#   mixture <- pred_clust$mixture
+#   mixture_pred <- pred_clust$mixture_pred
+#   ID_k <- names(pred)
+#
+#   ## Checker whether we can provide Credible Interval
+#   if (cluster == "all") {
+#     ## Check whether one cluster's proba is 1 (or really close)
+#     max_clust <- proba_max_cluster(mixture)
+#     if (round(max_clust$Proba[1], 3) == 1) {
+#       cluster <- max_clust$Cluster
+#       cat(
+#         "The mixture probability of the cluster", cluster, "is 1. Therefore,",
+#         "the predictive distribution is Gaussian and the associated",
+#         "credible interval can be displayed. \n\n"
+#       )
+#       ## Create dummy variable for indicating the type of prediction
+#       all_clust <- FALSE
+#
+#       ## Compute the quantile of the desired Credible Interval
+#       quant_ci <- stats::qnorm((1 + prob_CI) / 2)
+#     } else {
+#       all_clust <- TRUE
+#     }
+#   } else {
+#     all_clust <- FALSE
+#     ## Compute the quantile of the desired Credible Interval
+#     quant_ci <- stats::qnorm((1 + prob_CI) / 2)
+#   }
+#
+#   ## Select the appropriate tibble for displaying predictions
+#   if (all_clust) {
+#     pred_gp <- mixture_pred
+#   } else {
+#     ## Check the name provided in 'cluster'
+#     if (!(cluster %in% ID_k)) {
+#       stop(
+#         "The cluster's name provided in 'cluster' does not exist in) ",
+#         "'pred_clust'."
+#       )
+#     }
+#     ## Remove the 'Proba' column if selecting cluster-specific prediction
+#     pred_gp <- pred[[cluster]] %>% dplyr::select(-Proba)
+#
+#     ## Get the 'Proba' value to display in the Title
+#     proba <- pred[[cluster]] %>%
+#       dplyr::pull(Proba) %>%
+#       unique()
+#   }s
+#
+#   ## Get the inputs that should be used
+#   if (x_input %>% is.null()) {
+#     inputs <- pred_gp %>% dplyr::select(-c(.data$ID, .data$Mean, .data$Var))
+#   } else {
+#     if (all(x_input %in% names(pred_gp))) {
+#       inputs <- pred_gp[x_input]
+#     } else {
+#       stop("The names in the 'x_input' argument don't exist in 'pred_clust'.")
+#     }
+#   }
+#
+#   if(samples) {
+#     ## Display samples drawn from the posterior mixture of GPs
+#     gg <- plot_samples(
+#       pred = pred_clust,
+#       nb_samples = nb_samples,
+#       x_input = x_input,
+#       plot_mean = plot_mean,
+#       alpha_samples = alpha_samples
+#       )
+#
+#     ## Display the observed data if provided
+#     if (!is.null(data)) {
+#       ## Check dimension of the inputs
+#       if (ncol(inputs) == 2) {
+#         ## Display labels if 2-D
+#         gg <- gg + ggplot2::geom_label(
+#           data = data,
+#           ggplot2::aes_string(
+#             x = names(inputs)[1],
+#             y = names(inputs)[2],
+#             label = "Output",
+#             fill = "Output"
+#           ),
+#           size = 3
+#         )
+#       } else if (ncol(inputs) == 1){
+#         ## Display points if 1-D
+#         gg <- gg + ggplot2::geom_point(
+#           data = data,
+#           ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
+#           size = size_data,
+#           shape = 20
+#         )
+#       }
+#     }
+#     ## Define the adequate title
+#     gtitle <- paste0("Samples from a mixture of GPs")
+#
+#   } else if (all_clust) {
+#     ## GP visualisation without Credible Interval
+#     gg <- plot_gp(
+#       pred_gp = pred_gp,
+#       x_input = x_input,
+#       data = data,
+#       y_grid = y_grid,
+#       heatmap = heatmap,
+#       prob_CI = 0,
+#       size_data = size_data
+#     )
+#
+#     ## Define the adequate title
+#     gtitle <- paste0("Mixture of GP predictions")
+#
+#   } else {
+#     ## Classic GP visualisation for cluster-specific predictions
+#     gg <- plot_gp(
+#       pred_gp = pred_gp,
+#       x_input = x_input,
+#       data = data,
+#       y_grid = y_grid,
+#       heatmap = heatmap,
+#       prob_CI = prob_CI,
+#       size_data = size_data
+#     )
+#
+#     ## Define the adequate title
+#     gtitle <- paste0("Cluster ", cluster, " -- Proba = ", mixture[[cluster]])
+#   }
+#
+#   ## Display training data if available
+#   if (!is.null(data_train)) {
+#     ## Change colours of background points depending on 'col_clust'
+#     if (col_clust) {
+#       ## Check whether 'data_train' provides a 'Cluster' column
+#       if (!("Cluster" %in% names(data_train))) {
+#         cat(
+#           "The 'data_train' argument does not provide a 'Cluster' column.",
+#           "Therefore, training data remain coloured by individual. \n \n"
+#         )
+#       } else {
+#         ## Certify that 'Cluster' is discrete
+#         data_train$Cluster <- as.factor(data_train$Cluster)
+#
+#         ## Colour training data plot by cluster
+#         gg <- gg +
+#           ggplot2::geom_point(
+#             data = data_train,
+#             ggplot2::aes_string(
+#               x = names(inputs)[1],
+#               y = "Output", col = "Cluster"
+#             ),
+#             size = size_data_train,
+#             alpha = alpha_data_train
+#           )
+#       }
+#     } else {
+#       gg <- gg +
+#         ggplot2::geom_point(
+#           data = data_train,
+#           ggplot2::aes_string(
+#             x = names(inputs)[1],
+#             y = "Output", fill = "ID"
+#           ),
+#           shape = 21,
+#           size = size_data_train,
+#           alpha = alpha_data_train
+#         ) + ggplot2::guides(fill = "none")
+#     }
+#   }
+#
+#   ## Display the prior mean process if provided
+#   if (!is.null(prior_mean)) {
+#
+#     ## Extract 'mean' if the user provides the full 'hyperpost'
+#     ## Bind the tibbles of hyper-posterior mean processes
+#     mean_k <- prior_mean %>% dplyr::bind_rows(.id = "Cluster")
+#
+#     ## Display the mean functions if available
+#     if (names(inputs)[1] %in% names(mean_k)) {
+#       gg <- gg +
+#         ggplot2::geom_line(
+#           data = mean_k,
+#           ggplot2::aes_string(
+#             x = names(inputs)[1],
+#             y = "Output",
+#             col = "Cluster"
+#           ),
+#           linetype = "dashed"
+#         )
+#     } else {
+#       warning(
+#         "The ", names(inputs)[1], " column does not exist in the ",
+#         "'prior_mean' argument. The mean function cannot be displayed."
+#       )
+#     }
+#   }
+#
+#   ## Change scale colour palette
+#   gg <- gg + ggplot2::scale_color_brewer(palette = "Set1")
+#
+#   (gg + ggplot2::ggtitle(gtitle)) %>%
+#     return()
+# }
+
+
+
+#' Plot MagmaClust predictions (Multi-Output Adapted)
+#'
+#' @export
 plot_magmaclust <- function(pred_clust,
                             cluster = "all",
                             x_input = NULL,
@@ -969,29 +1220,19 @@ plot_magmaclust <- function(pred_clust,
                             size_data = 3,
                             size_data_train = 1,
                             alpha_data_train = 0.5
-                            ) {
+) {
 
+  # browser()
   ## Check prob_CI format
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
   }
 
   ## Check format for prediction
-  if (!is.list(pred_clust)) {
-    stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
-  }
-  ## Check presence of 'pred'
-  if (!("pred" %in% names(pred_clust))) {
-    stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
-  }
-  ## Check presence of 'mixture'
-  if (!("mixture" %in% names(pred_clust))) {
-    stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
-  }
-  ## Check presence of 'mixture_pred'
-  if (!("mixture_pred" %in% names(pred_clust))) {
-    stop("Wrong format for 'pred_clust', please read ?plot_magmaclust().")
-  }
+  if (!is.list(pred_clust)) stop("Wrong format for 'pred_clust'.")
+  if (!("pred" %in% names(pred_clust))) stop("Missing 'pred' in 'pred_clust'.")
+  if (!("mixture" %in% names(pred_clust))) stop("Missing 'mixture' in 'pred_clust'.")
+  if (!("mixture_pred" %in% names(pred_clust))) stop("Missing 'mixture_pred' in 'pred_clust'.")
 
   pred <- pred_clust$pred
   mixture <- pred_clust$mixture
@@ -1000,200 +1241,178 @@ plot_magmaclust <- function(pred_clust,
 
   ## Checker whether we can provide Credible Interval
   if (cluster == "all") {
-    ## Check whether one cluster's proba is 1 (or really close)
     max_clust <- proba_max_cluster(mixture)
+    # Si la proba est quasi 1, on peut afficher l'IC de ce cluster
     if (round(max_clust$Proba[1], 3) == 1) {
       cluster <- max_clust$Cluster
-      cat(
-        "The mixture probability of the cluster", cluster, "is 1. Therefore,",
-        "the predictive distribution is Gaussian and the associated",
-        "credible interval can be displayed. \n\n"
-      )
-      ## Create dummy variable for indicating the type of prediction
+      cat(paste0("The mixture probability of ", cluster, " is 1. Displaying its CI.\n\n"))
       all_clust <- FALSE
-
-      ## Compute the quantile of the desired Credible Interval
       quant_ci <- stats::qnorm((1 + prob_CI) / 2)
     } else {
       all_clust <- TRUE
     }
   } else {
     all_clust <- FALSE
-    ## Compute the quantile of the desired Credible Interval
     quant_ci <- stats::qnorm((1 + prob_CI) / 2)
   }
 
   ## Select the appropriate tibble for displaying predictions
   if (all_clust) {
     pred_gp <- mixture_pred
+    # Titre générique pour le Cluster/Mélange
+    gtitle_main <- "Mixture of GP predictions"
   } else {
-    ## Check the name provided in 'cluster'
-    if (!(cluster %in% ID_k)) {
-      stop(
-        "The cluster's name provided in 'cluster' does not exist in) ",
-        "'pred_clust'."
-      )
-    }
-    ## Remove the 'Proba' column if selecting cluster-specific prediction
-    pred_gp <- pred[[cluster]] %>% dplyr::select(-.data$Proba)
+    if (!(cluster %in% ID_k)) stop("Cluster name does not exist in 'pred_clust'.")
 
-    ## Get the 'Proba' value to display in the Title
-    proba <- pred[[cluster]] %>%
-      dplyr::pull(.data$Proba) %>%
-      unique()
+    pred_gp <- pred[[cluster]]
+    if("Proba" %in% names(pred_gp)) pred_gp <- pred_gp %>% dplyr::select(-Proba)
+
+    # Récupération de la proba pour le titre
+    # Attention: mixture contient une ligne par tâche, on prend la première (ou l'unique)
+    proba_val <- mixture[[cluster]][1]
+    gtitle_main <- paste0("Cluster ", cluster, " -- Proba = ", round(proba_val, 4))
   }
 
-  ## Get the inputs that should be used
+  ## Get the inputs that should be used (column names)
   if (x_input %>% is.null()) {
-    inputs <- pred_gp %>% dplyr::select(-c(.data$ID, .data$Mean, .data$Var))
+    # On exclut les colonnes standards pour trouver les inputs
+    cols_to_exclude <- c("ID", "Task_ID", "Mean", "Var", "Output_ID", "Output")
+    input_cols <- setdiff(names(pred_gp), cols_to_exclude)
   } else {
     if (all(x_input %in% names(pred_gp))) {
-      inputs <- pred_gp[x_input]
+      input_cols <- x_input
     } else {
-      stop("The names in the 'x_input' argument don't exist in 'pred_clust'.")
+      stop("The names in 'x_input' don't exist in the prediction.")
     }
   }
 
+  # ============================================================================
+  # CAS 1 : SAMPLES (Courbes d'échantillonnage)
+  # ============================================================================
   if(samples) {
-    ## Display samples drawn from the posterior mixture of GPs
-    gg <- plot_samples(
-      pred = pred_clust,
+    ## 1. Récupérer la LISTE des plots de base (un par Output_ID) via plot_samples
+    gg_list <- plot_samples(
+      pred = pred_clust, # plot_samples gère le MO si on lui passe la liste complète
       nb_samples = nb_samples,
       x_input = x_input,
       plot_mean = plot_mean,
       alpha_samples = alpha_samples
-      )
+    )
 
-    ## Display the observed data if provided
-    if (!is.null(data)) {
-      ## Check dimension of the inputs
-      if (ncol(inputs) == 2) {
-        ## Display labels if 2-D
-        gg <- gg + ggplot2::geom_label(
-          data = data,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = names(inputs)[2],
-            label = "Output",
-            fill = "Output"
-          ),
-          size = 3
-        )
-      } else if (ncol(inputs) == 1){
-        ## Display points if 1-D
-        gg <- gg + ggplot2::geom_point(
-          data = data,
-          ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
-          size = size_data,
-          shape = 20
-        )
+    ## 2. Itérer sur chaque output pour ajouter les points (Data & Train) et le titre
+    # plot_samples retourne une liste nommée par Output_ID
+    final_plot_list <- purrr::map(names(gg_list), function(oid) {
+
+      gg <- gg_list[[oid]]
+
+      # --- Filtrage des données pour l'Output courant ---
+      data_sub <- NULL
+      if (!is.null(data)) {
+        if ("Output_ID" %in% names(data)) {
+          data_sub <- data %>% dplyr::filter(Output_ID == oid)
+        } else {
+          data_sub <- data # Cas Single Output legacy
+        }
       }
-    }
-    ## Define the adequate title
-    gtitle <- paste0("Samples from a mixture of GPs")
 
-  } else if (all_clust) {
-    ## GP visualisation without Credible Interval
-    gg <- plot_gp(
-      pred_gp = pred_gp,
-      x_input = x_input,
-      data = data,
-      y_grid = y_grid,
-      heatmap = heatmap,
-      prob_CI = 0,
-      size_data = size_data
-    )
-
-    ## Define the adequate title
-    gtitle <- paste0("Mixture of GP predictions")
-
-  } else {
-    ## Classic GP visualisation for cluster-specific predictions
-    gg <- plot_gp(
-      pred_gp = pred_gp,
-      x_input = x_input,
-      data = data,
-      y_grid = y_grid,
-      heatmap = heatmap,
-      prob_CI = prob_CI,
-      size_data = size_data
-    )
-
-    ## Define the adequate title
-    gtitle <- paste0("Cluster ", cluster, " -- Proba = ", mixture[[cluster]])
-  }
-
-  ## Display training data if available
-  if (!is.null(data_train)) {
-    ## Change colours of background points depending on 'col_clust'
-    if (col_clust) {
-      ## Check whether 'data_train' provides a 'Cluster' column
-      if (!("Cluster" %in% names(data_train))) {
-        cat(
-          "The 'data_train' argument does not provide a 'Cluster' column.",
-          "Therefore, training data remain coloured by individual. \n \n"
-        )
-      } else {
-        ## Certify that 'Cluster' is discrete
-        data_train$Cluster <- as.factor(data_train$Cluster)
-
-        ## Colour training data plot by cluster
-        gg <- gg +
-          ggplot2::geom_point(
-            data = data_train,
-            ggplot2::aes_string(
-              x = names(inputs)[1],
-              y = "Output", col = "Cluster"
-            ),
-            size = size_data_train,
-            alpha = alpha_data_train
+      # --- Ajout des points OBSERVÉS (Data) ---
+      if (!is.null(data_sub) && nrow(data_sub) > 0) {
+        if (length(input_cols) == 2) {
+          # 2D Labels
+          gg <- gg + ggplot2::geom_label(
+            data = data_sub,
+            ggplot2::aes_string(x = input_cols[1], y = input_cols[2],
+                                label = "Output", fill = "Output"),
+            size = 3
           )
+        } else if (length(input_cols) == 1){
+          # 1D Points
+          gg <- gg + ggplot2::geom_point(
+            data = data_sub,
+            ggplot2::aes_string(x = input_cols[1], y = "Output"),
+            size = size_data, shape = 20
+          )
+        }
       }
-    } else {
-      gg <- gg +
-        ggplot2::geom_point(
-          data = data_train,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = "Output", fill = "ID"
-          ),
-          shape = 21,
-          size = size_data_train,
-          alpha = alpha_data_train
-        ) + ggplot2::guides(fill = "none")
-    }
+
+      # --- Ajout des points D'ENTRAÎNEMENT (Train) ---
+      # Note: Cette logique était dans le bloc global avant, on l'applique ici par plot
+      if (!is.null(data_train)) {
+        data_train_sub <- if ("Output_ID" %in% names(data_train)) {
+          data_train %>% dplyr::filter(Output_ID == oid)
+        } else {
+          data_train
+        }
+
+        if(nrow(data_train_sub) > 0) {
+          if (col_clust) {
+            # Couleur par Cluster
+            if (!("Cluster" %in% names(data_train_sub))) {
+              # Warning déjà géré ailleurs, on skip ou on plot par ID
+            } else {
+              data_train_sub$Cluster <- as.factor(data_train_sub$Cluster)
+              gg <- gg + ggplot2::geom_point(
+                data = data_train_sub,
+                ggplot2::aes_string(x = input_cols[1], y = "Output", col = "Cluster"),
+                size = size_data_train, alpha = alpha_data_train
+              )
+            }
+          } else {
+            # Couleur par ID (Task)
+            gg <- gg + ggplot2::geom_point(
+              data = data_train_sub,
+              ggplot2::aes_string(x = input_cols[1], y = "Output", fill = "Task_ID"), # ou ID selon format
+              shape = 21, size = size_data_train, alpha = alpha_data_train
+            ) + ggplot2::guides(fill = "none")
+          }
+        }
+      }
+
+      # --- Mise à jour du Titre ---
+      # On combine le titre de l'output ("Prediction for Output_ID: 1") avec l'info Cluster
+      final_title <- paste0(gg$labels$title, "\n", gtitle_main, " (Samples)")
+      gg <- gg + ggplot2::ggtitle(final_title) + ggplot2::scale_color_brewer(palette = "Set1")
+
+      return(gg)
+    })
+
+    return(final_plot_list)
+
+    # ============================================================================
+    # CAS 2 : PLOT GP STANDARD (Moyenne + IC / Heatmap)
+    # ============================================================================
+  } else {
+
+    ## plot_gp gère déjà le découpage par Output_ID, l'affichage de data, data_train et prior_mean
+    # Il retourne une liste de plots.
+
+    gg_list <- plot_gp(
+      pred_gp = pred_gp,
+      x_input = x_input,
+      data = data,
+      data_train = data_train,
+      prior_mean = prior_mean, # plot_gp gère le filtrage par Output_ID pour prior_mean
+      y_grid = y_grid,
+      heatmap = heatmap,
+      prob_CI = if(all_clust) 0 else prob_CI, # Pas d'IC pour le mélange complet
+      size_data = size_data,
+      size_data_train = size_data_train,
+      alpha_data_train = alpha_data_train
+    )
+
+    # On ajoute juste le sous-titre du Cluster/Mélange à chaque plot de la liste
+    final_plot_list <- purrr::map(gg_list, function(gg) {
+
+      # Si on a coloré par cluster dans plot_gp (via data_train), on s'assure de la palette
+      gg <- gg + ggplot2::scale_color_brewer(palette = "Set1")
+
+      # Mise à jour du titre
+      final_title <- paste0(gg$labels$title, "\n", gtitle_main)
+      gg <- gg + ggplot2::ggtitle(final_title)
+
+      return(gg)
+    })
+
+    return(final_plot_list)
   }
-
-  ## Display the prior mean process if provided
-  if (!is.null(prior_mean)) {
-
-    ## Extract 'mean' if the user provides the full 'hyperpost'
-    ## Bind the tibbles of hyper-posterior mean processes
-    mean_k <- prior_mean %>% dplyr::bind_rows(.id = "Cluster")
-
-    ## Display the mean functions if available
-    if (names(inputs)[1] %in% names(mean_k)) {
-      gg <- gg +
-        ggplot2::geom_line(
-          data = mean_k,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = "Output",
-            col = "Cluster"
-          ),
-          linetype = "dashed"
-        )
-    } else {
-      warning(
-        "The ", names(inputs)[1], " column does not exist in the ",
-        "'prior_mean' argument. The mean function cannot be displayed."
-      )
-    }
-  }
-
-  ## Change scale colour palette
-  gg <- gg + ggplot2::scale_color_brewer(palette = "Set1")
-
-  (gg + ggplot2::ggtitle(gtitle)) %>%
-    return()
 }

@@ -509,13 +509,17 @@ update_mixture <- function(db,
   # prop_mixture est un tibble: Cluster_ID, Output_ID, prop_mixture
   # Comme la prop est la même pour tous les Output_ID d'un cluster, on prend la première occurence.
 
-  vec_prop_map <- prop_mixture %>%
-    dplyr::select(Cluster_ID, prop_mixture) %>%
-    dplyr::distinct() %>%
-    tibble::deframe() # Crée un vecteur nommé c("K1" = 0.5, "K2" = 0.5)
+  if(prop_mixture %>% is_tibble()){
+    vec_prop_map <- prop_mixture %>%
+      dplyr::select(Cluster_ID, prop_mixture) %>%
+      dplyr::distinct() %>%
+      tibble::deframe() # Crée un vecteur nommé c("K1" = 0.5, "K2" = 0.5)
 
-  # On s'assure que l'ordre correspond à ID_k
-  vec_prop <- vec_prop_map[ID_k]
+    # On s'assure que l'ordre correspond à ID_k
+    vec_prop <- vec_prop_map[ID_k]
+  } else {
+    vec_prop <- prop_mixture
+  }
 
   # Matrice pour stocker les log-vraisemblances p(y | Z=k)
   # Lignes = Clusters, Colonnes = Tâches
