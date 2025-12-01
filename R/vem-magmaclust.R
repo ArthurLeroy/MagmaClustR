@@ -64,7 +64,7 @@ ve_step <- function(db,
 
   ## Sort the database according to Reference
   ## WARNING: ARRRANGE !!!!!
-  db <- db %>% dplyr::arrange(Reference, .by_group = TRUE)
+  # db <- db %>% dplyr::arrange(Reference, .by_group = TRUE)
 
   prop_mixture_k <- hp_k %>%
     dplyr::select(c(Cluster_ID, Output_ID, prop_mixture))
@@ -88,10 +88,10 @@ ve_step <- function(db,
 
     # Compute the covariance matrix of the mean process of the
     # k cluster
-    cov_k <- kern_to_cov(input = all_inputs,
+    cov_k <- quiet(kern_to_cov(input = all_inputs,
                          kern = kern_k,
                          hp = hp_k_subset %>%
-                           dplyr::select(-Cluster_ID))
+                           dplyr::select(-Cluster_ID)))
 
     references <- rownames(cov_k)
     inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
@@ -225,11 +225,11 @@ ve_step <- function(db,
     mixture <- old_mixture
   } else{
     mixture <- update_mixture(
-      db,
+      db = db,
       mean_k,
       cov_k,
-      hp_t,
-      kern_t,
+      hp = hp_t,
+      kern = kern_t,
       prop_mixture_k,
       pen_diag
     )
@@ -449,12 +449,14 @@ vm_step <- function(db,
       tidyr::unnest(cols = value)
   }
 
+  ## Re-attribute each set of task specific HPs to the Cluster_ID in which
+  ## the task belongs
+  new_hp_t$Cluster_ID <- old_hp_t$Cluster_ID
+
   ## Compute the prop mixture of each cluster
   prop_mixture <- list_mu_param$mixture %>%
     dplyr::select(-Task_ID) %>%
     colMeans()
-
-
 
   list(
     "hp_k" = old_hp_k,
@@ -496,9 +498,11 @@ update_mixture <- function(db,
                            prop_mixture,
                            pen_diag) {
 
+  # browser()
   # 1. Initialisation des identifiants
   ID_t <- unique(db$Task_ID)
   ID_k <- names(mean_k) # c("K1", "K2", ...)
+  output_vector_ids <- unique(db$Output_ID)
 
   # 2. Extraction du vecteur des proportions (Optimisation)
   # Au lieu de le chercher dans la boucle, on le prépare une fois pour toutes.
@@ -535,6 +539,7 @@ update_mixture <- function(db,
 
     ## Extract hyper-parameters for task t
     hp_t <- hp %>% dplyr::filter(Task_ID == t)
+    hp_col_names <- colnames(hp_t)
 
     # 4. Boucle sur les clusters
     for (i_k in seq_along(ID_k)) {
@@ -544,6 +549,7 @@ update_mixture <- function(db,
       ## Extract Mean Process for Cluster k
       # On filtre sur 'input_t' pour récupérer les moyennes correspondant exactement
       # aux points observés de la tâche (Output 1 ET Output 2...)
+      # browser()
       mean_k_t <- mean_k[[k]] %>%
         dplyr::filter(Reference %in% input_t) %>%
         # Assurons-nous que l'ordre est le même que dans db_t
@@ -557,12 +563,14 @@ update_mixture <- function(db,
       ## Calcul de la Log-Vraisemblance Multi-Output
       # logL_GP_mod doit être capable de gérer des vecteurs/matrices MO
       mat_logL[i_k, i_t] <- logL_GP_mod(
-        hp_t,
-        db_t,
-        mean_k_t,
-        kern,
-        cov_k_t,
-        pen_diag
+        hp = hp_t,
+        db = db_t,
+        mean = mean_k_t,
+        kern = kern,
+        post_cov = cov_k_t,
+        pen_diag = pen_diag,
+        hp_col_names = hp_col_names,
+        output_ids = output_vector_ids
       )
     }
   }

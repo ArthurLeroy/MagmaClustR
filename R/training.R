@@ -1386,6 +1386,7 @@ train_magmaclust <- function(data,
   ## Iterate VE-step and VM-step until convergence
   for (i in 1:n_iter_max)
   {
+    # browser()
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
@@ -1402,6 +1403,10 @@ train_magmaclust <- function(data,
       iter = i,
       pen_diag
     )
+
+    plot_training_step(current_post = post,
+                       true_mean_df = data_mean,
+                       iter = i)
 
     ## Break after VE-step if we can to compute the fast approximation
     if (fast_approx) {
@@ -1529,9 +1534,10 @@ train_magmaclust <- function(data,
       data = data,
       post$mixture,
       hp_k = hp_k,
-      hp_i = hp_i,
+      hp_t = hp_t,
       kern_k = kern_k,
-      kern_i = kern_i,
+      kern_t = kern_t,
+      weight_inv_k = weight_inv_k,
       prior_mean_k = prior_mean_k,
       grid_inputs = grid_inputs,
       pen_diag = pen_diag
@@ -1545,8 +1551,8 @@ train_magmaclust <- function(data,
                        diag() %>%
                        as.vector()
       ) %>%
-        dplyr::rename("Mean" = .data$Output) %>%
-        dplyr::select(-.data$Reference) %>%
+        dplyr::rename("Mean" = Output) %>%
+        dplyr::select(- Reference) %>%
         return()
     }
     post$pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
@@ -1555,7 +1561,7 @@ train_magmaclust <- function(data,
 
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
-    "data" = data %>% dplyr::select(-.data$Reference),
+    "data" = raw_data,
     "nb_cluster" = nb_cluster,
     "prior_mean_k" = prior_mean_k,
     "ini_hp_k" = hp_k_ini,
@@ -1576,6 +1582,7 @@ train_magmaclust <- function(data,
     "hp_t" = hp_t,
     "hyperpost" = post,
     "ini_args" = fct_args,
+    "weight_inv_k" = weight_inv_k,
     "seq_elbo" = seq_elbo,
     "converged" = cv,
     "training_time" = difftime(t2, t1, units = "secs")
@@ -1833,7 +1840,6 @@ train_gp_clust <- function(data,
       break
     }
 
-    # browser()
     ## E step
     new_mixture <- update_mixture(
       data,
@@ -2090,4 +2096,69 @@ select_nb_cluster <- function(data,
 
   list("best_k" = best_k, "seq_vbic" = tib_vbic, "trained_models" = mod_k) %>%
     return()
+}
+
+
+#' Plot dynamic training evolution
+#'
+#' @param current_post The result list from ve_step (containing $mean)
+#' @param true_mean_df The tibble of ground truth means (Input, Output, Output_ID, Cluster_ID)
+#' @param iter Integer, current iteration number
+#'
+plot_training_step <- function(current_post, true_mean_df, iter) {
+
+  # 1. Préparer les données ESTIMÉES (sorties de l'étape E)
+  # current_post$mean est une liste nommée par cluster (K1, K2...)
+  # Chaque élément est un tibble avec Reference, Input_1 (ou Input), Output...
+
+  est_df <- dplyr::bind_rows(current_post$mean, .id = "Cluster_ID") %>%
+    # Harmonisation des noms de colonnes pour correspondre à data_mean
+    dplyr::mutate(Type = "Estimated")
+
+  # Gestion robuste du nom de la colonne Input (souvent Input_1 dans Magma interne)
+  if("Input_1" %in% names(est_df)) {
+    est_df <- est_df %>% dplyr::rename(Input = Input_1)
+  }
+
+  # Si Output_ID n'est pas explicite, on l'extrait de Reference (format "o1;...")
+  if(!"Output_ID" %in% names(est_df) && "Reference" %in% names(est_df)) {
+    est_df <- est_df %>%
+      dplyr::mutate(Output_ID = stringr::str_extract(Reference, "^o\\d+") %>%
+                      stringr::str_remove("^o") %>%
+                      as.factor())
+  }
+
+  # Sélection des colonnes pertinentes
+  est_clean <- est_df %>%
+    dplyr::select(Input, Output, Output_ID, Cluster_ID, Type)
+
+  # 2. Préparer les données VRAIES (Ground Truth)
+  true_clean <- true_mean_df %>%
+    dplyr::mutate(Type = "True") %>%
+    dplyr::select(Input, Output, Output_ID, Cluster_ID, Type)
+
+  # 3. Fusionner
+  plot_data <- dplyr::bind_rows(est_clean, true_clean)
+
+  # 4. Plotter
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Input, y = Output)) +
+    # Lignes
+    ggplot2::geom_line(ggplot2::aes(color = Type, linetype = Type, linewidth = Type)) +
+    # Facetting : Lignes = Output, Colonnes = Cluster
+    ggplot2::facet_grid(Output_ID ~ Cluster_ID, scales = "free_y",
+                        labeller = ggplot2::label_both) +
+    # Styles
+    ggplot2::scale_color_manual(values = c("True" = "black", "Estimated" = "red")) +
+    ggplot2::scale_linetype_manual(values = c("True" = "dashed", "Estimated" = "solid")) +
+    ggplot2::scale_linewidth_manual(values = c("True" = 0.8, "Estimated" = 1)) +
+    ggplot2::theme_bw() +
+    ggplot2::labs(
+      title = paste("Training Monitor - Iteration:", iter),
+      subtitle = "Black/Dashed = Ground Truth | Red/Solid = Current Model Mean",
+      y = "Output Value",
+      x = "Input"
+    )
+
+  # Forcer l'affichage immédiat
+  print(p)
 }

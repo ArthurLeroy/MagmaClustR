@@ -291,6 +291,7 @@ logL_GP_mod_shared_tasks <- function(hp,
 
     mean_t <- mean %>%
       dplyr::filter(Reference %in% input_t) %>%
+      dplyr::arrange(match(Reference, input_t)) %>% # CORRECTION
       dplyr::pull(Output)
 
     post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
@@ -489,7 +490,7 @@ sum_logL_GP_clust <- function(hp,
   # browser()
   ## Extract the observed (reference) Input
   input_obs <- db %>%
-    dplyr::arrange(Reference) %>% ###### ATTENTION AU ARRANGE
+    # dplyr::arrange(Reference) %>% ###### ATTENTION AU ARRANGE
     dplyr::pull(Reference)
 
   ## Remove 'ID' if present in 'db'
@@ -500,8 +501,10 @@ sum_logL_GP_clust <- function(hp,
   ## Loop over the K clusters
   floop <- function(k) {
     tau_k <- mixture[[k]]
+
     mean_k <- mean[[k]] %>%
       dplyr::filter(Reference %in% input_obs) %>%
+      dplyr::arrange(match(Reference, input_obs)) %>% # CORRECTION
       dplyr::pull(Output)
 
     cov_k <- post_cov[[k]][

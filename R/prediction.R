@@ -1882,7 +1882,6 @@ hyperposterior_clust <- function(trained_model = NULL,
                                  prior_mean_k = NULL,
                                  grid_inputs = NULL,
                                  pen_diag = 1e-10) {
-  # browser()
   ## Check whether a model trained by train_magma() is provided
   if(trained_model %>% is.null()){
     ## Check whether all mandatory arguments are present otherwise
@@ -1960,16 +1959,22 @@ hyperposterior_clust <- function(trained_model = NULL,
   }
 
   ## Get the number of clusters
-  nb_cluster <- hp_k %>%
-    dplyr::pull(Cluster_ID) %>%
-    length()
+  nb_cluster <- length(hp_k$Cluster_ID %>% unique)
   ## Get the name of clusters
-  ID_k <- hp_k %>%
-    dplyr::pull(Cluster_ID) %>%
+  ID_k <- hp_k$Cluster_ID %>%
+    unique() %>%
     as.character()
 
   ## Certify that IDs are of type 'character'
   data$Task_ID <- data$Task_ID %>% as.character()
+
+  ## Get the list of output IDs
+  list_ID_output <- data$Output_ID %>% unique()
+
+  ## Get the list of task IDs
+  list_ID_task <- data$Task_ID %>% unique()
+
+
 
   if (grid_inputs %>% is.null()) {
     ## Extract the union of all reference inputs provided in the training data
@@ -2146,32 +2151,32 @@ hyperposterior_clust <- function(trained_model = NULL,
   # Loop over tasks
   for (t in list_ID_task) {
     # Isolate the data and HPs for the current task
-    db_t <- db %>% dplyr::filter(Task_ID == t) %>%
+    data_t <- data %>% dplyr::filter(Task_ID == t) %>%
       dplyr::select(-c(Output, Task_ID))
     hp_t_indiv <- hp_t %>% dplyr::filter(Task_ID == t)
 
-    if(length(list_output_ID) > 1 && !(kern_t %>% is.character())){
+    if(length(list_ID_output) > 1 && !(kern_t %>% is.character())){
       # MO case with dependent outputs
       # Call kern_to_cov directly.
       # It will handle the multi-output structure and the noise addition internally.
       # 'kern_t' is expected to be the 'convolution_kernel' function.
       K_task_t <- kern_to_cov(
-        input = db_t,
+        input = data_t,
         kern = kern_t,
         hp = hp_t_indiv
       )
-    } else if (length(list_output_ID) > 1 && kern_t %>% is.character()){
+    } else if (length(list_ID_output) > 1 && kern_t %>% is.character()){
       # MO case with independent outputs
       hp_t_indiv <- hp_t_indiv %>% dplyr::select(-c(Task_ID, Output_ID))
 
       K_task_t <- kern_to_cov(
-        input = db_t,
+        input = data_t,
         kern = kern_t,
         hp = hp_t_indiv
       )
     } else{
       # Extract all_inputs to call kern_to_cov() on the single output case
-      all_inputs_t <- db %>%
+      all_inputs_t <- data %>%
         dplyr::filter(Task_ID == t) %>%
         dplyr::select(-c(Task_ID, Output, Output_ID)) %>%
         unique()
@@ -2198,12 +2203,12 @@ hyperposterior_clust <- function(trained_model = NULL,
   }
 
   ## Create a named list of Output values for all individuals
-  list_output_t <- base::split(db$Output, list(db$Task_ID))
+  list_output_t <- base::split(data$Output, list(data$Task_ID))
 
   ## Update each mu_k parameters for each cluster ##
   floop <- function(k) {
     post_inv <- list_inv_k[[k]]
-    tau_k <- old_mixture %>% dplyr::select(Task_ID, k)
+    tau_k <- mixture %>% dplyr::select(Task_ID, k)
     for (t in list_inv_t %>% names())
     {
       ## Extract the corresponding mixture probability
@@ -2235,7 +2240,7 @@ hyperposterior_clust <- function(trained_model = NULL,
   floop2 <- function(k) {
     prior_mean <- m_k[[k]]
     prior_inv <- list_inv_k[[k]]
-    tau_k <- old_mixture %>% dplyr::select(Task_ID, k)
+    tau_k <- mixture %>% dplyr::select(Task_ID, k)
 
     weighted_mean <- prior_inv %*% prior_mean
 
@@ -2398,6 +2403,7 @@ pred_magmaclust <- function(data = NULL,
                             plot = TRUE,
                             pen_diag = 1e-10) {
 
+  browser()
   ## Return the mean process if no data is provided
   if(data %>% is.null()){
     ## Check whether trained_model is provided
@@ -2416,31 +2422,52 @@ pred_magmaclust <- function(data = NULL,
         ## Recompute the mean process at the required inputs if necessary
         hyperpost = hyperposterior_clust(
           trained_model = trained_model,
-          grid_inputs = grid_inputs
+          grid_inputs = grid_inputs,
+          kern_k = trained_model$ini_args$kern_k,
+          kern_t = trained_model$ini_args$kern_t,
+          hp_k = trained_model$hp_k,
+          hp_t = trained_model$hp_t,
+          weight_inv_k = trained_model$weight_inv_k,
         )
 
-        ## Retain only grid_inputs for dispplay purposes
+        ## Retain only grid_inputs for display purposes
         for(k in names(hyperpost$pred))
         {
-          hyperpost$pred[[k]] = grid_inputs %>%
-            purrr::modify_at(tidyselect::all_of(names(grid_inputs)), signif) %>%
-            dplyr::inner_join(hyperpost$pred[[k]], by = names(grid_inputs))
+          ## Retain only grid_inputs for display purposes
+          grid_inputs_wide <- grid_inputs %>%
+            dplyr::group_by(Input_ID) %>%
+            dplyr::mutate(id_ligne = dplyr::row_number()) %>%
+            dplyr::ungroup() %>%
+            tidyr::pivot_wider(
+              names_from = Input_ID,
+              values_from = Input,
+              names_prefix = "Input_"
+            )
+
+          shared_columns <- intersect(
+            names(grid_inputs_wide),
+            names(hyperpost$pred[[k]])
+          )
+
+          hyperpost$pred[[k]] <- grid_inputs_wide %>%
+            dplyr::inner_join(hyperpost$pred[[k]], by = shared_columns) %>%
+            dplyr::select(-id_ligne)
         }
       }
-
+    }
       names_k = hyperpost$pred %>% names()
 
       ## Compute the generic mixture weights
       mixture = hyperpost$mixture %>%
-        dplyr::select(- .data$ID) %>%
+        dplyr::select(-Task_ID) %>%
         dplyr::summarise(dplyr::across(tidyselect::everything(), mean)) %>%
-        dplyr::mutate('ID' = 'ID_pred', .before = 1)
+        dplyr::mutate('Task_ID' = 'Task_ID_pred', .before = 1)
 
       ## Add the ID and Proba columns to 'pred'
       floop_k = function(k){
         hyperpost$pred[[k]] %>%
           dplyr::mutate(
-            'ID' = 'ID_pred',
+            'Task_ID' = 'Task_ID_pred',
             'Proba' = mixture[[k]],
             .before = 1
           ) %>%
@@ -2471,7 +2498,7 @@ pred_magmaclust <- function(data = NULL,
         "Mean" = mixture_mean,
         "Var" = mixture_var %>% as.vector()
         ) %>%
-        dplyr::select(- .data$Proba)
+        dplyr::select(-Proba)
 
       ## Define the list to return with the correct format
       pred <- list(
@@ -2514,110 +2541,158 @@ pred_magmaclust <- function(data = NULL,
       }
 
        return(pred)
-      }
     }
   }
 
   ## Add an 'ID' column if present
-  if ("ID" %in% names(data)) {
-    if (dplyr::n_distinct(data$ID) > 1) {
+  if ("Task_ID" %in% names(data)) {
+    if (dplyr::n_distinct(data$Task_ID) > 1) {
       stop(
-        "Problem in the 'ID' column: different values are not allowed. ",
+        "Problem in the 'Task_ID' column: different values are not allowed. ",
         "The prediction can only be performed for one individual/task."
       )
     }
 
-    ## Get 'ID' of the individual to predict
-    ID_data <- unique(data$ID)
+    ## Get 'Task_ID' of the individual to predict
+    ID_task_pred <- unique(data$Task_ID)
   } else {
-    ## Set 'ID' of the individual to predict to 'ID_pred' if not provided
-    ID_data <- "ID_pred"
-    data <- data %>% dplyr::mutate("ID" = "ID_pred", .before = 1)
+    ## Set 'Task_ID' of the task to predict to 'Task_ID_pred' if not provided
+    ID_task_pred <- "Task_ID_pred"
+    data <- data %>% dplyr::mutate("Task_ID" = "Task_ID_pred", .before = 1)
   }
 
   if("Reference" %in% names(data)){
     ## Get input column names
     names_col <- data %>%
-      dplyr::select(- c(.data$ID, .data$Output, .data$Reference)) %>%
+      dplyr::select(- c(Task_ID, Output, Output_ID, Reference)) %>%
       names()
   }else{
     names_col <- data %>%
-      dplyr::select(- c(.data$ID, .data$Output)) %>%
+      dplyr::select(- c(Task_ID, Output, Output_ID)) %>%
       names()
   }
 
-  ## Keep 6 significant digits for entries to avoid numerical errors
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep=":",
-                 remove = FALSE) %>%
-    tidyr::drop_na() %>%
-    dplyr::arrange(.data$Reference)
+    dplyr::group_by(Output_ID, Output, Input_ID) %>%
+    # Add a unique number observation for the group
+    dplyr::mutate(obs_num = row_number()) %>%
+    dplyr::ungroup()
+
+  ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+  # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
+  # In other words, inputs are no longer in "short" format; instead, we have one
+  # column per input.
+  data <- data %>%
+    tidyr::pivot_wider(
+      names_from = Input_ID,
+      values_from = Input,
+      names_prefix = "Input_"
+    ) %>%
+    # Keep 6 significant digits for Inputs to avoid numerical issues
+    dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+    rowwise() %>%
+    dplyr::mutate(
+      Reference = paste(
+        # Create output's prefix
+        paste0("o", Output_ID),
+        # Create the reference for each Output_ID
+        paste(c_across(starts_with("Input_")), collapse = ":"),
+        # Join output's prefix and reference
+        sep = ";"
+      )
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(-obs_num)
 
   ## Extract the observed Output (data points)
   data_obs <- data %>%
-    dplyr::pull(.data$Output)
+    dplyr::pull(Output)
 
   ## Extract the Reference
   input_obs <- data %>%
-    dplyr::pull(.data$Reference)
+    dplyr::pull(Reference)
 
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
-    dplyr::select(- c(.data$ID, .data$Output))
+    dplyr::select(-c(Output))
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
-
-    set_grid <- function(data, size_grid){
-      seq(data %>% min(),data %>% max(), length.out = size_grid) %>%
+    set_grid <- function(data, size_grid) {
+      seq(data %>% min(),
+          data %>% max(),
+          length.out = size_grid
+      ) %>%
         return()
     }
 
-    if (ncol(inputs_obs) == 2) {
-      size_grid = 500
-    } else if (ncol(inputs_obs) > 2) {
-      size_grid = 1000^(1/(ncol(inputs_obs) - 1)) %>% round()
+    if (inputs_obs %>% names() %>% length() == 3) {
+      size_grid <- 500
+    } else if (inputs_obs %>% names() %>% length() > 3) {
+      size_grid <- 1000^(1 / (ncol(inputs_obs) - 1)) %>% round()
+      ## floor instead of round ?
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ",
-        "?pred_magmaclust()."
+        "or a data frame depending on the context. Please read ?pred_magma()."
       )
     }
 
-    inputs_pred <- purrr::map_dfr(data %>%
-                                    dplyr::select(tidyselect::all_of(names_col)),
-                                  set_grid,
-                                  size_grid) %>%
-      unique() %>%
-      purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
+    # Create a unique grid of inputs (which will be replicated for each Output_ID)
+    base_grid <- purrr::map(
+      data %>% dplyr::select(tidyselect::all_of(names_col)),
+      set_grid,
+      size_grid
+    ) %>%
+      purrr::set_names(paste0("Input_", seq_along(.))) %>%
       expand.grid() %>%
-      tibble::as_tibble() %>%
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_col),
-                   sep=":",
-                   remove = FALSE) %>%
-      dplyr::arrange(.data$Reference)
+      tibble::as_tibble()
 
-    input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
+    unique_outputs <- data %>%
+      dplyr::distinct(Output_ID)
 
-  }else if (grid_inputs %>% is.vector()) {
+    # Cross base_grid with unique_outputs to replicate base_grid as many times as
+    # unique_outputs and create 'Reference' column
+    inputs_pred <- tidyr::crossing(unique_outputs, base_grid) %>%
+      dplyr::rowwise() %>%
+      dplyr::mutate(
+        Reference = paste(
+          paste0("o", Output_ID),
+          paste(c_across(starts_with("Input_")), collapse = ":"),
+          sep = ";"
+        )
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::arrange(Reference)
+
+    input_pred <- inputs_pred %>% dplyr::pull(Reference)
+
+  } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
-    if (ncol(inputs_obs) == 2) {
+    if (inputs_obs %>% names() %>% length() == 3) {
       input_temp <- grid_inputs %>%
         signif() %>%
         sort() %>%
         unique()
-      inputs_pred <- tibble::tibble("Input" = input_temp,
-                                    "Reference" = input_temp %>%
-                                      as.character()
-      ) %>%
-        dplyr::arrange(.data$Reference)
 
-      input_pred <- inputs_pred$Reference
+      inputs_pred <- tibble::tibble("Input_1" = rep(input_temp,
+                                                    times = nrow(unique_outputs)),
+                                    "Output_ID" = rep(unique_outputs %>%
+                                                        purrr::as_vector(),
+                                                      each = length(input_temp))) %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(
+          Reference = paste(
+            paste0("o", Output_ID),
+            paste(c_across(starts_with("Input_")), collapse = ":"),
+            sep = ";"
+          )
+        ) %>%
+        dplyr::ungroup() %>%
+        dplyr::arrange(Reference)
+
+      input_pred <- inputs_pred %>% dplyr::pull(Reference)
+
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
@@ -2625,34 +2700,45 @@ pred_magmaclust <- function(data = NULL,
       )
     }
   } else if (grid_inputs %>% is.data.frame()) {
-    if("Reference" %in% names(grid_inputs)){
-      names_grid <- grid_inputs %>%
-        dplyr::select(-.data$Reference) %>%
-        names()
-    }else{
-      names_grid <- names(grid_inputs)
-    }
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_grid),
-                   sep=":",
-                   remove = FALSE) %>%
-      dplyr::arrange(.data$Reference)
+      dplyr::group_by(Input_ID) %>%
+      dplyr::mutate(id_ligne = dplyr::row_number()) %>%
+      dplyr::ungroup() %>%
+      tidyr::pivot_wider(
+        names_from = Input_ID,
+        values_from = Input,
+        names_prefix = "Input_"
+      ) %>%
+      dplyr::select(-id_ligne) %>%
+      # Keep 6 significant digits for Inputs to avoid numerical issues
+      dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+      rowwise() %>%
+      dplyr::mutate(
+        Reference = paste(
+          # Create output's prefix
+          paste0("o", Output_ID),
+          # Create the reference for each Output_ID
+          paste(c_across(starts_with("Input_")), collapse = ":"),
+          # Join output's prefix and reference
+          sep = ";"
+        )
+      )
 
     ## Test whether 'data' has the same columns as grid_inputs
     if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
       input_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::pull(.data$Reference)
+        # DO NOT arrange Reference because of the lexicographic order
+        # (not armful but unnecessary in Magma case, tragic in MO case)
+        dplyr::pull(Reference)
 
       inputs_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
+        # DO NOT arrange Reference because of the lexicographic order
+        # (not armful but unnecessary in Magma case, tragic in MO case)
         dplyr::select(names(inputs_obs))
     } else {
       stop(
-        "The 'grid_inputs' argument should provide a column 'Input', and ",
-        "the same additional covariate columns as contained in 'data'."
+        "The 'grid_inputs' argument should provide a column 'Input_ID', 'Input' ",
+        " and 'Output_ID'."
       )
     }
   } else {
@@ -2661,9 +2747,11 @@ pred_magmaclust <- function(data = NULL,
       "or a data frame depending on the context. Please read ?pred_gp()."
     )
   }
+
   ## Define the union of all distinct reference Input
   all_inputs <- dplyr::union(inputs_obs, inputs_pred) %>%
-    dplyr::arrange(.data$Reference)
+  # DO NOT arrange Reference because of the lexicographic order
+  # (not armful but unnecessary in Magma case, tragic in MO case)
   all_input <- all_inputs$Reference
 
   ## Check whether the hyper-posterior is provided and recompute if necessary
@@ -2691,13 +2779,15 @@ pred_magmaclust <- function(data = NULL,
           "'hyperpost' argument isn't evaluated on the expected inputs.",
           "Start evaluating the hyper-posterior on the correct inputs...\n \n"
         )
+
         hyperpost <- hyperposterior_clust(
           data = trained_model$ini_args$data,
           mixture = trained_model$hyperpost$mixture,
           hp_k = trained_model$hp_k,
-          hp_i = trained_model$hp_i,
+          hp_t = trained_model$hp_t,
           kern_k = trained_model$ini_args$kern_k,
-          kern_i = trained_model$ini_args$kern_i,
+          kern_t = trained_model$ini_args$kern_t,
+          weight_inv_k = weight_inv_k,
           prior_mean_k = trained_model$ini_args$prior_mean_k,
           grid_inputs = all_inputs,
           pen_diag = pen_diag
@@ -2736,23 +2826,23 @@ pred_magmaclust <- function(data = NULL,
   if (hp %>% is.null()) {
     if (!is.null(trained_model)) {
       ## Check whether hyper-parameters are common if we have 'trained_model'
-      if (tryCatch(trained_model$ini_args$common_hp_i,
+      if (tryCatch(trained_model$ini_args$shared_hp_tasks,
                    error = function(e) FALSE
       )) {
-        ## Extract the hyper-parameters common to all 'i'
-        hp <- trained_model$hp_i %>%
+        ## Extract the hyper-parameters common to all 't'
+        hp <- trained_model$hp_t %>%
           dplyr::slice(1) %>%
-          dplyr::mutate("ID" = ID_data)
+          dplyr::mutate("Task_ID" = ID_data)
         ## Extract and format the mixture proportions
         prop_mixture <- trained_model$hp_k %>%
-          dplyr::pull(.data$prop_mixture, name = .data$ID)
+          dplyr::pull(prop_mixture, name = Task_ID)
 
         mixture <- update_mixture(
           data,
           hyperpost$mean,
           hyperpost$cov,
           hp,
-          trained_model$ini_args$kern_i,
+          trained_model$ini_args$kern_t,
           prop_mixture,
           pen_diag
         )
@@ -2767,7 +2857,7 @@ pred_magmaclust <- function(data = NULL,
       } else if (kern %>% is.character()) {
         ## Extract the mixture proportions
         prop_mixture <- trained_model$hp_k %>%
-          dplyr::pull(.data$prop_mixture, name = .data$ID)
+          dplyr::pull(prop_mixture, name = Task_ID)
 
         cat(
           "The 'hp' argument has not been specified. The 'train_gp_clust()'",
@@ -2777,7 +2867,7 @@ pred_magmaclust <- function(data = NULL,
         hp_mix <- train_gp_clust(
           data,
           prop_mixture = prop_mixture,
-          ini_hp = hp(kern, noise = T, list_ID = ID_data),
+          ini_hp = hp(kern, noise = T, list_task_ID = ID_data),
           kern = kern,
           hyperpost = hyperpost,
           pen_diag = pen_diag
@@ -2809,7 +2899,7 @@ pred_magmaclust <- function(data = NULL,
       hp_mix <- train_gp_clust(
         data,
         prop_mixture = prop_mixture,
-        ini_hp = hp(kern, noise = T, list_ID = ID_data),
+        ini_hp = hp(kern, noise = T, list_task_ID = ID_data),
         kern = kern,
         hyperpost = hyperpost,
         pen_diag = pen_diag
@@ -2828,7 +2918,7 @@ pred_magmaclust <- function(data = NULL,
 
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if ("noise" %in% names(hp)) {
-    hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
+    hp_rm_noi <- hp %>% dplyr::select(-noise)
     noise <- exp(hp[["noise"]])
   } else {
     hp_rm_noi <- hp
@@ -2843,14 +2933,16 @@ pred_magmaclust <- function(data = NULL,
   floop <- function(k) {
     ## Extract the mean parameter from the hyper-posterior
     mean_obs <- hyperpost$mean[[k]] %>%
-      dplyr::filter(.data$Reference %in% input_obs) %>%
-      dplyr::arrange(.data$Reference) %>%
-      dplyr::pull(.data$Output)
+      dplyr::filter(Reference %in% input_obs) %>%
+      # DO NOT arrange Reference because of the lexicographic order
+      # (not armful but unnecessary in Magma case, tragic in MO case)
+      dplyr::pull(Output)
 
     mean_pred <- hyperpost$mean[[k]] %>%
-      dplyr::filter(.data$Reference %in% input_pred) %>%
-      dplyr::arrange(.data$Reference) %>%
-      dplyr::pull(.data$Output)
+      dplyr::filter(Reference %in% input_pred) %>%
+      # DO NOT arrange Reference because of the lexicographic order
+      # (not armful but unnecessary in Magma case, tragic in MO case)
+      dplyr::pull(Output)
 
     ## Extract the covariance sub-matrices from the hyper-posterior
     post_cov_obs <- hyperpost$cov[[k]][
@@ -2865,6 +2957,18 @@ pred_magmaclust <- function(data = NULL,
       as.character(input_obs),
       as.character(input_pred)
     ]
+
+    if(length(inputs_obs$Output_ID %>% unique()) == 1){
+      inputs_obs <- inputs_obs %>%
+        dplyr::select(-Output_ID)
+      # DO NOT arrange Reference because of the lexicographic order
+      # (not armful but unnecessary in Magma case, tragic in MO case)
+
+      inputs_pred <- inputs_pred %>%
+        dplyr::select(-Output_ID)
+      # DO NOT arrange Reference because of the lexicographic order
+      # (not armful but unnecessary in Magma case, tragic in MO case)
+    }
 
     ## Sum the covariance matrices on observed inputs and compute the inverse
     cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
@@ -2891,12 +2995,22 @@ pred_magmaclust <- function(data = NULL,
     ## Compute the posterior covariance matrix of a GP
     pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
 
+    if(length(all_inputs$Output_ID %>% unique()) > 1){
+      ## Get the pred_cov rownames and colnames to create a noise vector with correct
+      ## dimensions
+      point_names <- rownames(pred_cov)
+      output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
+      full_noise_vector <- noise[output_ids]
+    } else {
+      full_noise_vector <- noise
+    }
+
     ## Keep track of the full predicted covariances
     full_cov[[k]] <<- pred_cov
 
     ## Select the adequate individual/task if necessary
     proba <- mixture %>%
-      dplyr::filter(.data$ID == ID_data) %>%
+      dplyr::filter(Task_ID == ID_data) %>%
       dplyr::pull(k)
 
     ## Combine cluster-specific predictions into a mixture prediction
@@ -2904,13 +3018,13 @@ pred_magmaclust <- function(data = NULL,
 
     ## Create a tibble of values and associated uncertainty from a GP prediction
     tibble::tibble(
-      "ID" = ID_data,
+      "Task_ID" = ID_data,
       "Proba" = proba,
       "Mean" = pred_mean,
       "Var" = (diag(pred_cov) + noise) %>% as.vector()
     ) %>%
       dplyr::mutate(inputs_pred) %>%
-      dplyr::select(-.data$Reference) %>%
+      dplyr::select(-Reference) %>%
       return()
   }
   pred <- sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
@@ -2920,7 +3034,7 @@ pred_magmaclust <- function(data = NULL,
   for (k in ID_k)
   {
     proba_k <- mixture %>%
-      dplyr::filter(.data$ID == ID_data) %>%
+      dplyr::filter(Task_ID == ID_data) %>%
       dplyr::pull(k)
     ## Cov(mixture) = Sum_k{ tau_k * (C_k + (m_k - m)(m_k - m)T) }
     mixture_var <- mixture_var +
@@ -2929,12 +3043,12 @@ pred_magmaclust <- function(data = NULL,
 
   ## Create a tibble of values for the mixture prediction
   mixture_pred <- tibble::tibble(
-    "ID" = ID_data,
+    "Task_ID" = ID_data,
     "Mean" = mixture_mean,
     "Var" = mixture_var %>% as.vector()
   ) %>%
     dplyr::mutate(inputs_pred) %>%
-    dplyr::select(-.data$Reference)
+    dplyr::select(-Reference)
 
   res <- list("pred" = pred, "mixture" = mixture, "mixture_pred" = mixture_pred)
 

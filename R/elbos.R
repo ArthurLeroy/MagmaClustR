@@ -74,9 +74,14 @@ elbo_clust_multi_GP <- function(hp,
     tau_t_k <- tau_t_k <- hyperpost$mixture %>%
       dplyr::filter(Task_ID == t) %>%
       dplyr::pull(k)
+
+    # browser()
+
     mean_mu_k <- hyperpost$mean[[k]] %>%
       dplyr::filter(Reference %in% t_t) %>%
+      dplyr::arrange(match(Reference, t_t)) %>% # CORRECTION
       dplyr::pull(Output)
+
     corr1 <- corr1 + tau_t_k * mean_mu_k
     corr2 <- corr2 + tau_t_k *
       (mean_mu_k %*% t(mean_mu_k) +
@@ -246,9 +251,14 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
       tau_t_k <- hyperpost$mixture %>%
         dplyr::filter(Task_ID == t) %>%
         dplyr::pull(k)
+
+      # browser()
+
       mean_mu_k <- hyperpost$mean[[k]] %>%
         dplyr::filter(Reference %in% input_t) %>%
+        dplyr::arrange(match(Reference, input_t)) %>% # AJOUT CRUCIAL
         dplyr::pull(Output)
+
       corr1 <- corr1 + tau_t_k * mean_mu_k
       corr2 <- corr2 + tau_t_k *
         (mean_mu_k %*% t(mean_mu_k) + post_cov_t)
@@ -309,6 +319,7 @@ elbo_monitoring_VEM <- function(hp_k,
                                 pen_diag,
                                 hp_col_names,
                                 output_ids) {
+  # browser()
   floop <- function(k) {
     logL_GP_mod(
       hp_k[hp_k$Cluster_ID == k, ],
