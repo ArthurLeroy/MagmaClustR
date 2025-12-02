@@ -874,10 +874,10 @@ simulate_magmaclust_data_convol <- function(
       shared_hp_outputs = shared_hp_outputs
     )
 
-    mp_df_k <- mp_info_k$mean_process_df %>% dplyr::mutate(Cluster_ID = clust_str)
+    mp_df_k <- mp_info_k$mean_process_df %>% dplyr::mutate(Cluster_ID = as.factor(clust_str))
 
     mp_hps_k <- tibble::tibble(
-      Cluster_ID = clust_str,
+      Cluster_ID = as.factor(clust_str),
       Output_ID = as.factor(1:num_outputs),
       l0  = mp_info_k$list_l0,
       S0  = mp_info_k$list_S0,
@@ -904,7 +904,7 @@ simulate_magmaclust_data_convol <- function(
 
       tasks_hps_k <- grid_ids %>%
         dplyr::left_join(common_task_hp_values, by = "Output_ID") %>%
-        dplyr::mutate(Cluster_ID = clust_str)
+        dplyr::mutate(Cluster_ID = as.factor(clust_str))
 
     } else {
       # CAS 2 : Chaque tâche a ses propres HPs (comportement original)
@@ -917,7 +917,7 @@ simulate_magmaclust_data_convol <- function(
         noise = TRUE,
         hp_config = config_tasks_k
       ) %>%
-        dplyr::mutate(Cluster_ID = clust_str)
+        dplyr::mutate(Cluster_ID = as.factor(clust_str))
     }
 
     # Generate Data for each Task
@@ -932,7 +932,7 @@ simulate_magmaclust_data_convol <- function(
     })
 
     cluster_tasks_df <- dplyr::bind_rows(tasks_data_list) %>%
-      dplyr::mutate(Cluster_ID = clust_str)
+      dplyr::mutate(Cluster_ID = as.factor(clust_str))
 
     return(list(
       data = cluster_tasks_df,

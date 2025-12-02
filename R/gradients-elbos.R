@@ -289,6 +289,9 @@ gr_clust_multi_GP_shared_hp_tasks <- function(hp,
         dplyr::filter(Reference %in% input_t) %>%
         dplyr::arrange(match(Reference, input_t)) %>% # CORRECTION
         dplyr::pull(Output)
+      names(mean_mu_k) <- (hyperpost$mean[[k]] %>%
+                             dplyr::filter(Reference %in% input_t) %>%
+                             dplyr::arrange(match(Reference, input_t)))$Reference
 
       corr1 <- corr1 + tau_t_k * mean_mu_k
       corr2 <- corr2 + tau_t_k *

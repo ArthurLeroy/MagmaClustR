@@ -2406,7 +2406,7 @@ pred_magmaclust <- function(data = NULL,
                             get_full_cov = TRUE,
                             plot = TRUE,
                             pen_diag = 1e-10) {
-
+  # browser()
   ## Return the mean process if no data is provided
   if(data %>% is.null()){
     ## Check whether trained_model is provided
@@ -2937,6 +2937,7 @@ pred_magmaclust <- function(data = NULL,
   mixture_mean <- 0
 
   floop <- function(k) {
+    # browser()
     ## Extract the mean parameter from the hyper-posterior
     mean_obs <- hyperpost$mean[[k]] %>%
       dplyr::filter(Reference %in% input_obs) %>%
@@ -2977,7 +2978,7 @@ pred_magmaclust <- function(data = NULL,
     }
 
     ## Sum the covariance matrices on observed inputs and compute the inverse
-    cov_obs <- kern_to_cov(inputs_obs, kern, hp %>% dplyr::select(-Cluster_ID)) + post_cov_obs
+    cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
 
     inv_obs <- cov_obs %>%
       chol_inv_jitter(pen_diag = pen_diag) %>%
@@ -2985,11 +2986,11 @@ pred_magmaclust <- function(data = NULL,
       `colnames<-`(as.character(input_obs))
 
     ## Compute the other required sum of sub-matrices for prediction
-    cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi %>% dplyr::select(-Cluster_ID)) + post_cov_pred
+    cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi) + post_cov_pred
     cov_crossed <- kern_to_cov(
       inputs_obs,
       kern,
-      hp_rm_noi %>% dplyr::select(-Cluster_ID),
+      hp_rm_noi,
       input_2 = inputs_pred
     ) + post_cov_crossed
 

@@ -419,7 +419,7 @@ hp <- function(kern = "SE",
     if (is.null(hp_config)) {
       message("hp_config not provided for convolution_kernel, using default HP bounds.")
       hp_config <- tibble::tibble(
-        output_id   = list_output_ID,
+        output_id   = as.factor(list_output_ID),
         lt_min      = -2, lt_max      = 2,
         St_min      = -2, St_max      = 2,
         lu_min      = -2, lu_max      = 0,
@@ -431,8 +431,8 @@ hp <- function(kern = "SE",
     num_outputs <- length(list_output_ID)
 
     # All combination task x output
-    base_ids <- tidyr::crossing(Task_ID = as.character(list_task_ID),
-                                Output_ID = as.character(list_output_ID))
+    base_ids <- tidyr::crossing(Task_ID = as.factor(list_task_ID),
+                                Output_ID = as.factor(list_output_ID))
 
     if (shared_hp_tasks && shared_hp_outputs) {
       hps_to_add <- tibble::tibble(
@@ -449,7 +449,7 @@ hp <- function(kern = "SE",
     } else if (shared_hp_tasks && !shared_hp_outputs) {
       hps_per_output <- hp_config %>%
         dplyr::transmute(
-          Output_ID = as.character(output_id),
+          Output_ID = as.factor(output_id),
           l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
           S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
         )
@@ -462,7 +462,7 @@ hp <- function(kern = "SE",
 
     } else if (!shared_hp_tasks && shared_hp_outputs) {
       hps_per_task <- tibble::tibble(
-        Task_ID = as.character(list_task_ID),
+        Task_ID = as.factor(list_task_ID),
         l_t = stats::runif(num_tasks, hp_config$lt_min[1], hp_config$lt_max[1]),
         S_t = stats::runif(num_tasks, hp_config$St_min[1], hp_config$St_max[1])
       )
@@ -476,7 +476,7 @@ hp <- function(kern = "SE",
     } else { # !shared_hp_tasks && !shared_hp_outputs
       hps_unique <- base_ids %>%
         dplyr::left_join(hp_config %>%
-                           dplyr::mutate(Output_ID = as.character(output_id)),
+                           dplyr::mutate(Output_ID = as.factor(output_id)),
                          by = "Output_ID") %>%
         dplyr::mutate(
           l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
@@ -486,7 +486,7 @@ hp <- function(kern = "SE",
       if (noise) {
         hps_unique <- base_ids %>%
           dplyr::left_join(hp_config %>%
-                             dplyr::mutate(Output_ID = as.character(output_id)),
+                             dplyr::mutate(Output_ID = as.factor(output_id)),
                            by = "Output_ID") %>%
           dplyr::mutate(
             noise = purrr::map2_dbl(noise_min, noise_max, ~stats::runif(1, .x, .y))
@@ -516,8 +516,8 @@ hp <- function(kern = "SE",
     n_draws <- 1
 
     if (!is.null(list_task_ID) && !is.null(list_output_ID)) {
-      base_ids <- tidyr::crossing(Task_ID = as.character(list_task_ID),
-                                  Output_ID = as.character(list_output_ID))
+      base_ids <- tidyr::crossing(Task_ID = as.factor(list_task_ID),
+                                  Output_ID = as.factor(list_output_ID))
       if (!shared_hp_tasks && !shared_hp_outputs) {
         n_draws <- nrow(base_ids)
       } else if (!shared_hp_tasks && shared_hp_outputs) {
@@ -526,10 +526,10 @@ hp <- function(kern = "SE",
         n_draws <- length(list_output_ID)
       } # else n_draws remains 1
     } else if (!is.null(list_output_ID)) {
-      base_ids <- tibble::tibble(Output_ID = as.character(list_output_ID))
+      base_ids <- tibble::tibble(Output_ID = as.factor(list_output_ID))
       n_draws <- if (shared_hp_outputs) 1 else nrow(base_ids)
     } else if (!is.null(list_task_ID)) {
-      base_ids <- tibble::tibble(Task_ID = as.character(list_task_ID))
+      base_ids <- tibble::tibble(Task_ID = as.factor(list_task_ID))
       n_draws <- if (shared_hp_tasks) 1 else nrow(base_ids)
     }
 
@@ -577,11 +577,11 @@ hp <- function(kern = "SE",
       if (!shared_hp_tasks && !shared_hp_outputs) {
         final_hp <- dplyr::bind_cols(base_ids, generated_hps)
       } else if (!shared_hp_tasks && shared_hp_outputs) {
-        task_hps <- dplyr::bind_cols(Task_ID = as.character(list_task_ID),
+        task_hps <- dplyr::bind_cols(Task_ID = as.factor(list_task_ID),
                                      generated_hps)
         final_hp <- dplyr::left_join(base_ids, task_hps, by = "Task_ID")
       } else if (shared_hp_tasks && !shared_hp_outputs) {
-        output_hps <- dplyr::bind_cols(Output_ID = as.character(list_output_ID),
+        output_hps <- dplyr::bind_cols(Output_ID = as.factor(list_output_ID),
                                        generated_hps)
         final_hp <- dplyr::left_join(base_ids, output_hps, by = "Output_ID")
       } else {

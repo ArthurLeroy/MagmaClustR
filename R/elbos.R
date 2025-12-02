@@ -28,6 +28,7 @@ elbo_clust_multi_GP <- function(hp,
                                 hp_col_names,
                                 output_ids) {
 
+  # browser()
   names_k <- hyperpost$mean %>% names()
   t_t <- db$Reference
   y_t <- db$Output
@@ -61,7 +62,7 @@ elbo_clust_multi_GP <- function(hp,
     inputs <- inputs %>% dplyr::select(-Output_ID)
   }
 
-  inv <- kern_to_inv(inputs, kern, hp_tibble, pen_diag)
+  inv <- kern_to_inv(inputs, kern, hp_tibble %>% dplyr::select(-Task_ID), pen_diag)
 
   ## classic Gaussian centred log likelihood
   LL_norm <- -dmnorm(y_t, rep(0, length(y_t)), inv, log = T)
@@ -81,6 +82,10 @@ elbo_clust_multi_GP <- function(hp,
       dplyr::filter(Reference %in% t_t) %>%
       dplyr::arrange(match(Reference, t_t)) %>% # CORRECTION
       dplyr::pull(Output)
+
+    names(mean_mu_k) <- (hyperpost$mean[[k]] %>%
+                           dplyr::filter(Reference %in% t_t) %>%
+                           dplyr::arrange(match(Reference, t_t)))$Reference
 
     corr1 <- corr1 + tau_t_k * mean_mu_k
     corr2 <- corr2 + tau_t_k *
@@ -258,6 +263,9 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
         dplyr::filter(Reference %in% input_t) %>%
         dplyr::arrange(match(Reference, input_t)) %>% # AJOUT CRUCIAL
         dplyr::pull(Output)
+      names(mean_mu_k) <- (hyperpost$mean[[k]] %>%
+        dplyr::filter(Reference %in% input_t) %>%
+        dplyr::arrange(match(Reference, input_t)))$Reference
 
       corr1 <- corr1 + tau_t_k * mean_mu_k
       corr2 <- corr2 + tau_t_k *
@@ -267,7 +275,7 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
     if(length(output_ids) == 1){
       inputs_t <- inputs %>% dplyr::select(-Output_ID)
     }
-    inv <- kern_to_inv(inputs_t, kern, hp_tibble, pen_diag)
+    inv <- kern_to_inv(inputs_t, kern, hp_tibble, pen_diag = pen_diag)
 
     ## Classic Gaussian centred log-likelihood
     LL_norm <- -dmnorm(output_t, rep(0, length(output_t)), inv, log = T)
@@ -294,6 +302,8 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
 #'    of the K mean GPs.
 #' @param m_k Prior value of the mean parameter of the mean GPs (mu_k).
 #'    Length = 1 or nrow(db).
+#' @param weight_inv_k A number, indicating the weight that the user wants to
+#'  attribute to the inverse prior covariances inv_k.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #' @param hp_col_names A character vector with the names of the hyper-parameters
@@ -316,20 +326,55 @@ elbo_monitoring_VEM <- function(hp_k,
                                 kern_k,
                                 hyperpost,
                                 m_k,
-                                pen_diag,
+                                weight_inv_k,
+                                pen_diag = 1e-10,
                                 hp_col_names,
                                 output_ids) {
   # browser()
   floop <- function(k) {
-    logL_GP_mod(
-      hp_k[hp_k$Cluster_ID == k, ],
-      db = hyperpost$mean[[k]],
-      mean = m_k[[k]],
-      kern_k,
-      hyperpost$cov[[k]],
-      pen_diag
-    ) %>%
-      return()
+    # Get the union of all unique input points from the training data
+    all_inputs <- db %>%
+      dplyr::select(-c(Task_ID, Output)) %>%
+      unique() %>%
+      tidyr::separate(Reference,
+                      into = c("Output_ID_temp", "Input_temp"),
+                      sep = ";",
+                      remove = FALSE) %>%
+      dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+      dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+      dplyr::select(c(Input_1, Reference, Output_ID))
+
+    all_input <- all_inputs %>%
+      dplyr::pull(Reference)
+
+    if(length(all_inputs$Output_ID %>% unique()) == 1){
+      all_inputs <- all_inputs %>%
+        dplyr::select(-Output_ID)
+    }
+
+    hp_k_subset <- hp_k %>%
+      dplyr::filter(Cluster_ID == k)
+
+    # Compute the convolutional covariance matrix of the mean process
+    cov_k <- kern_to_cov(input = all_inputs,
+                         kern = kern_k,
+                         hp = hp_k_subset %>%
+                           dplyr::select(-c(Cluster_ID, prop_mixture)))
+
+    references <- rownames(cov_k)
+    inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
+
+    # Re-apply the stored names to the inverted matrix
+    dimnames(inv_k) <- list(references, references)
+    inv_k <- weight_inv_k * inv_k
+
+    # Compute the log-likelihood components
+    # Classical Gaussian log-likelihood
+    LL_norm <- -dmnorm(hyperpost$mean[[k]]$Output, m_k[[k]], inv_k, log = TRUE)
+    # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+    cor_term <- 0.5 * sum(diag(inv_k %*% hyperpost$cov[[k]]))
+
+    ll_k <- LL_norm + cor_term
   }
   sum_ll_k <- sapply(names(m_k), floop) %>% sum()
 
@@ -355,7 +400,8 @@ elbo_monitoring_VEM <- function(hp_k,
     ## Extract the proportion in the k-th cluster
     pi_k <- hp_k %>%
       dplyr::filter(Cluster_ID == k) %>%
-      dplyr::pull(prop_mixture)
+      dplyr::pull(prop_mixture) %>%
+      unique()
 
     for (t in unique(db$Task_ID)) {
       ## Extract the probability of the t-th indiv to be in the k-th cluster

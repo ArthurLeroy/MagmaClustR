@@ -1304,12 +1304,11 @@ train_magmaclust <- function(data,
     ## Create a list named by cluster with evaluation of the mean at all Input
     for (k in 1:nb_cluster) {
       ## Correct
-      all_inputs %>% dplyr::select(- c(Output_ID, Reference))
+      all_inputs <- all_inputs %>% dplyr::select(- c(Output_ID, Reference))
       m_k[[names_k[k]]] <- prior_mean_k[[k]](all_inputs)
     }
   } else if (prior_mean_k %>% is.vector()) {
     if (length(prior_mean_k) == nb_cluster * length(list_ID_output)) {
-
       # Get the Output_ID sorted
       unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
 
@@ -1319,6 +1318,7 @@ train_magmaclust <- function(data,
       ## Create a list named by cluster
       for (k in 1:nb_cluster) {
 
+        all_inputs_k <- all_inputs
         # Extract mean for the k cluster
         indices_cluster_k <- seq(from = k, to = length(prior_mean_k), by = nb_cluster)
         vals_cluster_k <- prior_mean_k[indices_cluster_k]
@@ -1328,6 +1328,7 @@ train_magmaclust <- function(data,
 
         # Assign it to the correctly named element of the list
         m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
+        names(m_k[[names_k[k]]]) <- all_inputs$Reference
       }
 
     } else if (length(prior_mean_k) == length(data$Output_ID %>% unique())) {
@@ -1368,6 +1369,86 @@ train_magmaclust <- function(data,
   }else{
     stop("The 'ini_mixture' argument must be a data frame. Please read ",
          "?ini_mixture() for further details.")
+  }
+
+  if (!is.null(prior_mean_k)) {
+    cat("Checking for label switching across multiple outputs...\n")
+
+    # For each point of m_k, we pull its Output_ID
+    get_prior_profile <- function(cluster_name) {
+      vals <- m_k[[cluster_name]]
+      refs <- names(vals)
+      oids <- stringr::str_extract(refs, "^o[0-9]+")
+
+      tibble::tibble(Output_ID = oids, value = vals) %>%
+        dplyr::group_by(Output_ID) %>%
+        dplyr::summarise(mean_val = mean(value), .groups = "drop") %>%
+        dplyr::arrange(Output_ID) %>%
+        dplyr::pull(mean_val)
+    }
+
+    prior_signatures <- do.call(rbind, lapply(names_k, get_prior_profile))
+    rownames(prior_signatures) <- names_k
+
+    # Build the empirical vectors
+    df_check <- data %>%
+      dplyr::mutate(OID_label = paste0("o", Output_ID)) %>%
+      dplyr::select(Task_ID, OID_label, Output) %>%
+      dplyr::left_join(mixture, by = "Task_ID")
+
+    get_empiric_profile <- function(cluster_col) {
+      col_name_str <- as.character(cluster_col)
+
+      df_check %>%
+        dplyr::group_by(OID_label) %>%
+        dplyr::summarise(
+          w_mean = stats::weighted.mean(Output, w = .data[[col_name_str]], na.rm = TRUE),
+          .groups = "drop"
+        ) %>%
+        dplyr::arrange(OID_label) %>%
+        dplyr::pull(w_mean)
+    }
+
+    empiric_signatures <- do.call(rbind, lapply(ID_k, get_empiric_profile))
+    rownames(empiric_signatures) <- ID_k
+
+    # Compute distance between empirical means and prior_means
+    # Inititalisation
+    final_mapping <- setNames(rep(NA, nb_cluster), ID_k)
+    remaining_priors <- names_k
+
+    # Compute distance matrix
+    dist_mat <- matrix(NA, nrow = nb_cluster, ncol = nb_cluster,
+                       dimnames = list(ID_k, names_k))
+
+    for(i in 1:nb_cluster) {
+      for(j in 1:nb_cluster) {
+        dist_mat[i, j] <- sum((empiric_signatures[i, ] - prior_signatures[j, ])^2)
+      }
+    }
+
+    # Identify best match
+    new_order_indices <- apply(dist_mat, 1, which.min)
+    best_match_names <- names_k[new_order_indices]
+
+    # Check for duplicates
+    if(any(duplicated(best_match_names))) {
+      warning("Ambiguous cluster matching detected. Keeping original K-means order.")
+    } else {
+      if(!all(best_match_names == ID_k)) {
+        cat("Label switching detected. Re-aligning based on Output profiles...\n")
+
+        # Rename mixture columns
+        old_cols <- colnames(mixture)
+        new_cols <- old_cols
+        indices_clust <- match(ID_k, old_cols)
+        new_cols[indices_clust] <- best_match_names
+        colnames(mixture) <- new_cols
+
+        # Arrange clusters names by alphabetical order
+        mixture <- mixture %>% dplyr::select(Task_ID, dplyr::all_of(names_k))
+      }
+    }
   }
 
   # Compute mixture proporitions (named vector of length K)
@@ -1419,7 +1500,7 @@ train_magmaclust <- function(data,
         kern_k,
         hyperpost = post,
         m_k = m_k,
-        pen_diag
+        pen_diag = pen_diag
       )
 
       cv <- FALSE
@@ -1435,7 +1516,7 @@ train_magmaclust <- function(data,
                       kern_t,
                       m_k,
                       shared_hp_tasks,
-                      pen_diag
+                      pen_diag = pen_diag
     ) # %>% suppressMessages()
 
     new_hp_k <- new_hp$hp_k
@@ -1458,9 +1539,10 @@ train_magmaclust <- function(data,
       data,
       kern_t,
       kern_k,
+      weight_inv_k = weight_inv_k,
       hyperpost = post,
       m_k = m_k,
-      pen_diag
+      pen_diag = pen_diag
     )
 
     diff_moni <- new_elbo_monitoring - elbo_monitoring

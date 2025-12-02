@@ -280,7 +280,6 @@ regularise_data <- regularize_data
 #' @examples
 #' TRUE
 ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
-
   # Extract data features by Task_ID & Output_ID
   features_step <- data %>%
     dplyr::group_by(Task_ID, Output_ID) %>%
@@ -376,10 +375,8 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
 #'
 #' @export
 ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
-
   # Run the Multi-Output K-means
   db_ini <- ini_kmeans(data, k, nstart)
-
   # Pivot the matrix/probabilities format (One-Hot Encoding)
   # The Result has shape: N_tasks x (1 + K) -> Column Task_ID + K cluster columns
   db_mixture <- db_ini %>%
@@ -400,14 +397,17 @@ ini_mixture <- function(data, k, name_clust = NULL, nstart = 50) {
     # Identify cluster columns: All columns except 'Task_ID'
     cluster_cols <- setdiff(colnames(db_mixture), "Task_ID")
 
+    sorted_cluster_cols <- sort(cluster_cols)
+
     # Safety check: ensure we found exactly k columns
-    if(length(cluster_cols) != k) {
-      warning(paste("Expected", k, "cluster columns but found", length(cluster_cols),
+    if(length(sorted_cluster_cols) != k) {
+      warning(paste("Expected", k, "cluster columns but found", length(sorted_cluster_cols),
                     ". Check if K-means produced empty clusters."))
     }
 
     # Rename. Note: We must ensure the order matches the K-means output (K1, K2...)
-    colnames(db_mixture)[match(cluster_cols, colnames(db_mixture))] <- name_clust
+    target_indices <- match(sorted_cluster_cols, colnames(db_mixture))
+    colnames(db_mixture)[target_indices] <- as.character(name_clust)
   }
 
   return(db_mixture)

@@ -42,8 +42,6 @@ ve_step <- function(db,
                     iter,
                     pen_diag) {
 
-  # browser()
-
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
 
@@ -88,10 +86,12 @@ ve_step <- function(db,
 
     # Compute the covariance matrix of the mean process of the
     # k cluster
-    cov_k <- quiet(kern_to_cov(input = all_inputs,
+    cov_k <- suppressWarnings(kern_to_cov(input = t_clust_k,
                          kern = kern_k,
                          hp = hp_k_subset %>%
-                           dplyr::select(-Cluster_ID)))
+                           dplyr::select(-c(Cluster_ID, prop_mixture))
+                         )
+    )
 
     references <- rownames(cov_k)
     inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
@@ -303,7 +303,7 @@ vm_step <- function(db,
     names()
 
   list_hp_k <- old_hp_k %>%
-    # dplyr::select(-Task_ID) %>%
+    dplyr::select(-Cluster_ID) %>%
     dplyr::select(-prop_mixture) %>%
     names()
 
@@ -331,7 +331,7 @@ vm_step <- function(db,
         dplyr::group_by(Output_ID) %>%
         dplyr::slice(1) %>%
         dplyr::ungroup() %>%
-        dplyr::select(-Task_ID, -l_u_t, -Cluster_ID) %>%
+        dplyr::select(-Task_ID, -l_u_t) %>%
         tidyr::pivot_longer(cols = -Output_ID,
                             names_to = "hp_name",
                             values_to = "value") %>%
@@ -451,7 +451,7 @@ vm_step <- function(db,
 
   ## Re-attribute each set of task specific HPs to the Cluster_ID in which
   ## the task belongs
-  new_hp_t$Cluster_ID <- old_hp_t$Cluster_ID
+  # new_hp_t$Cluster_ID <- old_hp_t$Cluster_ID
 
   ## Compute the prop mixture of each cluster
   prop_mixture <- list_mu_param$mixture %>%
@@ -566,7 +566,7 @@ update_mixture <- function(db,
 
       ## Calcul de la Log-Vraisemblance Multi-Output
       # logL_GP_mod doit être capable de gérer des vecteurs/matrices MO
-      mat_logL[i_k, i_t] <- logL_GP_mod(
+      mat_logL[i_k, i_t] <- - logL_GP_mod(
         hp = hp_t,
         db = db_t,
         mean = mean_k_t,
