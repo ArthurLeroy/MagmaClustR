@@ -1040,6 +1040,8 @@ train_magmaclust <- function(data,
                              n_iter_max = 25,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
+
+  # browser()
   ## Stop and send to train_magma() if nb_cluster == 1
   if(!is.null(nb_cluster)){
     if(nb_cluster < 2){
@@ -1163,6 +1165,7 @@ train_magmaclust <- function(data,
          " for the same 'Output_ID'.")
   }
 
+  # browser()
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- data %>%
     dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
@@ -1308,9 +1311,12 @@ train_magmaclust <- function(data,
       m_k[[names_k[k]]] <- prior_mean_k[[k]](all_inputs)
     }
   } else if (prior_mean_k %>% is.vector()) {
-    if (length(prior_mean_k) == nb_cluster * length(list_ID_output)) {
-      # Get the Output_ID sorted
-      unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
+
+    # Récupération des Outputs triés
+    unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
+    num_outputs <- length(unique_outputs_sorted) # Nombre d'outputs
+
+    if (length(prior_mean_k) == nb_cluster * num_outputs) {
 
       # Extract the prefix of each point of the grid all_input (ex: "o1", "o2")
       all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
@@ -1319,21 +1325,25 @@ train_magmaclust <- function(data,
       for (k in 1:nb_cluster) {
 
         all_inputs_k <- all_inputs
-        # Extract mean for the k cluster
-        indices_cluster_k <- seq(from = k, to = length(prior_mean_k), by = nb_cluster)
-        vals_cluster_k <- prior_mean_k[indices_cluster_k]
 
-        # Create a corresponding table
+        # --- CORRECTION ICI : Sélection séquentielle par bloc ---
+        start_index <- (k - 1) * num_outputs + 1
+        end_index   <- k * num_outputs
+        vals_cluster_k <- prior_mean_k[start_index:end_index]
+        # -------------------------------------------------------
+
+        # Create a corresponding table mapping: "o1" -> mean_val_1, "o2" -> mean_val_2
         prior_mean_map <- setNames(vals_cluster_k, paste0("o", unique_outputs_sorted))
 
         # Assign it to the correctly named element of the list
+        # Map values to the full grid based on prefixes
         m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
         names(m_k[[names_k[k]]]) <- all_inputs$Reference
       }
 
-    } else if (length(prior_mean_k) == length(data$Output_ID %>% unique())) {
+    } else if (length(prior_mean_k) == num_outputs) {
+      # ... (Le reste du code pour le cas où les clusters partagent la même moyenne reste inchangé)
       # One mean per Output (all clusters share the same)
-      unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
       prior_mean_map <- setNames(prior_mean_k, paste0("o", unique_outputs_sorted))
       all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
@@ -1341,7 +1351,8 @@ train_magmaclust <- function(data,
         m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
       }
     } else {
-      stop("Incorrect length for prior_mean_k")
+      stop(sprintf("Incorrect length for prior_mean_k. Expected %d or %d, got %d.",
+                   nb_cluster * num_outputs, num_outputs, length(prior_mean_k)))
     }
   }
 
@@ -1359,7 +1370,7 @@ train_magmaclust <- function(data,
                            name_clust = ID_k,
                            50)
   }else if(is.data.frame(ini_mixture)){
-    if(!all(c("ID", ID_k) %in% names(ini_mixture))){
+    if(!all(c("Task_ID", as.character(ID_k)) %in% names(ini_mixture))){
       stop("Wrong format for ini_mixture. Make sure that the number of ",
            "clusters are the same both in 'train_magmaclust()' and ",
            "ini_mixture. Please read ?ini_mixture() for further details.")

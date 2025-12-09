@@ -743,7 +743,6 @@ simulate_multi_output_data_convol <- function(
 #'
 #' @return A list containing simulated data and hyperparameters (with global Cluster_ID).
 #' @export
-
 simulate_magmaclust_data_convol <- function(
     nb_clusters = 3,
     tasks_per_cluster = 10,
@@ -772,11 +771,19 @@ simulate_magmaclust_data_convol <- function(
 
   num_outputs <- length(points_per_output_grid)
 
-  # --- CONFIGURATION CHECKS ---
-  expected_rows <- if(shared_hp_clusts) num_outputs else (num_outputs * nb_clusters)
+  # Check pour le Mean Process (dépend de shared_hp_clusts)
+  expected_rows_mp <- if(shared_hp_clusts) num_outputs else (num_outputs * nb_clusters)
+  if(nrow(hp_config_mean_process) != expected_rows_mp) stop("Dimension mismatch in hp_config_mean_process.")
 
-  if(nrow(hp_config_mean_process) != expected_rows) stop("Dimension mismatch in hp_config_mean_process.")
-  if(nrow(hp_config_tasks) != expected_rows) stop("Dimension mismatch in hp_config_tasks.")
+  # Check pour les Tasks
+  expected_rows_task <- if(shared_hp_tasks || shared_hp_clusts) num_outputs else (num_outputs * nb_clusters)
+
+  if(nrow(hp_config_tasks) != expected_rows_task) {
+    # Petit fix pour accepter quand même le format "long" si l'utilisateur le fournit par excès
+    if(!(shared_hp_tasks && nrow(hp_config_tasks) == (num_outputs * nb_clusters))) {
+      stop("Dimension mismatch in hp_config_tasks.")
+    }
+  }
 
   # --- PRIOR MEANS ---
   list_prior_means <- vector("list", nb_clusters)
@@ -785,7 +792,11 @@ simulate_magmaclust_data_convol <- function(
   } else if (is.vector(prior_means)) {
     if (length(prior_means) == num_outputs * nb_clusters) {
       for (k in 1:nb_clusters) {
-        indices_k <- seq(from = k, to = length(prior_means), by = nb_clusters)
+        # MODIFICATION : Indexation séquentielle (blocs) au lieu d'entrelacée
+        start_index <- (k - 1) * num_outputs + 1
+        end_index   <- k * num_outputs
+        indices_k   <- start_index:end_index
+
         list_prior_means[[k]] <- prior_means[indices_k]
       }
     } else if (length(prior_means) == num_outputs) {
@@ -819,16 +830,17 @@ simulate_magmaclust_data_convol <- function(
     }
   } else {
     for (k in 1:nb_clusters) {
-      indices_k <- seq(from = k, to = nrow(hp_config_mean_process), by = nb_clusters)
+      # MODIFICATION : Indexation séquentielle (blocs) au lieu d'entrelacée
+      start_index <- (k - 1) * num_outputs + 1
+      end_index   <- k * num_outputs
+      indices_k   <- start_index:end_index
+
       list_config_mp[[k]] <- hp_config_mean_process %>% dplyr::slice(indices_k)
       list_config_tasks[[k]] <- hp_config_tasks %>% dplyr::slice(indices_k)
     }
   }
 
   # --- PRE-COMPUTATION FOR SHARED TASKS ---
-  # Si on veut que TOUTES les tâches partagent les mêmes HPs (indépendamment du cluster),
-  # on doit les générer UNE SEULE FOIS ici, en dehors de la boucle.
-
   common_task_hp_values <- NULL
 
   if (shared_hp_tasks) {
@@ -838,17 +850,16 @@ simulate_magmaclust_data_convol <- function(
     config_template$output_id <- as.factor(1:num_outputs)
 
     # On génère les HPs pour une tâche fictive "TEMPLATE"
-    # Cela gère automatiquement shared_hp_outputs s'il est TRUE
     common_task_hp_values <- hp(
-      kern = convolution_kernel, # Assurez-vous que cette variable est accessible
+      kern = convolution_kernel,
       list_task_ID = "TEMPLATE",
       list_output_ID = as.factor(1:num_outputs),
-      shared_hp_tasks = TRUE, # C'est une seule tâche ici
+      shared_hp_tasks = TRUE,
       shared_hp_outputs = shared_hp_outputs,
       noise = TRUE,
       hp_config = config_template
     ) %>%
-      dplyr::select(-Task_ID) # On ne garde que les valeurs par Output_ID
+      dplyr::select(-Task_ID)
   }
 
   # --- MAIN GENERATION LOOP ---
@@ -889,14 +900,10 @@ simulate_magmaclust_data_convol <- function(
     end_task_id   <- k * tasks_per_cluster
     task_ids_k    <- start_task_id:end_task_id
 
-    # --- MODIFICATION ICI : Gestion de shared_hp_tasks ---
-
     tasks_hps_k <- NULL
 
     if (shared_hp_tasks) {
       # CAS 1 : On utilise les valeurs communes pré-calculées
-      # On crée une grille (Task x Output) et on joint les valeurs
-
       grid_ids <- expand.grid(
         Task_ID = as.factor(task_ids_k),
         Output_ID = as.factor(1:num_outputs)
@@ -907,12 +914,12 @@ simulate_magmaclust_data_convol <- function(
         dplyr::mutate(Cluster_ID = as.factor(clust_str))
 
     } else {
-      # CAS 2 : Chaque tâche a ses propres HPs (comportement original)
+      # CAS 2 : Chaque tâche a ses propres HPs
       tasks_hps_k <- hp(
         kern = convolution_kernel,
         list_task_ID = as.factor(task_ids_k),
         list_output_ID = as.factor(1:num_outputs),
-        shared_hp_tasks = FALSE, # Explicite ici
+        shared_hp_tasks = FALSE,
         shared_hp_outputs = shared_hp_outputs,
         noise = TRUE,
         hp_config = config_tasks_k

@@ -611,6 +611,7 @@ plot_samples <- function(pred = NULL,
                          plot_mean = TRUE,
                          alpha_samples = 0.3
                          ) {
+
   ## Check whether 'samples' or 'pred' exist
   if(is.null(samples) & is.null(pred) ){
       stop("Either 'sample' or 'pred' is needed as an argument.")
@@ -1326,9 +1327,17 @@ plot_magmaclust <- function(pred_clust,
             size = 3
           )
         } else if (length(input_cols) == 1){
+          # browser()
           # 1D Points
+
+          data_wide <- data_sub %>%
+            tidyr::pivot_wider(
+              names_from = Input_ID,
+              values_from = Input,
+              names_prefix = "Input_"
+            )
           gg <- gg + ggplot2::geom_point(
-            data = data_sub,
+            data = data_wide,
             ggplot2::aes_string(x = input_cols[1], y = "Output"),
             size = size_data, shape = 20
           )
@@ -1358,12 +1367,26 @@ plot_magmaclust <- function(pred_clust,
               )
             }
           } else {
+            data_train_wide <- data_train_sub %>%
+              tidyr::pivot_wider(
+                names_from = Input_ID,
+                values_from = Input,
+                names_prefix = "Input_"
+              )
+
             # Couleur par ID (Task)
             gg <- gg + ggplot2::geom_point(
-              data = data_train_sub,
-              ggplot2::aes_string(x = input_cols[1], y = "Output", fill = "Task_ID"), # ou ID selon format
-              shape = 21, size = size_data_train, alpha = alpha_data_train
-            ) + ggplot2::guides(fill = "none")
+              data = data_train_wide, # On utilise le dataframe pivoté ici
+              ggplot2::aes_string(
+                x = input_cols[1],
+                y = "Output",
+                fill = "Task_ID"
+              ),
+              shape = 21,
+              size = size_data_train,
+              alpha = alpha_data_train
+            ) +
+              ggplot2::guides(fill = "none")
           }
         }
       }

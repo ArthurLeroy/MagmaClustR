@@ -557,7 +557,7 @@ update_mixture <- function(db,
       mean_k_t <- mean_k[[k]] %>%
         dplyr::filter(Reference %in% input_t) %>%
         # Assurons-nous que l'ordre est le même que dans db_t
-        dplyr::arrange(match(Reference, input_t)) %>%
+        # dplyr::arrange(match(Reference, input_t)) %>%
         dplyr::pull(Output)
 
       ## Extract Covariance Process for Cluster k
