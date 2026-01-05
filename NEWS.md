@@ -9,6 +9,8 @@
 * Fix a bug when plotting in 2D mean process predictions
 * Fix a few bugs when using pred_*() functions with argument data = NULL
 * Simplify and improve visualisation with plot_db() and export it for users
+* Replace the deprecated `aes_string` function with modern syntax of `aes`
+* Fix the wrong definition of GPs mixtures by drawing a cluster instead of averaging
 
 # MagmaClustR 1.2.1
 

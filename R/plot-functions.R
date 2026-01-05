@@ -226,11 +226,11 @@ plot_gp <- function(pred_gp,
       gg <- ggplot2::ggplot() +
         ggplot2::geom_raster(
           data = pred,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = names(inputs)[2],
-            fill = "Mean",
-            alpha = "CI_Width"
+          ggplot2::aes(
+            x = .data[[names(inputs)[1]]],
+            y = .data[[names(inputs)[2]]],
+            fill = .data$Mean,
+            alpha = .data$CI_Width
           ),
           interpolate = TRUE
         ) +
@@ -244,11 +244,11 @@ plot_gp <- function(pred_gp,
 
       gg <- gg + ggplot2::geom_label(
         data = data,
-        ggplot2::aes_string(
-          x = names(inputs)[1],
-          y = names(inputs)[2],
-          label = "Output",
-          fill = "Output"
+        ggplot2::aes(
+          x = .data[[names(inputs)[1]]],
+          y = .data[[names(inputs)[2]]],
+          label = .data$Output,
+          fill = .data$Output
         ),
         size = 3
       )
@@ -262,11 +262,11 @@ plot_gp <- function(pred_gp,
     #
     #   gg <- gg + ggplot2::geom_label(
     #     data = data_train,
-    #     ggplot2::aes_string(
-    #       x = names(inputs)[1],
-    #       y = names(inputs)[2],
-    #       label = "Output",
-    #       colour = "ID"
+    #     ggplot2::aes(
+    #       x = .data[[names(inputs)[1]]],
+    #       y = .data[[names(inputs)[2]]],
+    #       label = .data$Output,
+    #       colour = .data$ID
     #     ),
     #     size = 3
     #   ) + ggplot2::guides(colour = 'none')
@@ -318,10 +318,10 @@ plot_gp <- function(pred_gp,
       gg <- ggplot2::ggplot() +
         ggplot2::geom_raster(
           data = db_heat,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = "Ygrid",
-            fill = "Proba"
+          ggplot2::aes(
+            x = .data[[names(inputs)[1]]],
+            y = .data$Ygrid,
+            fill = .data$Proba
           ),
           interpolate = TRUE
         ) +
@@ -358,15 +358,15 @@ plot_gp <- function(pred_gp,
       gg <- ggplot2::ggplot() +
         ggplot2::geom_line(
           data = pred,
-          ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
+          ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Mean),
           color = "#DB15C1"
         ) +
         ggplot2::geom_ribbon(
           data = pred,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            ymin = "CI_inf",
-            ymax = "CI_sup"
+          ggplot2::aes(
+            x = .data[[names(inputs)[1]]],
+            ymin = .data$CI_inf,
+            ymax = .data$CI_sup
           ),
           alpha = 0.2,
           fill = "#FA9FB5"
@@ -378,10 +378,10 @@ plot_gp <- function(pred_gp,
     if (!is.null(data_train)) {
       gg <- gg + ggplot2::geom_point(
         data = data_train,
-        ggplot2::aes_string(
-          x = names(inputs)[1],
-          y = "Output",
-          col = "ID"
+        ggplot2::aes(
+          x = .data[[names(inputs)[1]]],
+          y = .data$Output,
+          col = .data$ID
         ),
         size = size_data_train,
         alpha = alpha_data_train
@@ -391,7 +391,7 @@ plot_gp <- function(pred_gp,
     if (!is.null(data)) {
       gg <- gg + ggplot2::geom_point(
         data = data,
-        ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
+        ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Output),
         size = size_data,
         shape = 20
       )
@@ -403,7 +403,7 @@ plot_gp <- function(pred_gp,
         gg <- gg +
           ggplot2::geom_line(
             data = prior_mean,
-            ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
+            ggplot2::aes(x = .data[[names(inputs)[1]]], y =.data$Output),
             linetype = "dashed"
           )
       } else {
@@ -520,10 +520,10 @@ plot_samples <- function(pred = NULL,
     gg <- ggplot2::ggplot() +
       ggplot2::geom_raster(
         data = samples,
-        ggplot2::aes_string(
-          x = names(inputs)[1],
-          y = names(inputs)[2],
-          fill = "Output"
+        ggplot2::aes(
+          x = .data[[names(inputs)[1]]],
+          y = .data[[names(inputs)[2]]],
+          fill = .data$Output
         ),
         interpolate = TRUE
       ) +
@@ -533,10 +533,10 @@ plot_samples <- function(pred = NULL,
     gg <- ggplot2::ggplot() +
       ggplot2::geom_line(
         data = samples,
-        ggplot2::aes_string(
-          x = names(inputs)[1],
-          y = "Output",
-          group = "Sample"
+        ggplot2::aes(
+          x = .data[[names(inputs)[1]]],
+          y = .data$Output,
+          group = .data$Sample
         ),
         color = "#FA9FB5",
         alpha = alpha_samples
@@ -549,7 +549,7 @@ plot_samples <- function(pred = NULL,
       } else {
         gg = gg + ggplot2::geom_line(
           data = mean_pred,
-          ggplot2::aes_string(x = names(inputs)[1], y = "Mean"),
+          ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Mean),
           color = "#DB15C1"
         )
       }
@@ -896,11 +896,11 @@ plot_magmaclust <- function(pred_clust,
         ## Display labels if 2-D
         gg <- gg + ggplot2::geom_label(
           data = data,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = names(inputs)[2],
-            label = "Output",
-            fill = "Output"
+          ggplot2::aes(
+            x = .data[[names(inputs)[1]]],
+            y = .data[[names(inputs)[2]]],
+            label = .data$Output,
+            fill = .data$Output
           ),
           size = 3
         )
@@ -908,7 +908,7 @@ plot_magmaclust <- function(pred_clust,
         ## Display points if 1-D
         gg <- gg + ggplot2::geom_point(
           data = data,
-          ggplot2::aes_string(x = names(inputs)[1], y = "Output"),
+          ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Output),
           size = size_data,
           shape = 20
         )
@@ -966,9 +966,9 @@ plot_magmaclust <- function(pred_clust,
         gg <- gg +
           ggplot2::geom_point(
             data = data_train,
-            ggplot2::aes_string(
-              x = names(inputs)[1],
-              y = "Output", col = "Cluster"
+            ggplot2::aes(
+              x = .data[[names(inputs)[1]]],
+              y = .data$Output, col = .data$Cluster
             ),
             size = size_data_train,
             alpha = alpha_data_train
@@ -978,9 +978,9 @@ plot_magmaclust <- function(pred_clust,
       gg <- gg +
         ggplot2::geom_point(
           data = data_train,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = "Output", fill = "ID"
+          ggplot2::aes(
+            x = .data[[names(inputs)[1]]],
+            y = .data$Output, fill = .data$ID
           ),
           shape = 21,
           size = size_data_train,
@@ -1001,10 +1001,10 @@ plot_magmaclust <- function(pred_clust,
       gg <- gg +
         ggplot2::geom_line(
           data = mean_k,
-          ggplot2::aes_string(
-            x = names(inputs)[1],
-            y = "Output",
-            col = "Cluster"
+          ggplot2::aes(
+            x = .data[[names(inputs)[1]]],
+            y = .data$Output,
+            col = .data$Cluster
           ),
           linetype = "dashed"
         )

@@ -70,7 +70,22 @@ sample_magmaclust = function(
     pred_clust,
     nb_samples = 50){
 
+  ## Extract the vector of membership probabilities
+  proba_mixture = pred_clust$mixture[1, -1]
+
+  ## Draw latent clustering variables with corresponding weight
+  draw_clust = sample(
+    x = names(proba_mixture),
+    size = nb_samples,
+    replace = TRUE,
+    prob = proba_mixture)
+
   floop = function(k){
+
+  ## Compute the number of samples to draw in each cluster
+  n_k = sum(draw_clust == k)
+
+  if(n_k == 0){return(NULL)}
 
   ## Extract the GP prediction
   pred <- pred_clust$pred[[k]]
@@ -87,23 +102,21 @@ sample_magmaclust = function(
   weight <- pred_clust$mixture[[k]]
 
   #Draw samples and format the tibble
-  mvtnorm::rmvnorm(nb_samples, mean, cov, checkSymmetry = FALSE) %>%
+  mvtnorm::rmvnorm(n_k, mean, cov, checkSymmetry = FALSE) %>%
     t() %>%
-    magrittr::set_colnames(1:nb_samples) %>%
+    magrittr::set_colnames(1:n_k) %>%
     tibble::as_tibble() %>%
     dplyr::bind_cols(inputs) %>%
     tidyr::pivot_longer(- names(inputs) ,
                         names_to= "Sample",
                         values_to = "Output") %>%
-    dplyr::mutate('Proba' = weight,
-                  'Cluster' = k, .before = 1) %>%
+    dplyr::mutate(Sample = paste0(k, '_', .data$Sample)) %>%
     return()
   }
+
   names(pred_clust$pred) %>%
     lapply(floop) %>%
     dplyr::bind_rows() %>%
-    dplyr::group_by(.data$Sample, .data$Input) %>%
-    dplyr::summarise('Output' = sum(.data$Proba * .data$Output),
-                     .groups = "drop") %>%
+    dplyr::select(c(.data$Sample, .data$Input, .data$Output)) %>%
     return()
 }
