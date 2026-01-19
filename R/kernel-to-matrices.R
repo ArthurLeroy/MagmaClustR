@@ -7,7 +7,7 @@
 #'    structure of a GP, defined thanks to this kernel.
 #'
 #' @param input A vector, matrix, data frame or tibble containing all inputs for
-#'    one individual. If a vector, the elements are used as reference, otherwise
+#'    one task. If a vector, the elements are used as reference, otherwise
 #'    , one column should be named 'Input' to indicate that it represents the
 #'    reference (e.g. 'Input' would contain the timestamps in time-series
 #'    applications). The other columns are considered as being covariates. If
@@ -102,18 +102,20 @@ kern_to_cov <- function(input,
 
     ## Add a 'noise' term on the diagonal if provided
     if (("noise" %in% names(hp)) && is.null(deriv)) {
-      # Join to ensure that the noise of each point corresponds to the right output
+      # Join to ensure that the noise of each point corresponds to the right
+      # output
       noise_info <- input %>%
         dplyr::select(Output_ID) %>%
         dplyr::left_join(hp, by = "Output_ID")
 
       full_noise_vector <- exp(noise_info$noise)
 
-      # 5. Add the noise vector to the diagonal
+      # Add the noise vector to the diagonal
       mat <- mat + diag(full_noise_vector)
 
     } else if (is.null(deriv)) {
-      warning("Noise parameter is not provided. Data is then supposed to be noiseless.")
+      warning("Noise parameter is not provided. Data is then supposed to be ",
+      "noiseless.")
     }
 
     return(mat %>% `rownames<-`(reference) %>% `colnames<-`(reference_2))
@@ -497,7 +499,7 @@ kern_to_cov <- function(input,
 #'    kernel.
 #'
 #' @param input A vector, matrix, data frame or tibble containing all inputs for
-#'    one individual. If a vector, the elements are used as reference, otherwise
+#'    one task. If a vector, the elements are used as reference, otherwise
 #'    ,one column should be named 'Input' to indicate that it represents the
 #'    reference (e.g. 'Input' would contain the timestamps in time-series
 #'    applications). The other columns are considered as being covariates. If
@@ -547,16 +549,16 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 1e-10, deriv = NULL) {
     return()
 }
 
-#' Compute a covariance matrix for multiple individuals
+#' Compute a covariance matrix for multiple tasks
 #'
-#' Compute the covariance matrices associated with all individuals in the
+#' Compute the covariance matrices associated with all tasks in the
 #' database, taking into account their specific inputs and hyper-parameters.
 #'
 #' @param data A tibble or data frame of input data. Required column: 'Task_ID'.
 #'   Suggested column: 'Input' (for indicating the reference input).
 #' @param kern A kernel function.
 #' @param hp A tibble or data frame, containing the hyper-parameters associated
-#' with each individual.
+#' with each task.
 #' @param deriv A character, indicating according to which hyper-parameter the
 #'  derivative should be computed. If NULL (default), the function simply returns
 #'  the list of covariance matrices.
@@ -591,9 +593,9 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
     return()
 }
 
-#' Compute an inverse covariance matrix for multiple individuals
+#' Compute an inverse covariance matrix for multiple tasks
 #'
-#' Compute the inverse covariance matrices associated with all individuals
+#' Compute the inverse covariance matrices associated with all tasks
 #' in the database, taking into account their specific inputs and
 #' hyper-parameters.
 #'
@@ -601,7 +603,7 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
 #'   Suggested column: 'Input' (for indicating the reference input).
 #' @param kern A kernel function.
 #' @param hp A tibble or data frame, containing the hyper-parameters associated
-#' with each individual.
+#' with each task.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
 #' @param deriv A character, indicating according to which hyper-parameter the

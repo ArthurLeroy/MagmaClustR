@@ -143,8 +143,8 @@ e_step <- function(db,
 
   post_cov <- post_inv %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
-    `rownames<-`(all_inputs %>% dplyr::pull(.data$Reference)) %>%
-    `colnames<-`(all_inputs %>% dplyr::pull(.data$Reference))
+    `rownames<-`(all_inputs %>% dplyr::pull(Reference)) %>%
+    `colnames<-`(all_inputs %>% dplyr::pull(Reference))
 
   ## Update Posterior Mean ##
   weighted_0 <- inv_0 %*% m_0
@@ -183,7 +183,7 @@ e_step <- function(db,
 #'    Task_ID, Output_ID, Input_1, Output, Reference.
 #' @param m_0 Prior mean vector for the mean GP.
 #' @param kern_0 Kernel function for the mean GP.
-#' @param kern_t Kernel function for the individual task GPs.
+#' @param kern_t Kernel function for the task GPs.
 #' @param old_hp_0 Hyper-parameters for the mean GP from the previous step.
 #' @param old_hp_t Hyper-parameters for the task GPs from the previous step.
 #' @param post_mean Posterior mean from the E-step.
@@ -315,7 +315,7 @@ m_step <- function(db,
         par_t <- c(hp_per_output, shared_hp)
         hp_col_names <- names(par_t)
       } else {
-        ## Extract the hyper-parameters associated with the i-th individual
+        ## Extract the hyper-parameters associated with the t-th task
         par_t <- old_hp_t %>%
           dplyr::filter(Task_ID == t) %>%
           dplyr::select(-c(Task_ID, Output_ID))

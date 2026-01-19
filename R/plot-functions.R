@@ -80,9 +80,9 @@ plot_db <- function(data, cluster = FALSE, legend = FALSE) {
 #' @param data_train (Optional) A tibble or data frame, containing the training
 #'    data of the Magma model. The data set should have the same format as the
 #'    \code{data} argument with an additional required column 'Task_ID' for
-#'    identifying the different individuals/tasks. If provided, those data are
+#'    identifying the different tasks. If provided, those data are
 #'    displayed as backward colorful points (each color corresponding to one
-#'    individual/task).
+#'    task).
 #' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
 #'    and associated 'Output'and 'Output_ID' prior mean parameter of the GP prediction.
 #' @param y_grid A vector, indicating the grid of values on the y-axis for which
@@ -234,9 +234,10 @@ plot_gp <- function(pred_gp,
     stop("'Output_ID' not found in 'pred'.")
   }
 
+  # Extract unique Output IDs
   unique_outputs <- as.character(unique(pred$Output_ID))
 
-  ## Loop on each output
+  ## Loop on each Output ID
   plot_list <- purrr::map(unique_outputs, function(current_output_id) {
     ## Subset pred only on the current Output_ID
     pred_subset <- pred %>% dplyr::filter(Output_ID == current_output_id)
@@ -274,7 +275,8 @@ plot_gp <- function(pred_gp,
     # Subset samples only on the current Output_ID
     samples_subset <- NULL
     if (samples && !is.null(all_samples)) {
-      samples_subset <- all_samples %>% dplyr::filter(Output_ID == current_output_id)
+      samples_subset <- all_samples %>%
+        dplyr::filter(Output_ID == current_output_id)
     }
 
     # Extract inputs corresponding to the current Output_ID
@@ -558,7 +560,7 @@ plot_gp <- function(pred_gp,
     }
 
     gg <- gg + ggplot2::theme_classic() +
-      ggplot2::labs(title = paste("Prediction for Output_ID:", current_output_id))
+      ggplot2::labs(title = paste("Prediction task-specific for Output_ID ", current_output_id))
 
     return(gg)
 
@@ -584,8 +586,8 @@ plot_magma <- plot_gp
 #'    \code{cov}. This argument is needed if \code{samples} is missing.
 #' @param samples A tibble or data frame, containing the samples generated from
 #'    a GP, Magma, or MagmaClust prediction. Required columns: \code{Input},
-#'    \code{Sample}, \code{Output_ID}, \code{Output}.  This argument is needed if \code{pred}
-#'    is missing.
+#'    \code{Sample}, \code{Output_ID}, \code{Output}.  This argument is needed
+#'    if \code{pred} is missing.
 #' @param nb_samples A number, indicating the number of samples to be drawn from
 #'    the predictive posterior distribution. For two-dimensional graphs, only
 #'    one sample can be displayed.
@@ -631,7 +633,6 @@ plot_samples <- function(pred = NULL,
 
     ## Check whether 'pred' is a GP/Magma or a MagmaClust prediction
     if ('mixture_pred' %in% names(pred)){
-
       ## If 'samples' is not provided, draw new samples
       if(is.null(samples)){
         samples = sample_magmaclust(pred_clust = pred, nb_samples = nb_samples)
@@ -640,7 +641,6 @@ plot_samples <- function(pred = NULL,
       mean_pred = pred$mixture_pred
 
     } else {
-
       ## If 'samples' is not provided, draw new samples
       if(is.null(samples)){
         samples = sample_gp(pred_gp = pred, nb_samples = nb_samples)
@@ -654,23 +654,25 @@ plot_samples <- function(pred = NULL,
     stop("'samples' tibble should contain 'Output_ID' column.")
   }
 
-  ## Get the unique ID of Outputs
+  ## Get unique Output IDs
   unique_outputs <- unique(samples$Output_ID)
 
   ## Create a plot for each Output_ID
   plot_list <- purrr::map(unique_outputs, function(current_output_id) {
-
     # Subset samples only on the current Output_ID
     samples_subset <- samples %>%
       dplyr::filter(Output_ID == current_output_id)
 
     mean_pred_subset <- NULL
-    if (plot_mean && !is.null(pred) && exists("mean_pred") && !is.null(mean_pred)) {
+    if (plot_mean && !is.null(pred) &&
+        exists("mean_pred") &&
+        !is.null(mean_pred)) {
       mean_pred_subset <- mean_pred %>%
-        dplyr::filter(Output_ID == current_output_id)
+        dplyr::filter(as.character(Output_ID) == as.character(current_output_id))
     }
 
-    # Determine inputs on which we want to plot (subset relative to the current Output_ID)
+    # Determine inputs on which we want to plot (subset relative to the current
+    # Output_ID)
     if (x_input %>% is.null()) {
       inputs <- samples_subset %>% dplyr::select(-c(Sample, Output, Output_ID))
     } else {
@@ -767,9 +769,9 @@ plot_samples <- function(pred = NULL,
 #' @param data_train (Optional) A tibble or data frame, containing the training
 #'    data of the Magma model. The data set should have the same format as the
 #'    \code{data} argument with an additional column 'ID' for identifying the
-#'    different individuals/tasks. If provided, those data are displayed as
+#'    different tasks. If provided, those data are displayed as
 #'    backward colourful points (each colour corresponding to one
-#'    individual/task).
+#'    task).
 #' @param prior_mean (Optional) A tibble or a data frame, containing the 'Input'
 #'    and associated 'Output' prior mean parameter of the GP prediction.
 #' @param y_grid A vector, indicating the grid of values on the y-axis for which
@@ -894,11 +896,11 @@ plot_gif <- function(pred_gp,
 #' @param data_train (Optional) A tibble or data frame, containing the training
 #'    data of the MagmaClust model. The data set should have the same format as
 #'    the \code{data} argument with an additional required column \code{ID} for
-#'    identifying the different individuals/tasks. If provided, those data are
+#'    identifying the different tasks. If provided, those data are
 #'    displayed as backward colourful points (each colour corresponding to one
-#'    individual or a cluster, see \code{col_clust} below).
+#'    task or a cluster, see \code{col_clust} below).
 #' @param col_clust A boolean indicating whether backward points are coloured
-#'    according to the individuals or to their most probable cluster. If one
+#'    according to the tasks or to their most probable cluster. If one
 #'    wants to colour by clusters, a column \code{Cluster} shall be present in
 #'    \code{data_train}. We advise to use \code{\link{data_allocate_cluster}}
 #'    for automatically creating a well-formatted dataset from a trained
@@ -1354,15 +1356,16 @@ plot_magmaclust <- function(pred_clust,
         }
 
         if(nrow(data_train_sub) > 0) {
+          # browser()
           if (col_clust) {
             # Couleur par Cluster
-            if (!("Cluster" %in% names(data_train_sub))) {
+            if (!("Cluster_ID" %in% names(data_train_sub))) {
               # Warning déjà géré ailleurs, on skip ou on plot par ID
             } else {
-              data_train_sub$Cluster <- as.factor(data_train_sub$Cluster)
+              data_train_sub$Cluster_ID <- as.factor(data_train_sub$Cluster_ID)
               gg <- gg + ggplot2::geom_point(
                 data = data_train_sub,
-                ggplot2::aes_string(x = input_cols[1], y = "Output", col = "Cluster"),
+                ggplot2::aes_string(x = "Input", y = "Output", col = "Cluster_ID"),
                 size = size_data_train, alpha = alpha_data_train
               )
             }
@@ -1393,8 +1396,13 @@ plot_magmaclust <- function(pred_clust,
 
       # --- Mise à jour du Titre ---
       # On combine le titre de l'output ("Prediction for Output_ID: 1") avec l'info Cluster
-      final_title <- paste0(gg$labels$title, "\n", gtitle_main, " (Samples)")
-      gg <- gg + ggplot2::ggtitle(final_title) + ggplot2::scale_color_brewer(palette = "Set1")
+      # final_title <- paste0(gg$labels$title, "\n", gtitle_main, " (Samples)")
+      custom_main_title <- paste0("Prediction task-specific for Output_ID ", oid)
+      # On ajoute le sous-titre du cluster (ex: "Cluster K2...")
+      final_title <- paste0(custom_main_title, "\n", gtitle_main, " (Samples)")
+      gg <- gg + ggplot2::ggtitle(final_title) +
+        # ggplot2::scale_color_brewer(palette = "Set1")
+        ggsci::scale_color_iterm()
 
       return(gg)
     })

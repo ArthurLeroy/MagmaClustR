@@ -52,19 +52,19 @@ dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
 #'
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing the values we want to compute the logL on.
-#'    Required columns: Input, Output. Additional covariate columns are allowed.
+#'    Required columns: `Output` and `Output_ID`, plus input coordinates.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.
 #' @param kern A kernel function.
 #' @param post_cov (optional) A matrix, corresponding to covariance parameter of
 #'    the hyper-posterior. Used to compute the hyper-prior distribution of a new
-#'    individual in Magma.
+#'    task in Magma.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #' @param hp_col_names A character vector with the names of the hyper-parameters
 #'   (e.g., c("l_t", "S_t")).
 #'
 #' @return A number, corresponding to the value of Gaussian
-#'    log-Likelihood (where the covariance can be the sum of the individual and
+#'    log-Likelihood (where the covariance can be the sum of the task and
 #'    the hyper-posterior's mean process covariances).
 #'
 #' @keywords internal
@@ -122,7 +122,6 @@ logL_GP <- function(hp,
     )
   }
 
-
   (-dmnorm(db$Output, mean, inv, log = T)) %>%
     return()
 }
@@ -160,6 +159,7 @@ logL_GP_mod <- function(hp,
                         pen_diag,
                         hp_col_names,
                         output_ids) {
+
   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
     # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -177,6 +177,7 @@ logL_GP_mod <- function(hp,
     hp_tibble <- hp
   }
 
+  # Extract the Output IDs
   list_output_ID <- db$Output_ID %>% unique()
 
   # Build and invert the full multi-outputs covariance matrix
@@ -195,28 +196,6 @@ logL_GP_mod <- function(hp,
       chol_inv_jitter(pen_diag = pen_diag) %>%
       `rownames<-`(row.names(K_task_t)) %>%
       `colnames<-`(colnames(K_task_t))
-
-  } else if (length(list_output_ID) > 1 && (kern %>% is.character())){
-    # MO inversion of the MEAN PROCESS covariance
-    ## Compute the inverse covariance of the mean process
-    all_inputs <- db %>%
-      dplyr::select(-c(Output, Output_ID)) %>%
-      unique() %>%
-      tidyr::separate(Reference,
-                      into = c("Output_ID_temp", "Input_temp"),
-                      sep = ";",
-                      remove = FALSE) %>%
-      dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
-      dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
-      dplyr::select(c(Input_1, Reference))
-
-    if("Task_ID" %in% colnames(all_inputs)){
-      all_inputs <- all_inputs %>% select(-Task_ID)
-    }
-
-    inv <- matrix(0, nrow = nrow(all_inputs), ncol = nrow(all_inputs)) %>%
-      `rownames<-`(all_inputs$Reference) %>%
-      `colnames<-`(all_inputs$Reference)
 
   } else {
       # Single output case (for both computing the inverse of the task covariance
@@ -259,7 +238,8 @@ logL_GP_mod <- function(hp,
 #'
 #' @param hp A numeric vector of hyper-parameters, as provided by `stats::optim`.
 #' @param db A tibble containing the data for all tasks.
-#'   Required columns: `ID` (task ID), `Output`, `Output_ID`, plus inputs.
+#'   Required columns: `ID` (task ID), `Output`, `Output_ID`, plus inputs
+#'   coordinates.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.
 #' @param kern The kernel function (e.g., `convolution_kernel`).
 #' @param post_cov A matrix, covariance parameter of the hyper-posterior.
@@ -291,7 +271,7 @@ logL_GP_mod_shared_tasks <- function(hp,
 
     mean_t <- mean %>%
       dplyr::filter(Reference %in% input_t) %>%
-      dplyr::arrange(match(Reference, input_t)) %>% # CORRECTION
+      dplyr::arrange(match(Reference, input_t)) %>%
       dplyr::pull(Output)
 
     post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
@@ -380,7 +360,6 @@ logL_monitoring <- function(hp_0,
                        hp = hp_0)
 
   references <- rownames(cov_0)
-  matrixcalc::is.positive.semi.definite(cov_0)
   inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
 
   # Re-apply the stored names to the inverted matrix
@@ -418,7 +397,7 @@ logL_monitoring <- function(hp_0,
                            as.character(input_t)
     ]
 
-    ## Compute the modified logL for the individual processes
+    ## Compute the modified logL for the task processes
     ll_t <- logL_GP_mod(hp = hp_t_t,
                 db = db_t,
                 mean = post_mean_t,
@@ -446,7 +425,7 @@ logL_monitoring <- function(hp_0,
 #'
 #' During the prediction step of MagmaClust, an EM algorithm is used to compute
 #' the maximum likelihood estimator of the hyper-parameters along with
-#' mixture probabilities for the new individual/task. This function implements
+#' mixture probabilities for the new task. This function implements
 #' the quantity that is maximised (i.e. a sum of Gaussian log-likelihoods,
 #' weighted by their mixture probabilities). It can also be used to monitor the
 #' EM algorithm when providing the 'prop_mixture' argument, for proper
@@ -457,7 +436,7 @@ logL_monitoring <- function(hp_0,
 #'    Required columns: Task_ID, Input, Output, Output_ID. Additional covariate
 #'    columns are allowed.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
-#'    of each cluster for the new individual/task.
+#'    of each cluster for the new task.
 #' @param mean A list of hyper-posterior mean parameters for all clusters.
 #' @param kern A kernel function.
 #' @param post_cov A list of hyper-posterior covariance parameters for all
@@ -486,11 +465,8 @@ sum_logL_GP_clust <- function(hp,
                               post_cov,
                               prop_mixture = NULL,
                               pen_diag) {
-
-  # browser()
   ## Extract the observed (reference) Input
   input_obs <- db %>%
-    # dplyr::arrange(Reference) %>% ###### ATTENTION AU ARRANGE
     dplyr::pull(Reference)
 
   ## Remove 'ID' if present in 'db'
@@ -504,7 +480,7 @@ sum_logL_GP_clust <- function(hp,
 
     mean_k <- mean[[k]] %>%
       dplyr::filter(Reference %in% input_obs) %>%
-      dplyr::arrange(match(Reference, input_obs)) %>% # CORRECTION
+      dplyr::arrange(match(Reference, input_obs)) %>%
       dplyr::pull(Output)
 
     cov_k <- post_cov[[k]][
@@ -553,7 +529,6 @@ reconstruct_hp <- function(par_vector, hp_names, output_ids) {
 
   if (is_flattened_format) {
     # Case 1: flattened format (ex: "l_t_1", "S_t_1", "l_u_t")
-
     shared_params <- hp_names[!grepl("_\\d+$", hp_names)]
 
     initial_tibble <- tibble::as_tibble_row(par_vector) %>%

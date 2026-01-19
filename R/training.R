@@ -12,7 +12,7 @@
 #'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
 #'    columns for covariates can be specified.
 #'    The \code{Task_ID} column contains the unique names/codes used to identify
-#'    each individual/task (or batch of data).
+#'    each task (or batch of data).
 #'    The \code{Input_ID} contains the unique names/codes used to identify each
 #'    explanatory variable.
 #'    The \code{Input} column should define the value of the explanatory
@@ -37,9 +37,9 @@
 #'    as initialisation. The \code{\link{hp}} function can be used to draw
 #'    custom hyper-parameters with the correct format.
 #' @param ini_hp_t A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_t}, the individual processes' kernel.
+#'    associated with \code{kern_t}, the task processes' kernel.
 #'    Required column : \code{Task_ID}. The \code{Task_ID} column contains the unique
-#'    names/codes used to identify each individual/task. The other columns
+#'    names/codes used to identify each task. The other columns
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_t}. Compared to \code{ini_hp_0} should contain an additional
 #'    'noise' column to initialise the noise hyper-parameter of the model. If
@@ -63,7 +63,7 @@
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param kern_t A kernel function, associated with the individual GPs. ("SE",
+#' @param kern_t A kernel function, associated with the task GPs. ("SE",
 #'    "PERIO", "RQ" and convolution_kernel are also available here).
 #' @param weight_inv_0 A number, indicating the weight that the user wants to
 #'  attribute to the inverse prior covariance inv_0.
@@ -168,8 +168,8 @@ train_magma <- function(data,
 
   ## Check if there is duplicates in data
   duplicates <- data %>%
-    count(Task_ID, Output_ID, Output, Input_ID, Input) %>%
-    filter(n > 1)
+    dplyr::count(Task_ID, Output_ID, Output, Input_ID, Input) %>%
+    dplyr::filter(n > 1)
 
   if (nrow(duplicates) > 0) {
     print(duplicates)
@@ -180,10 +180,10 @@ train_magma <- function(data,
   raw_data <- data
 
   data <- data %>%
-    group_by(Task_ID, Output_ID, Output, Input_ID) %>%
+    dplyr::group_by(Task_ID, Output_ID, Output, Input_ID) %>%
     # Add a unique number observation for the group
-    mutate(obs_num = row_number()) %>%
-    ungroup()
+    dplyr::mutate(obs_num = row_number()) %>%
+    dplyr::ungroup()
 
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
@@ -343,7 +343,7 @@ train_magma <- function(data,
       )
       cat(
         "The 'ini_hp_t' argument has not been specified. Random values of",
-        "hyper-parameters for the task and individuals processes are used as",
+        "hyper-parameters for the task and tasks processes are used as",
         "initialisation.\n \n"
       )
     } else if (!("Task_ID" %in% names(ini_hp_t))) {
@@ -351,8 +351,10 @@ train_magma <- function(data,
       hp_t <- tibble::tibble('Task_ID' = list_ID_task,
                              dplyr::bind_rows(ini_hp_t)
       )
-    } else if (!(all(as.character(ini_hp_t$Task_ID) %in% as.character(list_ID_task)) &
-                 all(as.character(list_ID_task) %in% as.character(ini_hp_t$Task_ID)))) {
+    } else if (!(all(as.character(ini_hp_t$Task_ID) %in%
+                     as.character(list_ID_task)) &
+                 all(as.character(list_ID_task) %in%
+                     as.character(ini_hp_t$Task_ID)))) {
       stop(
         "The 'Task_ID' column in 'ini_hp_t' is different from the 'Task_ID' of the ",
         "'data'."
@@ -585,11 +587,11 @@ train_magma <- function(data,
 
 #' Learning hyper-parameters of a Gaussian Process
 #'
-#' Learning hyper-parameters of any new individual/task in \code{Magma} is
+#' Learning hyper-parameters of any new task in \code{Magma} is
 #' required in the prediction procedure. This function can also be used to learn
 #' hyper-parameters of a simple GP (just let the \code{hyperpost} argument set
 #' to NULL, and use \code{prior_mean} instead). When using within \code{Magma},
-#' by providing data for the new individual/task, the hyper-posterior mean and
+#' by providing data for the new task, the hyper-posterior mean and
 #' covariance parameters, and initialisation values for the hyper-parameters,
 #' the function computes maximum likelihood estimates of the hyper-parameters.
 #'
@@ -614,7 +616,7 @@ train_magma <- function(data,
 #'     of the hyper-posterior mean function at the training Inputs.
 #'    - A function. This function is defined as the hyper-posterior mean.
 #' @param ini_hp A named vector, tibble or data frame of hyper-parameters
-#'    associated with the \code{kern} of the new individual/task.
+#'    associated with the \code{kern} of the new task.
 #'    The columns should be named according to the hyper-parameters that are
 #'    used in \code{kern}. In cases where the model includes a noise term,
 #'    \code{ini_hp} should contain an additional 'noise' column. If NULL
@@ -650,7 +652,7 @@ train_magma <- function(data,
 #'    numerical issues when inverting nearly singular matrices.
 #'
 #' @return A tibble, containing the trained hyper-parameters for the kernel of
-#'   the new individual/task.
+#'   the new task.
 #'
 #' @export
 #'
@@ -713,8 +715,8 @@ train_gp <- function(data,
 
   ## Check that tasks do not have duplicate inputs for each output
   duplicates <- data %>%
-    count(Reference) %>%
-    filter(n > 1)
+    dplyr::count(Reference) %>%
+    dplyr::filter(n > 1)
 
   if (nrow(duplicates) > 0) {
     stop("Error: The task has duplicates, i.e. several 'Output' values",
@@ -904,7 +906,7 @@ train_gp <- function(data,
 #'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
 #'    columns for covariates can be specified.
 #'    The \code{Task_ID} column contains the unique names/codes used to identify
-#'    each individual/task (or batch of data).
+#'    each task (or batch of data).
 #'    The \code{Input_ID} contains the unique names/codes used to identify each
 #'    explanatory variable.
 #'    The \code{Input} column should define the value of the explanatory
@@ -915,7 +917,7 @@ train_gp <- function(data,
 #'    The \code{Output} column specifies the observed values (the response
 #'    variables).
 #' @param nb_cluster A number, indicating the number of clusters of
-#'    individuals/tasks that are assumed to exist among the dataset.
+#'    tasks that are assumed to exist among the dataset.
 #' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
 #'    mean GPs, one value for each cluster.
 #'    cluster. This argument can be specified under various formats, such as:
@@ -935,9 +937,9 @@ train_gp <- function(data,
 #'    \code{kern_k}. The \code{\link{hp}} function can be used to draw
 #'    custom hyper-parameters with the correct format.
 #' @param ini_hp_t A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_t}, the individual processes' kernel.
+#'    associated with \code{kern_t}, the task processes' kernel.
 #'    Required column : \code{Task_ID}. The \code{ID} column contains the unique
-#'    names/codes used to identify each individual/task. The other columns
+#'    names/codes used to identify each task. The other columns
 #'    should be named according to the hyper-parameters that are used in
 #'    \code{kern_t}. The \code{\link{hp}} function can be used to draw
 #'    custom hyper-parameters with the correct format.
@@ -958,17 +960,17 @@ train_gp <- function(data,
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param kern_t A kernel function, associated with the individual GPs. (See
+#' @param kern_t A kernel function, associated with the task GPs. (See
 #'    details above in \code{kern_k}).
 #' @param weight_inv_k A number, indicating the weight that the user wants to
 #'  attribute to the inverse prior covariances inv_k.
 #' @param ini_mixture Initial values of the probability to belong to each
-#'    cluster for each individual (\code{\link{ini_mixture}} can be used for
+#'    cluster for each task (\code{\link{ini_mixture}} can be used for
 #'    a k-means initialisation. Used by default if NULL).
 #' @param shared_hp_clusts A boolean indicating whether hyper-parameters are common
 #'    among the mean GPs.
 #' @param shared_hp_tasks A boolean indicating whether hyper-parameters are common
-#'    among the individual GPs.
+#'    among the task GPs.
 #' @param grid_inputs A vector, indicating the grid of additional reference
 #'    inputs on which the mean processes' hyper-posteriors should be evaluated.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
@@ -1000,7 +1002,7 @@ train_gp <- function(data,
 #'    - hp_k: A tibble containing the trained hyper-parameters for the mean
 #'    process' kernel and the mixture proportions for each cluster.
 #'    - hp_i: A tibble containing the trained hyper-parameters for the
-#'    individual processes' kernels.
+#'    task processes' kernels.
 #'    - hyperpost: A sub-list containing the parameters of the mean processes'
 #'    hyper-posterior distribution, namely:
 #'      \itemize{
@@ -1009,7 +1011,7 @@ train_gp <- function(data,
 #'        \item cov: A list of matrices containing, for each cluster, the
 #'              hyper-posterior covariance parameter of the mean process.
 #'        \item mixture: A tibble, indicating the mixture probabilities in each
-#'              cluster for each individual.
+#'              cluster for each task.
 #'      }
 #'    - ini_args: A list containing the initial function arguments and values
 #'    for the hyper-prior means, the hyper-parameters. In particular, if
@@ -1041,7 +1043,6 @@ train_magmaclust <- function(data,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
 
-  # browser()
   ## Stop and send to train_magma() if nb_cluster == 1
   if(!is.null(nb_cluster)){
     if(nb_cluster < 2){
@@ -1054,7 +1055,8 @@ train_magmaclust <- function(data,
 
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
-    if (!all(c("Task_ID", "Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
+    if (!all(c("Task_ID", "Input_ID", "Input", "Output_ID", "Output")
+             %in% names(data))) {
       stop(
         "The 'data' argument should be a tibble or a data frame containing ",
         "at least the mandatory column names: 'Task_ID', 'Input_ID', 'Input'",
@@ -1112,8 +1114,8 @@ train_magmaclust <- function(data,
 
   ## Check if there is duplicates in data
   duplicates <- data %>%
-    count(Task_ID, Output_ID, Output, Input_ID, Input) %>%
-    filter(n > 1)
+    dplyr::count(Task_ID, Output_ID, Output, Input_ID, Input) %>%
+    dplyr::filter(n > 1)
 
   if (nrow(duplicates) > 0) {
     print(duplicates)
@@ -1124,10 +1126,10 @@ train_magmaclust <- function(data,
   raw_data <- data
 
   data <- data %>%
-    group_by(Task_ID, Output_ID, Output, Input_ID) %>%
+    dplyr::group_by(Task_ID, Output_ID, Output, Input_ID) %>%
     # Add a unique number observation for the group
-    mutate(obs_num = row_number()) %>%
-    ungroup()
+    dplyr::mutate(obs_num = row_number()) %>%
+    dplyr::ungroup()
 
   ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
   # need to pivot data to obtain one row per observation of (Task_ID, Output_ID).
@@ -1165,7 +1167,6 @@ train_magmaclust <- function(data,
          " for the same 'Output_ID'.")
   }
 
-  # browser()
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- data %>%
     dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
@@ -1203,19 +1204,22 @@ train_magmaclust <- function(data,
       )
       cat(
         "The 'ini_hp_t' argument has not been specified. Random values of",
-        "hyper-parameters for the task and individuals processes are used as",
+        "hyper-parameters for the task and tasks processes are used as",
         "initialisation.\n \n"
       )
     } else if (!("Task_ID" %in% names(ini_hp_t))) {
-      ## Create a full tibble of shared HPs if the column Task_ID is not specified
+      ## Create a full tibble of shared HPs if the column Task_ID is not
+      ## specified
       hp_t <- tibble::tibble('Task_ID' = list_ID_task,
                              dplyr::bind_rows(ini_hp_t)
       )
-    } else if (!(all(as.character(ini_hp_t$Task_ID) %in% as.character(list_ID_task)) &
-                 all(as.character(list_ID_task) %in% as.character(ini_hp_t$Task_ID)))) {
+    } else if (!(all(as.character(ini_hp_t$Task_ID) %in%
+                     as.character(list_ID_task)) &
+                 all(as.character(list_ID_task) %in%
+                     as.character(ini_hp_t$Task_ID)))) {
       stop(
-        "The 'Task_ID' column in 'ini_hp_t' is different from the 'Task_ID' of the ",
-        "'data'."
+        "The 'Task_ID' column in 'ini_hp_t' is different from the 'Task_ID' of ",
+        "the 'data'."
       )
     } else {
       hp_t <- ini_hp_t
@@ -1311,13 +1315,10 @@ train_magmaclust <- function(data,
       m_k[[names_k[k]]] <- prior_mean_k[[k]](all_inputs)
     }
   } else if (prior_mean_k %>% is.vector()) {
-
-    # Récupération des Outputs triés
     unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
-    num_outputs <- length(unique_outputs_sorted) # Nombre d'outputs
+    num_outputs <- length(unique_outputs_sorted)
 
     if (length(prior_mean_k) == nb_cluster * num_outputs) {
-
       # Extract the prefix of each point of the grid all_input (ex: "o1", "o2")
       all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
@@ -1325,15 +1326,14 @@ train_magmaclust <- function(data,
       for (k in 1:nb_cluster) {
 
         all_inputs_k <- all_inputs
-
-        # --- CORRECTION ICI : Sélection séquentielle par bloc ---
         start_index <- (k - 1) * num_outputs + 1
         end_index   <- k * num_outputs
         vals_cluster_k <- prior_mean_k[start_index:end_index]
-        # -------------------------------------------------------
 
-        # Create a corresponding table mapping: "o1" -> mean_val_1, "o2" -> mean_val_2
-        prior_mean_map <- setNames(vals_cluster_k, paste0("o", unique_outputs_sorted))
+        # Create a corresponding table mapping:
+        # "o1" -> mean_val_1, "o2" -> mean_val_2
+        prior_mean_map <- setNames(vals_cluster_k,
+                                   paste0("o", unique_outputs_sorted))
 
         # Assign it to the correctly named element of the list
         # Map values to the full grid based on prefixes
@@ -1342,9 +1342,9 @@ train_magmaclust <- function(data,
       }
 
     } else if (length(prior_mean_k) == num_outputs) {
-      # ... (Le reste du code pour le cas où les clusters partagent la même moyenne reste inchangé)
       # One mean per Output (all clusters share the same)
-      prior_mean_map <- setNames(prior_mean_k, paste0("o", unique_outputs_sorted))
+      prior_mean_map <- setNames(prior_mean_k,
+                                 paste0("o", unique_outputs_sorted))
       all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
       for (k in 1:nb_cluster) {
@@ -1369,15 +1369,15 @@ train_magmaclust <- function(data,
                            k = nb_cluster,
                            name_clust = ID_k,
                            50)
-  }else if(is.data.frame(ini_mixture)){
+  } else if(is.data.frame(ini_mixture)){
     if(!all(c("Task_ID", as.character(ID_k)) %in% names(ini_mixture))){
       stop("Wrong format for ini_mixture. Make sure that the number of ",
            "clusters are the same both in 'train_magmaclust()' and ",
            "ini_mixture. Please read ?ini_mixture() for further details.")
-    }else {
+    } else {
       mixture <- ini_mixture
     }
-  }else{
+  } else{
     stop("The 'ini_mixture' argument must be a data frame. Please read ",
          "?ini_mixture() for further details.")
   }
@@ -1478,7 +1478,6 @@ train_magmaclust <- function(data,
   ## Iterate VE-step and VM-step until convergence
   for (i in 1:n_iter_max)
   {
-    # browser()
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
@@ -1496,9 +1495,9 @@ train_magmaclust <- function(data,
       pen_diag
     )
 
-    plot_training_step(current_post = post,
-                       true_mean_df = data_mean,
-                       iter = i)
+    # plot_training_step(current_post = post,
+    #                    true_mean_df = data_mean,
+    #                    iter = i)
 
     ## Break after VE-step if we can to compute the fast approximation
     if (fast_approx) {
@@ -1686,12 +1685,12 @@ train_magmaclust <- function(data,
 #' Prediction in MagmaClust: learning new HPs and mixture probabilities
 #'
 #' Learning hyper-parameters and mixture probabilities of any new
-#' individual/task is required in \code{MagmaClust} in the prediction procedure.
-#' By providing data for the new individual/task, the hyper-posterior mean and
+#' task is required in \code{MagmaClust} in the prediction procedure.
+#' By providing data for the new task, the hyper-posterior mean and
 #' covariance parameters, the mixture proportions, and initialisation values for
 #' the hyper-parameters, \code{train_gp_clust} uses an EM algorithm to compute
 #' maximum likelihood estimates of the hyper-parameters and hyper-posterior
-#' mixture probabilities of the new individual/task.
+#' mixture probabilities of the new task.
 #'
 #' @param data  A tibble or data frame. Required columns: \code{Input},
 #'    \code{Output}. Additional columns for covariates can be specified.
@@ -1707,7 +1706,7 @@ train_magmaclust <- function(data,
 #'    is a number between 0 and 1, corresponding to the mixture
 #'    proportions.
 #' @param ini_hp A tibble or data frame of hyper-parameters
-#'    associated with \code{kern}, the individual process kernel. The
+#'    associated with \code{kern}, the task process kernel. The
 #'    \code{\link{hp}} function can be used to draw custom hyper-parameters with
 #'     the correct format.
 #' @param kern A kernel function, defining the covariance structure of the GP.
@@ -1741,8 +1740,8 @@ train_magmaclust <- function(data,
 #'
 #' @return A list, containing the results of the EM algorithm used during the
 #'    prediction step of MagmaClust. The elements of the list are:
-#'    - hp: A tibble of optimal hyper-parameters for the new individual's GP.
-#'    - mixture: A tibble of mixture probabilities for the new individual.
+#'    - hp: A tibble of optimal hyper-parameters for the new task's GP.
+#'    - mixture: A tibble of mixture probabilities for the new task.
 #'
 #' @export
 #'
@@ -1787,7 +1786,7 @@ train_gp_clust <- function(data,
     dplyr::arrange(.data$Reference) %>%
     dplyr::pull(.data$Reference)
 
-  ## Initialise the individual process' hp according to user's values
+  ## Initialise the task process' hp according to user's values
   if (kern %>% is.function()) {
     if (ini_hp %>% is.null()) {
       stop(

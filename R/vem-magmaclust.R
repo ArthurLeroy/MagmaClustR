@@ -9,13 +9,13 @@
 #' @param m_k A named list of vectors, corresponding to the prior mean
 #'    parameters of the K mean GPs.
 #' @param kern_k A kernel function, associated with the K mean GPs.
-#' @param kern_t A kernel function, associated with the M individual GPs.
+#' @param kern_t A kernel function, associated with the T task GPs.
 #' @param weight_inv_k A number, indicating the weight that the user wants to
 #'  attribute to the inverse prior covariances inv_k.
 #' @param hp_k A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_k}.
 #' @param hp_t A named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}.
+#'    associated with \code{kern_t}.
 #' @param old_mixture A list of mixture values from the previous iteration.
 #' @param iter A number, indicating the current iteration of the VEM algorithm.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
@@ -25,7 +25,7 @@
 #'    containing the Input and associated Output of the hyper-posterior mean
 #'    parameters, \code{cov}, the hyper-posterior covariance matrices,
 #'    and \code{mixture}, the probabilities to belong to each cluster for each
-#'    individual.
+#'    task.
 #'
 #' @keywords internal
 #'
@@ -42,10 +42,11 @@ ve_step <- function(db,
                     iter,
                     pen_diag) {
 
+  ## Extract the list of Tasks'ID and Outputs ID
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
 
-  # Get the union of all unique input points from the training data
+  ## Get the union of all unique input points from the training data
   all_inputs <- db %>%
     dplyr::select(-c(Task_ID, Output)) %>%
     unique() %>%
@@ -59,10 +60,6 @@ ve_step <- function(db,
 
   all_input <- all_inputs %>%
     dplyr::pull(Reference)
-
-  ## Sort the database according to Reference
-  ## WARNING: ARRRANGE !!!!!
-  # db <- db %>% dplyr::arrange(Reference, .by_group = TRUE)
 
   prop_mixture_k <- hp_k %>%
     dplyr::select(c(Cluster_ID, Output_ID, prop_mixture))
@@ -86,13 +83,29 @@ ve_step <- function(db,
 
     # Compute the covariance matrix of the mean process of the
     # k cluster
-    cov_k <- suppressWarnings(kern_to_cov(input = t_clust_k,
-                         kern = kern_k,
-                         hp = hp_k_subset %>%
-                           dplyr::select(-c(Cluster_ID, prop_mixture))
-                         )
-    )
+    if(length(list_output_ID) > 1 && !(kern_t %>% is.character())){
+      cov_k <- suppressWarnings(kern_to_cov(input = t_clust_k,
+                                            kern = kern_k,
+                                            hp = hp_k_subset %>%
+                                              dplyr::select(-c(Cluster_ID,
+                                                               prop_mixture)
+                                                            )
+        )
+      )
+    } else{
+      cov_k <- suppressWarnings(kern_to_cov(input = t_clust_k %>%
+                                              dplyr::select(-Cluster_ID,
+                                                            -Output_ID),
+                                            kern = kern_k,
+                                            hp = hp_k_subset %>%
+                                              dplyr::select(-c(Cluster_ID,
+                                                               prop_mixture,
+                                                               Output_ID))
+        )
+      )
+    }
 
+    # Stored row names of cov_k
     references <- rownames(cov_k)
     inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
 
@@ -115,15 +128,6 @@ ve_step <- function(db,
       # Call kern_to_cov directly.
       # It will handle the multi-output structure and the noise addition internally.
       # 'kern_t' is expected to be the 'convolution_kernel' function.
-      K_task_t <- kern_to_cov(
-        input = db_t,
-        kern = kern_t,
-        hp = hp_t_indiv
-      )
-    } else if (length(list_output_ID) > 1 && kern_t %>% is.character()){
-      # MO case with independent outputs
-      hp_t_indiv <- hp_t_indiv %>% dplyr::select(-c(Task_ID, Output_ID))
-
       K_task_t <- kern_to_cov(
         input = db_t,
         kern = kern_t,
@@ -157,10 +161,10 @@ ve_step <- function(db,
     list_inv_t[[t]] <- K_inv_t
   }
 
-  ## Create a named list of Output values for all individuals
+  ## Create a named list of Output values for all tasks
   list_output_t <- base::split(db$Output, list(db$Task_ID))
 
-  ## Update each mu_k parameters for each cluster ##
+  ## Update each mu_k parameters for each cluster
   floop <- function(k) {
     post_inv <- list_inv_k[[k]]
     tau_k <- old_mixture %>% dplyr::select(Task_ID, k)
@@ -172,7 +176,7 @@ ve_step <- function(db,
         dplyr::pull(k)
 
       inv_t <- list_inv_t[[t]]
-      ## Collect input's common indices between mean and individual processes
+      ## Collect input's common indices between mean and task processes
       co_input <- intersect(row.names(inv_t), row.names(post_inv))
       ## Sum the common inverse covariance's terms
       post_inv[co_input, co_input] <- post_inv[co_input, co_input] +
@@ -190,7 +194,7 @@ ve_step <- function(db,
                   simplify = FALSE,
                   USE.NAMES = TRUE)
 
-  ## Update the posterior mean for each cluster ##
+  ## Update the posterior mean for each cluster
   floop2 <- function(k) {
     prior_mean <- m_k[[k]]
     prior_inv <- list_inv_k[[k]]
@@ -204,9 +208,9 @@ ve_step <- function(db,
       tau_t_k <- tau_k %>%
         dplyr::filter(Task_ID == t) %>%
         dplyr::pull(k)
-      ## Compute the weighted mean for the i-th individual
+      ## Compute the weighted mean for the t-th task
       weighted_t <- tau_t_k * list_inv_t[[t]] %*% list_output_t[[t]]
-      ## Collect input's common indices between mean and individual processes
+      ## Collect input's common indices between mean and task processes
       co_input <- intersect(row.names(weighted_t), row.names(weighted_mean))
       ## Sum the common weighted mean's terms
       weighted_mean[co_input, ] <- weighted_mean[co_input, ] +
@@ -252,20 +256,20 @@ ve_step <- function(db,
 #' @param db A tibble or data frame. Columns required: Task_ID, Input_ID, Input,
 #'    Output_ID, Output.
 #' @param list_mu_param List of parameters of the K mean GPs.
-#' @param kern_k A kernel used to compute the covariance matrix of the mean GP
-#'    at corresponding timestamps.
-#' @param kern_t A kernel used to compute the covariance matrix of individuals
-#'    GP at corresponding timestamps.
+#' @param kern_k A kernel used to compute the covariance matrix of the mean GPs
+#'    at corresponding inputs.
+#' @param kern_t A kernel used to compute the covariance matrix of task
+#'    GPs at corresponding inputs.
 #' @param m_k A named list of prior mean parameters for the K mean GPs.
-#'    Length = 1 or length(unique(db$Output_ID) or
+#'    Valid lengths are 1 or length(unique(db$Output_ID) or
 #'    nb_cluster*length(unique(db$Output_ID).
-#' @param shared_hp_clusts A boolean indicating whether hyper-parameters are common
-#'    among the mean GPs.
-#' @param shared_hp_tasks A boolean indicating whether hyper-parameters are common
-#'    among the individual GPs.
+#' @param shared_hp_clusts A boolean indicating whether hyper-parameters are
+#'    shared among the mean GPs.
+#' @param shared_hp_tasks A boolean indicating whether hyper-parameters are
+#'    shared among the task GPs.
 #' @param old_hp_t A named vector, tibble or data frame, containing the
 #'    hyper-parameters from the previous  M-step (or initialisation) associated
-#'    with the individual GPs.
+#'    with the task GPs.
 #' @param old_hp_k A named vector, tibble or data frame, containing the
 #'    hyper-parameters from the previous M-step (or initialisation) associated
 #'    with the mean GPs.
@@ -275,7 +279,7 @@ ve_step <- function(db,
 #' @return A named list, containing the elements \code{hp_k}, a tibble
 #'    containing the hyper-parameters associated with each cluster,
 #'    \code{hp_t}, a tibble containing the hyper-parameters
-#'    associated with the individual GPs, and \code{prop_mixture_k},
+#'    associated with the task GPs, and \code{prop_mixture_k},
 #'    a tibble containing the hyper-parameters associated with each task,
 #'    indicating the probabilities to belong to each cluster.
 #'
@@ -293,7 +297,7 @@ vm_step <- function(db,
                     pen_diag,
                     shared_hp_tasks) {
 
-  # browser()
+  ## Extract Cluster's IDs, Task's IDs and Output's IDs
   list_ID_k <- names(m_k)
   list_ID_t <- unique(db$Task_ID)
   output_ids_vector <- unique(db$Output_ID)
@@ -323,7 +327,7 @@ vm_step <- function(db,
     }
   }
 
-  ## Check whether hyper-parameters are common to all individuals
+  ## Check whether hyper-parameters are common to all tasks
   if (shared_hp_tasks) {
     if (length(db$Output_ID %>% unique()) > 1){
       # Prepare parameters for optim() in MO case
@@ -348,10 +352,10 @@ vm_step <- function(db,
       par_t <- old_hp_t %>%
         dplyr::select(-c(Task_ID, Output_ID)) %>%
         dplyr::slice(1)
-      hp_col_names <- names(par)
+      hp_col_names <- names(par_t)
     }
 
-    ## Optimise hyper-parameters of the individual processes
+    ## Optimise hyper-parameters of the task processes
     new_hp_t <- stats::optim(
       par = par_t,
       fn = elbo_clust_multi_GP_shared_hp_tasks,
@@ -421,14 +425,14 @@ vm_step <- function(db,
         par_t <- c(hp_per_output, shared_hp)
         hp_col_names <- names(par_t)
       } else {
-        ## Extract the hyper-parameters associated with the i-th individual
+        ## Extract the hyper-parameters associated with the t-th task
         par_t <- old_hp_t %>%
           dplyr::filter(Task_ID == t) %>%
           dplyr::select(-c(Task_ID, Output_ID))
         hp_col_names <- names(par_t)
       }
 
-      ## Optimise hyper-parameters of the individual processes
+      ## Optimise hyper-parameters of the task processes
       stats::optim(
         par = par_t,
         fn = elbo_clust_multi_GP,
@@ -465,21 +469,20 @@ vm_step <- function(db,
     return()
 }
 
-#' Update the mixture probabilities for each individual and each cluster
+#' Update the mixture probabilities for each task and each cluster
 #'
-#' @param db A tibble or data frame. Columns required: \code{ID},
-#'    \code{Input}, \code{Output}. Additional columns for covariates can be
-#'    specified.
+#' @param db A tibble or data frame. Columns required: ID, Input_ID, Input,
+#'    Output_ID, Output.
 #' @param mean_k A list of the K hyper-posterior mean parameters.
 #' @param cov_k A list of the K hyper-posterior covariance matrices.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
-#'    associated with \code{kern}, the individual process' kernel. The
+#'    associated with \code{kern}, the task process' kernel. The
 #'    columns/elements should be named according to the hyper-parameters
 #'    that are used in \code{kern}.
 #' @param kern A kernel function, defining the covariance structure of
-#'    the individual GPs.
+#'    the task GPs.
 #' @param prop_mixture A tibble containing the hyper-parameters associated
-#'    with each individual, indicating in which cluster it belongs.
+#'    with each task, indicating in which cluster it belongs.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
 #'
@@ -498,74 +501,56 @@ update_mixture <- function(db,
                            prop_mixture,
                            pen_diag) {
 
-  # browser()
-  # 1. Initialisation des identifiants
+  ## Extract Cluster's IDs, Task's IDs and Output's IDs
   ID_t <- unique(db$Task_ID)
   ID_k <- names(mean_k) # c("K1", "K2", ...)
   output_vector_ids <- unique(db$Output_ID)
 
-  # 2. Extraction du vecteur des proportions (Optimisation)
-  # Au lieu de le chercher dans la boucle, on le prépare une fois pour toutes.
-  # prop_mixture est un tibble: Cluster_ID, Output_ID, prop_mixture
-  # Comme la prop est la même pour tous les Output_ID d'un cluster, on prend la première occurence.
-
+  ## Extract proportion mixture vector
   if(prop_mixture %>% is_tibble()){
     vec_prop_map <- prop_mixture %>%
       dplyr::select(Cluster_ID, prop_mixture) %>%
       dplyr::distinct() %>%
-      tibble::deframe() # Crée un vecteur nommé c("K1" = 0.5, "K2" = 0.5)
+      tibble::deframe()
 
-    # On s'assure que l'ordre correspond à ID_k
+    # Ensure that the order is the same as ID_k
     vec_prop <- vec_prop_map[ID_k]
   } else {
     vec_prop <- prop_mixture
   }
 
-  # Matrice pour stocker les log-vraisemblances p(y | Z=k)
-  # Lignes = Clusters, Colonnes = Tâches
+  # Create a matrix to stock log-likelihoods: one row per cluster, one column
+  # per task
   mat_logL <- matrix(NA, nrow = length(ID_k), ncol = length(ID_t))
 
-  # 3. Boucle sur les tâches
-  # (On peut utiliser seq_along pour éviter les compteurs manuels c_t)
+  # Loop on tasks
   for (i_t in seq_along(ID_t)) {
-
     t <- ID_t[i_t]
-
     ## Extract data for task t
-    # db_t contient TOUS les outputs pour la tâche t (c'est crucial pour le MO)
     db_t <- db %>%
       dplyr::filter(Task_ID == t) %>%
       dplyr::select(-Task_ID)
 
-    # input_t doit contenir les références de TOUS les points de TOUS les outputs
-    # pour construire la bonne matrice de covariance jointe
     input_t <- db_t %>% dplyr::pull(Reference)
 
     ## Extract hyper-parameters for task t
     hp_t <- hp %>% dplyr::filter(Task_ID == t)
     hp_col_names <- colnames(hp_t)
 
-    # 4. Boucle sur les clusters
+    # Loop on clusters
     for (i_k in seq_along(ID_k)) {
-
       k <- ID_k[i_k]
-
       ## Extract Mean Process for Cluster k
-      # On filtre sur 'input_t' pour récupérer les moyennes correspondant exactement
-      # aux points observés de la tâche (Output 1 ET Output 2...)
-      # browser()
+      ## Filter on 'input_t' to extract mean GPs corresponding to observed
+      ## points for task 't', for each Output_ID.
       mean_k_t <- mean_k[[k]] %>%
         dplyr::filter(Reference %in% input_t) %>%
-        # Assurons-nous que l'ordre est le même que dans db_t
-        # dplyr::arrange(match(Reference, input_t)) %>%
         dplyr::pull(Output)
 
       ## Extract Covariance Process for Cluster k
-      # C'est ici que la covariance CROISÉE est récupérée si 'cov_k' est bien construite
       cov_k_t <- cov_k[[k]][as.character(input_t), as.character(input_t)]
 
-      ## Calcul de la Log-Vraisemblance Multi-Output
-      # logL_GP_mod doit être capable de gérer des vecteurs/matrices MO
+      ## Compute log-likelihood
       mat_logL[i_k, i_t] <- - logL_GP_mod(
         hp = hp_t,
         db = db_t,
@@ -579,16 +564,8 @@ update_mixture <- function(db,
     }
   }
 
-  # 5. Calcul des Responsabilités (Softmax avec Log-Sum-Exp trick)
-  # mat_logL contient log p(y | k)
-  # On veut : tau_ik = pi_k * p(y|k) / sum(...)
-  # Soit en log : log(tau) = log(pi_k) + log p(y|k) - log(sum(...))
-
-  # Ajout du log-prior (log pi_k) à la log-vraisemblance
+  # Add log-prior to the log-likelihood
   log_numerator <- mat_logL + log(vec_prop)
-
-  # Application du Log-Sum-Exp par colonne (par tâche) pour normaliser
-  # T_ik = exp( Num_ik - max_j(Num_ij) ) / sum_j( exp( Num_ij - max ) )
 
   mat_tau <- apply(log_numerator, 2, function(col_scores) {
     max_score <- max(col_scores)
@@ -596,12 +573,12 @@ update_mixture <- function(db,
     return(exp_scores / sum(exp_scores))
   })
 
-  # 6. Mise en forme du résultat
+  # Format results
   mat_tau %>%
-    t() %>% # Transpose pour avoir Tâches x Clusters
+    t() %>%
     round(5) %>%
     tibble::as_tibble() %>%
-    `colnames<-`(ID_k) %>% # Nomme les colonnes K1, K2...
+    `colnames<-`(ID_k) %>%
     dplyr::mutate("Task_ID" = ID_t, .before = 1) %>%
     return()
 }

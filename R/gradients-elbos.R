@@ -64,10 +64,9 @@ gr_clust_multi_GP <- function(hp,
       dplyr::filter(Task_ID == t) %>%
       dplyr::pull(k)
 
-    # browser()
     mean_mu_k <- hyperpost$mean[[k]] %>%
       dplyr::filter(Reference %in% t_t) %>%
-      dplyr::arrange(match(Reference, t_t)) %>% # CORRECTION
+      dplyr::arrange(match(Reference, t_t)) %>%
       dplyr::pull(Output)
 
     corr1 <- corr1 + tau_t_k * mean_mu_k
@@ -204,7 +203,7 @@ gr_clust_multi_GP <- function(hp,
 #' }
 
 
-#' Gradient of the penalised elbo for multiple individual GPs with shared HPs
+#' Gradient of the penalised elbo for multiple task GPs with shared HPs
 #'
 #' @param hp A tibble, data frame or name vector of hyper-parameters.
 #' @param db A tibble containing values we want to compute elbo on.
@@ -219,7 +218,7 @@ gr_clust_multi_GP <- function(hp,
 #' @param output_ids A character vector with the unique IDs of the outputs.
 #'
 #' @return The gradient of the penalised Gaussian elbo for
-#'    the sum of the M individual GPs with common HPs.
+#'    the sum of the T task GPs with shared HPs.
 #'
 #' @keywords internal
 #'
@@ -232,8 +231,6 @@ gr_clust_multi_GP_shared_hp_tasks <- function(hp,
                                           pen_diag = NULL,
                                           hp_col_names,
                                           output_ids) {
-
-  # browser() # -> Fonctionne !
   list_hp <- names(hp)
   names_k <- hyperpost$mean %>% names()
 
@@ -254,7 +251,7 @@ gr_clust_multi_GP_shared_hp_tasks <- function(hp,
     hp_tibble <- hp
   }
 
-  ## Loop over individuals to compute the sum of log-Likelihoods
+  ## Loop over tasks to compute the sum of log-Likelihoods
   funloop <- function(t) {
     ## Extract the t-th specific reference Input
     input_t <- db %>%
@@ -284,7 +281,6 @@ gr_clust_multi_GP_shared_hp_tasks <- function(hp,
         dplyr::filter(Task_ID == t) %>%
         dplyr::pull(k)
 
-      # browser()
       mean_mu_k <- hyperpost$mean[[k]] %>%
         dplyr::filter(Reference %in% input_t) %>%
         dplyr::arrange(match(Reference, input_t)) %>% # CORRECTION
@@ -299,7 +295,7 @@ gr_clust_multi_GP_shared_hp_tasks <- function(hp,
     }
 
     if(length(output_ids) == 1){
-      inputs <- inputs %>% dplyr::select(-Output_ID)
+      inputs_t <- inputs_t %>% dplyr::select(-Output_ID)
     }
 
     inv <- kern_to_inv(inputs_t, kern, hp_tibble, pen_diag)
@@ -309,9 +305,6 @@ gr_clust_multi_GP_shared_hp_tasks <- function(hp,
       inv %*% (corr2 %*% inv - diag(1, length(input_t)))
 
     floop <- function(deriv) {
-      if(length(output_ids) == 1){
-        inputs <- inputs %>% dplyr::select(-Output_ID)
-      }
       (-1 / 2 * (common_term %*% kern_to_cov(inputs_t, kern, hp_tibble, deriv))) %>%
         diag() %>%
         sum() %>%

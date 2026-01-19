@@ -111,7 +111,7 @@ pred_gp <- function(data = NULL,
     if (dplyr::n_distinct(data$Task_ID) > 1) {
       stop(
         "Problem in the 'Task_ID' column: different values are not allowed. ",
-        "The prediction can only be performed for one individual/task."
+        "The prediction can only be performed for one task."
       )
     }
     data <- data %>%
@@ -964,7 +964,7 @@ hyperposterior <- function(trained_model = NULL,
 #' Magma prediction
 #'
 #' Compute the posterior predictive distribution in Magma. Providing data of any
-#' new individual/task, its trained hyper-parameters and a previously trained
+#' new task, its trained hyper-parameters and a previously trained
 #' Magma model, the predictive distribution is evaluated on any arbitrary inputs
 #' that are specified through the 'grid_inputs' argument.
 #'
@@ -972,7 +972,7 @@ hyperposterior <- function(trained_model = NULL,
 #'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
 #'    columns for covariates can be specified.
 #'    The \code{Task_ID} column contains the unique names/codes used to identify each
-#'    individual/task (or batch of data).
+#'    task (or batch of data).
 #'    The \code{Input_ID} contains the unique names/codes used to identify each
 #'    explanatory variable.
 #'    The \code{Input} column should define the value of the explanatory
@@ -1373,7 +1373,7 @@ pred_magma <- function(data = NULL,
           names_to = "Input_ID",
           values_to = "Input"
         ) %>%
-        mutate(Input_ID = stringr::str_remove(Input_ID, "Input_"))
+        dplyr::mutate(Input_ID = stringr::str_remove(Input_ID, "Input_"))
 
       hyperpost <- hyperposterior(
         data = trained_model$ini_args$data,
@@ -1539,8 +1539,8 @@ pred_magma <- function(data = NULL,
   pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
 
   if(length(all_inputs$Output_ID %>% unique()) > 1){
-    ## Get the pred_cov rownames and colnames to create a noise vector with correct
-    ## dimensions
+    ## Get the pred_cov rownames and colnames to create a noise vector with
+    ## correct dimensions
     point_names <- rownames(pred_cov)
     output_ids <- as.numeric(sub("^o(\\d+);.*", "\\1", point_names))
     full_noise_vector <- noise[output_ids]
@@ -1557,6 +1557,8 @@ pred_magma <- function(data = NULL,
     dplyr::mutate(inputs_pred) %>%
     dplyr::select(-Reference)
 
+  # Compute ponderation matrix to visualize the contribution of each observation
+  # to each predicted point
   ponderation_matrix <- t(cov_crossed) %*% inv_obs
 
   ## Display the graph of the prediction if expected
@@ -1584,8 +1586,8 @@ pred_magma <- function(data = NULL,
             data = raw_data,
             data_train = data_train %>%
               group_by(Task_ID, Output_ID, Output, Input_ID) %>%
-              mutate(obs_num = row_number()) %>%
-              ungroup(),
+              dplyr::mutate(obs_num = row_number()) %>%
+              dplyr::ungroup(),
             prior_mean = hyperpost$mean %>%
               dplyr::select(-Reference),
             samples = display_samples
@@ -1795,7 +1797,7 @@ pred_gif <- function(data,
 #'    \code{Input_ID}, \code{Input}, \code{Output_ID}, \code{Output}. Additional
 #'    columns for covariates can be specified.
 #'    The \code{Task_ID} column contains the unique names/codes used to identify
-#'    each individual/task (or batch of data).
+#'    each task (or batch of data).
 #'    The \code{Input_ID} contains the unique names/codes used to identify each
 #'    explanatory variable.
 #'    The \code{Input} column should define the value of the explanatory
@@ -1806,14 +1808,14 @@ pred_gif <- function(data,
 #'    The \code{Output} column specifies the observed values (the response
 #'    variables).
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
-#'     of each cluster for each individual. Required column: \code{ID}.
+#'     of each cluster for each task. Required column: \code{ID}.
 #'     Recovered from \code{trained_model} if not
 #'     provided.
 #' @param hp_k A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_k}. Recovered from \code{trained_model} if not
 #'    provided.
 #' @param hp_t A tibble or data frame of hyper-parameters
-#'    associated with \code{kern_i}. Recovered from \code{trained_model} if not
+#'    associated with \code{kern_t}. Recovered from \code{trained_model} if not
 #'    provided.
 #' @param kern_k A kernel function, associated with the mean GPs.
 #'    Several popular kernels
@@ -1833,9 +1835,9 @@ pred_gif <- function(data,
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not). Recovered from
 #'    \code{trained_model} if not provided.
-#' @param kern_t A kernel function, associated with the individual GPs. ("SE",
-#'    "LIN", PERIO" and "RQ" are also available here). Recovered from
-#'    \code{trained_model} if not provided.
+#' @param kern_t A kernel function, associated with the task GPs. ("SE",
+#'    "LIN", PERIO", "RQ" and convolution_kernel are also available here).
+#'    Recovered from \code{trained_model} if not provided.
 #' @param weight_inv_k A number, indicating the weight that the user wants to
 #'  attribute to the inverse prior covariances inv_k.
 #' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
@@ -1864,7 +1866,7 @@ pred_gif <- function(data,
 #'            \item cov: A list of matrices containing, for each cluster, the
 #'                  hyper-posterior covariance parameter of the mean process.
 #'            \item mixture: A tibble, indicating the mixture probabilities in
-#'                  each cluster for each individual.
+#'                  each cluster for each task.
 #'          }
 #'
 #' @export
@@ -1910,10 +1912,10 @@ hyperposterior_clust <- function(trained_model = NULL,
   }
 
   data <- data %>%
-    group_by(Task_ID, Output_ID, Output, Input_ID) %>%
+    dplyr::group_by(Task_ID, Output_ID, Output, Input_ID) %>%
     # Add a unique number observation for the group
-    mutate(obs_num = row_number()) %>%
-    ungroup()
+    dplyr::mutate(obs_num = row_number()) %>%
+    dplyr::ungroup()
 
   ## To create the 'Reference' column as in the old MagmaClustR tibble format
   data <- data %>%
@@ -2079,15 +2081,14 @@ hyperposterior_clust <- function(trained_model = NULL,
       for (k in 1:nb_cluster) {
 
         all_inputs_k <- all_inputs
-
-        # --- CORRECTION ICI : Sélection séquentielle par bloc ---
         start_index <- (k - 1) * num_outputs + 1
         end_index   <- k * num_outputs
         vals_cluster_k <- prior_mean_k[start_index:end_index]
-        # -------------------------------------------------------
 
-        # Create a corresponding table mapping: "o1" -> mean_val_1, "o2" -> mean_val_2
-        prior_mean_map <- setNames(vals_cluster_k, paste0("o", unique_outputs_sorted))
+        # Create a corresponding table mapping:
+        # "o1" -> mean_val_1, "o2" -> mean_val_2
+        prior_mean_map <- setNames(vals_cluster_k,
+                                   paste0("o", unique_outputs_sorted))
 
         # Assign it to the correctly named element of the list
         # Map values to the full grid based on prefixes
@@ -2096,9 +2097,9 @@ hyperposterior_clust <- function(trained_model = NULL,
       }
 
     } else if (length(prior_mean_k) == num_outputs) {
-      # ... (Le reste du code pour le cas où les clusters partagent la même moyenne reste inchangé)
       # One mean per Output (all clusters share the same)
-      prior_mean_map <- setNames(prior_mean_k, paste0("o", unique_outputs_sorted))
+      prior_mean_map <- setNames(prior_mean_k,
+                                 paste0("o", unique_outputs_sorted))
       all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
       for (k in 1:nb_cluster) {
@@ -2110,9 +2111,7 @@ hyperposterior_clust <- function(trained_model = NULL,
     }
   }
 
-  # ============================================================================
-  # [ADDED] LABEL SWITCHING CHECK (Ported from training.R)
-  # ============================================================================
+  # Label switching check
   if (!is.null(prior_mean_k) && !is.null(mixture)) {
     # cat("Checking for label switching across multiple outputs (Hyperposterior step)...\n")
 
@@ -2197,7 +2196,6 @@ hyperposterior_clust <- function(trained_model = NULL,
       }
     }
   }
-  # ============================================================================
 
   ## Format a sequence of inputs for all clusters
   t_clust <- tidyr::expand_grid("Cluster_ID" = names(m_k),
@@ -2217,9 +2215,17 @@ hyperposterior_clust <- function(trained_model = NULL,
       dplyr::filter(Cluster_ID == k) %>%
       dplyr::select(-prop_mixture)
 
-    cov_k <- kern_to_cov(input = t_clust_k,
-                         kern = kern_k,
-                         hp = hp_k_subset %>% dplyr::select(-Cluster_ID))
+    if(length(list_ID_output) > 1 && !(kern_t %>% is.character())){
+      cov_k <- kern_to_cov(input = t_clust_k,
+                           kern = kern_k,
+                           hp = hp_k_subset %>% dplyr::select(-Cluster_ID))
+    } else {
+      cov_k <- kern_to_cov(input = t_clust_k,
+                           kern = kern_k,
+                           hp = hp_k_subset %>%
+                             dplyr::select(-c(Cluster_ID, Output_ID))
+      )
+    }
 
     references <- rownames(cov_k)
     inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
@@ -2236,9 +2242,6 @@ hyperposterior_clust <- function(trained_model = NULL,
 
     if(length(list_ID_output) > 1 && !(kern_t %>% is.character())){
       K_task_t <- kern_to_cov(input = data_t, kern = kern_t, hp = hp_t_indiv)
-    } else if (length(list_ID_output) > 1 && kern_t %>% is.character()){
-      hp_t_indiv <- hp_t_indiv %>% dplyr::select(-c(Task_ID, Output_ID))
-      K_task_t <- kern_to_cov(input = data_t, kern = kern_t, hp = hp_t_indiv)
     } else{
       all_inputs_t <- data %>%
         dplyr::filter(Task_ID == t) %>%
@@ -2253,7 +2256,7 @@ hyperposterior_clust <- function(trained_model = NULL,
     list_inv_t[[t]] <- K_inv_t
   }
 
-  ## Create a named list of Output values for all individuals
+  ## Create a named list of Output values for all tasks
   list_output_t <- base::split(data$Output, list(data$Task_ID))
 
   ## Update each mu_k parameters for each cluster
@@ -2314,14 +2317,14 @@ hyperposterior_clust <- function(trained_model = NULL,
 #' MagmaClust prediction
 #'
 #' Compute the posterior predictive distribution in MagmaClust.
-#' Providing data from any new individual/task, its trained hyper-parameters
+#' Providing data from any new task, its trained hyper-parameters
 #' and a previously trained MagmaClust model, the multi-task posterior
 #' distribution is evaluated on any arbitrary inputs that are specified through
 #' the 'grid_inputs' argument. Due to the nature of the model, the prediction is
 #' defined as a mixture of Gaussian distributions. Therefore the present
 #' function computes the parameters of the predictive distribution
 #' associated with each cluster, as well as the posterior mixture probabilities
-#' for this new individual/task.
+#' for this new task.
 #'
 #' @param data  A tibble or data frame. Required columns: \code{Input},
 #'    \code{Output}. Additional columns for covariates can be specified.
@@ -2347,7 +2350,7 @@ hyperposterior_clust <- function(trained_model = NULL,
 #'    NULL, a vector of length 500 is defined, ranging between the min and max
 #'    Input values of \code{data}.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
-#'     of each cluster for the new individual/task.
+#'     of each cluster for the new task.
 #'     If NULL, the \code{\link{train_gp_clust}} function is used to compute
 #'     these posterior probabilities according to \code{data}.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
@@ -2364,7 +2367,9 @@ hyperposterior_clust <- function(trained_model = NULL,
 #'        Radial Basis Function or Gaussian kernel),
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
-#'    - "RQ": the Rational Quadratic kernel.
+#'    - "RQ": the Rational Quadratic kernel,
+#'    - convolution_kernel: the Convolution kernel used to manage MO scenario.
+#'    Compound kernels can be created as sums or products of the above kernels.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
@@ -2409,7 +2414,7 @@ hyperposterior_clust <- function(trained_model = NULL,
 #'                 posterior covariance matrix associated with this cluster.
 #'              }
 #'           \item mixture: A tibble, indicating the mixture probabilities
-#'              of each cluster for the predicted individual/task.
+#'              of each cluster for the predicted task.
 #'           \item hyperpost (if \code{get_hyperpost} = TRUE): A list,
 #'              containing the hyper-posterior distributions information useful
 #'              for visualisation purposes.
@@ -2535,7 +2540,6 @@ pred_magmaclust <- function(data = NULL,
 
       ## Display the graph of the prediction if expected
       if (plot) {
-
         data_train <- trained_model$ini_args$data
 
         ## Add 'cov' to display samples
@@ -2575,14 +2579,13 @@ pred_magmaclust <- function(data = NULL,
     if (dplyr::n_distinct(data$Task_ID) > 1) {
       stop(
         "Problem in the 'Task_ID' column: different values are not allowed. ",
-        "The prediction can only be performed for one individual/task."
+        "The prediction can only be performed for one task."
       )
     }
 
-    ## Get 'Task_ID' of the individual to predict
+    ## Get 'Task_ID' of the task to predict
     ID_task_pred <- unique(data$Task_ID)
 
-    # data <- data %>% dplyr::select(-Task_ID)
   } else {
     ## Set 'Task_ID' of the task to predict to 'Task_ID_pred' if not provided
     ID_task_pred <- "Task_ID_pred"
@@ -2594,7 +2597,7 @@ pred_magmaclust <- function(data = NULL,
     names_col <- data %>%
       dplyr::select(- c(Output, Output_ID, Reference)) %>%
       names()
-  }else{
+  } else{
     names_col <- data %>%
       dplyr::select(- c(Output, Output_ID)) %>%
       names()
@@ -3044,7 +3047,7 @@ pred_magmaclust <- function(data = NULL,
     ## Keep track of the full predicted covariances
     full_cov[[k]] <<- pred_cov
 
-    ## Select the adequate individual/task if necessary
+    ## Select the adequate task if necessary
     proba <- mixture %>%
       dplyr::filter(Task_ID == ID_task_pred) %>%
       dplyr::pull(k)
@@ -3053,11 +3056,15 @@ pred_magmaclust <- function(data = NULL,
     mixture_mean <<- mixture_mean + proba * pred_mean
 
     ## Create a tibble of values and associated uncertainty from a GP prediction
+    if(length(grid_inputs$Output_ID %>% unique()) == 1){
+      inputs_pred$Output_ID <- as.factor("1")
+    }
+
     tibble::tibble(
       "Task_ID" = ID_task_pred,
       "Proba" = proba,
       "Mean" = pred_mean,
-      "Var" = (diag(pred_cov) + noise) %>% as.vector()
+      "Var" = (diag(pred_cov) + full_noise_vector) %>% as.vector()
     ) %>%
       dplyr::mutate(inputs_pred) %>%
       dplyr::select(-Reference) %>%
@@ -3143,9 +3150,9 @@ pred_magmaclust <- function(data = NULL,
 #'
 #' @return A tibble, retaining only the most probable cluster. The column
 #'    \code{Cluster} indicates the the cluster's name whereas \code{Proba}
-#'    refers to its associated probability. If \code{ID} is initially
+#'    refers to its associated probability. If \code{Task_ID} is initially
 #'    a column of \code{mixture} (optional), the function returns the most
-#'    probable cluster for all the different \code{ID} values.
+#'    probable cluster for all the different \code{Task_ID} values.
 #'
 #' @export
 #'
@@ -3174,7 +3181,7 @@ proba_max_cluster <- function(mixture) {
 #'
 #' @return The original dataset used to train the MagmaClust model, with
 #'    additional 'Cluster' and associated 'Proba' columns, indicating the most
-#'    probable cluster for each individual/task at the end of the training
+#'    probable cluster for each task at the end of the training
 #'    procedure.
 #'
 #' @export

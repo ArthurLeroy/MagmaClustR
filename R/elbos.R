@@ -27,33 +27,39 @@ elbo_clust_multi_GP <- function(hp,
                                 pen_diag,
                                 hp_col_names,
                                 output_ids) {
-
-  # browser()
   names_k <- hyperpost$mean %>% names()
   t_t <- db$Reference
   y_t <- db$Output
   t <- unique(db$Task_ID)
   output_ids <- unique(db$Output_ID)
 
-  if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
-    # Reconstruct the structured HP tibble from the flat vector
-    hp_tibble <- reconstruct_hp(
-      par_vector = hp,
-      hp_names = hp_col_names,
-      output_ids = output_ids
-    )
-  } else if (!(hp %>% tibble::is_tibble()) && length(output_ids) == 1){
-    hp_tibble <- hp %>%
-      t() %>%
-      tibble::as_tibble() %>%
-      stats::setNames(hp_col_names)
-
-  } else {
+  if(length(output_ids) > 1){
     hp_tibble <- hp
+  } else {
+    hp_tibble <- hp %>%
+      dplyr::select(-Output_ID)
   }
 
+  # if(!(hp %>% tibble::is_tibble() && length(output_ids) > 1)){
+  #   # Reconstruct the structured HP tibble from the flat vector
+  #   hp_tibble <- reconstruct_hp(
+  #     par_vector = hp,
+  #     hp_names = hp_col_names,
+  #     output_ids = output_ids
+  #   )
+  # } else if (!(hp %>% tibble::is_tibble()) && length(output_ids) == 1){
+  #   hp_tibble <- hp %>%
+  #     t() %>%
+  #     tibble::as_tibble() %>%
+  #     stats::setNames(hp_col_names)
+  #
+  # } else {
+  #   hp_tibble <- hp %>%
+  #     dplyr::select(-Output_ID)
+  # }
+
   if("Task_ID" %in% names(db)){
-    inputs <- db %>% dplyr::select(-c(Output, -Task_ID))
+    inputs <- db %>% dplyr::select(-c(Output, Task_ID))
   } else{
     inputs <- db %>% dplyr::select(-c(Output))
   }
@@ -62,7 +68,10 @@ elbo_clust_multi_GP <- function(hp,
     inputs <- inputs %>% dplyr::select(-Output_ID)
   }
 
-  inv <- kern_to_inv(inputs, kern, hp_tibble %>% dplyr::select(-Task_ID), pen_diag)
+  inv <- kern_to_inv(inputs,
+                     kern,
+                     hp_tibble %>% dplyr::select(-Task_ID),
+                     pen_diag)
 
   ## classic Gaussian centred log likelihood
   LL_norm <- -dmnorm(y_t, rep(0, length(y_t)), inv, log = T)
@@ -70,17 +79,16 @@ elbo_clust_multi_GP <- function(hp,
   corr1 <- 0
   corr2 <- 0
 
+  # Loop over clusters
   for (k in (names_k))
   {
     tau_t_k <- tau_t_k <- hyperpost$mixture %>%
       dplyr::filter(Task_ID == t) %>%
       dplyr::pull(k)
 
-    # browser()
-
     mean_mu_k <- hyperpost$mean[[k]] %>%
       dplyr::filter(Reference %in% t_t) %>%
-      dplyr::arrange(match(Reference, t_t)) %>% # CORRECTION
+      dplyr::arrange(match(Reference, t_t)) %>%
       dplyr::pull(Output)
 
     names(mean_mu_k) <- (hyperpost$mean[[k]] %>%
@@ -175,7 +183,7 @@ elbo_clust_multi_GP <- function(hp,
 #'   return(LL_norm + cor_term)
 #' }
 
-#' Penalised elbo for multiple individual GPs with shared HPs
+#' Penalised elbo for multiple task GPs with shared HPs
 #'
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing values we want to compute elbo on.
@@ -192,7 +200,7 @@ elbo_clust_multi_GP <- function(hp,
 #'   the current task.
 #'
 #' @return The value of the penalised Gaussian elbo for
-#'    the sum of the M individual GPs with common HPs.
+#'    the sum of the T task GPs with common HPs.
 #'
 #' @keywords internal
 #'
@@ -205,8 +213,6 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
                                             pen_diag,
                                             hp_col_names,
                                             output_ids) {
-
-  # browser() # -> Fonctionne !
   names_k <- hyperpost$mean %>% names()
 
   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
@@ -245,6 +251,7 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
     corr1 <- 0
     corr2 <- 0
 
+    # Loop over clusters
     for (k in (names_k))
     {
       ## Extract the covariance values associated with the t-th specific inputs
@@ -257,11 +264,9 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
         dplyr::filter(Task_ID == t) %>%
         dplyr::pull(k)
 
-      # browser()
-
       mean_mu_k <- hyperpost$mean[[k]] %>%
         dplyr::filter(Reference %in% input_t) %>%
-        dplyr::arrange(match(Reference, input_t)) %>% # AJOUT CRUCIAL
+        dplyr::arrange(match(Reference, input_t)) %>%
         dplyr::pull(Output)
       names(mean_mu_k) <- (hyperpost$mean[[k]] %>%
         dplyr::filter(Reference %in% input_t) %>%
@@ -273,7 +278,7 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
     }
 
     if(length(output_ids) == 1){
-      inputs_t <- inputs %>% dplyr::select(-Output_ID)
+      inputs_t <- inputs_t %>% dplyr::select(-Output_ID)
     }
     inv <- kern_to_inv(inputs_t, kern, hp_tibble, pen_diag = pen_diag)
 
@@ -330,7 +335,7 @@ elbo_monitoring_VEM <- function(hp_k,
                                 pen_diag = 1e-10,
                                 hp_col_names,
                                 output_ids) {
-  # browser()
+  # Loop over clusters
   floop <- function(k) {
     # Get the union of all unique input points from the training data
     all_inputs <- db %>%
@@ -378,6 +383,7 @@ elbo_monitoring_VEM <- function(hp_k,
   }
   sum_ll_k <- sapply(names(m_k), floop) %>% sum()
 
+  # Loop over tasks
   floop2 <- function(t) {
     t_t <- db %>%
       dplyr::filter(Task_ID == t) %>%
@@ -394,6 +400,7 @@ elbo_monitoring_VEM <- function(hp_k,
   }
   sum_ll_t <- sapply(unique(db$Task_ID), floop2) %>% sum()
 
+  # Loop over clusters
   floop3 <- function(k) {
     sum_tau <- 0
     det <- 0
@@ -404,7 +411,7 @@ elbo_monitoring_VEM <- function(hp_k,
       unique()
 
     for (t in unique(db$Task_ID)) {
-      ## Extract the probability of the t-th indiv to be in the k-th cluster
+      ## Extract the probability of the t-th task to be in the k-th cluster
       tau_t_k <- hyperpost$mixture %>%
         dplyr::filter(Task_ID == t) %>%
         dplyr::pull(k)

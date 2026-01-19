@@ -2,12 +2,12 @@
 #'
 #' @param hp A tibble, data frame or named vector containing hyper-parameters.
 #' @param db A tibble containing the values we want to compute the logL on.
-#'    Required columns: Input, Output. Additional covariate columns are allowed.
+#'    Required columns: `Output`, `Output_ID`, plus input coordinates.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.
 #' @param kern A kernel function.
 #' @param post_cov (optional) A matrix, corresponding to covariance parameter of
 #'    the hyper-posterior. Used to compute the hyper-prior distribution of a new
-#'    individual in Magma.
+#'    task in Magma.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #' @param hp_col_names A character vector with the names of the hyper-parameters
@@ -15,7 +15,7 @@
 #'
 #' @return A named vector, corresponding to the value of the hyper-parameters
 #'    gradients for the Gaussian log-Likelihood (where the covariance can be the
-#'    sum of the individual and the hyper-posterior's mean process covariances).
+#'    sum of the task and the hyper-posterior's mean process covariances).
 #'
 #' @keywords internal
 #'
@@ -28,7 +28,6 @@ gr_GP <- function(hp,
                   post_cov,
                   pen_diag,
                   hp_col_names) {
-
   if(!(hp %>% tibble::is_tibble()) && length(db$Output_ID %>% unique()) > 1){
     # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -183,11 +182,6 @@ gr_GP_mod <- function(hp,
     # Inverse K_task_t
     inv <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
 
-  } else if (length(list_ID_outputs) > 1 && kern %>% is.character()){
-    # MO inversion of the MEAN PROCESS covariance
-    ## Compute the inverse covariance of the mean process
-    inv <- ini_inverse_prior_cov(db, kern, hp, pen_diag)
-
   } else{
     # Single output case
     # Extract all_inputs to call kern_to_cov() on the single output case
@@ -228,7 +222,8 @@ gr_GP_mod <- function(hp,
     # Get the derivative of the covariance matrix w.r.t. the current HP
     if(length(list_ID_outputs) > 1){
       dK_dhp <- kern_to_cov(db %>%
-                              dplyr::select(Output_ID, dplyr::starts_with("Input")),
+                              dplyr::select(Output_ID,
+                                            dplyr::starts_with("Input")),
                             kern = kern,
                             hp = hp_tibble,
                             deriv = deriv_name)
@@ -246,7 +241,7 @@ gr_GP_mod <- function(hp,
         dplyr::select(c(Input_1, Reference))
 
       if("Task_ID" %in% colnames(all_inputs)){
-        all_inputs <- all_inputs %>% select(-Task_ID)
+        all_inputs <- all_inputs %>% dplyr::select(-Task_ID)
       }
 
       dK_dhp <- kern_to_cov(input = all_inputs,
@@ -277,7 +272,7 @@ gr_GP_mod <- function(hp,
 #'
 #' @param hp A numeric vector of hyper-parameters, as provided by `stats::optim`.
 #' @param db A tibble containing the data for all tasks.
-#'   Required columns: `ID` (task ID), `Output`, `Output_ID`, plus inputs.
+#'   Required columns: `Task_ID`, `Output`, `Output_ID`, plus inputs coordinates.
 #' @param mean A vector, specifying the mean of the GP at the reference inputs.
 #' @param kern The kernel function (e.g., `convolution_kernel`).
 #' @param post_cov A matrix, covariance parameter of the hyper-posterior.
@@ -296,7 +291,6 @@ gr_GP_mod_shared_tasks <- function(hp,
                                 pen_diag,
                                 hp_col_names,
                                 output_ids) {
-
   # Loop over each task ID to compute its gradient vector
   funloop <- function(t) {
     # Extract data specific to task 't'
@@ -340,7 +334,7 @@ gr_GP_mod_shared_tasks <- function(hp,
 #' @param db A tibble containing data we want to evaluate the logL on.
 #'    Required columns: Input, Output. Additional covariate columns are allowed.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
-#'    of each cluster for the new individual/task.
+#'    of each cluster for the new task.
 #' @param mean A list of hyper-posterior mean parameters for all clusters.
 #' @param kern A kernel function.
 #' @param post_cov A list of hyper-posterior covariance parameters for all

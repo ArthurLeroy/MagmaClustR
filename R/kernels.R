@@ -37,7 +37,8 @@ convolution_kernel <- function(x,
   } else {
     # Vectorized case, which allows to build an entire covariance matrix
     if (!"Output_ID" %in% names(x) || !"Output_ID" %in% names(hp)) {
-      stop("'input' and 'hp' must contain an 'Output_ID' column for vectorized mode.")
+      stop("'input' and 'hp' must contain an 'Output_ID' column for vectorized ",
+      "mode.")
     }
 
     # Important: all HPs ID must be numeric (otherwise it raises an error
@@ -54,7 +55,6 @@ convolution_kernel <- function(x,
 
     # Match inputs indices with HPs indices, to get each input observed
     # associated to the right Output_ID HPs.
-    # Recherche robuste avec les IDs maintenant numériques
     indices_x <- match(x_ids_numeric, hp_ids_numeric)
     indices_y <- match(y_ids_numeric, hp_ids_numeric)
 
@@ -95,7 +95,8 @@ convolution_kernel <- function(x,
   }
 
   if (startsWith(deriv, "l_t_")) {
-    common_deriv_denom <- K * ((-0.5 / denominator_sum) + (0.5 * distance_sq / (denominator_sum^2)))
+    common_deriv_denom <- K * ((-0.5 / denominator_sum) +
+                                 (0.5 * distance_sq / (denominator_sum^2)))
 
     # We need l_i and l_j, which corresponds for now to l_vec_1 and l_vec_2
     N <- nrow(x)
@@ -131,7 +132,8 @@ convolution_kernel <- function(x,
 
   } else if (deriv == "l_u_t") {
     # Common_term
-    common_deriv_denom <- K * ((-0.5 / denominator_sum) + (0.5 * distance_sq / (denominator_sum^2)))
+    common_deriv_denom <- K * ((-0.5 / denominator_sum) +
+                                 (0.5 * distance_sq / (denominator_sum^2)))
 
     chain_rule_factor <- l_u_val <- exp(unique(hp$l_u_t))
 

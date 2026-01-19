@@ -105,12 +105,10 @@ sample_magmaclust = function(
     pred_clust,
     nb_samples = 50){
 
-  # Helper function to process each cluster
+  # Loop on clusters
   floop = function(k){
-
     ## Extract the GP prediction for cluster k
     pred <- pred_clust$pred[[k]]
-
     ## Remove 'Task_ID' if present to avoid confusion
     if ("Task_ID" %in% names(pred)) {
       pred = pred %>% dplyr::select(-Task_ID)
@@ -118,7 +116,7 @@ sample_magmaclust = function(
 
     ## Extract the covariance matrix and mixture weight for cluster k
     cov <- pred_clust$cov[[k]]
-    weight <- pred_clust$mixture[[k]] # Assumes mixture has columns K1, K2...
+    weight <- pred_clust$mixture[[k]]
 
     ## Check necessary column
     if (!"Output_ID" %in% names(pred)) {
@@ -130,10 +128,8 @@ sample_magmaclust = function(
 
     ## Loop over outputs (MO logic from sample_gp)
     cluster_samples <- purrr::map_dfr(unique_outputs, function(current_output_id) {
-
       # Identify rows corresponding to the current output
       output_indices <- which(pred$Output_ID == current_output_id)
-
       if (length(output_indices) == 0) return(NULL)
 
       # Filter prediction data
@@ -157,11 +153,11 @@ sample_magmaclust = function(
       # Tidy the samples
       tidied_samples <- drawn_samples %>%
         t() %>%
-        magrittr::set_colnames(1:nb_samples) %>% # Column names 1, 2, ...
+        magrittr::set_colnames(1:nb_samples) %>%
         tibble::as_tibble() %>%
         dplyr::bind_cols(inputs_subset) %>%
         tidyr::pivot_longer(
-          cols = -names(inputs_subset), # Pivot everything except inputs
+          cols = -names(inputs_subset),
           names_to = "Sample",
           values_to = "Output"
         ) %>%
