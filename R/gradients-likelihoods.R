@@ -339,6 +339,10 @@ gr_GP_mod_shared_tasks <- function(hp,
 #' @param kern A kernel function.
 #' @param post_cov A list of hyper-posterior covariance parameters for all
 #'    clusters.
+#' @param hp_col_names A character vector with the names of the hyper-parameters
+#'   (e.g., c("l_t", "S_t")).
+#' @param output_ids A character vector with the unique IDs of the outputs for
+#'   the current task.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
 #'
@@ -356,28 +360,47 @@ gr_sum_logL_GP_clust <- function(hp,
                                  mean,
                                  kern,
                                  post_cov,
+                                 hp_col_names,
+                                 output_ids,
                                  pen_diag) {
+  if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
+    # Reconstruct the structured HP tibble from the flat vector
+    hp_tibble <- reconstruct_hp(
+      par_vector = hp,
+      hp_names = hp_col_names,
+      output_ids = output_ids
+    )
+  } else if (!(hp %>% tibble::is_tibble()) && length(output_ids) == 1){
+    hp_tibble <- hp %>%
+      t() %>%
+      tibble::as_tibble() %>%
+      stats::setNames(hp_col_names)
+
+  } else {
+    hp_tibble <- hp
+  }
+
   ## Extract the observed (reference) Input
   input_obs <- db %>%
-    dplyr::arrange(.data$Reference) %>%
-    dplyr::pull(.data$Reference)
-  ## Remove 'ID' if present in 'db'
-  if ("ID" %in% names(db)) {
-    db <- db %>% dplyr::select(-.data$ID)
+    dplyr::pull(Reference)
+
+  ## Remove 'Task_ID' if present in 'db'
+  if ("Task_ID" %in% names(db)) {
+    db <- db %>% dplyr::select(-Task_ID)
   }
 
   ## Loop over the K clusters
   floop <- function(k) {
     tau_k <- mixture[[k]]
     mean_k <- mean[[k]] %>%
-      dplyr::filter(.data$Reference %in% input_obs) %>%
-      dplyr::pull(.data$Output)
+      dplyr::filter(Reference %in% input_obs) %>%
+      dplyr::pull(Output)
 
     cov_k <- post_cov[[k]][
       as.character(input_obs),
       as.character(input_obs)
     ]
-    (tau_k * gr_GP(hp, db, mean_k, kern, cov_k, pen_diag)) %>%
+    (tau_k * gr_GP(hp_tibble, db, mean_k, kern, cov_k, pen_diag, hp_col_names)) %>%
       return()
   }
   sapply(names(mean), floop) %>%

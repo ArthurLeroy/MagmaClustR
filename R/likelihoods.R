@@ -441,6 +441,10 @@ logL_monitoring <- function(hp_0,
 #' @param kern A kernel function.
 #' @param post_cov A list of hyper-posterior covariance parameters for all
 #'    clusters.
+#' @param hp_col_names A character vector with the names of the hyper-parameters
+#'   (e.g., c("l_t", "S_t")).
+#' @param output_ids A character vector with the unique IDs of the outputs for
+#'   the current task.
 #' @param prop_mixture A tibble or a named vector. Each name of column or
 #'    element should refer to a cluster. The value associated with each cluster
 #'    is a number between 0 and 1, corresponding to the mixture
@@ -463,13 +467,32 @@ sum_logL_GP_clust <- function(hp,
                               mean,
                               kern,
                               post_cov,
+                              hp_col_names,
+                              output_ids,
                               prop_mixture = NULL,
                               pen_diag) {
+  if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
+    # Reconstruct the structured HP tibble from the flat vector
+    hp_tibble <- reconstruct_hp(
+      par_vector = hp,
+      hp_names = hp_col_names,
+      output_ids = output_ids
+    )
+  } else if (!(hp %>% tibble::is_tibble()) && length(output_ids) == 1){
+    hp_tibble <- hp %>%
+      t() %>%
+      tibble::as_tibble() %>%
+      stats::setNames(hp_col_names)
+
+  } else {
+    hp_tibble <- hp
+  }
+
   ## Extract the observed (reference) Input
   input_obs <- db %>%
     dplyr::pull(Reference)
 
-  ## Remove 'ID' if present in 'db'
+  ## Remove 'Task_ID' if present in 'db'
   if ("Task_ID" %in% names(db)) {
     db <- db %>% dplyr::select(-Task_ID)
   }
@@ -488,7 +511,7 @@ sum_logL_GP_clust <- function(hp,
       as.character(input_obs)
     ]
 
-    sum_LL <- (tau_k * logL_GP(hp, db, mean_k, kern, cov_k, pen_diag))
+    sum_LL <- (tau_k * logL_GP(hp_tibble, db, mean_k, kern, cov_k, pen_diag))
 
     ## If prop_mixture is provided, compute full likelihood for monitoring EM
     if (!is.null(prop_mixture)) {

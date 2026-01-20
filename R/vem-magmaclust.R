@@ -263,8 +263,6 @@ ve_step <- function(db,
 #' @param m_k A named list of prior mean parameters for the K mean GPs.
 #'    Valid lengths are 1 or length(unique(db$Output_ID) or
 #'    nb_cluster*length(unique(db$Output_ID).
-#' @param shared_hp_clusts A boolean indicating whether hyper-parameters are
-#'    shared among the mean GPs.
 #' @param shared_hp_tasks A boolean indicating whether hyper-parameters are
 #'    shared among the task GPs.
 #' @param old_hp_t A named vector, tibble or data frame, containing the
@@ -294,8 +292,9 @@ vm_step <- function(db,
                     kern_k,
                     kern_t,
                     m_k,
-                    pen_diag,
-                    shared_hp_tasks) {
+                    shared_hp_tasks,
+                    pen_diag
+                    ) {
 
   ## Extract Cluster's IDs, Task's IDs and Output's IDs
   list_ID_k <- names(m_k)
@@ -395,16 +394,16 @@ vm_step <- function(db,
     floop <- function(t) {
       cat(paste0("Optimizing for task ", t, "...\n"))
       # Filter data for the current task
-      db_t <- db %>% dplyr::filter(Task_ID == t) %>%
-        dplyr::select(-Task_ID)
+      db_t <- db %>% dplyr::filter(Task_ID == t)
+        # dplyr::select(-Task_ID)
 
       input_t <- db_t %>% dplyr::pull(Reference)
 
-      post_mean_t <- post_mean %>%
-        dplyr::filter(Reference %in% input_t) %>%
-        dplyr::pull(Output)
-
-      post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
+      # post_mean_t <- post_mean %>%
+      #   dplyr::filter(Reference %in% input_t) %>%
+      #   dplyr::pull(Output)
+      #
+      # post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
 
       old_hp_t_task <- old_hp_t %>% dplyr::filter(Task_ID == t)
 
@@ -448,14 +447,32 @@ vm_step <- function(db,
       )$par %>%
         tibble::as_tibble_row()
     }
-    new_hp_t <- sapply(list_ID_t, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
+    optim_results_by_task <- sapply(list_ID_t, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "Task_ID") %>%
       tidyr::unnest(cols = value)
-  }
 
-  ## Re-attribute each set of task specific HPs to the Cluster_ID in which
-  ## the task belongs
-  # new_hp_t$Cluster_ID <- old_hp_t$Cluster_ID
+    # Reshape results
+    if(length(output_ids_vector) > 1){
+      # MO case
+      new_hp_t <- optim_results_by_task %>%
+        tidyr::pivot_longer(
+          cols = -c(Task_ID, dplyr::any_of("l_u_t")),
+          names_to = c(".value", "Output_ID"),
+          names_pattern = "(.+)_(\\d+)$"
+        )
+
+      # Final standard formatting for the output tibble
+      final_hp_names <- old_hp_t %>% dplyr::select(-Task_ID, -Output_ID) %>% names()
+      new_hp_t <- new_hp_t %>%
+        dplyr::select(Task_ID, Output_ID, dplyr::all_of(final_hp_names)) %>%
+        dplyr::mutate(across(c(Task_ID, Output_ID), as.character)) %>%
+        dplyr::arrange(as.numeric(Task_ID), as.numeric(Output_ID))
+    } else {
+      # Single output case
+      optim_results_by_task$Output_ID = "1"
+      new_hp_t <- optim_results_by_task
+    }
+  }
 
   ## Compute the prop mixture of each cluster
   prop_mixture <- list_mu_param$mixture %>%

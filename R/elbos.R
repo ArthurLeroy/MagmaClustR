@@ -33,11 +33,19 @@ elbo_clust_multi_GP <- function(hp,
   t <- unique(db$Task_ID)
   output_ids <- unique(db$Output_ID)
 
-  if(length(output_ids) > 1){
+  if(length(output_ids) > 1 & hp %>% tibble::is_tibble()){
     hp_tibble <- hp
+  } else if (length(output_ids) > 1 & !(hp %>% tibble::is_tibble())){
+    # Reconstruct the structured HP tibble from the flat vector
+      hp_tibble <- reconstruct_hp(
+        par_vector = hp,
+        hp_names = hp_col_names,
+        output_ids = output_ids
+      )
+  } else if(length(output_ids) == 1 & !(hp %>% tibble::is_tibble())){
+    hp_tibble <- dplyr::bind_rows(hp)
   } else {
-    hp_tibble <- hp %>%
-      dplyr::select(-Output_ID)
+    hp_tibble <- hp
   }
 
   # if(!(hp %>% tibble::is_tibble() && length(output_ids) > 1)){
@@ -64,13 +72,17 @@ elbo_clust_multi_GP <- function(hp,
     inputs <- db %>% dplyr::select(-c(Output))
   }
 
+  if("Task_ID" %in% names(hp_tibble)){
+    hp_tibble <- hp_tibble %>% dplyr::select(-Task_ID)
+  }
+
   if(length(output_ids) == 1){
     inputs <- inputs %>% dplyr::select(-Output_ID)
   }
 
   inv <- kern_to_inv(inputs,
                      kern,
-                     hp_tibble %>% dplyr::select(-Task_ID),
+                     hp_tibble,
                      pen_diag)
 
   ## classic Gaussian centred log likelihood
@@ -104,84 +116,6 @@ elbo_clust_multi_GP <- function(hp,
   (LL_norm - y_t %*% inv %*% corr1 + 0.5 * sum(inv * corr2)) %>% return()
 }
 
-#' #' Penalised elbo for multiple mean GPs with shared HPs
-#' #'
-#' #' @param hp A tibble, data frame or named vector containing hyper-parameters.
-#' #' @param db  A tibble containing values we want to compute elbo on.
-#' #'    Required columns: Task_ID, Input, Output, Output_ID. Additional covariate
-#' #'    columns are allowed.
-#' #' @param mean A list of the K mean GPs at union of observed timestamps.
-#' #' @param kern A kernel function used to compute the covariance matrix at
-#' #' corresponding timestamps.
-#' #' @param post_cov A List of the K posterior covariance of the mean GP (mu_k).
-#' #' Used to compute correction term (cor_term).
-#' #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
-#' #'    numerical issues when inverting, in cases of nearly singular matrices.
-#' #' @param hp_col_names A character vector with the names of the hyper-parameters
-#' #'   (e.g., c("l_t", "S_t")).
-#' #' @param output_ids A character vector with the unique IDs of the outputs for
-#' #'   the current task.
-#' #'
-#' #'
-#' #' @return The value of the penalised Gaussian elbo for
-#' #'    the sum of the k mean GPs with common HPs.
-#' #'
-#' #' @keywords internal
-#' #'
-#' #' @examples
-#' #' TRUE
-#' elbo_GP_mod_shared_hp_clust <- function(hp,
-#'                                     db,
-#'                                     mean,
-#'                                     kern,
-#'                                     post_cov,
-#'                                     pen_diag,
-#'                                     hp_col_names,
-#'                                     output_ids) {
-#'
-#'   # browser() # -> Fonctionne !
-#'   list_ID_k <- names(db)
-#'   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
-#'     # Reconstruct the structured HP tibble from the flat vector
-#'     hp_tibble <- reconstruct_hp(
-#'       par_vector = hp,
-#'       hp_names = hp_col_names,
-#'       output_ids = output_ids
-#'     )
-#'   } else if (!(hp %>% tibble::is_tibble()) && length(output_ids) == 1){
-#'     hp_tibble <- hp %>%
-#'       t() %>%
-#'       tibble::as_tibble() %>%
-#'       stats::setNames(hp_col_names)
-#'
-#'   } else {
-#'     hp_tibble <- hp
-#'   }
-#'
-#'   if("Task_ID" %in% names(db)){
-#'     inputs <- db[[1]] %>% dplyr::select(-c(Output, Task_ID, Output_ID))
-#'   } else{
-#'     inputs <- db[[1]] %>% dplyr::select(-c(Output))
-#'   }
-#'
-#'   if(length(output_ids) == 1){
-#'     inputs <- inputs %>% dplyr::select(-Output_ID)
-#'   }
-#'
-#'   inv <- kern_to_inv(inputs, kern, hp_tibble, pen_diag)
-#'
-#'   LL_norm <- 0
-#'   cor_term <- 0
-#'
-#'   for (k in list_ID_k)
-#'   {
-#'     y_k <- db[[k]] %>% dplyr::pull(Output)
-#'
-#'     LL_norm <- LL_norm - dmnorm(y_k, mean[[k]], inv, log = T)
-#'     cor_term <- cor_term + 0.5 * (inv * post_cov[[k]]) %>% sum()
-#'   }
-#'   return(LL_norm + cor_term)
-#' }
 
 #' Penalised elbo for multiple task GPs with shared HPs
 #'

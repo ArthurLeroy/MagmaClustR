@@ -172,7 +172,6 @@ se_kernel <- function(
   hp,
   deriv = NULL,
   vectorized = FALSE) {
-  # browser()
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -401,7 +400,6 @@ hp <- function(kern = "SE",
                shared_hp_outputs = FALSE,
                noise = FALSE,
                hp_config = NULL) {
-
   ## Initiate interval boundaries
   min_val <- -7
   max_val <- 3
@@ -504,10 +502,10 @@ hp <- function(kern = "SE",
       final_hp$l_u_t <- stats::runif(1, hp_config$lu_min[1], hp_config$lu_max[1])
     } else {
       l_u_t_per_task <- tibble::tibble(
-        Task_ID = as.character(list_task_ID),
+        Task_ID = as.factor(list_task_ID),
         l_u_t   = stats::runif(num_tasks, hp_config$lu_min[1], hp_config$lu_max[1])
       )
-      final_hp <- dplyr::left_join(final_hp, l_u_t_per_task, by = "Task_ID")
+      final_hp <- dplyr::inner_join(final_hp, l_u_t_per_task, by = "Task_ID")
     }
 
     return(final_hp)

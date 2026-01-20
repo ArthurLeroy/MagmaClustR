@@ -1757,34 +1757,65 @@ train_gp_clust <- function(data,
                            cv_threshold = 1e-3) {
   ## Get input column names
   if("Reference" %in% names(data)){
-    names_col <- data %>%
-      dplyr::select(- c(.data$Output, .data$Reference)) %>%
-      names()
-  }else{
-    names_col <- data %>%
-      dplyr::select(-.data$Output) %>%
-      names()
+    ## Check that tasks do not have duplicate inputs for each output
+    duplicates <- data %>%
+      dplyr::count(Reference) %>%
+      dplyr::filter(n > 1)
+
+    if (nrow(duplicates) > 0) {
+      stop("Error: The task has duplicates, i.e. several 'Output' values",
+           " for the same 'Output_ID'.")
+    }
+  } else {
+    ## Remove possible missing data
+    data <- data %>% tidyr::drop_na()
+    ## Extract the list of different output IDs
+    list_ID_output <- data$Output_ID %>% unique()
+
+
+    ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+    # need to pivot data to obtain one row per observation of Output_ID.
+    # In other words, inputs are no longer in "short" format; instead, we have one
+    # column per input.
+    data <- data %>%
+      tidyr::pivot_wider(
+        names_from = Input_ID,
+        values_from = Input,
+        names_prefix = "Input_"
+      ) %>%
+      # Keep 6 significant digits for Inputs to avoid numerical issues
+      dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+      rowwise() %>%
+      dplyr::mutate(
+        Reference = paste(
+          # Create output's prefix
+          paste0("o", Output_ID),
+          # Create the reference for each Output_ID
+          paste(c_across(starts_with("Input_")), collapse = ":"),
+          # Join output's prefix and reference
+          sep = ";"
+        )
+      ) %>%
+      dplyr::ungroup()
+
+
+    ## Check that tasks do not have duplicate inputs for each output
+    duplicates <- data %>%
+      dplyr::count(Reference) %>%
+      dplyr::filter(n > 1)
+
+    if (nrow(duplicates) > 0) {
+      stop("Error: The task has duplicates, i.e. several 'Output' values",
+           " for the same 'Output_ID'.")
+    }
   }
 
-  if('ID' %in% names_col){
-    names_col <- names_col[!names_col == 'ID']
-  }
+  ## Extract the union of all reference inputs provided in the training data
+  inputs_obs <- data %>%
+    dplyr::select(-c(Output_ID, Output)) %>%
+    unique()
 
-  ## Keep 6 significant digits for entries to avoid numerical errors and
-  ## Add Reference column if missing
-  data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep=":",
-                 remove = FALSE) %>%
-    tidyr::drop_na() %>%
-    dplyr::arrange(.data$Reference)
-
-  ## Extract the observed (reference) Input
-  input_obs <- data %>%
-    dplyr::arrange(.data$Reference) %>%
-    dplyr::pull(.data$Reference)
+  input_obs <- inputs_obs %>% dplyr::pull(Reference)
 
   ## Initialise the task process' hp according to user's values
   if (kern %>% is.function()) {
@@ -1819,9 +1850,9 @@ train_gp_clust <- function(data,
     )
   } else {
     ## Remove the 'ID' column if present
-    if ("ID" %in% names(prop_mixture)) {
+    if ("Task_ID" %in% names(prop_mixture)) {
       prop_mixture <- prop_mixture %>%
-        dplyr::select(-.data$ID)
+        dplyr::select(-Task_ID)
     }
     ## Check clusters' names
     if (!(names(prop_mixture) %>% setequal(names(hyperpost$mean)))) {
@@ -1855,39 +1886,39 @@ train_gp_clust <- function(data,
   }
 
   ## Check whether column 'ID' exists in 'data' and 'hp' or create if necessary
-  if (("ID" %in% names(data)) & ("ID" %in% names(hp))) {
-    if (dplyr::n_distinct(data$ID) > 1) {
-      stop("The 'data' argument cannot have multiple 'ID' values.")
+  if (("Task_ID" %in% names(data)) & ("Task_ID" %in% names(hp))) {
+    if (dplyr::n_distinct(data$Task_ID) > 1) {
+      stop("The 'data' argument cannot have multiple 'Task_ID' values.")
     }
-    if (dplyr::n_distinct(hp$ID) > 1) {
-      stop("The 'hp' argument cannot have multiple 'ID' values.")
+    if (dplyr::n_distinct(hp$Task_ID) > 1) {
+      stop("The 'hp' argument cannot have multiple 'Task_ID' values.")
     }
-    if (unique(data$ID) != unique(hp$ID)) {
-      stop("The 'data' and 'hp' arguments have different 'ID' values.")
+    if (unique(data$Task_ID) != unique(hp$Task_ID)) {
+      stop("The 'data' and 'hp' arguments have different 'Task_ID' values.")
     }
-  } else if ("ID" %in% names(data)) {
-    if (dplyr::n_distinct(data$ID) > 1) {
-      stop("The 'data' argument cannot have multiple 'ID' values.")
+  } else if ("Task_ID" %in% names(data)) {
+    if (dplyr::n_distinct(data$Task_ID) > 1) {
+      stop("The 'data' argument cannot have multiple 'Task_ID' values.")
     }
-    hp <- hp %>% dplyr::mutate("ID" = unique(data$ID), .before = 1)
-  } else if ("ID" %in% names(hp)) {
-    if (dplyr::n_distinct(hp$ID) > 1) {
-      stop("The 'data' argument cannot have multiple 'ID' values.")
+    hp <- hp %>% dplyr::mutate("Task_ID" = unique(data$Task_ID), .before = 1)
+  } else if ("Task_ID" %in% names(hp)) {
+    if (dplyr::n_distinct(hp$Task_ID) > 1) {
+      stop("The 'data' argument cannot have multiple 'Task_ID' values.")
     }
-    data <- data %>% dplyr::mutate("ID" = unique(hp$ID), .before = 1)
+    data <- data %>% dplyr::mutate("Task_ID" = unique(hp$Task_ID), .before = 1)
   } else {
-    data <- data %>% dplyr::mutate("ID" = "ID_pred", .before = 1)
-    hp <- hp %>% dplyr::mutate("ID" = "ID_pred", .before = 1)
+    data <- data %>% dplyr::mutate("Task_ID" = "Task_ID_pred", .before = 1)
+    hp <- hp %>% dplyr::mutate("Task_ID" = "Task_ID_pred", .before = 1)
   }
 
-  ## Certify that IDs are of type 'character'
-  data$ID <- data$ID %>% as.character()
-  hp$ID <- hp$ID %>% as.character()
+  # ## Certify that Task's IDs are of type 'character'
+  # data$Task_ID <- data$TaskID %>% as.character()
+  # hp$Task_ID <- hp$Task_ID %>% as.character()
   ## Collect hyper-parameters' names
   list_hp <- hp %>%
-    dplyr::select(-.data$ID) %>%
+    dplyr::select(-Task_ID) %>%
     names()
-  ID_hp <- hp$ID %>% unique()
+  Task_ID_hp <- hp$Task_ID %>% unique()
 
   ## Initialise the monitoring information
   cv <- FALSE
@@ -1901,13 +1932,35 @@ train_gp_clust <- function(data,
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
-    ## Format the hyper-parameters for optimisation
-    par <- hp %>% dplyr::select(-.data$ID)
+    output_ids <- data$Output_ID %>% unique()
+
+    # Prepare parameters for optim() for this specific task
+    if (length(output_ids) > 1){
+      hp_per_output <- hp %>%
+        dplyr::select(-Task_ID, -l_u_t) %>%
+        tidyr::pivot_longer(cols = -Output_ID,
+                            names_to = "hp_name",
+                            values_to = "value") %>%
+        dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
+        dplyr::select(specific_name, value) %>%
+        tibble::deframe()
+
+      shared_hp <- hp$l_u_t[1]
+      names(shared_hp) <- "l_u_t"
+
+      par_t <- c(hp_per_output, shared_hp)
+      hp_col_names <- names(par_t)
+    } else {
+      ## Extract the hyper-parameters associated with the t-th task
+      par_t <- hp %>%
+        dplyr::select(-c(Task_ID, Output_ID))
+      hp_col_names <- names(par_t)
+    }
 
     ## We start with a M-step to take advantage of the initial 'prop_mixture'
     ## M step
     new_hp <- stats::optim(
-      par = par,
+      par = par_t,
       fn = sum_logL_GP_clust,
       gr = gr_sum_logL_GP_clust,
       db = data,
@@ -1915,12 +1968,30 @@ train_gp_clust <- function(data,
       mean = hyperpost$mean,
       kern = kern,
       post_cov = hyperpost$cov,
+      hp_col_names = hp_col_names,
+      output_ids = output_ids,
       pen_diag = pen_diag,
       method = "L-BFGS-B",
       control = list(factr = 1e13, maxit = 25)
     )$par %>%
       tibble::as_tibble_row() %>%
-      dplyr::mutate("ID" = ID_hp, .before = 1)
+      dplyr::mutate("Task_ID" = Task_ID_hp, .before = 1)
+
+
+    # Reshape results
+    if(length(output_ids) > 1){
+      # MO case
+      new_hp <- new_hp %>%
+        tidyr::pivot_longer(
+          cols = -c(Task_ID, dplyr::any_of("l_u_t")),
+          names_to = c(".value", "Output_ID"),
+          names_pattern = "(.+)_(\\d+)$"
+        )
+
+    } else {
+      # Single output case
+      new_hp$Output_ID = "1"
+    }
 
     ## In case something went wrong during the optimization
     if (any(is.na(new_hp))) {

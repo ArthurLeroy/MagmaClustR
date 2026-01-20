@@ -2857,11 +2857,12 @@ pred_magmaclust <- function(data = NULL,
   ## Extract or learn the hyper-parameters if not provided
   if (hp %>% is.null()) {
     if (!is.null(trained_model)) {
-      ## Check whether hyper-parameters are common if we have 'trained_model'
+      ## Check whether hyper-parameters are shared between tasks if we have
+      ## 'trained_model'
       if (tryCatch(trained_model$ini_args$shared_hp_tasks,
                    error = function(e) FALSE
       )) {
-        ## Extract the hyper-parameters common to all 't'
+        ## Extract the hyper-parameters shared netween all 't'
         hp <- trained_model$hp_t %>%
           dplyr::slice(1:length(data$Output_ID %>% unique())) %>%
           dplyr::mutate("Task_ID" = ID_task_pred)
@@ -2881,27 +2882,60 @@ pred_magmaclust <- function(data = NULL,
           pen_diag
         )
       } else if (kern %>% is.function()) {
-        stop(
-          "When using a custom kernel function the 'hp' argument is ",
-          "mandatory, in order to provide the name of the hyper-parameters. ",
-          "You can use the function 'hp()' to easily generate a tibble of ",
-          "random hyper-parameters with the desired format, or use ",
-          "'train_gp_clust()' to learn ML estimators for a better fit."
-        )
-      } else if (kern %>% is.character()) {
         ## Extract the mixture proportions
         prop_mixture <- trained_model$hp_k %>%
-          dplyr::pull(prop_mixture, name = Task_ID)
+          dplyr::distinct(Cluster_ID, prop_mixture) %>%
+          dplyr::pull(prop_mixture, name = Cluster_ID)
 
         cat(
           "The 'hp' argument has not been specified. The 'train_gp_clust()'",
           "function (with random initialisation) will be used to learn ML",
           "estimators for hyper-parameters and mixture probabilities... \n \n"
         )
+
+        ini_hp <- hp(kern = convolution_kernel,
+                    noise = T,
+                    list_task_ID = ID_task_pred,
+                    list_output_ID = data$Output_ID %>% unique(),
+                    shared_hp_outputs = FALSE,
+                    shared_hp_tasks = FALSE)
+
         hp_mix <- train_gp_clust(
           data,
           prop_mixture = prop_mixture,
-          ini_hp = hp(kern, noise = T, list_task_ID = ID_data),
+          ini_hp = ini_hp,
+          kern = kern,
+          hyperpost = hyperpost,
+          pen_diag = pen_diag
+        )
+
+        ## Extract values of hyper-parameters and mixture probabilities
+        hp <- hp_mix$hp
+        mixture <- hp_mix$mixture
+
+      } else if (kern %>% is.character()) {
+        ## Extract the mixture proportions
+        prop_mixture <- trained_model$hp_k %>%
+          dplyr::pull(prop_mixture, name = Cluster_ID)
+
+        cat(
+          "The 'hp' argument has not been specified. The 'train_gp_clust()'",
+          "function (with random initialisation) will be used to learn ML",
+          "estimators for hyper-parameters and mixture probabilities... \n \n"
+        )
+
+        ini_hp <- hp(kern,
+                      noise = T,
+                      list_task_ID = ID_task_pred,
+                      list_output_ID = data$Output_ID %>% unique(),
+                      shared_hp_outputs = FALSE,
+                      shared_hp_tasks = FALSE) %>%
+          dplyr::filter(Task_ID == ID_task_pred)
+
+        hp_mix <- train_gp_clust(
+          data,
+          prop_mixture = prop_mixture,
+          ini_hp = ini_hp,
           kern = kern,
           hyperpost = hyperpost,
           pen_diag = pen_diag
@@ -2930,10 +2964,18 @@ pred_magmaclust <- function(data = NULL,
         names(prop_mixture) <- ID_k
       }
 
+      ini_hp <- hp(kern,
+                   noise = T,
+                   list_task_ID = ID_task_pred,
+                   list_output_ID = data$Output_ID %>% unique(),
+                   shared_hp_outputs = FALSE,
+                   shared_hp_tasks = FALSE) %>%
+        filter(Task_ID == ID_task_pred)
+
       hp_mix <- train_gp_clust(
         data,
         prop_mixture = prop_mixture,
-        ini_hp = hp(kern, noise = T, list_task_ID = ID_data),
+        ini_hp = ini_hp,
         kern = kern,
         hyperpost = hyperpost,
         pen_diag = pen_diag
