@@ -80,10 +80,17 @@ elbo_clust_multi_GP <- function(hp,
     inputs <- inputs %>% dplyr::select(-Output_ID)
   }
 
-  inv <- kern_to_inv(inputs,
-                     kern,
-                     hp_tibble,
-                     pen_diag)
+  # browser()
+
+  cov <- kern_to_cov(inputs, kern, hp_tibble, deriv = NULL)
+  references <- rownames(cov)
+  inv <- cov %>% chol_inv_jitter(pen_diag)
+  dimnames(inv) <- list(references, references)
+
+  # inv <- kern_to_inv(inputs,
+  #                    kern,
+  #                    hp_tibble,
+  #                    pen_diag)
 
   ## classic Gaussian centred log likelihood
   LL_norm <- -dmnorm(y_t, rep(0, length(y_t)), inv, log = T)
@@ -266,14 +273,16 @@ elbo_monitoring_VEM <- function(hp_k,
                                 hyperpost,
                                 m_k,
                                 weight_inv_k,
-                                pen_diag = 1e-10,
+                                pen_diag = pen_diag,
                                 hp_col_names,
                                 output_ids) {
+  # browser()
+  pen_diag <- 1e-8
   # Loop over clusters
   floop <- function(k) {
-    # Get the union of all unique input points from the training data
-    all_inputs <- db %>%
-      dplyr::select(-c(Task_ID, Output)) %>%
+    # browser()
+    all_inputs <- hyperpost$mean[[k]] %>%
+      dplyr::select(-c(Output)) %>%
       unique() %>%
       tidyr::separate(Reference,
                       into = c("Output_ID_temp", "Input_temp"),
@@ -301,12 +310,14 @@ elbo_monitoring_VEM <- function(hp_k,
                            dplyr::select(-c(Cluster_ID, prop_mixture)))
 
     references <- rownames(cov_k)
+    # browser()
     inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
 
     # Re-apply the stored names to the inverted matrix
     dimnames(inv_k) <- list(references, references)
     inv_k <- weight_inv_k * inv_k
 
+    # browser()
     # Compute the log-likelihood components
     # Classical Gaussian log-likelihood
     LL_norm <- -dmnorm(hyperpost$mean[[k]]$Output, m_k[[k]], inv_k, log = TRUE)
@@ -314,6 +325,31 @@ elbo_monitoring_VEM <- function(hp_k,
     cor_term <- 0.5 * sum(diag(inv_k %*% hyperpost$cov[[k]]))
 
     ll_k <- LL_norm + cor_term
+    # # Use the ORIGINAL MagmaClustR approach: call logL_GP_mod directly
+    # # This ensures consistency with the rest of the code
+    #
+    # hp_k_subset <- hp_k %>%
+    #   dplyr::filter(Cluster_ID == k) %>%
+    #   dplyr::select(-c(Cluster_ID, prop_mixture))
+    #
+    # # Call logL_GP_mod exactly as in the original MagmaClustR
+    # # db = hyperpost$mean[[k]] (contains Reference, Output, and possibly Output_ID)
+    # # mean = m_k[[k]] (prior mean)
+    # # post_cov = hyperpost$cov[[k]]
+    # ll_k <- logL_GP_mod(
+    #   hp = hp_k_subset,
+    #   db = hyperpost$mean[[k]],
+    #   mean = m_k[[k]],
+    #   kern = kern_k,
+    #   post_cov = hyperpost$cov[[k]],
+    #   pen_diag = pen_diag,
+    #   hp_col_names = names(hp_k_subset),
+    #   output_ids = output_ids
+    # )
+    #
+    # # Note: logL_GP_mod returns a POSITIVE value (negative log-likelihood for minimization)
+    # # so we don't need to negate it here
+    # return(ll_k)
   }
   sum_ll_k <- sapply(names(m_k), floop) %>% sum()
 
@@ -328,7 +364,9 @@ elbo_monitoring_VEM <- function(hp_k,
       db %>% dplyr::filter(Task_ID == t),
       hyperpost,
       kern_t,
-      pen_diag
+      pen_diag,
+      hp_col_names,
+      output_ids
     ) %>%
       return()
   }
@@ -337,7 +375,7 @@ elbo_monitoring_VEM <- function(hp_k,
   # Loop over clusters
   floop3 <- function(k) {
     sum_tau <- 0
-    det <- 0
+    det_term <- 0
     ## Extract the proportion in the k-th cluster
     pi_k <- hp_k %>%
       dplyr::filter(Cluster_ID == k) %>%
@@ -354,18 +392,27 @@ elbo_monitoring_VEM <- function(hp_k,
 
       sum_tau <- sum_tau + tau_t_k * log_frac
     }
+
+    # browser()
     ## Compute the sum of log-determinant terms using Cholesky decomposition
     ## log(det(A)) = 2*sum(log(diag(chol(A))))
-    det <- det + hyperpost$cov[[k]] %>%
+    det_term <- hyperpost$cov[[k]] %>%
       chol() %>%
       diag() %>%
       log() %>%
       sum()
 
-    return(sum_tau + det)
+    # Debug: show components for each cluster
+    cat(sprintf("  Cluster %s: sum_tau=%.4f, det_term=%.4f\n", k, sum_tau, det_term))
+
+    return(sum_tau + det_term)
   }
 
   sum_corr_k <- sapply(names(m_k), floop3) %>% sum()
+
+  # Debug: print components to identify which one causes non-monotonicity
+  cat(sprintf("ELBO components: sum_ll_k=%.4f, sum_ll_t=%.4f, sum_corr_k=%.4f, ELBO=%.4f\n",
+              sum_ll_k, sum_ll_t, sum_corr_k, -sum_ll_k - sum_ll_t + sum_corr_k))
 
   return(-sum_ll_k - sum_ll_t + sum_corr_k)
 }

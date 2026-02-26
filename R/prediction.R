@@ -319,7 +319,6 @@ pred_gp <- function(data = NULL,
       "function is thus set to be 0 everywhere for all outputs.\n \n"
     )
   } else if (mean %>% is.vector()) {
-
     if (length(mean) == length(input_obs)) {
       mean_obs <- mean
       mean_pred <- mean
@@ -1883,11 +1882,10 @@ hyperposterior_clust <- function(trained_model = NULL,
                                  hp_t = NULL,
                                  kern_k = NULL,
                                  kern_t = NULL,
-                                 weight_inv_k = 1e-5,
+                                 weight_inv_k = NULL,
                                  prior_mean_k = NULL,
                                  grid_inputs = NULL,
                                  pen_diag = 1e-10) {
-
   ## Check whether a model trained by train_magma() is provided
   if(trained_model %>% is.null()){
     ## Check whether all mandatory arguments are present otherwise
@@ -1980,7 +1978,7 @@ hyperposterior_clust <- function(trained_model = NULL,
   if (grid_inputs %>% is.null()) {
     ## Extract the union of all reference inputs provided in the training data
     all_inputs <- data %>%
-      dplyr::select(-c(Task_ID, Output_ID, Output)) %>%
+      dplyr::select(-c(Task_ID, Output)) %>%
       unique() %>%
       tidyr::separate(Reference,
                       into = c("Output_ID_temp", "Input_temp"),
@@ -1988,7 +1986,7 @@ hyperposterior_clust <- function(trained_model = NULL,
                       remove = FALSE) %>%
       dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
       dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
-      dplyr::select(c(Input_1, Reference))
+      dplyr::select(c(Input_1, Reference, Output_ID))
 
     all_input <- all_inputs %>%
       dplyr::pull(Reference)
@@ -2143,7 +2141,18 @@ hyperposterior_clust <- function(trained_model = NULL,
       dplyr::left_join(mixture, by = "Task_ID")
 
     get_empiric_profile <- function(cluster_col) {
+      # browser() # À retirer une fois le debug fini
       col_name_str <- as.character(cluster_col)
+      # Calcul de la somme des poids pour ce cluster
+      sum_weights <- sum(df_check[[col_name_str]], na.rm = TRUE)
+      # Si le cluster est vide (poids quasi nuls), on retourne NA directement
+      if (sum_weights < 1e-9) {
+        # On retourne un vecteur de NA de la taille du nombre d'outputs uniques
+        # (Supposons que OID_label est trié et complet)
+        n_outputs <- dplyr::n_distinct(df_check$OID_label)
+        return(rep(NA_real_, n_outputs))
+      }
+
       df_check %>%
         dplyr::group_by(OID_label) %>%
         dplyr::summarise(
@@ -2174,27 +2183,81 @@ hyperposterior_clust <- function(trained_model = NULL,
       }
     }
 
-    # Identify best match for each empiric cluster
-    new_order_indices <- apply(dist_mat, 1, which.min)
-    best_match_names <- names_k[new_order_indices]
+    # 1. On cherche pour CHAQUE PRIOR (colonne) quel est son cluster empirique le plus proche
+    # Cela nous donne un vecteur de taille nb_cluster (ex: c(1, 1, 2) -> Priors 1 et 2 vont vers Empiric 1)
+    # Note : which.min ignore les Inf, donc les clusters empiriques vides ne seront pas choisis ici.
+    assigned_empiric_indices <- apply(dist_mat, 2, which.min)
 
-    # Check for duplicates (ambiguity)
-    if(!any(duplicated(best_match_names))) {
-      # If label switching is detected (names don't match index-wise)
-      if(!all(best_match_names == ID_k)) {
-        cat("Label switching detected in hyperposterior. Re-aligning mixture...\n")
+    # Création de la matrice pour stocker les nouvelles moyennes de priors réordonnées
+    # Elle doit avoir la même structure que prior_signatures
+    new_prior_means <- matrix(NA, nrow = nrow(prior_signatures), ncol = ncol(prior_signatures))
+    rownames(new_prior_means) <- ID_k # On garde les IDs des clusters empiriques (K1, K2...)
 
-        # Rename mixture columns to match the priors they resemble
-        old_cols <- colnames(mixture)
-        new_cols <- old_cols
-        indices_clust <- match(ID_k, old_cols)
-        new_cols[indices_clust] <- best_match_names
-        colnames(mixture) <- new_cols
+    # Liste pour suivre les priors qui ont été utilisés
+    used_priors <- numeric()
 
-        # Re-sort mixture columns alphabetically to align with m_k list order (K1, K2...)
-        mixture <- mixture %>% dplyr::select(Task_ID, dplyr::all_of(names_k))
+    # 2. Boucle sur les clusters EMPIRIQUES (i) pour construire leur nouveau prior
+    for(i in 1:nb_cluster) {
+
+      # Quels priors ont "choisi" ce cluster empirique i ?
+      priors_merged_here <- which(assigned_empiric_indices == i)
+
+      if(length(priors_merged_here) > 1) {
+        # --- CAS DE FUSION ---
+        # Plusieurs priors pointent vers ce cluster empirique.
+        # On prend la moyenne arithmétique de leurs signatures (Moyenne des vecteurs de moyennes)
+
+        # colMeans gère correctement la moyenne par colonne (par Output)
+        new_prior_means[i, ] <- colMeans(prior_signatures[priors_merged_here, , drop = FALSE])
+
+        # On note ces priors comme utilisés
+        used_priors <- c(used_priors, priors_merged_here)
+
+      } else if(length(priors_merged_here) == 1) {
+        # --- CAS 1-pour-1 ---
+        # Un seul prior pointe ici, on le copie simplement
+        new_prior_means[i, ] <- prior_signatures[priors_merged_here, ]
+        used_priors <- c(used_priors, priors_merged_here)
+
+      } else {
+        # --- CAS CLUSTER EMPIRIQUE VIDE ---
+        # Aucun prior n'a choisi ce cluster (souvent car sa ligne est Inf ou très loin)
+        # On laisse NA pour l'instant, on remplira avec les priors orphelins juste après
       }
     }
+
+    # 3. Gestion des Orphelins (Priors non assignés) et des Trous (Clusters vides)
+    # Si des priors ont fusionné ailleurs, cela laisse des clusters empiriques vides.
+    # Il faut réassigner les priors "perdus" (ceux qui n'ont pas été choisis du tout)
+    # aux clusters vides pour ne pas perdre de diversité (mécanisme de sauvetage).
+
+    all_priors <- 1:nb_cluster
+    orphan_priors <- setdiff(all_priors, used_priors)
+    empty_empiric_slots <- which(is.na(new_prior_means[, 1])) # On regarde la 1ère colonne pour voir les NA
+
+    # Si on a des trous et des orphelins, on remplit
+    if(length(empty_empiric_slots) > 0 && length(orphan_priors) > 0) {
+
+      # On peut faire un matching simple ou aléatoire ici.
+      # Prenons les dans l'ordre pour simplifier.
+      n_fill <- min(length(empty_empiric_slots), length(orphan_priors))
+
+      for(k in 1:n_fill) {
+        slot_idx <- empty_empiric_slots[k]
+        prior_idx <- orphan_priors[k]
+        new_prior_means[slot_idx, ] <- prior_signatures[prior_idx, ]
+      }
+    }
+
+    # S'il reste encore des NA (ex: plus de clusters vides que de priors dispo - rare),
+    # on peut réinitialiser ou dupliquer un existant.
+    # Ici, sécurité simple : remplacer les NA restants par 0 ou la moyenne globale.
+    new_prior_means[is.na(new_prior_means)] <- 0
+
+    # Mise à jour des noms pour la suite du code (si besoin)
+    # Note : new_prior_means contient maintenant les valeurs numériques directement
+    # Si votre code attend une liste de noms de clusters, la logique change légèrement,
+    # mais pour mettre à jour les hyper-paramètres, c'est cette matrice `new_prior_means` qu'il faut utiliser.
   }
 
   ## Format a sequence of inputs for all clusters
@@ -2781,6 +2844,9 @@ pred_magmaclust <- function(data = NULL,
 
   ## Define the union of all distinct reference Input
   all_inputs <- dplyr::union(inputs_obs, inputs_pred)
+  all_inputs <- all_inputs %>%
+    arrange(Output_ID, Input_1)
+
   # DO NOT arrange Reference because of the lexicographic order
   # (not armful but unnecessary in Magma case, tragic in MO case)
   all_input <- all_inputs$Reference
@@ -2829,7 +2895,7 @@ pred_magmaclust <- function(data = NULL,
   } else if (hyperpost %>% is.list()) {
     ## Check hyperpost format
     if (!is.null(hyperpost$mean)) {
-      ## Check hyperpost format (in particular presence of all reference Input
+      ## Check hyperpost format (in particular presence of all reference Input)
       if (!all(all_input %in% hyperpost$mean[[1]]$Reference)) {
         stop(
           "The hyper-posterior distribution of the mean processes provided ",
@@ -2852,7 +2918,6 @@ pred_magmaclust <- function(data = NULL,
 
   ## Get clusters' names
   ID_k <- hyperpost$mean %>% names()
-
 
   ## Extract or learn the hyper-parameters if not provided
   if (hp %>% is.null()) {
@@ -3086,8 +3151,10 @@ pred_magmaclust <- function(data = NULL,
       full_noise_vector <- noise
     }
 
+    # browser()
+
     ## Keep track of the full predicted covariances
-    full_cov[[k]] <<- pred_cov
+    full_cov[[k]] <<- pred_cov + full_noise_vector
 
     ## Select the adequate task if necessary
     proba <- mixture %>%

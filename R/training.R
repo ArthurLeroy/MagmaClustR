@@ -139,7 +139,6 @@ train_magma <- function(data,
                         n_iter_max = 25,
                         cv_threshold = 1e-3,
                         fast_approx = FALSE) {
-
   ## Check for the correct format of the training data
   if (data %>% is.data.frame()) {
     if (!all(c("Task_ID", "Input_ID", "Input", "Output_ID", "Output") %in% names(data))) {
@@ -687,30 +686,54 @@ train_gp <- function(data,
   list_ID_output <- data$Output_ID %>% unique()
 
 
-  ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
-  # need to pivot data to obtain one row per observation of Output_ID.
-  # In other words, inputs are no longer in "short" format; instead, we have one
-  # column per input.
+  # ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
+  # # need to pivot data to obtain one row per observation of Output_ID.
+  # # In other words, inputs are no longer in "short" format; instead, we have one
+  # # column per input.
+  # data <- data %>%
+  #   tidyr::pivot_wider(
+  #     names_from = Input_ID,
+  #     values_from = Input,
+  #     names_prefix = "Input_"
+  #   ) %>%
+  #   # Keep 6 significant digits for Inputs to avoid numerical issues
+  #   dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
+  #   rowwise() %>%
+  #   dplyr::mutate(
+  #     Reference = paste(
+  #       # Create output's prefix
+  #       paste0("o", Output_ID),
+  #       # Create the reference for each Output_ID
+  #       paste(c_across(starts_with("Input_")), collapse = ":"),
+  #       # Join output's prefix and reference
+  #       sep = ";"
+  #     )
+  #   ) %>%
+  #   dplyr::ungroup()
+
+  # --- REMPLACEMENT DU BLOC DÉFECTUEUX DANS train_gp() ---
+
   data <- data %>%
     tidyr::pivot_wider(
       names_from = Input_ID,
       values_from = Input,
       names_prefix = "Input_"
     ) %>%
-    # Keep 6 significant digits for Inputs to avoid numerical issues
-    dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
-    rowwise() %>%
-    dplyr::mutate(
-      Reference = paste(
-        # Create output's prefix
-        paste0("o", Output_ID),
-        # Create the reference for each Output_ID
-        paste(c_across(starts_with("Input_")), collapse = ":"),
-        # Join output's prefix and reference
-        sep = ";"
-      )
-    ) %>%
-    dplyr::ungroup()
+    # On garde l'arrondi (plus sûr avec across qu'avec c_across)
+    dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6)))
+
+  # On récupère les noms des colonnes Input dynamiquement
+  input_cols <- grep("^Input_", names(data), value = TRUE)
+
+  # Création de 'Reference' de manière robuste (Zéro rowwise, Zéro c_across)
+  # On utilise 'unite' qui est fait pour ça ou une approche apply
+  data$Reference <- paste0(
+    "o", data$Output_ID, ";",
+    apply(data[, input_cols, drop = FALSE], 1, function(x) paste(x[!is.na(x)], collapse = ":"))
+  )
+
+  # On s'assure de renvoyer un tibble propre (sans attributs résiduels)
+  data <- dplyr::as_tibble(data)
 
 
   ## Check that tasks do not have duplicate inputs for each output

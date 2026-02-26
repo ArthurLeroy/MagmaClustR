@@ -221,11 +221,13 @@ logL_GP_mod <- function(hp,
       )
   }
 
+  # browser()
   # Compute the log-likelihood components
   # Classical Gaussian log-likelihood
   LL_norm <- -dmnorm(db$Output, mean, inv, log = TRUE)
   # Correction trace term (-0.5 * Tr(inv %*% post_cov))
-  cor_term <- 0.5 * sum(diag(inv %*% post_cov))
+  # cor_term <- 0.5 * sum(diag(inv %*% post_cov))
+  cor_term <- 0.5 * sum(inv * post_cov)
 
   return(LL_norm + cor_term)
 }

@@ -376,22 +376,41 @@ generate_mean_process_convol <- function(
     stop("The number of grid ranges must match the number of outputs.")
   }
 
+  precision <- 1e6
+
   if (shared_grid_outputs) {
     if (length(unique(points_per_output)) > 1 ||
         length(unique(lapply(grid_ranges, as.character))) > 1) {
       stop("For a shared grid, 'points_per_output' and 'grid_ranges' must be ",
       "identical.")
     }
-    shared_grid <- sort(runif(n = points_per_output[1],
-                              min = grid_ranges[[1]][1],
-                              max = grid_ranges[[1]][2]))
-    grid_list <- rep(list(shared_grid), num_outputs)
+    # shared_grid <- sort(round(runif(n = points_per_output[1],
+    #                           min = grid_ranges[[1]][1],
+    #                           max = grid_ranges[[1]][2]), 6))
+    # grid_list <- rep(list(shared_grid), num_outputs)
+
+    # Create a sequence of all possible points at the 6th digit
+    possible_points <- seq(from = grid_ranges[[1]][1],
+                           to = grid_ranges[[1]][2],
+                           by = 1/precision)
+
+    # Sample without replacing to ensure unicity
+    shared_grid <- sort(sample(possible_points, size = points_per_output[1], replace = FALSE))
   } else {
     grid_list <- purrr::map2(
       points_per_output,
       grid_ranges,
-      ~ sort(runif(n = .x, min = .y[1], max = .y[2]))
+      function(n_pts, range) {
+        possible_points <- seq(from = range[1], to = range[2], by = 1/precision)
+        sort(sample(possible_points, size = n_pts, replace = FALSE))
+      }
     )
+
+    # grid_list <- purrr::map2(
+    #   points_per_output,
+    #   grid_ranges,
+    #   ~ sort(round(runif(n = .x, min = .y[1], max = .y[2]), 6))
+    # )
   }
 
   # Use pmap to iterate over the grids and prior means coefficients
@@ -729,7 +748,11 @@ simulate_multi_output_data_convol <- function(
 #' outputs.
 #'
 #' @param nb_clusters Integer. The number of underlying clusters to generate.
+#' @param total_tasks Integer. The total number of tasks to simulate. Tasks are
+#'   distributed as evenly as possible across clusters (max difference of 1-2
+#'   tasks between clusters). Alternatively, use `tasks_per_cluster`.
 #' @param tasks_per_cluster Integer. The number of tasks to simulate per cluster.
+#'   If `total_tasks` is provided, this argument is ignored.
 #' @param points_per_output_grid Numeric vector. Points for the dense grid per
 #'  output.
 #' @param grid_ranges List of numeric vectors (length 2). Input domain
@@ -749,6 +772,7 @@ simulate_multi_output_data_convol <- function(
 #' @export
 simulate_magmaclust_data_convol <- function(
     nb_clusters = 3,
+    total_tasks = NULL,
     tasks_per_cluster = 10,
     points_per_output_grid = c(500, 150),
     grid_ranges = list(c(0, 10), c(0, 10)),
@@ -772,6 +796,21 @@ simulate_magmaclust_data_convol <- function(
     shared_hp_outputs = FALSE,
     shared_grid_outputs = FALSE
 ) {
+  # Calculate balanced task distribution across clusters
+  if (!is.null(total_tasks)) {
+    # Distribute tasks as evenly as possible
+    base_tasks <- total_tasks %/% nb_clusters
+    remainder <- total_tasks %% nb_clusters
+    # First 'remainder' clusters get one extra task
+    tasks_per_cluster_vec <- rep(base_tasks, nb_clusters)
+    if (remainder > 0) {
+      tasks_per_cluster_vec[1:remainder] <- tasks_per_cluster_vec[1:remainder] + 1
+    }
+  } else {
+    # Use the same number for all clusters (original behavior)
+    tasks_per_cluster_vec <- rep(tasks_per_cluster, nb_clusters)
+  }
+  
   # Extract the number of Outputs
   num_outputs <- length(points_per_output_grid)
 
@@ -903,9 +942,11 @@ simulate_magmaclust_data_convol <- function(
       lu0 = mp_info_k$list_lu0
     )
 
-    # Tasks Generation
-    start_task_id <- (k - 1) * tasks_per_cluster + 1
-    end_task_id   <- k * tasks_per_cluster
+    # Tasks Generation - use the balanced distribution
+    # Calculate cumulative sums to get correct task ID ranges
+    cumsum_tasks <- c(0, cumsum(tasks_per_cluster_vec))
+    start_task_id <- cumsum_tasks[k] + 1
+    end_task_id   <- cumsum_tasks[k + 1]
     task_ids_k    <- start_task_id:end_task_id
 
     tasks_hps_k <- NULL
