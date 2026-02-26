@@ -10,8 +10,6 @@
 #'    parameters of the K mean GPs.
 #' @param kern_k A kernel function, associated with the K mean GPs.
 #' @param kern_t A kernel function, associated with the T task GPs.
-#' @param weight_inv_k A number, indicating the weight that the user wants to
-#'  attribute to the inverse prior covariances inv_k.
 #' @param hp_k A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern_k}.
 #' @param hp_t A named vector, tibble or data frame of hyper-parameters
@@ -35,7 +33,6 @@ ve_step <- function(db,
                     m_k,
                     kern_k,
                     kern_t,
-                    weight_inv_k,
                     hp_k,
                     hp_t,
                     old_mixture,
@@ -112,7 +109,6 @@ ve_step <- function(db,
 
     # Re-apply the stored names to the inverted matrix
     dimnames(inv_k) <- list(references, references)
-    inv_k <- weight_inv_k * inv_k
     list_inv_k[[k]] <- inv_k
   }
 

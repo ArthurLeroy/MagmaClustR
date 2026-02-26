@@ -558,8 +558,6 @@ pred_gp <- function(data = NULL,
 #' @param kern_t A kernel function, associated with the task GPs. ("SE",
 #'    "PERIO", "RQ" and convolution_kernel are aso available here). Recovered from
 #'    \code{trained_model} if not provided.
-#' @param weight_inv_0 A number, indicating the weight that the user wants to
-#'  attribute to the inverse prior covariance inv_0.
 #' @param prior_mean Hyper-prior mean parameter of the mean GP. This argument,
 #'    can be specified under various formats, such as:
 #'    - NULL (default). The hyper-prior mean would be set to 0 everywhere.
@@ -601,7 +599,6 @@ hyperposterior <- function(trained_model = NULL,
                            hp_t = NULL,
                            kern_0 = NULL,
                            kern_t = NULL,
-                           weight_inv_0 = 1e-4,
                            prior_mean = NULL,
                            grid_inputs = NULL,
                            pen_diag = 1e-10) {
@@ -623,7 +620,6 @@ hyperposterior <- function(trained_model = NULL,
     if(hp_t %>% is.null()){hp_t = trained_model$hp_t}
     if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_0}
     if(kern_t %>% is.null()){kern_t = trained_model$ini_args$kern_t}
-    if(weight_inv_0 %>% is.null()){weight_inv_0 = trained_model$ini_args$weight_inv_0}
     if(prior_mean %>% is.null()){prior_mean = trained_model$ini_args$prior_mean}
 
   }
@@ -828,7 +824,6 @@ hyperposterior <- function(trained_model = NULL,
     # matrixcalc::is.positive.semi.definite(inv_0)
     # Re-apply the stored names to the inverted matrix
     dimnames(inv_0) <- list(all_references, all_references)
-    inv_0 <- weight_inv_0 * inv_0
   } else {
     cov_0 <- kern_to_cov(input = all_inputs,
                          kern = kern_0,
@@ -839,7 +834,6 @@ hyperposterior <- function(trained_model = NULL,
     inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
     # Re-apply the stored names to the inverted matrix
     dimnames(inv_0) <- list(all_references, all_references)
-    inv_0 <- weight_inv_0 * inv_0
   }
 
 
@@ -1085,7 +1079,6 @@ pred_magma <- function(data = NULL,
           kern_t = trained_model$ini_args$kern_t,
           hp_0 = trained_model$hp_0,
           hp_t = trained_model$hp_t,
-          weight_inv_0 = trained_model$weight_inv_0,
         )
 
         ## Retain only grid_inputs for display purposes
@@ -1837,8 +1830,6 @@ pred_gif <- function(data,
 #' @param kern_t A kernel function, associated with the task GPs. ("SE",
 #'    "LIN", PERIO", "RQ" and convolution_kernel are also available here).
 #'    Recovered from \code{trained_model} if not provided.
-#' @param weight_inv_k A number, indicating the weight that the user wants to
-#'  attribute to the inverse prior covariances inv_k.
 #' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
 #'    mean GPs, one value for each cluster.
 #'    cluster. This argument can be specified under various formats, such as:
@@ -1882,7 +1873,6 @@ hyperposterior_clust <- function(trained_model = NULL,
                                  hp_t = NULL,
                                  kern_k = NULL,
                                  kern_t = NULL,
-                                 weight_inv_k = NULL,
                                  prior_mean_k = NULL,
                                  grid_inputs = NULL,
                                  pen_diag = 1e-10) {
@@ -2293,7 +2283,6 @@ hyperposterior_clust <- function(trained_model = NULL,
     references <- rownames(cov_k)
     inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
     dimnames(inv_k) <- list(references, references)
-    inv_k <- weight_inv_k * inv_k
     list_inv_k[[k]] <- inv_k
   }
 
@@ -2522,7 +2511,6 @@ pred_magmaclust <- function(data = NULL,
           kern_t = trained_model$ini_args$kern_t,
           hp_k = trained_model$hp_k,
           hp_t = trained_model$hp_t,
-          weight_inv_k = trained_model$weight_inv_k,
         )
 
         ## Retain only grid_inputs for display purposes
@@ -2884,7 +2872,6 @@ pred_magmaclust <- function(data = NULL,
           hp_t = trained_model$hp_t,
           kern_k = trained_model$ini_args$kern_k,
           kern_t = trained_model$ini_args$kern_t,
-          weight_inv_k = trained_model$weight_inv_k,
           prior_mean_k = trained_model$ini_args$prior_mean_k,
           grid_inputs = all_inputs,
           pen_diag = pen_diag

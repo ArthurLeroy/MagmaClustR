@@ -12,8 +12,6 @@
 #'    associated with \code{kern_0}.
 #' @param hp_t A tibble or data frame of hyper-parameters
 #'    associated with \code{kern_t}.
-#' @param weight_inv_0 A number, indicating the weight that the user wants to
-#'  attribute to the inverse prior covariance inv_0.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #' @return A named list, containing the elements \code{mean}, a tibble
@@ -32,7 +30,6 @@ e_step <- function(db,
                    kern_t,
                    hp_0,
                    hp_t,
-                   weight_inv_0,
                    pen_diag) {
 
   list_ID_task <- unique(db$Task_ID)
@@ -68,7 +65,6 @@ e_step <- function(db,
 
   # Re-apply the stored names to the inverted matrix
   dimnames(inv_0) <- list(references, references)
-  inv_0 <- weight_inv_0 * inv_0
 
   list_inv_t <- list()
 

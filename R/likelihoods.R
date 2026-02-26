@@ -314,8 +314,6 @@ logL_GP_mod_shared_tasks <- function(hp,
 #'    covariance parameter.
 #' @param pen_diag A jitter term that is added to the covariance matrix to avoid
 #'    numerical issues when inverting, in cases of nearly singular matrices.
-#' @param weight_inv_0 A number, indicating the weight that the user wants to
-#'  attribute to the inverse prior covariance inv_0.
 #'
 #' @return A number, expectation of joint log-likelihood of the model. This
 #'    quantity is supposed to increase at each step of the EM algorithm, and
@@ -333,8 +331,7 @@ logL_monitoring <- function(hp_0,
                             kern_t,
                             post_mean,
                             post_cov,
-                            pen_diag,
-                            weight_inv_0) {
+                            pen_diag) {
 
   # Get the union of all unique input points from the training data
   all_inputs <- db %>%
@@ -366,7 +363,6 @@ logL_monitoring <- function(hp_0,
 
   # Re-apply the stored names to the inverted matrix
   dimnames(inv_0) <- list(references, references)
-  inv_0 <- weight_inv_0 * inv_0
 
   # Compute the log-likelihood components
   # Classical Gaussian log-likelihood

@@ -65,8 +65,6 @@
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_t A kernel function, associated with the task GPs. ("SE",
 #'    "PERIO", "RQ" and convolution_kernel are also available here).
-#' @param weight_inv_0 A number, indicating the weight that the user wants to
-#'  attribute to the inverse prior covariance inv_0.
 #' @param shared_hp_tasks A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all tasks. If TRUE, all tasks
 #'    share the same hyper-parameter values.
@@ -132,7 +130,6 @@ train_magma <- function(data,
                         ini_hp_t = NULL,
                         kern_0 = "SE",
                         kern_t = "SE",
-                        weight_inv_0 = 1e-4,
                         shared_hp_tasks = TRUE,
                         grid_inputs = NULL,
                         pen_diag = 1e-10,
@@ -409,7 +406,6 @@ train_magma <- function(data,
                     kern_t = kern_t,
                     hp_0 = hp_0,
                     hp_t = hp_t,
-                    weight_inv_0 = weight_inv_0,
                     pen_diag = pen_diag)
 
     # M-step of Magma
@@ -438,7 +434,6 @@ train_magma <- function(data,
         m_0 = m_0,
         kern_0 = kern_0,
         kern_t = kern_t,
-        weight_inv_0 = weight_inv_0,
         post_mean = post$mean,
         post_cov = post$cov,
         pen_diag = pen_diag
@@ -466,7 +461,6 @@ train_magma <- function(data,
       m_0 = m_0,
       kern_0 = kern_0,
       kern_t = kern_t,
-      weight_inv_0 = weight_inv_0,
       post_mean = post$mean,
       post_cov = post$cov,
       pen_diag = pen_diag
@@ -537,7 +531,6 @@ train_magma <- function(data,
       hp_t = hp_t,
       kern_0 = kern_0,
       kern_t = kern_t,
-      weight_inv_0 = weight_inv_0,
       prior_mean = prior_mean,
       grid_inputs = grid_inputs,
       pen_diag = pen_diag
@@ -560,7 +553,6 @@ train_magma <- function(data,
     "ini_hp_t" = hp_t_ini,
     "kern_0" = kern_0,
     "kern_t" = kern_t,
-    "weight_inv_0" = weight_inv_0,
     "shared_hp_tasks" = shared_hp_tasks,
     "grid_inputs" = grid_inputs,
     "pen_diag" = pen_diag,
@@ -985,8 +977,6 @@ train_gp <- function(data,
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_t A kernel function, associated with the task GPs. (See
 #'    details above in \code{kern_k}).
-#' @param weight_inv_k A number, indicating the weight that the user wants to
-#'  attribute to the inverse prior covariances inv_k.
 #' @param ini_mixture Initial values of the probability to belong to each
 #'    cluster for each task (\code{\link{ini_mixture}} can be used for
 #'    a k-means initialisation. Used by default if NULL).
@@ -1056,7 +1046,6 @@ train_magmaclust <- function(data,
                              ini_hp_t = NULL,
                              kern_k = "SE",
                              kern_t = "SE",
-                             weight_inv_k = 1e-5,
                              ini_mixture = NULL,
                              shared_hp_clusts = TRUE,
                              shared_hp_tasks = TRUE,
@@ -1510,7 +1499,6 @@ train_magmaclust <- function(data,
       m_k,
       kern_k,
       kern_t,
-      weight_inv_k,
       hp_k,
       hp_t,
       mixture,
@@ -1572,7 +1560,6 @@ train_magmaclust <- function(data,
       data,
       kern_t,
       kern_k,
-      weight_inv_k = weight_inv_k,
       hyperpost = post,
       m_k = m_k,
       pen_diag = pen_diag
@@ -1652,7 +1639,6 @@ train_magmaclust <- function(data,
       hp_t = hp_t,
       kern_k = kern_k,
       kern_t = kern_t,
-      weight_inv_k = weight_inv_k,
       prior_mean_k = prior_mean_k,
       grid_inputs = grid_inputs,
       pen_diag = pen_diag
@@ -1697,7 +1683,6 @@ train_magmaclust <- function(data,
     "hp_t" = hp_t,
     "hyperpost" = post,
     "ini_args" = fct_args,
-    "weight_inv_k" = weight_inv_k,
     "seq_elbo" = seq_elbo,
     "converged" = cv,
     "training_time" = difftime(t2, t1, units = "secs")
