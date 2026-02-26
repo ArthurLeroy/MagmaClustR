@@ -84,7 +84,8 @@ ve_step <- function(db,
     # Compute the covariance matrix of the mean process of the
     # k cluster
     if(length(list_output_ID) > 1 && !(kern_t %>% is.character())){
-      cov_k <- suppressWarnings(kern_to_cov(input = t_clust_k,
+      cov_k <- suppressWarnings(kern_to_cov(input = t_clust_k %>%
+                                              dplyr::select(-Cluster_ID),
                                             kern = kern_k,
                                             hp = hp_k_subset %>%
                                               dplyr::select(-c(Cluster_ID,
