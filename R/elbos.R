@@ -273,11 +273,8 @@ elbo_monitoring_VEM <- function(hp_k,
                                 pen_diag = pen_diag,
                                 hp_col_names,
                                 output_ids) {
-  # browser()
-  # pen_diag <- 1e-8
   # Loop over clusters
   floop <- function(k) {
-    # browser()
     all_inputs <- hyperpost$mean[[k]] %>%
       dplyr::select(-c(Output)) %>%
       unique() %>%
@@ -307,11 +304,6 @@ elbo_monitoring_VEM <- function(hp_k,
                            dplyr::select(-c(Cluster_ID, prop_mixture)))
     
     references <- rownames(cov_k)
-    
-    # Compute log-determinant of cov_k via Cholesky (cov_k IS positive definite)
-    L_cov_k <- chol(cov_k)
-    logdet_cov_k <- 2 * sum(log(diag(L_cov_k)))
-    
     # Invert cov_k (with jitter for numerical stability)
     inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
 
@@ -319,21 +311,12 @@ elbo_monitoring_VEM <- function(hp_k,
     dimnames(inv_k) <- list(references, references)
 
     # Compute the log-likelihood components
-    n <- length(hyperpost$mean[[k]]$Output)
-    diff <- hyperpost$mean[[k]]$Output - m_k[[k]]
-
-    # Log-determinant of the inverse prior: log|Sigma^{-1}| = -log|Sigma|
-    logdet_inv_k <- -logdet_cov_k
-
-    # Quadratic term
-    quad_term <- as.numeric(t(diff) %*% inv_k %*% diff)
-
-    # Correction trace term
-    cor_term <- sum(diag(inv_k %*% hyperpost$cov[[k]]))
-
-    # Full negative log-likelihood: -logL = 0.5 * (n*log(2*pi) - logdet + quad)
-    # Plus correction term: 0.5 * trace
-    ll_k <- 0.5 * (n * log(2 * pi) - logdet_inv_k + quad_term + cor_term)
+    # Classical Gaussian log-likelihood
+    LL_norm <- -dmnorm(hyperpost$mean[[k]]$Output, m_k[[k]], inv_k, log = TRUE)
+    # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+    cor_term <- 0.5 * sum(diag(inv_k %*% hyperpost$cov[[k]]))
+    
+    ll_k = LL_norm + cor_term
   }
   sum_ll_k <- sapply(names(m_k), floop) %>% sum()
   
