@@ -69,6 +69,7 @@ ve_step <- function(db,
   list_inv_k <- list()
   list_inv_t <- list()
 
+  # browser()
   # Loop over clusters
   for(k in t_clust$Cluster_ID %>% unique){
     # Subset t_clust and hp_k on k cluster
@@ -263,6 +264,8 @@ ve_step <- function(db,
 #'    nb_cluster*length(unique(db$Output_ID).
 #' @param shared_hp_tasks A boolean indicating whether hyper-parameters are
 #'    shared among the task GPs.
+#' @param shared_hp_clusts A boolean indicating whether hyper-parameters are
+#'    shared among the cluster GPs.
 #' @param old_hp_t A named vector, tibble or data frame, containing the
 #'    hyper-parameters from the previous  M-step (or initialisation) associated
 #'    with the task GPs.
@@ -291,6 +294,7 @@ vm_step <- function(db,
                     kern_t,
                     m_k,
                     shared_hp_tasks,
+                    shared_hp_clusts,
                     pen_diag
                     ) {
 
@@ -312,19 +316,22 @@ vm_step <- function(db,
   if (kern_k %>% is.function()) {
     if (!("deriv" %in% methods::formalArgs(kern_k))) {
       gr_GP_mod <- NULL
-      gr_GP_mod_common_hp_k <- NULL
+      gr_GP_mod_shared_hp_k <- NULL
     }
   }
 
   ## Detect whether kernel_t provides derivatives for its hyper-parameters
   if (kern_t %>% is.function()) {
     if (!("deriv" %in% methods::formalArgs(kern_t))) {
-      gr_clust_multi_GP_common_hp_t <- NULL
+      gr_clust_multi_GP_shared_hp_t <- NULL
       gr_clust_multi_GP <- NULL
     }
   }
 
-  ## Check whether hyper-parameters are common to all tasks
+  ## Check whether hyper-parameters are shared across clusters
+
+
+  ## Check whether hyper-parameters are shared across tasks
   if (shared_hp_tasks) {
     if (length(db$Output_ID %>% unique()) > 1){
       # Prepare parameters for optim() in MO case
@@ -397,12 +404,6 @@ vm_step <- function(db,
 
       input_t <- db_t %>% dplyr::pull(Reference)
 
-      # post_mean_t <- post_mean %>%
-      #   dplyr::filter(Reference %in% input_t) %>%
-      #   dplyr::pull(Output)
-      #
-      # post_cov_t <- post_cov[as.character(input_t), as.character(input_t)]
-
       old_hp_t_task <- old_hp_t %>% dplyr::filter(Task_ID == t)
 
       # Prepare parameters for optim() for this specific task
@@ -440,7 +441,7 @@ vm_step <- function(db,
         kern = kern_t,
         method = "L-BFGS-B",
         hp_col_names = hp_col_names,
-        output_ids = output_ids,
+        output_ids = output_ids_vector,
         control = list(factr = 1e13, maxit = 25)
       )$par %>%
         tibble::as_tibble_row()
@@ -477,8 +478,155 @@ vm_step <- function(db,
     dplyr::select(-Task_ID) %>%
     colMeans()
 
+
+  if(shared_hp_clusts){
+    if (length(db$Output_ID %>% unique()) > 1){
+      # Prepare parameters for optim() in MO case
+      hp_per_output <- old_hp_k %>%
+        dplyr::group_by(Output_ID) %>%
+        dplyr::slice(1) %>%
+        dplyr::ungroup() %>%
+        dplyr::select(-Cluster_ID, -l_u_t, -prop_mixture) %>%
+        tidyr::pivot_longer(cols = -Output_ID,
+                            names_to = "hp_name",
+                            values_to = "value") %>%
+        dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
+        dplyr::select(specific_name, value) %>%
+        tibble::deframe()
+
+      shared_hp_l_u_t <- old_hp_k$l_u_t[1]
+      names(shared_hp_l_u_t) <- "l_u_t"
+      par_k <- c(hp_per_output, shared_hp_l_u_t)
+      hp_col_names <- names(par_k)
+    } else {
+      # Prepare parameters for optim() in single output case
+      par_k <- old_hp_k %>%
+        dplyr::select(-c(Cluster_ID, Output_ID)) %>%
+        dplyr::slice(1)
+      hp_col_names <- names(par_k)
+    }
+
+    ## Optimise hyper-parameters of the processes of each cluster
+    new_hp_k <- stats::optim(
+      par = par_k,
+      fn = elbo_GP_mod_shared_hp_k,
+      gr = gr_GP_mod_shared_hp_k,
+      db = list_mu_param$mean,
+      mean = m_k,
+      kern = kern_k,
+      post_cov = list_mu_param$cov,
+      pen_diag = pen_diag,
+      hp_col_names = hp_col_names,
+      output_ids = output_ids_vector,
+      method = "L-BFGS-B",
+      control = list(factr = 1e13, maxit = 25)
+    )$par %>%
+      tibble::as_tibble_row()
+
+    # Reshape results
+    if (length(db$Output_ID %>% unique()) > 1){
+      # MO case
+      new_hp_k <- new_hp_k %>%
+        tidyr::pivot_longer(
+          cols = -dplyr::any_of("l_u_t"),
+          names_to = c(".value", "Output_ID"),
+          names_pattern = "(.+)_(\\d+)$"
+        ) %>%
+        tidyr::crossing(Cluster_ID = list_ID_k, .) %>%
+        dplyr::mutate(prop_mixture = unname(prop_mixture[Cluster_ID]))
+    } else {
+      # Single output case
+      new_hp_k$Output_ID <- "1"
+      new_hp_k <- new_hp_k %>%
+        dplyr::mutate(Task_ID = list(list_ID_k)) %>%
+        tidyr::unnest(Task_ID) %>%
+        dplyr::mutate("prop_mixture" = prop_mixture)
+  }} else {
+    loop <- function(k) {
+      ## Extract the hyper-parameters associated with the k-th cluster
+      # Prepare parameters for optim() for this specific cluster
+      if (length(db$Output_ID %>% unique()) > 1){
+        hp_per_output <- old_hp_k %>%
+          dplyr::filter(Cluster_ID == k) %>%
+          dplyr::select(-Cluster_ID, -l_u_t, -prop_mixture) %>%
+          tidyr::pivot_longer(cols = -Output_ID,
+                              names_to = "hp_name",
+                              values_to = "value") %>%
+          dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
+          dplyr::select(specific_name, value) %>%
+          tibble::deframe()
+
+        shared_hp <- (old_hp_k %>% filter(Cluster_ID == k))$l_u_t[1]
+        names(shared_hp) <- "l_u_t"
+
+        par_k <- c(hp_per_output, shared_hp)
+        hp_col_names <- names(par_k)
+      } else {
+        ## Extract the hyper-parameters associated with the t-th task
+        par_k <- old_hp_k %>%
+          dplyr::filter(Cluster_ID == k) %>%
+          dplyr::select(-c(Cluster_ID, Output_ID, prop_mixture))
+        hp_col_names <- names(par_k)
+      }
+
+      ## Extract the data associated with the k-th cluster
+      db_k <- list_mu_param$mean[[k]]
+      ## Extract the mean values associated with the k-th specific inputs
+      mean_k <- m_k[[k]]
+      ## Extract the covariance values associated with the k-th specific inputs
+      post_cov_k <- list_mu_param$cov[[k]]
+
+      # browser()
+      ## Optimise hyper-parameters of the processes of each cluster
+      stats::optim(
+        par = par_k,
+        logL_GP_mod,
+        gr = gr_GP_mod,
+        db = db_k,
+        mean = mean_k,
+        kern = kern_k,
+        post_cov = post_cov_k,
+        pen_diag = pen_diag,
+        hp_col_names = hp_col_names,
+        output_ids = output_ids_vector,
+        method = "L-BFGS-B",
+        control = list(factr = 1e13, maxit = 25)
+      )$par %>%
+        tibble::as_tibble_row()
+    }
+
+    optim_results_by_clust <- sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
+      tibble::enframe(name = "Cluster_ID") %>%
+      tidyr::unnest(cols = value)
+
+    # Reshape results
+    if(length(output_ids_vector) > 1){
+      # MO case
+      new_hp_k <- optim_results_by_clust %>%
+        tidyr::pivot_longer(
+          cols = -c(Cluster_ID, dplyr::any_of("l_u_t")),
+          names_to = c(".value", "Output_ID"),
+          names_pattern = "(.+)_(\\d+)$"
+        ) %>%
+        dplyr::mutate(prop_mixture = unname(prop_mixture[Cluster_ID]))
+
+      # Final standard formatting for the output tibble
+      final_hp_names <- old_hp_k %>% dplyr::select(-Cluster_ID, -Output_ID) %>% names()
+      new_hp_k <- new_hp_k %>%
+        dplyr::select(Cluster_ID, Output_ID, dplyr::all_of(final_hp_names)) %>%
+        dplyr::mutate(across(c(Cluster_ID, Output_ID), as.character))
+        # dplyr::arrange(as.numeric(Output_ID))
+    } else {
+      # Single output case
+      optim_results_by_clust$Output_ID = "1"
+      new_hp_k <- optim_results_by_clust %>%
+        dplyr::mutate("prop_mixture" = prop_mixture)
+    }
+  }
+
+  # browser()
   list(
-    "hp_k" = old_hp_k,
+    "hp_k" = new_hp_k,
     "hp_t" = new_hp_t
   ) %>%
     return()

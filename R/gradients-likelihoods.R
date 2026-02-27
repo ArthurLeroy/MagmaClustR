@@ -146,7 +146,7 @@ gr_GP_mod <- function(hp,
                       hp_col_names,
                       output_ids,
                       ...) {
-
+  # browser()
   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
     # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -168,19 +168,19 @@ gr_GP_mod <- function(hp,
   # Build and invert the full multi-output covariance matrix
   # 'inputs' must contain the 'Output_ID' column for the kernel to work
   if(length(list_ID_outputs) > 1 && !(kern %>% is.character())){
-    # MO inversion of the TASK covariance
+    # MO inversion of the covariance
     # Call kern_to_cov directly.
     # It will handle the multi-output structure and the noise addition internally.
     # 'kern_t' is expected to be the 'convolution_kernel' function.
-    K_task_t <- kern_to_cov(
+    K <- kern_to_cov(
       input = db %>%
                 dplyr::select(Output_ID, dplyr::starts_with("Input")),
       kern = kern,
       hp = hp_tibble
     )
 
-    # Inverse K_task_t
-    inv <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
+    # Inverse K
+    inv <- K %>% chol_inv_jitter(pen_diag = pen_diag)
 
   } else{
     # Single output case
@@ -213,7 +213,7 @@ gr_GP_mod <- function(hp,
   prod_inv <- inv %*% (db$Output - mean)
 
   common_term <- prod_inv %*% t(prod_inv) +
-    inv %*% (post_cov %*% inv - diag(1, nrow(db)))
+    inv %*% (post_cov %*% inv - diag(1, length(db$Reference)))
 
   # Loop over HPs to compute the gradient for each
   # The derivative names must match what the kernel expects in its 'deriv'
@@ -259,8 +259,16 @@ gr_GP_mod <- function(hp,
   # Return a named vector of gradients
   neg_grad_Q  <- sapply(hp_col_names, floop, USE.NAMES = TRUE)
 
-  final_gradient <- neg_grad_Q
-  return(final_gradient)
+  # final_gradient <- neg_grad_Q
+  # return(final_gradient)
+
+  # Guard against non-finite gradient values that cause optim L-BFGS-B to loop
+  if (any(!is.finite(neg_grad_Q))) {
+    warning("gr_GP_mod: non-finite gradient detected. Replacing with zeros.")
+    neg_grad_Q[!is.finite(neg_grad_Q)] <- 0
+  }
+
+  return(neg_grad_Q)
 }
 
 

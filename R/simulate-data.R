@@ -810,7 +810,7 @@ simulate_magmaclust_data_convol <- function(
     # Use the same number for all clusters (original behavior)
     tasks_per_cluster_vec <- rep(tasks_per_cluster, nb_clusters)
   }
-  
+
   # Extract the number of Outputs
   num_outputs <- length(points_per_output_grid)
 
@@ -918,7 +918,7 @@ simulate_magmaclust_data_convol <- function(
     config_tasks_k <- list_config_tasks[[k]]
 
     config_mp_k$output_id <- as.factor(1:num_outputs)
-    config_tasks_k$output_id <- as.factor(1:num_outputs)
+    # config_tasks_k$output_id <- as.factor(1:num_outputs)
 
     # Mean Process Generation
     mp_info_k <- generate_mean_process_convol(

@@ -159,7 +159,7 @@ logL_GP_mod <- function(hp,
                         pen_diag,
                         hp_col_names,
                         output_ids) {
-
+  # browser()
   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
     # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -182,20 +182,20 @@ logL_GP_mod <- function(hp,
 
   # Build and invert the full multi-outputs covariance matrix
   if(length(list_output_ID) > 1 && !(kern %>% is.character())){
-    # MO inversion of the TASK covariance
+    # MO inversion of the covariance
     # It will handle the multi-outputs structure and the noise addition internally.
-    # 'kern_t' is expected to be the 'convolution_kernel' function.
-    K_task_t <- kern_to_cov(
+    # 'kern' is expected to be the 'convolution_kernel' function.
+    K <- kern_to_cov(
       input = db %>% dplyr::select(-Output),
       kern = kern,
       hp = hp_tibble
     )
 
-    # Inverse K_task_t
-    inv <- K_task_t %>%
+    # Inverse K
+    inv <- K %>%
       chol_inv_jitter(pen_diag = pen_diag) %>%
-      `rownames<-`(row.names(K_task_t)) %>%
-      `colnames<-`(colnames(K_task_t))
+      `rownames<-`(row.names(K)) %>%
+      `colnames<-`(colnames(K))
 
   } else {
       # Single output case (for both computing the inverse of the task covariance
@@ -221,15 +221,21 @@ logL_GP_mod <- function(hp,
       )
   }
 
-  # browser()
   # Compute the log-likelihood components
   # Classical Gaussian log-likelihood
   LL_norm <- -dmnorm(db$Output, mean, inv, log = TRUE)
+
   # Correction trace term (-0.5 * Tr(inv %*% post_cov))
-  # cor_term <- 0.5 * sum(diag(inv %*% post_cov))
   cor_term <- 0.5 * sum(inv * post_cov)
 
-  return(LL_norm + cor_term)
+  result <- LL_norm + cor_term
+  # Guard against non-finite values that cause optim L-BFGS-B to loop forever
+  if (!is.finite(result)) {
+    warning("logL_GP_mod: non-finite value detected (LL_norm=", LL_norm,
+            ", cor_term=", cor_term, "). Returning large penalty.")
+    result <- 1e10
+  }
+  return(result)
 }
 
 

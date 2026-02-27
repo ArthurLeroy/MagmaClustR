@@ -98,6 +98,103 @@ gr_clust_multi_GP <- function(hp,
 }
 
 
+#' Gradient of the penalised elbo for multiple mean GPs with shared HPs
+#'
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
+#' @param db A tibble containing values we want to compute elbo on.
+#'    Required columns: Task_ID, Input, Output, Output_ID. Additional covariate
+#'    columns are allowed.
+#' @param mean A list of the k means of the GPs at union of observed timestamps.
+#' @param post_cov A list of the k posterior covariance of the mean GP (mu_k).
+#'    Used to compute correction term (cor_term)
+#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
+#'    numerical issues when inverting, in cases of nearly singular matrices.
+#'
+#' @return The gradient of the penalised Gaussian elbo for
+#'    the sum of the k mean GPs with shared HPs.
+#'
+#' @keywords internal
+#'
+#' @examples
+#' TRUE
+gr_GP_mod_shared_hp_k <- function(
+    hp,
+    db,
+    mean,
+    kern,
+    post_cov,
+    pen_diag,
+    hp_col_names,
+    output_ids
+) {
+  if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
+    # Reconstruct the structured HP tibble from the flat vector
+    hp_tibble <- reconstruct_hp(
+      par_vector = hp,
+      hp_names = hp_col_names,
+      output_ids = output_ids
+    )
+  } else if (!(hp %>% tibble::is_tibble()) && length(output_ids) == 1){
+    hp_tibble <- hp %>%
+      t() %>%
+      tibble::as_tibble() %>%
+      stats::setNames(hp_col_names)
+
+  } else {
+    hp_tibble <- hp
+  }
+
+  if ("Cluster_ID" %in% names(hp)) {
+    hp_tibble <- hp_tibble %>% dplyr::select(-Cluster_ID)
+  }
+
+  list_ID_k <- names(db)
+  list_hp <- names(hp)
+
+  ## Extract the k-th specific reference Input
+  input_k <- db[[1]] %>%
+    dplyr::pull(Reference)
+  ## Extract the k-th specific inputs (reference + covariates)
+  inputs_k <- db[[1]] %>%
+    dplyr::select(-Output)
+  if ("Cluster_ID" %in% names(db[[1]])) {
+    inputs_k <- inputs_k %>% dplyr::select(-Cluster_ID)
+  }
+
+  inv <- kern_to_inv(inputs_k, kern, hp_tibble, pen_diag)
+
+  ## Loop over clusters to compute the sum of elbos
+  funloop <- function(k) {
+    ## Extract the k-th specific Inputs and Output
+    output_k <- db[[k]] %>%
+      dplyr::pull(Output)
+    ## Extract the mean values associated with the k-th specific inputs
+    mean_k <- mean[[k]]
+    ## Extract the covariance values associated with the k-th specific inputs
+    post_cov_k <- post_cov[[k]]
+
+    prod_inv <- inv %*% (output_k - mean_k)
+    common_term <- prod_inv %*% t(prod_inv) +
+      inv %*% (post_cov_k %*% inv - diag(1, length(input_k)))
+
+    floop <- function(deriv) {
+      (-1 / 2 * (common_term %*% kern_to_cov(inputs_k, kern, hp_tibble, deriv))) %>%
+        diag() %>%
+        sum() %>%
+        return()
+    }
+
+    sapply(list_hp, floop) %>%
+      return()
+  }
+
+  sapply(list_ID_k, funloop) %>%
+    rowSums() %>%
+    return()
+}
+
+
+
 
 #' Gradient of the penalised elbo for multiple task GPs with shared HPs
 #'

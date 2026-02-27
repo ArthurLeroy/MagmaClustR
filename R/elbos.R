@@ -32,7 +32,7 @@ elbo_clust_multi_GP <- function(hp,
   y_t <- db$Output
   t <- unique(db$Task_ID)
   output_ids <- unique(db$Output_ID)
-  
+
   if(length(output_ids) > 1 & hp %>% tibble::is_tibble()){
     hp_tibble <- hp
   } else if (length(output_ids) > 1 & !(hp %>% tibble::is_tibble())){
@@ -47,7 +47,7 @@ elbo_clust_multi_GP <- function(hp,
   } else {
     hp_tibble <- hp
   }
-  
+
   # if(!(hp %>% tibble::is_tibble() && length(output_ids) > 1)){
   #   # Reconstruct the structured HP tibble from the flat vector
   #   hp_tibble <- reconstruct_hp(
@@ -65,61 +65,61 @@ elbo_clust_multi_GP <- function(hp,
   #   hp_tibble <- hp %>%
   #     dplyr::select(-Output_ID)
   # }
-  
+
   if("Task_ID" %in% names(db)){
     inputs <- db %>% dplyr::select(-c(Output, Task_ID))
   } else{
     inputs <- db %>% dplyr::select(-c(Output))
   }
-  
+
   if("Task_ID" %in% names(hp_tibble)){
     hp_tibble <- hp_tibble %>% dplyr::select(-Task_ID)
   }
-  
+
   if(length(output_ids) == 1){
     inputs <- inputs %>% dplyr::select(-Output_ID)
   }
-  
+
   # browser()
-  
+
   cov <- kern_to_cov(inputs, kern, hp_tibble, deriv = NULL)
   references <- rownames(cov)
   inv <- cov %>% chol_inv_jitter(pen_diag)
   dimnames(inv) <- list(references, references)
-  
+
   # inv <- kern_to_inv(inputs,
   #                    kern,
   #                    hp_tibble,
   #                    pen_diag)
-  
+
   ## classic Gaussian centred log likelihood
   LL_norm <- -dmnorm(y_t, rep(0, length(y_t)), inv, log = T)
-  
+
   corr1 <- 0
   corr2 <- 0
-  
+
   # Loop over clusters
   for (k in (names_k))
   {
     tau_t_k <- tau_t_k <- hyperpost$mixture %>%
       dplyr::filter(Task_ID == t) %>%
       dplyr::pull(k)
-    
+
     mean_mu_k <- hyperpost$mean[[k]] %>%
       dplyr::filter(Reference %in% t_t) %>%
       dplyr::arrange(match(Reference, t_t)) %>%
       dplyr::pull(Output)
-    
+
     names(mean_mu_k) <- (hyperpost$mean[[k]] %>%
                            dplyr::filter(Reference %in% t_t) %>%
                            dplyr::arrange(match(Reference, t_t)))$Reference
-    
+
     corr1 <- corr1 + tau_t_k * mean_mu_k
     corr2 <- corr2 + tau_t_k *
       (mean_mu_k %*% t(mean_mu_k) +
          hyperpost$cov[[k]][as.character(t_t), as.character(t_t)])
   }
-  
+
   (LL_norm - y_t %*% inv %*% corr1 + 0.5 * sum(inv * corr2)) %>% return()
 }
 
@@ -155,7 +155,7 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
                                                 hp_col_names,
                                                 output_ids) {
   names_k <- hyperpost$mean %>% names()
-  
+
   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
     # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -168,11 +168,11 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
       t() %>%
       tibble::as_tibble() %>%
       stats::setNames(hp_col_names)
-    
+
   } else {
     hp_tibble <- hp
   }
-  
+
   sum_t <- 0
   for (t in unique(db$Task_ID))
   {
@@ -188,10 +188,10 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
     output_t <- db %>%
       dplyr::filter(Task_ID == t) %>%
       dplyr::pull(Output)
-    
+
     corr1 <- 0
     corr2 <- 0
-    
+
     # Loop over clusters
     for (k in (names_k))
     {
@@ -200,11 +200,11 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
         as.character(input_t),
         as.character(input_t)
       ]
-      
+
       tau_t_k <- hyperpost$mixture %>%
         dplyr::filter(Task_ID == t) %>%
         dplyr::pull(k)
-      
+
       mean_mu_k <- hyperpost$mean[[k]] %>%
         dplyr::filter(Reference %in% input_t) %>%
         dplyr::arrange(match(Reference, input_t)) %>%
@@ -212,25 +212,101 @@ elbo_clust_multi_GP_shared_hp_tasks <- function(hp,
       names(mean_mu_k) <- (hyperpost$mean[[k]] %>%
                              dplyr::filter(Reference %in% input_t) %>%
                              dplyr::arrange(match(Reference, input_t)))$Reference
-      
+
       corr1 <- corr1 + tau_t_k * mean_mu_k
       corr2 <- corr2 + tau_t_k *
         (mean_mu_k %*% t(mean_mu_k) + post_cov_t)
     }
-    
+
     if(length(output_ids) == 1){
       inputs_t <- inputs_t %>% dplyr::select(-Output_ID)
     }
     inv <- kern_to_inv(inputs_t, kern, hp_tibble, pen_diag = pen_diag)
-    
+
     ## Classic Gaussian centred log-likelihood
     LL_norm <- -dmnorm(output_t, rep(0, length(output_t)), inv, log = T)
-    
+
     sum_t <- sum_t +
       LL_norm - output_t %*% inv %*% corr1 + 0.5 * sum(inv * corr2)
   }
   return(sum_t)
 }
+
+
+#' Penalised elbo for multiple mean GPs with shared HPs
+#'
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
+#' @param db  Required columns: Task_ID, Input, Output, Output_ID. Additional covariate
+#'    columns are allowed.
+#' @param mean A list of the K mean GPs at union of observed timestamps.
+#' @param kern A kernel function used to compute the covariance matrix at
+#' corresponding timestamps.
+#' @param post_cov A List of the K posterior covariance of the mean GP (mu_k).
+#' Used to compute correction term (cor_term).
+#' @param pen_diag A jitter term that is added to the covariance matrix to avoid
+#'    numerical issues when inverting, in cases of nearly singular matrices.
+#'
+#'
+#' @return The value of the penalised Gaussian elbo for
+#'    the sum of the k mean GPs with shared HPs.
+#'
+#' @keywords internal
+#'
+#' @examples
+#' TRUE
+elbo_GP_mod_shared_hp_k <- function( hp,
+                                     db,
+                                     mean,
+                                     kern,
+                                     post_cov,
+                                     hp_col_names,
+                                     output_ids,
+                                     pen_diag) {
+  if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
+    # Reconstruct the structured HP tibble from the flat vector
+    hp_tibble <- reconstruct_hp(
+      par_vector = hp,
+      hp_names = hp_col_names,
+      output_ids = output_ids
+    )
+  } else if (!(hp %>% tibble::is_tibble()) && length(output_ids) == 1){
+    hp_tibble <- hp %>%
+      t() %>%
+      tibble::as_tibble() %>%
+      stats::setNames(hp_col_names)
+
+  } else {
+    hp_tibble <- hp
+  }
+
+  list_ID_k <- names(db)
+
+  if("Cluster_ID" %in% names(db)){
+    inputs <- db[[1]] %>% dplyr::select(-c(Output, Cluster_ID))
+  } else{
+    inputs <- db[[1]] %>% dplyr::select(-Output)
+  }
+
+  cov <- kern_to_cov(inputs, kern, hp_tibble, deriv = NULL)
+  references <- rownames(cov)
+  inv <- cov %>% chol_inv_jitter(pen_diag)
+  dimnames(inv) <- list(references, references)
+
+  LL_norm <- 0
+  cor_term <- 0
+
+  for (k in list_ID_k)
+  {
+    y_k <- db[[k]] %>% dplyr::pull(Output)
+
+    LL_norm <- LL_norm - dmnorm(y_k, mean[[k]], inv, log = T)
+    cor_term <- cor_term + 0.5 * (inv * post_cov[[k]]) %>% sum()
+  }
+  return(LL_norm + cor_term)
+}
+
+
+
 
 #' Evidence Lower Bound maximised in MagmaClust
 #'
@@ -285,24 +361,24 @@ elbo_monitoring_VEM <- function(hp_k,
       dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
       dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
       dplyr::select(c(Input_1, Reference, Output_ID))
-    
+
     all_input <- all_inputs %>%
       dplyr::pull(Reference)
-    
+
     if(length(all_inputs$Output_ID %>% unique()) == 1){
       all_inputs <- all_inputs %>%
         dplyr::select(-Output_ID)
     }
-    
+
     hp_k_subset <- hp_k %>%
       dplyr::filter(Cluster_ID == k)
-    
+
     # Compute the convolutional covariance matrix of the mean process
     cov_k <- kern_to_cov(input = all_inputs,
                          kern = kern_k,
                          hp = hp_k_subset %>%
                            dplyr::select(-c(Cluster_ID, prop_mixture)))
-    
+
     references <- rownames(cov_k)
     # Invert cov_k (with jitter for numerical stability)
     inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
@@ -315,17 +391,17 @@ elbo_monitoring_VEM <- function(hp_k,
     LL_norm <- -dmnorm(hyperpost$mean[[k]]$Output, m_k[[k]], inv_k, log = TRUE)
     # Correction trace term (-0.5 * Tr(inv %*% post_cov))
     cor_term <- 0.5 * sum(diag(inv_k %*% hyperpost$cov[[k]]))
-    
+
     ll_k = LL_norm + cor_term
   }
   sum_ll_k <- sapply(names(m_k), floop) %>% sum()
-  
+
   # Loop over tasks
   floop2 <- function(t) {
     t_t <- db %>%
       dplyr::filter(Task_ID == t) %>%
       dplyr::pull(Reference)
-    
+
     elbo_clust_multi_GP(
       hp_t[hp_t$Task_ID == t, ],
       db %>% dplyr::filter(Task_ID == t),
@@ -338,7 +414,7 @@ elbo_monitoring_VEM <- function(hp_k,
       return()
   }
   sum_ll_t <- sapply(unique(db$Task_ID), floop2) %>% sum()
-  
+
   # Loop over clusters
   floop3 <- function(k) {
     sum_tau <- 0
@@ -348,7 +424,7 @@ elbo_monitoring_VEM <- function(hp_k,
       dplyr::filter(Cluster_ID == k) %>%
       dplyr::pull(prop_mixture) %>%
       unique()
-    
+
     for (t in unique(db$Task_ID)) {
       ## Extract the probability of the t-th task to be in the k-th cluster
       tau_t_k <- hyperpost$mixture %>%
@@ -356,10 +432,10 @@ elbo_monitoring_VEM <- function(hp_k,
         dplyr::pull(k)
       ## To avoid numerical issues if evaluating log(0/0)
       log_frac <- ifelse((tau_t_k == 0 | (pi_k == 0)), 0, log(pi_k / tau_t_k))
-      
+
       sum_tau <- sum_tau + tau_t_k * log_frac
     }
-    
+
     # browser()
     ## Compute the sum of log-determinant terms using Cholesky decomposition
     ## log(det(A)) = 2*sum(log(diag(chol(A))))
@@ -368,18 +444,18 @@ elbo_monitoring_VEM <- function(hp_k,
       diag() %>%
       log() %>%
       sum()
-    
+
     # Debug: show components for each cluster
     cat(sprintf("  Cluster %s: sum_tau=%.4f, det_term=%.4f\n", k, sum_tau, det_term))
-    
+
     return(sum_tau + det_term)
   }
-  
+
   sum_corr_k <- sapply(names(m_k), floop3) %>% sum()
-  
+
   # Debug: print components to identify which one causes non-monotonicity
   cat(sprintf("ELBO components: sum_ll_k=%.4f, sum_ll_t=%.4f, sum_corr_k=%.4f, ELBO=%.4f\n",
               sum_ll_k, sum_ll_t, sum_corr_k, -sum_ll_k - sum_ll_t + sum_corr_k))
-  
+
   return(-sum_ll_k - sum_ll_t + sum_corr_k)
 }

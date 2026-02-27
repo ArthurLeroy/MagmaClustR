@@ -1537,6 +1537,7 @@ train_magmaclust <- function(data,
                       kern_t,
                       m_k,
                       shared_hp_tasks,
+                      shared_hp_clusts,
                       pen_diag = pen_diag
     ) # %>% suppressMessages()
 
