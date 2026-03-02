@@ -39,6 +39,7 @@ dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
   )
   attributes(logdetS) <- NULL
 
+  # browser()
   ssq <- t(z) %*% inv_Sigma %*% z
   loglik <- (-(n * (log(2 * pi)) + logdetS + ssq) / 2) %>% as.vector()
   if (log) {

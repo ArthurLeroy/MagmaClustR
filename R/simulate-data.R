@@ -367,7 +367,9 @@ generate_mean_process_convol <- function(
     prior_means,
     noise_0 = NULL,
     shared_grid_outputs,
-    shared_hp_outputs
+    shared_hp_outputs,
+    shared_grid_clusters = FALSE,
+    precomputed_grid_list = NULL
 ) {
   # Extract the number of outputs
   num_outputs <- length(points_per_output)
@@ -378,24 +380,30 @@ generate_mean_process_convol <- function(
 
   precision <- 1e6
 
-  if (shared_grid_outputs) {
+  # --- Grid generation ---
+  if (shared_grid_clusters && !is.null(precomputed_grid_list)) {
+    # Reuse the grid that was already computed for a previous cluster
+    if (length(precomputed_grid_list) != num_outputs) {
+      stop("'precomputed_grid_list' length must match the number of outputs.")
+    }
+    grid_list <- precomputed_grid_list
+
+  } else if (shared_grid_outputs) {
     if (length(unique(points_per_output)) > 1 ||
         length(unique(lapply(grid_ranges, as.character))) > 1) {
       stop("For a shared grid, 'points_per_output' and 'grid_ranges' must be ",
-      "identical.")
+           "identical.")
     }
-    # shared_grid <- sort(round(runif(n = points_per_output[1],
-    #                           min = grid_ranges[[1]][1],
-    #                           max = grid_ranges[[1]][2]), 6))
-    # grid_list <- rep(list(shared_grid), num_outputs)
 
-    # Create a sequence of all possible points at the 6th digit
     possible_points <- seq(from = grid_ranges[[1]][1],
                            to = grid_ranges[[1]][2],
                            by = 1/precision)
 
-    # Sample without replacing to ensure unicity
-    shared_grid <- sort(sample(possible_points, size = points_per_output[1], replace = FALSE))
+    shared_grid <- sort(sample(possible_points,
+                               size = points_per_output[1],
+                               replace = FALSE))
+    grid_list <- rep(list(shared_grid), num_outputs)
+
   } else {
     grid_list <- purrr::map2(
       points_per_output,
@@ -405,12 +413,6 @@ generate_mean_process_convol <- function(
         sort(sample(possible_points, size = n_pts, replace = FALSE))
       }
     )
-
-    # grid_list <- purrr::map2(
-    #   points_per_output,
-    #   grid_ranges,
-    #   ~ sort(round(runif(n = .x, min = .y[1], max = .y[2]), 6))
-    # )
   }
 
   # Use pmap to iterate over the grids and prior means coefficients
@@ -463,7 +465,7 @@ generate_mean_process_convol <- function(
     l_u_t     = lu0_vals
   )
 
-  # Call kern_to_cov() to builld the covariance matrix of the mean process
+  # Call kern_to_cov() to build the covariance matrix of the mean process
   # We use suppressWarnings() to avoid raising a warning on the fact that
   # kern_to_cov() is used with a set of HPs that does not contain noise
   K_theta0_X <- suppressWarnings(kern_to_cov(
@@ -471,7 +473,6 @@ generate_mean_process_convol <- function(
     kern = convolution_kernel,
     hp = hp_tibble_for_kernel
   ))
-
 
   # If we want to put some noise on the mean process.
   # WARNING: this SHOULD NOT be used in a Magma MO context, but is necessary
@@ -794,7 +795,8 @@ simulate_magmaclust_data_convol <- function(
     n_points_per_task_range = c(5, 20),
     shared_hp_tasks = FALSE,
     shared_hp_outputs = FALSE,
-    shared_grid_outputs = FALSE
+    shared_grid_outputs = FALSE,
+    shared_grid_clusters = FALSE
 ) {
   # Calculate balanced task distribution across clusters
   if (!is.null(total_tasks)) {
@@ -885,6 +887,36 @@ simulate_magmaclust_data_convol <- function(
     }
   }
 
+  # Pre-compute a shared grid across clusters if requested
+  precomputed_grid_list <- NULL
+  if (shared_grid_clusters) {
+    precision <- 1e6
+
+    if (shared_grid_outputs) {
+      if (length(unique(points_per_output_grid)) > 1 ||
+          length(unique(lapply(grid_ranges, as.character))) > 1) {
+        stop("For a shared grid, 'points_per_output_grid' and 'grid_ranges' ",
+             "must be identical.")
+      }
+      possible_points <- seq(from = grid_ranges[[1]][1],
+                             to = grid_ranges[[1]][2],
+                             by = 1/precision)
+      shared_grid <- sort(sample(possible_points,
+                                 size = points_per_output_grid[1],
+                                 replace = FALSE))
+      precomputed_grid_list <- rep(list(shared_grid), num_outputs)
+    } else {
+      precomputed_grid_list <- purrr::map2(
+        points_per_output_grid,
+        grid_ranges,
+        function(n_pts, range) {
+          possible_points <- seq(from = range[1], to = range[2], by = 1/precision)
+          sort(sample(possible_points, size = n_pts, replace = FALSE))
+        }
+      )
+    }
+  }
+
   # Pre-computation for shared HPs between tasks
   common_task_hp_values <- NULL
 
@@ -908,8 +940,8 @@ simulate_magmaclust_data_convol <- function(
 
   # Main generation loop
   cat(sprintf("Simulation started: %d Clusters x %d Outputs.\n", nb_clusters,
-                num_outputs)
-      )
+              num_outputs)
+  )
 
   # Loop over clusters
   cluster_results <- purrr::map(1:nb_clusters, function(k) {
@@ -918,7 +950,6 @@ simulate_magmaclust_data_convol <- function(
     config_tasks_k <- list_config_tasks[[k]]
 
     config_mp_k$output_id <- as.factor(1:num_outputs)
-    # config_tasks_k$output_id <- as.factor(1:num_outputs)
 
     # Mean Process Generation
     mp_info_k <- generate_mean_process_convol(
@@ -928,7 +959,9 @@ simulate_magmaclust_data_convol <- function(
       prior_means = list_prior_means[[k]],
       noise_0 = NULL,
       shared_grid_outputs = shared_grid_outputs,
-      shared_hp_outputs = shared_hp_outputs
+      shared_hp_outputs = shared_hp_outputs,
+      shared_grid_clusters = shared_grid_clusters,
+      precomputed_grid_list = precomputed_grid_list
     )
 
     mp_df_k <- mp_info_k$mean_process_df %>%

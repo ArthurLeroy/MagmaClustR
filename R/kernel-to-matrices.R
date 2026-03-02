@@ -668,19 +668,6 @@ chol_inv_jitter <- function(mat, pen_diag){
     )
 }
 
-# chol_inv_jitter <- function(mat, pen_diag, max_tries = 30) {
-#   for (i in seq_len(max_tries)) {
-#     diag(mat) <- diag(mat) + 10*pen_diag
-#     result <- tryCatch(
-#       mat %>% chol() %>% chol2inv(),
-#       error = function(e) NULL
-#     )
-#     if (!is.null(result)) return(result)
-#     pen_diag <- 10 * pen_diag
-#   }
-#   stop("chol_inv_jitter: unable to invert matrix after ", max_tries,
-#        " attempts (final pen_diag = ", pen_diag, ")")
-# }
 
 #' Round a matrix to make if symmetric
 #'

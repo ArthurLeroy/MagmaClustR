@@ -205,65 +205,6 @@ regularize_data <- function(data,
 #' @export
 regularise_data <- regularize_data
 
-#' #' Run a k-means algorithm to initialise clusters' allocation
-#' #'
-#' #' @param data A tibble containing common Input and associated Output values
-#' #'   to cluster.
-#' #' @param k A number of clusters assumed for running the kmeans algorithm.
-#' #' @param nstart A number, indicating how many re-starts of kmeans are set.
-#' #' @param summary A boolean, indicating whether we want an outcome summary
-#' #'
-#' #' @return A tibble containing the initial clustering obtained through kmeans.
-#' #'
-#' #' @keywords internal
-#' #'
-#' #' @examples
-#' #' TRUE
-#' ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
-#'   # if (!identical(
-#'   #   unique(data$Input),
-#'   #   data %>%
-#'   #     dplyr::filter(.data$ID == unique(data$ID)[[1]]) %>%
-#'   #     dplyr::pull(.data$Input)
-#'   # )) {
-#'   floop <- function(i) {
-#'     obs_i <- data %>%
-#'       dplyr::filter(.data$ID == i) %>%
-#'       dplyr::pull(.data$Output)
-#'     tibble::tibble(
-#'       "ID" = i,
-#'       "Input" = seq_len(3),
-#'       "Output" = c(min(obs_i), mean(obs_i), max(obs_i))
-#'     ) %>%
-#'       return()
-#'   }
-#'   db_regular <- unique(data$ID) %>%
-#'     lapply(floop) %>%
-#'     dplyr::bind_rows() %>%
-#'     dplyr::select(c(.data$ID, .data$Input, .data$Output))
-#'   # } else {
-#'   #   db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
-#'   # }
-#'
-#'   res <- db_regular %>%
-#'     tidyr::spread(key = .data$Input, value = .data$Output) %>%
-#'     dplyr::select(-.data$ID) %>%
-#'     stats::kmeans(centers = k, nstart = nstart)
-#'
-#'   if (summary) {
-#'     res %>% print()
-#'   }
-#'
-#'   broom::augment(
-#'     res,
-#'     db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)
-#'   ) %>%
-#'     dplyr::select(c(.data$ID, .data$.cluster)) %>%
-#'     dplyr::rename(Cluster_ini = .data$.cluster) %>%
-#'     dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
-#'     return()
-#' }
-
 
 #' Run a k-means algorithm to initialise clusters' allocation for Multi-Output data
 #'
