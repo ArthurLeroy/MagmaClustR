@@ -222,7 +222,6 @@ ve_step <- function(db,
   }
   mean_k <- sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
-
   ## Update mixture (skip first iteration to avoid bad HP initialisation issues)
   if(iter == 1){
     mixture <- old_mixture

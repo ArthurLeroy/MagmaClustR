@@ -454,8 +454,7 @@ generate_mean_process_convol <- function(
   # Create a complete Input dataframe, where each Output_ID is associated to
   # its own grid of inputs
   input_df_mean_process <- purrr::imap_dfr(grid_list,
-                                           ~dplyr::tibble(Input = .x, Output_ID = .y)
-  )
+                                           ~dplyr::tibble(Input = .x, Output_ID = as.factor(.y)))
 
   # Create an HPs tibble for the mean process
   hp_tibble_for_kernel <- tibble::tibble(
@@ -578,10 +577,7 @@ generate_single_task_data <- function(
   ## Build task-specific covariance and add noise
   # Create the unique data.frame input from the sampled grid list
   input_df <- purrr::imap_dfr(task_grid_list,
-                              ~dplyr::tibble(Input = .x[,1], Output_ID = .y)
-  )
-
-  input_df$Output_ID <- as.factor(input_df$Output_ID)
+                              ~dplyr::tibble(Input = .x[,1], Output_ID = as.factor(.y)))
 
   # Call kern_to_cov(), passing the received hp_tibble directly
   K_task_t <- kern_to_cov(
