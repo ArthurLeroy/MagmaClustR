@@ -331,9 +331,10 @@ for (iter in 1:n_iterations) {
                 mean = mean_vec, kern = "SE", post_cov = 0, pen_diag = 1e-10,
                 hp_col_names = c("se_variance", "se_lengthscale"))
             }, error = function(e) {
-              cat(paste0("    [logL ERR] ", e$message, "\n"))
-              return(+Inf))
+              cat(paste0("    [logL ERR] ", e$message, "\n")) # <-- Ligne ajoutée pour révéler l'erreur
+              return(+Inf)
             }
+
             if(ll_val < best_ll) { best_ll <- ll_val; best_hp_gp <- hp_tmp }
           }, error = function(e) {
             cat(paste0("  [train_gp ERR] k=", k_id, " o=", o_id,
