@@ -40,6 +40,8 @@ library(matrixStats)
 library(MagmaClustR)
 # load_all()
 
+convolution_kernel <- MagmaClustR:::convolution_kernel
+
 cat(paste0("=== Benchmark XP1 MOMT ===\n"))
 cat(paste0("  n_out   = ", N_OUT_TARGET, "\n"))
 cat(paste0("  n_train = ", N_TRAIN_TARGET, "\n"))
