@@ -317,7 +317,7 @@ for (iter in 1:n_iterations) {
           tryCatch({
             set.seed(seed_retry * 1000 + as.numeric(o_id))
             hp_tmp <- train_gp(data = sub_data_agg, kern = "SE", prior_mean = mean_emp, ini_hp = NULL) %>% quiet()
-            message(cat(print(hp_tmp)))
+
             sub_data_agg_format_logL <- data.frame(
               Input_1 = as.numeric(sub_data_agg$Input),
               Output_ID = as.character(sub_data_agg$Output_ID),
@@ -333,10 +333,17 @@ for (iter in 1:n_iterations) {
             }, error = function(e) return(+Inf))
 
             if(ll_val < best_ll) { best_ll <- ll_val; best_hp_gp <- hp_tmp }
-          }, error = function(e) {})
+          }, error = function(e) {
+            cat(paste0("  [train_gp ERR] k=", k_id, " o=", o_id,
+                       " seed=", seed_retry, ": ", e$message, "\n"))
+          })
         }
 
-        if(is.null(best_hp_gp)) best_hp_gp <- hp_tmp
+        if(is.null(best_hp_gp)) {
+          cat(paste0("  [ATTENTION] Aucun train_gp n'a réussi pour k=", k_id, " o=", o_id,
+                     ". Utilisation de valeurs par défaut.\n"))
+          best_hp_gp <- list(se_lengthscale = 0, se_variance = 0, noise = -3)
+        }
         l_val <- best_hp_gp$se_lengthscale
         v_val <- best_hp_gp$se_variance
         if(l_val > max_lengthscale_observed) max_lengthscale_observed <- l_val
