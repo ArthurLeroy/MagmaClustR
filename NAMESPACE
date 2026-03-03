@@ -3,6 +3,7 @@
 export("%>%")
 export(data_allocate_cluster)
 export(expand_grid_inputs)
+export(hp)
 export(hyperposterior)
 export(hyperposterior_clust)
 export(ini_mixture)
