@@ -30,7 +30,7 @@ echo "=============================================="
 
 # --- Environnement ---
 load_spack
-spack load r@4.4.0 cmake
+spack load r@4.4.0 
 export R_LIBS=/scratch/${USER}/R
 
 # Limiter BLAS à 1 thread par processus (éviter la surcharge)
@@ -38,7 +38,7 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
-cd /scratch/${USER}/MagmaClustR_dev
+cd /scratch/${USER}/MagmaClustR
 
 # --- Lancer les 12 combinaisons en parallèle ---
 LOGDIR="/scratch/${USER}/logs/phase1_details"
