@@ -37,6 +37,7 @@ library(mvtnorm)
 library(tidyverse)
 # library(devtools)
 library(matrixStats)
+library(MagmaClustR)
 # load_all()
 
 cat(paste0("=== Benchmark XP1 MOMT ===\n"))
