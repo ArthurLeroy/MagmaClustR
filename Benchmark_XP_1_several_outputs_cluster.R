@@ -317,7 +317,7 @@ for (iter in 1:n_iterations) {
           tryCatch({
             set.seed(seed_retry * 1000 + as.numeric(o_id))
             hp_tmp <- train_gp(data = sub_data_agg, kern = "SE", prior_mean = mean_emp, ini_hp = NULL) %>% quiet()
-            cat(print(hp_tmp))
+            message(cat(print(hp_tmp)))
             sub_data_agg_format_logL <- data.frame(
               Input_1 = as.numeric(sub_data_agg$Input),
               Output_ID = as.character(sub_data_agg$Output_ID),
