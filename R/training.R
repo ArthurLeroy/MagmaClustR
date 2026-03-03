@@ -2129,11 +2129,11 @@ train_gp_clust <- function(data,
 #' @param ini_hp_k A tibble or data frame of hyper-parameters associated with
 #'    \code{kern_k}. The \code{\link{hp}} function can be used to draw
 #'    custom hyper-parameters with the correct format.
-#' @param ini_hp_i A tibble or data frame of hyper-parameters associated with
+#' @param ini_hp_t A tibble or data frame of hyper-parameters associated with
 #'    \code{kern_i}. The \code{\link{hp}} function can be used to draw
 #'    custom hyper-parameters with the correct format.db
 #' @param kern_k A kernel function associated to the mean processes.
-#' @param kern_i A kernel function associated to the individuals/tasks.
+#' @param kern_t A kernel function associated to the individuals/tasks.
 #' @param plot A boolean indicating whether the plot of V-BIC values for all
 #'    numbers of clusters should displayed.
 #' @param ... Any additional argument that could be passed to
@@ -2158,29 +2158,30 @@ select_nb_cluster <- function(data,
                               fast_approx = TRUE,
                               grid_nb_cluster = 1:10,
                               ini_hp_k = NULL,
-                              ini_hp_i = NULL,
+                              ini_hp_t = NULL,
                               kern_k = "SE",
-                              kern_i = "SE",
+                              kern_t = "SE",
                               plot = TRUE,
                               ...) {
 
   ## Remove possible missing data
   data <- data %>% tidyr::drop_na()
   ## Compute the number of different individuals/tasks
-  nb_i <- data$ID %>% dplyr::n_distinct()
+  nb_t <- data$Task_ID %>% dplyr::n_distinct()
 
   ## Draw common initialisation for hyper-parameters for all values of K
   if (ini_hp_k %>% is.null()) {
     ini_hp_k <- hp(kern = kern_k)
   }
 
-  if (ini_hp_i %>% is.null()) {
+  if (ini_hp_t %>% is.null()) {
     hp_i <- hp(
-      kern = kern_i, list_ID = unique(data$ID),
-      common_hp = T, noise = T
+      kern = kern_t, list_task_ID = unique(data$Task_ID),
+      list_output_ID = unique(data$Output_ID),
+      shared_hp_tasks = T, shared_hp_outputs = F, noise = T
     )
   } else {
-    hp_i <- ini_hp_i
+    hp_t <- ini_hp_t
   }
 
   ## Initialise tracking of V-BIC values
@@ -2190,7 +2191,7 @@ select_nb_cluster <- function(data,
     t_1 = Sys.time()
 
     ## Attribute the initial common hyper-parameters to all clusters
-    hp_k <- tibble::tibble("ID" = paste0("K", 1:k)) %>%
+    hp_k <- tibble::tibble("Cluster_ID" = paste0("K", 1:k)) %>%
       dplyr::mutate(ini_hp_k)
 
     cat("Model selection: K = ", k,"\n \n")
@@ -2201,7 +2202,7 @@ select_nb_cluster <- function(data,
         train_magma(
           data = data,
           ini_hp_0 = hp_k,
-          ini_hp_i = hp_i,
+          ini_hp_t = hp_t,
           fast_approx = fast_approx,
           ...)
 
@@ -2213,7 +2214,7 @@ select_nb_cluster <- function(data,
           data = data,
           nb_cluster = k,
           ini_hp_k = hp_k,
-          ini_hp_i = hp_i,
+          ini_hp_t = hp_t,
           fast_approx = fast_approx,
           ...)
       ## Extract the value of the ELBO at convergence
@@ -2222,16 +2223,16 @@ select_nb_cluster <- function(data,
 
     ## Define the adequate BIC penalty according to the hypotheses on HPs
     nb_hp_k <- hp_k %>%
-      dplyr::select(-.data$ID) %>%
+      dplyr::select(-Cluster_ID) %>%
       unlist() %>%
       dplyr::n_distinct()
 
-    nb_hp_i <- hp_i %>%
-      dplyr::select(-.data$ID) %>%
+    nb_hp_t <- hp_t %>%
+      dplyr::select(-Task_ID) %>%
       unlist() %>%
       dplyr::n_distinct()
 
-    pen_bic <- 0.5 * (nb_hp_k + nb_hp_i + k - 1) * log(nb_i)
+    pen_bic <- 0.5 * (nb_hp_k + nb_hp_t + k - 1) * log(nb_t)
 
     mod[["V-BIC"]] <- elbo - pen_bic
     seq_vbic <<- c(seq_vbic, elbo - pen_bic)
