@@ -2,6 +2,7 @@
 
 export("%>%")
 export(data_allocate_cluster)
+export(dmnorm)
 export(expand_grid_inputs)
 export(hp)
 export(hyperposterior)
