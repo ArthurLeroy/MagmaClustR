@@ -297,6 +297,7 @@ vm_step <- function(db,
                     pen_diag
                     ) {
 
+  # browser()
   ## Extract Cluster's IDs, Task's IDs and Output's IDs
   list_ID_k <- names(m_k)
   list_ID_t <- unique(db$Task_ID)
@@ -327,8 +328,37 @@ vm_step <- function(db,
     }
   }
 
-  ## Check whether hyper-parameters are shared across clusters
+  # Recompute prior mean parameters for each cluster with the updated mixture
+  # probabilities
+  floop <- function(k) {
+    # browser()
+    ## Mean of the Output values for each individual weighted by cluster
+    ## membership probabilities
 
+    # Compute one mean for each Output_ID of cluser k
+    new_means_df <- db %>%
+      dplyr::left_join(list_mu_param$mixture %>% dplyr::select(Task_ID,
+                                                               dplyr::all_of(k)),
+                       by = "Task_ID") %>%
+      dplyr::group_by(Output_ID) %>%
+      dplyr::summarise(
+        # Output mean weighted by the probability to belong to cluster k
+        new_m_k = sum(Output * .data[[k]], na.rm = TRUE) / sum(.data[[k]], na.rm = TRUE),
+        .groups = "drop"
+      )
+
+    # Create a mapping dictionnary: c("o1" = moy_1, "o2" = moy_2, "o3" = moy_3)
+    mean_map <- stats::setNames(new_means_df$new_m_k,
+                                paste0("o", new_means_df$Output_ID))
+    prefixes <- stringr::str_extract(names(m_k[[k]]), "^o[0-9]+")
+
+    new_m_k_vector <- mean_map[prefixes] %>% unname()
+    names(new_m_k_vector) <- names(m_k[[k]])
+
+    return(new_m_k_vector)
+  }
+  new_m_k <- lapply(list_ID_k, floop) %>%
+    `names<-`(list_ID_k)
 
   ## Check whether hyper-parameters are shared across tasks
   if (shared_hp_tasks) {
@@ -477,7 +507,7 @@ vm_step <- function(db,
     dplyr::select(-Task_ID) %>%
     colMeans()
 
-
+  ## Check whether hyper-parameters are shared across clusters
   if(shared_hp_clusts){
     if (length(db$Output_ID %>% unique()) > 1){
       # Prepare parameters for optim() in MO case
@@ -511,7 +541,7 @@ vm_step <- function(db,
       fn = elbo_GP_mod_shared_hp_k,
       gr = gr_GP_mod_shared_hp_k,
       db = list_mu_param$mean,
-      mean = m_k,
+      mean = new_m_k,
       kern = kern_k,
       post_cov = list_mu_param$cov,
       pen_diag = pen_diag,
@@ -571,7 +601,7 @@ vm_step <- function(db,
       ## Extract the data associated with the k-th cluster
       db_k <- list_mu_param$mean[[k]]
       ## Extract the mean values associated with the k-th specific inputs
-      mean_k <- m_k[[k]]
+      mean_k <- new_m_k[[k]]
       ## Extract the covariance values associated with the k-th specific inputs
       post_cov_k <- list_mu_param$cov[[k]]
 
@@ -625,6 +655,7 @@ vm_step <- function(db,
 
   # browser()
   list(
+    "m_k" = new_m_k,
     "hp_k" = new_hp_k,
     "hp_t" = new_hp_t
   ) %>%

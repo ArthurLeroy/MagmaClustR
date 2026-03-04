@@ -1879,11 +1879,12 @@ hyperposterior_clust <- function(trained_model = NULL,
   ## Check whether a model trained by train_magma() is provided
   if(trained_model %>% is.null()){
     ## Check whether all mandatory arguments are present otherwise
-    if(is.null(data)|is.null(hp_k)|is.null(hp_t)|is.null(mixture)|
+    if(is.null(data)|is.null(prior_mean_k)|is.null(hp_k)|is.null(hp_t)|is.null(mixture)|
        is.null(kern_k)|is.null(kern_t)){
       stop(
         "If no 'trained_model' argument is provided, the arguments 'data', ",
-        "'mixture', 'hp_k', 'hp_t' 'kern_k', and 'kern_t' are all required."
+        "'prior_mean_k', mixture', 'hp_k', 'hp_t' 'kern_k', and 'kern_t', ",
+        "are all required."
       )
     }
   } else {
@@ -2041,63 +2042,63 @@ hyperposterior_clust <- function(trained_model = NULL,
   # Define clusters' names
   names_k <- paste0("K", 1:nb_cluster)
 
-  if (prior_mean_k %>% is.null()) {
-    for (k in 1:nb_cluster) {
-      m_k[[names_k[k]]] <- rep(0, length(all_input))
-    }
-    cat(
-      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
-      "function is thus set to be 0 everywhere.\n \n"
-    )
-  } else if (prior_mean_k[[1]] %>% is.function()) {
-    for (k in 1:nb_cluster) {
-      all_inputs %>% dplyr::select(- c(Output_ID, Reference))
-      m_k[[names_k[k]]] <- prior_mean_k[[k]](all_inputs)
-    }
-  } else if (prior_mean_k %>% is.vector()) {
-
-    # Récupération des Outputs triés
-    unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
-    num_outputs <- length(unique_outputs_sorted) # Nombre d'outputs
-
-    if (length(prior_mean_k) == nb_cluster * num_outputs) {
-
-      # Extract the prefix of each point of the grid all_input (ex: "o1", "o2")
-      all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
-
-      ## Create a list named by cluster
-      for (k in 1:nb_cluster) {
-
-        all_inputs_k <- all_inputs
-        start_index <- (k - 1) * num_outputs + 1
-        end_index   <- k * num_outputs
-        vals_cluster_k <- prior_mean_k[start_index:end_index]
-
-        # Create a corresponding table mapping:
-        # "o1" -> mean_val_1, "o2" -> mean_val_2
-        prior_mean_map <- setNames(vals_cluster_k,
-                                   paste0("o", unique_outputs_sorted))
-
-        # Assign it to the correctly named element of the list
-        # Map values to the full grid based on prefixes
-        m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
-        names(m_k[[names_k[k]]]) <- all_inputs$Reference
-      }
-
-    } else if (length(prior_mean_k) == num_outputs) {
-      # One mean per Output (all clusters share the same)
-      prior_mean_map <- setNames(prior_mean_k,
-                                 paste0("o", unique_outputs_sorted))
-      all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
-
-      for (k in 1:nb_cluster) {
-        m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
-      }
-    } else {
-      stop(sprintf("Incorrect length for prior_mean_k. Expected %d or %d, got %d.",
-                   nb_cluster * num_outputs, num_outputs, length(prior_mean_k)))
-    }
-  }
+  # if (prior_mean_k %>% is.null()) {
+  #   for (k in 1:nb_cluster) {
+  #     m_k[[names_k[k]]] <- rep(0, length(all_input))
+  #   }
+  #   cat(
+  #     "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+  #     "function is thus set to be 0 everywhere.\n \n"
+  #   )
+  # } else if (prior_mean_k[[1]] %>% is.function()) {
+  #   for (k in 1:nb_cluster) {
+  #     all_inputs %>% dplyr::select(- c(Output_ID, Reference))
+  #     m_k[[names_k[k]]] <- prior_mean_k[[k]](all_inputs)
+  #   }
+  # } else if (prior_mean_k %>% is.vector()) {
+  #
+  #   # Récupération des Outputs triés
+  #   unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
+  #   num_outputs <- length(unique_outputs_sorted) # Nombre d'outputs
+  #
+  #   if (length(prior_mean_k) == nb_cluster * num_outputs) {
+  #
+  #     # Extract the prefix of each point of the grid all_input (ex: "o1", "o2")
+  #     all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
+  #
+  #     ## Create a list named by cluster
+  #     for (k in 1:nb_cluster) {
+  #
+  #       all_inputs_k <- all_inputs
+  #       start_index <- (k - 1) * num_outputs + 1
+  #       end_index   <- k * num_outputs
+  #       vals_cluster_k <- prior_mean_k[start_index:end_index]
+  #
+  #       # Create a corresponding table mapping:
+  #       # "o1" -> mean_val_1, "o2" -> mean_val_2
+  #       prior_mean_map <- setNames(vals_cluster_k,
+  #                                  paste0("o", unique_outputs_sorted))
+  #
+  #       # Assign it to the correctly named element of the list
+  #       # Map values to the full grid based on prefixes
+  #       m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
+  #       names(m_k[[names_k[k]]]) <- all_inputs$Reference
+  #     }
+  #
+  #   } else if (length(prior_mean_k) == num_outputs) {
+  #     # One mean per Output (all clusters share the same)
+  #     prior_mean_map <- setNames(prior_mean_k,
+  #                                paste0("o", unique_outputs_sorted))
+  #     all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
+  #
+  #     for (k in 1:nb_cluster) {
+  #       m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
+  #     }
+  #   } else {
+  #     stop(sprintf("Incorrect length for prior_mean_k. Expected %d or %d, got %d.",
+  #                  nb_cluster * num_outputs, num_outputs, length(prior_mean_k)))
+  #   }
+  # }
 
   # Label switching check
   if (!is.null(prior_mean_k) && !is.null(mixture)) {
@@ -2248,6 +2249,13 @@ hyperposterior_clust <- function(trained_model = NULL,
     # Note : new_prior_means contient maintenant les valeurs numériques directement
     # Si votre code attend une liste de noms de clusters, la logique change légèrement,
     # mais pour mettre à jour les hyper-paramètres, c'est cette matrice `new_prior_means` qu'il faut utiliser.
+  }
+
+
+  browser()
+  ## Create a list named by cluster with evaluation of the prior mean (m_k) at all Input locations
+  for (k in 1:nb_cluster) {
+    m_k[[ID_k[k]]] <- rep(prior_mean_k[[ID_k[k]]], length(all_input))
   }
 
   ## Format a sequence of inputs for all clusters
@@ -2872,7 +2880,8 @@ pred_magmaclust <- function(data = NULL,
           hp_t = trained_model$hp_t,
           kern_k = trained_model$ini_args$kern_k,
           kern_t = trained_model$ini_args$kern_t,
-          prior_mean_k = trained_model$ini_args$prior_mean_k,
+          prior_mean_k = trained_model$m_k,
+          # prior_mean_k = trained_model$ini_args$prior_mean_k,
           grid_inputs = all_inputs,
           pen_diag = pen_diag
         )

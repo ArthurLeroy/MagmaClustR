@@ -146,7 +146,6 @@ gr_GP_mod <- function(hp,
                       hp_col_names,
                       output_ids,
                       ...) {
-  # browser()
   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
     # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(

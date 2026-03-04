@@ -677,32 +677,6 @@ train_gp <- function(data,
   ## Extract the list of different output IDs
   list_ID_output <- data$Output_ID %>% unique()
 
-
-  # ## To create the 'Reference' column as in the old MagmaClustR tibble format, we
-  # # need to pivot data to obtain one row per observation of Output_ID.
-  # # In other words, inputs are no longer in "short" format; instead, we have one
-  # # column per input.
-  # data <- data %>%
-  #   tidyr::pivot_wider(
-  #     names_from = Input_ID,
-  #     values_from = Input,
-  #     names_prefix = "Input_"
-  #   ) %>%
-  #   # Keep 6 significant digits for Inputs to avoid numerical issues
-  #   dplyr::mutate(across(starts_with("Input_"), ~ round(.x, 6))) %>%
-  #   rowwise() %>%
-  #   dplyr::mutate(
-  #     Reference = paste(
-  #       # Create output's prefix
-  #       paste0("o", Output_ID),
-  #       # Create the reference for each Output_ID
-  #       paste(c_across(starts_with("Input_")), collapse = ":"),
-  #       # Join output's prefix and reference
-  #       sep = ";"
-  #     )
-  #   ) %>%
-  #   dplyr::ungroup()
-
   # --- REMPLACEMENT DU BLOC DÉFECTUEUX DANS train_gp() ---
 
   data <- data %>%
@@ -1319,13 +1293,6 @@ train_magmaclust <- function(data,
       "The 'prior_mean' argument has not been specified. The hyper_prior mean",
       "function is thus set to be 0 everywhere.\n \n"
     )
-  } else if (prior_mean_k[[1]] %>% is.function()) {
-    ## Create a list named by cluster with evaluation of the mean at all Input
-    for (k in 1:nb_cluster) {
-      ## Correct
-      all_inputs <- all_inputs %>% dplyr::select(- c(Output_ID, Reference))
-      m_k[[names_k[k]]] <- prior_mean_k[[k]](all_inputs)
-    }
   } else if (prior_mean_k %>% is.vector()) {
     unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
     num_outputs <- length(unique_outputs_sorted)
@@ -1396,7 +1363,6 @@ train_magmaclust <- function(data,
 
   if (!is.null(prior_mean_k)) {
     cat("Checking for label switching across multiple outputs...\n")
-
     # For each point of m_k, we pull its Output_ID
     get_prior_profile <- function(cluster_name) {
       vals <- m_k[[cluster_name]]
@@ -1482,7 +1448,9 @@ train_magmaclust <- function(data,
   # Assign correctly each mixture proportion to its associated cluster
   hp_k[["prop_mixture"]] <- as.numeric(props[as.character(hp_k$Cluster_ID)])
 
+  # browser()
   ## Keep an history of the (possibly random) initial values of hyper-parameters
+  m_k_ini <- m_k
   hp_t_ini <- hp_t
   hp_k_ini <- hp_k
   mixture_ini <- mixture
@@ -1541,6 +1509,7 @@ train_magmaclust <- function(data,
                       pen_diag = pen_diag
     ) # %>% suppressMessages()
 
+    new_m_k <- new_hp$m_k
     new_hp_k <- new_hp$hp_k
     new_hp_t <- new_hp$hp_t
 
@@ -1562,7 +1531,7 @@ train_magmaclust <- function(data,
       kern_t,
       kern_k,
       hyperpost = post,
-      m_k = m_k,
+      m_k = new_m_k,
       pen_diag = pen_diag
     )
 
@@ -1576,6 +1545,7 @@ train_magmaclust <- function(data,
     }
 
     ## Update HPs values and the elbo monitoring
+    m_k <- new_m_k
     hp_k <- new_hp_k
     hp_t <- new_hp_t
     mixture <- post$mixture
@@ -1626,6 +1596,11 @@ train_magmaclust <- function(data,
     }
   }
 
+  ## Collapse the dimension of the constant prior means (m_k) to length 1
+  for (k in 1:nb_cluster) {
+    m_k[[ID_k[k]]] <- unique(m_k[[ID_k[k]]])
+  }
+
   ## Evaluate the hyper-posterior on the grid of inputs if provided
   if (!is.null(grid_inputs)) {
     cat(
@@ -1640,7 +1615,8 @@ train_magmaclust <- function(data,
       hp_t = hp_t,
       kern_k = kern_k,
       kern_t = kern_t,
-      prior_mean_k = prior_mean_k,
+      prior_mean_k = m_k,
+      # prior_mean_k = prior_mean_k,
       grid_inputs = grid_inputs,
       pen_diag = pen_diag
     )
@@ -1665,7 +1641,8 @@ train_magmaclust <- function(data,
   fct_args <- list(
     "data" = raw_data,
     "nb_cluster" = nb_cluster,
-    "prior_mean_k" = prior_mean_k,
+    "prior_mean_k" = m_k_ini,
+    # "prior_mean_k" = prior_mean_k,
     "ini_hp_k" = hp_k_ini,
     "ini_hp_t" = hp_t_ini,
     "kern_k" = kern_k,
@@ -1680,6 +1657,7 @@ train_magmaclust <- function(data,
   t2 <- Sys.time()
   ## Create and return the list of elements from the trained model
   list(
+    "m_k" = m_k,
     "hp_k" = hp_k,
     "hp_t" = hp_t,
     "hyperpost" = post,

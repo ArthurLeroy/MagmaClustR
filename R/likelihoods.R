@@ -14,6 +14,8 @@
 #'
 #' @keywords internal
 #'
+#' @export
+#'
 #' @examples
 #' TRUE
 dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
@@ -225,6 +227,7 @@ logL_GP_mod <- function(hp,
   # Compute the log-likelihood components
   # Classical Gaussian log-likelihood
   LL_norm <- -dmnorm(db$Output, mean, inv, log = TRUE)
+
 
   # Correction trace term (-0.5 * Tr(inv %*% post_cov))
   cor_term <- 0.5 * sum(inv * post_cov)
@@ -550,6 +553,7 @@ sum_logL_GP_clust <- function(hp,
 #' @param output_ids A vector containing the unique output IDs.
 #'
 #' @return A correctly formatted HP tibble.
+#' @export
 #'
 reconstruct_hp <- function(par_vector, hp_names, output_ids) {
   # Detect format of the hyper-parameters
