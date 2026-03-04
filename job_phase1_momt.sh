@@ -2,11 +2,11 @@
 #===============================================================================
 # job_phase1_momt.sh — PHASE 1 : Entraînement MOMT (several_outputs)
 #
-# Lance 12 processus R en parallèle (4 n_out × 3 n_train).
+# Lance 15 processus R en parallèle (5 n_out × 3 n_train).
 # Chaque processus exécute 100 itérations pour une combinaison (n_out, n_train).
 #
 # Queue "huge" : 32 threads, 7 jours max
-# 12 processus R ≈ 12 cœurs utilisés (R est single-threaded par processus)
+# 15 processus R ≈ 15 cœurs utilisés (R est single-threaded par processus)
 #
 # Soumission : sbatch job_phase1_momt.sh
 #===============================================================================
@@ -25,7 +25,7 @@ echo " Date    : $(date)"
 echo " Noeud   : $(hostname)"
 echo " Job ID  : ${SLURM_JOB_ID}"
 echo " CPUs    : ${SLURM_CPUS_ON_NODE}"
-echo " 12 processus R en parallèle"
+echo " 15 processus R en parallèle"
 echo "=============================================="
 
 # --- Environnement ---
@@ -40,7 +40,7 @@ export MKL_NUM_THREADS=1
 
 cd /scratch/${USER}/MagmaClustR
 
-# --- Lancer les 12 combinaisons en parallèle ---
+# --- Lancer les 15 combinaisons en parallèle ---
 LOGDIR="/scratch/${USER}/logs/phase1_details"
 mkdir -p "${LOGDIR}"
 
@@ -51,7 +51,7 @@ for N_OUT in 2 3 4 6 8; do
     LOGFILE="${LOGDIR}/momt_nout${N_OUT}_ntrain${N_TRAIN}.log"
     echo "[$(date +%H:%M:%S)] Lancement MOMT n_out=${N_OUT} n_train=${N_TRAIN} → ${LOGFILE}"
 
-    Rscript --vanilla Benchmark_XP_1_several_outputs_cluster.R \
+    stdbuf -oL Rscript --vanilla Benchmark_XP_1_several_outputs_cluster.R \
       --n_out=${N_OUT} --n_train=${N_TRAIN} \
       > "${LOGFILE}" 2>&1 &
 
@@ -60,7 +60,7 @@ for N_OUT in 2 3 4 6 8; do
 done
 
 echo ""
-echo "12 processus lancés. PIDs : ${PIDS[*]}"
+echo "15 processus lancés. PIDs : ${PIDS[*]}"
 echo "En attente de la fin de tous les processus..."
 echo ""
 
@@ -79,7 +79,7 @@ echo ""
 echo "=============================================="
 echo " PHASE 1 TERMINÉE"
 echo " Date  : $(date)"
-echo " Échecs: ${FAILED} / 12"
+echo " Échecs: ${FAILED} / 15"
 echo "=============================================="
 
 if [ ${FAILED} -gt 0 ]; then
