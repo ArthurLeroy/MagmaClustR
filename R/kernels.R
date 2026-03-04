@@ -24,7 +24,8 @@ se_kernel <- function(
   y,
   hp,
   deriv = NULL,
-  vectorized = FALSE) {
+  vectorized = FALSE
+) {
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -45,8 +46,10 @@ se_kernel <- function(
   } else if (deriv == "se_lengthscale") {
     (exp(hp[["se_variance"]]) * top_term * exp(-top_term)) %>% return()
   } else {
-    stop("Please enter a valid hyper-parameter's name or NULL for the
-    argument 'deriv'")
+    stop(
+      "Please enter a valid hyper-parameter's name or NULL for the
+    argument 'deriv'"
+    )
   }
 }
 
@@ -78,7 +81,8 @@ perio_kernel <- function(
   y,
   hp,
   deriv = NULL,
-  vectorized = FALSE) {
+  vectorized = FALSE
+) {
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -102,17 +106,24 @@ perio_kernel <- function(
       exp(-2 * exp(-hp[["perio_lengthscale"]]) * perio_term)) %>%
       return()
   } else if (deriv == "period") {
-    (exp(hp[["perio_variance"]]) * exp(-2 * exp(-hp[["perio_lengthscale"]]) *
-      perio_term) * 2 * exp(-hp[["perio_lengthscale"]]) * sum_deriv) %>%
+    (exp(hp[["perio_variance"]]) *
+      exp(-2 * exp(-hp[["perio_lengthscale"]]) * perio_term) *
+      2 *
+      exp(-hp[["perio_lengthscale"]]) *
+      sum_deriv) %>%
       return()
   } else if (deriv == "perio_lengthscale") {
-    (exp(hp[["perio_variance"]]) * 2 * perio_term *
+    (exp(hp[["perio_variance"]]) *
+      2 *
+      perio_term *
       exp(-hp[["perio_lengthscale"]]) *
       exp(-2 * perio_term * exp(-hp[["perio_lengthscale"]]))) %>%
       return()
   } else {
-    stop("Please enter a valid hyper-parameter's name or NULL for the
-    argument 'deriv'")
+    stop(
+      "Please enter a valid hyper-parameter's name or NULL for the
+    argument 'deriv'"
+    )
   }
 }
 
@@ -143,7 +154,8 @@ rq_kernel <- function(
   y,
   hp,
   deriv = NULL,
-  vectorized = FALSE) {
+  vectorized = FALSE
+) {
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -164,17 +176,25 @@ rq_kernel <- function(
     (exp(hp[["rq_variance"]]) * term^(-hp[["rq_scale"]])) %>%
       return()
   } else if (deriv == "rq_scale") {
-    (exp(hp[["rq_variance"]]) * term^(-hp[["rq_scale"]]) *
-      (distance * exp(-hp[["rq_lengthscale"]]) / (2 * hp[["rq_scale"]] * term)
-        - log(term))) %>%
+    (exp(hp[["rq_variance"]]) *
+      term^(-hp[["rq_scale"]]) *
+      (distance *
+        exp(-hp[["rq_lengthscale"]]) /
+        (2 * hp[["rq_scale"]] * term) -
+        log(term))) %>%
       return()
   } else if (deriv == "rq_lengthscale") {
-    (exp(hp[["rq_variance"]]) * distance * 0.5 *
-      exp(-hp[["rq_lengthscale"]]) * term^(-hp[["rq_scale"]] - 1)) %>%
+    (exp(hp[["rq_variance"]]) *
+      distance *
+      0.5 *
+      exp(-hp[["rq_lengthscale"]]) *
+      term^(-hp[["rq_scale"]] - 1)) %>%
       return()
   } else {
-    stop("Please enter a valid hyper-parameter's name or NULL for the
-    argument 'deriv'")
+    stop(
+      "Please enter a valid hyper-parameter's name or NULL for the
+    argument 'deriv'"
+    )
   }
 }
 
@@ -204,7 +224,8 @@ lin_kernel <- function(
   y,
   hp,
   deriv = NULL,
-  vectorized = FALSE) {
+  vectorized = FALSE
+) {
   ## Check whether the Rcpp function for speed-up vectorised computation
   if (vectorized) {
     x <- as.matrix(x)
@@ -227,8 +248,10 @@ lin_kernel <- function(
   } else if (deriv == "lin_slope") {
     (exp(hp[["lin_slope"]]) * prod) %>% return()
   } else {
-    stop("Please enter a valid hyper-parameter's name or NULL for the
-    argument 'deriv'")
+    stop(
+      "Please enter a valid hyper-parameter's name or NULL for the
+    argument 'deriv'"
+    )
   }
 }
 
@@ -275,7 +298,8 @@ hp <- function(
   list_ID = NULL,
   list_hp = NULL,
   noise = FALSE,
-  common_hp = FALSE) {
+  common_hp = FALSE
+) {
   ## Initiate interval boundaries
   min <- 0
   max <- 3
@@ -297,8 +321,7 @@ hp <- function(
     hp <- tibble::tibble(ID = as.character(list_ID))
   }
 
-  for (i in str_kern)
-  {
+  for (i in str_kern) {
     if (is.null(list_ID)) {
       if (is.function(kern) | is.null(kern)) {
         temp_hp <- tibble::tibble(.rows = 1)
@@ -307,38 +330,46 @@ hp <- function(
         }
         hp <- hp %>% dplyr::bind_cols(temp_hp)
       } else if (i == "SE") {
-        hp <- hp %>% dplyr::bind_cols(
-          tibble::tibble(
-            se_variance = stats::runif(1, min, max),
-            se_lengthscale = stats::runif(1, min, max)
+        hp <- hp %>%
+          dplyr::bind_cols(
+            tibble::tibble(
+              se_variance = stats::runif(1, min, max),
+              se_lengthscale = stats::runif(1, min, max)
+            )
           )
-        )
       } else if (i == "PERIO") {
-        hp <- hp %>% dplyr::bind_cols(
-          tibble::tibble(
-            perio_variance = stats::runif(1, min, max),
-            perio_lengthscale = stats::runif(1, min, max),
-            period = stats::runif(1, 0, 2 * pi)
+        hp <- hp %>%
+          dplyr::bind_cols(
+            tibble::tibble(
+              perio_variance = stats::runif(1, min, max),
+              perio_lengthscale = stats::runif(1, min, max),
+              period = stats::runif(1, 0, 2 * pi)
+            )
           )
-        )
       } else if (i == "RQ") {
-        hp <- hp %>% dplyr::bind_cols(
-          tibble::tibble(
-            rq_variance = stats::runif(1, min, max),
-            rq_lengthscale = stats::runif(1, min, max),
-            rq_scale = stats::runif(1, min, max)
+        hp <- hp %>%
+          dplyr::bind_cols(
+            tibble::tibble(
+              rq_variance = stats::runif(1, min, max),
+              rq_lengthscale = stats::runif(1, min, max),
+              rq_scale = stats::runif(1, min, max)
+            )
           )
-        )
       } else if (i == "LIN") {
-        hp <- hp %>% dplyr::bind_cols(
-          tibble::tibble(
-            lin_slope = stats::runif(1, min, max),
-            lin_offset = stats::runif(1, min, max),
+        hp <- hp %>%
+          dplyr::bind_cols(
+            tibble::tibble(
+              lin_slope = stats::runif(1, min, max),
+              lin_offset = stats::runif(1, min, max),
+            )
           )
-        )
       }
     } else {
-      if (common_hp) len <- 1 else len <- length(list_ID)
+      if (common_hp) {
+        len <- 1
+      } else {
+        len <- length(list_ID)
+      }
       if (is.function(kern) | is.null(kern)) {
         temp_hp <- tibble::tibble(ID = as.character(list_ID))
         for (j in list_hp) {
@@ -346,43 +377,47 @@ hp <- function(
         }
         hp <- hp %>% dplyr::left_join(temp_hp, by = "ID")
       } else if (i == "SE") {
-        hp <- hp %>% dplyr::left_join(
-          tibble::tibble(
-            ID = as.character(list_ID),
-            se_variance = stats::runif(len, min, max),
-            se_lengthscale = stats::runif(len, min, max)
-          ),
-          by = "ID"
-        )
+        hp <- hp %>%
+          dplyr::left_join(
+            tibble::tibble(
+              ID = as.character(list_ID),
+              se_variance = stats::runif(len, min, max),
+              se_lengthscale = stats::runif(len, min, max)
+            ),
+            by = "ID"
+          )
       } else if (i == "PERIO") {
-        hp <- hp %>% dplyr::left_join(
-          tibble::tibble(
-            ID = as.character(list_ID),
-            perio_variance = stats::runif(len, min, max),
-            perio_lengthscale = stats::runif(len, min, max),
-            period = stats::runif(len, 0, 2 * pi)
-          ),
-          by = "ID"
-        )
+        hp <- hp %>%
+          dplyr::left_join(
+            tibble::tibble(
+              ID = as.character(list_ID),
+              perio_variance = stats::runif(len, min, max),
+              perio_lengthscale = stats::runif(len, min, max),
+              period = stats::runif(len, 0, 2 * pi)
+            ),
+            by = "ID"
+          )
       } else if (i == "RQ") {
-        hp <- hp %>% dplyr::left_join(
-          tibble::tibble(
-            ID = as.character(list_ID),
-            rq_variance = stats::runif(len, min, max),
-            rq_lengthscale = stats::runif(len, min, max),
-            rq_scale = stats::runif(len, min, max)
-          ),
-          by = "ID"
-        )
+        hp <- hp %>%
+          dplyr::left_join(
+            tibble::tibble(
+              ID = as.character(list_ID),
+              rq_variance = stats::runif(len, min, max),
+              rq_lengthscale = stats::runif(len, min, max),
+              rq_scale = stats::runif(len, min, max)
+            ),
+            by = "ID"
+          )
       } else if (i == "LIN") {
-        hp <- hp %>% dplyr::left_join(
-          tibble::tibble(
-            ID = as.character(list_ID),
-            lin_slope = stats::runif(len, min, max),
-            lin_offset = stats::runif(len, min, max)
-          ),
-          by = "ID"
-        )
+        hp <- hp %>%
+          dplyr::left_join(
+            tibble::tibble(
+              ID = as.character(list_ID),
+              lin_slope = stats::runif(len, min, max),
+              lin_offset = stats::runif(len, min, max)
+            ),
+            by = "ID"
+          )
       }
     }
   }

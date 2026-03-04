@@ -1,6 +1,7 @@
 # MagmaClustR (development version)
 
 ## Major
+- Change the way prior means work in the MagmaClust framework. They are now optimised during Mstep by recomputing the dataset mean weighted by clusters' membership probabilities. 
 
 ## Minor
 

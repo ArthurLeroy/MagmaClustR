@@ -21,8 +21,8 @@ plot_db <- function(data, legend = FALSE) {
     ggplot2::geom_line(ggplot2::aes(
       x = .data$Input,
       y = .data$Output,
-      color = .data$ID)
-    ) +
+      color = .data$ID
+    )) +
     ggplot2::geom_point(ggplot2::aes(
       x = .data$Input,
       y = .data$Output,
@@ -105,21 +105,23 @@ plot_db <- function(data, legend = FALSE) {
 #'
 #' @examples
 #' TRUE
-plot_gp <- function(pred_gp,
-                    x_input = NULL,
-                    data = NULL,
-                    data_train = NULL,
-                    prior_mean = NULL,
-                    y_grid = NULL,
-                    heatmap = FALSE,
-                    samples = FALSE,
-                    nb_samples = 50,
-                    plot_mean = TRUE,
-                    alpha_samples = 0.3,
-                    prob_CI = 0.95,
-                    size_data = 3,
-                    size_data_train = 1,
-                    alpha_data_train = 0.5) {
+plot_gp <- function(
+  pred_gp,
+  x_input = NULL,
+  data = NULL,
+  data_train = NULL,
+  prior_mean = NULL,
+  y_grid = NULL,
+  heatmap = FALSE,
+  samples = FALSE,
+  nb_samples = 50,
+  plot_mean = TRUE,
+  alpha_samples = 0.3,
+  prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5
+) {
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
   }
@@ -129,28 +131,32 @@ plot_gp <- function(pred_gp,
   ## Check whether 'pred_gp' has a correct format
   if (pred_gp %>% is.data.frame()) {
     pred <- pred_gp
-  } else if (is.list(pred_gp) &
-    tryCatch(
-      is.data.frame(pred_gp$pred),
-      error = function(e) {
-        FALSE
-      }
-    )) {
+  } else if (
+    is.list(pred_gp) &
+      tryCatch(
+        is.data.frame(pred_gp$pred),
+        error = function(e) {
+          FALSE
+        }
+      )
+  ) {
     pred <- pred_gp$pred
     ## Check whether the hyper-posterior distribution is provided and extract
-    if (tryCatch(
-      is.list(pred_gp$hyperpost),
-      error = function(e) {
-        FALSE
-      }
-    ) &
+    if (
       tryCatch(
-        is.data.frame(pred_gp$hyperpost$mean),
+        is.list(pred_gp$hyperpost),
         error = function(e) {
-          0
+          FALSE
         }
       ) &
-      is.null(prior_mean)) {
+        tryCatch(
+          is.data.frame(pred_gp$hyperpost$mean),
+          error = function(e) {
+            0
+          }
+        ) &
+        is.null(prior_mean)
+    ) {
       prior_mean <- pred_gp$hyperpost$mean
     }
   } else {
@@ -207,16 +213,15 @@ plot_gp <- function(pred_gp,
 
   ## Display a heatmap if inputs are 2D
   if (ncol(inputs) == 2) {
-
-    if (samples){
+    if (samples) {
       ## Display samples from the posterior
       gg <- plot_samples(
         pred = pred_gp,
         x_input = x_input,
         nb_samples = nb_samples,
         plot_mean = plot_mean,
-        alpha_samples = alpha_samples)
-
+        alpha_samples = alpha_samples
+      )
     } else {
       ## Add the 'Index' column if the prediction comes from 'pred_gif()'
       if (!is.null(index)) {
@@ -242,16 +247,17 @@ plot_gp <- function(pred_gp,
       ## Round the 'Output' values to reduce size of labels on the graph
       data <- data %>% dplyr::mutate(Output = round(.data$Output, 1))
 
-      gg <- gg + ggplot2::geom_label(
-        data = data,
-        ggplot2::aes(
-          x = .data[[names(inputs)[1]]],
-          y = .data[[names(inputs)[2]]],
-          label = .data$Output,
-          fill = .data$Output
-        ),
-        size = 3
-      )
+      gg <- gg +
+        ggplot2::geom_label(
+          data = data,
+          ggplot2::aes(
+            x = .data[[names(inputs)[1]]],
+            y = .data[[names(inputs)[2]]],
+            label = .data$Output,
+            fill = .data$Output
+          ),
+          size = 3
+        )
     }
 
     ## If some day I want to add the feature of displaying data_train in 2D
@@ -271,7 +277,6 @@ plot_gp <- function(pred_gp,
     #     size = 3
     #   ) + ggplot2::guides(colour = 'none')
     # }
-
   } else {
     ## Check the dimension of the inputs a propose an adequate representation
     if (ncol(inputs) == 1) {
@@ -309,11 +314,15 @@ plot_gp <- function(pred_gp,
       }
 
       db_heat <- pred %>%
-        tidyr::expand(tidyr::nesting(!!!rlang::syms(col_to_nest)),
+        tidyr::expand(
+          tidyr::nesting(!!!rlang::syms(col_to_nest)),
           "Ygrid" = y_grid
         ) %>%
-        dplyr::mutate("Proba" = 2 *
-          (1 - stats::pnorm(abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var)))))
+        dplyr::mutate(
+          "Proba" = 2 *
+            (1 -
+              stats::pnorm(abs((.data$Ygrid - .data$Mean) / sqrt(.data$Var))))
+        )
 
       gg <- ggplot2::ggplot() +
         ggplot2::geom_raster(
@@ -339,15 +348,15 @@ plot_gp <- function(pred_gp,
         ) +
         ggplot2::labs(fill = "Proba CI") +
         ggplot2::ylab("Output")
-    } else if (samples){
+    } else if (samples) {
       ## Display samples from the posterior
       gg <- plot_samples(
         pred = pred_gp,
         x_input = x_input,
         nb_samples = nb_samples,
         plot_mean = plot_mean,
-        alpha_samples = alpha_samples)
-
+        alpha_samples = alpha_samples
+      )
     } else {
       ## Display a classic curve otherwise
       ## Add the 'Index' column if the prediction comes from 'pred_gif()'
@@ -376,25 +385,28 @@ plot_gp <- function(pred_gp,
 
     ## Display the training data if provided
     if (!is.null(data_train)) {
-      gg <- gg + ggplot2::geom_point(
-        data = data_train,
-        ggplot2::aes(
-          x = .data[[names(inputs)[1]]],
-          y = .data$Output,
-          col = .data$ID
-        ),
-        size = size_data_train,
-        alpha = alpha_data_train
-      ) + ggplot2::guides(color = "none")
+      gg <- gg +
+        ggplot2::geom_point(
+          data = data_train,
+          ggplot2::aes(
+            x = .data[[names(inputs)[1]]],
+            y = .data$Output,
+            col = .data$ID
+          ),
+          size = size_data_train,
+          alpha = alpha_data_train
+        ) +
+        ggplot2::guides(color = "none")
     }
     ## Display the observed data if provided
     if (!is.null(data)) {
-      gg <- gg + ggplot2::geom_point(
-        data = data,
-        ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Output),
-        size = size_data,
-        shape = 20
-      )
+      gg <- gg +
+        ggplot2::geom_point(
+          data = data,
+          ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Output),
+          size = size_data,
+          shape = 20
+        )
     }
 
     ## Display the (hyper-)prior mean process if provided
@@ -403,7 +415,7 @@ plot_gp <- function(pred_gp,
         gg <- gg +
           ggplot2::geom_line(
             data = prior_mean,
-            ggplot2::aes(x = .data[[names(inputs)[1]]], y =.data$Output),
+            ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Output),
             linetype = "dashed"
           )
       } else {
@@ -457,24 +469,23 @@ plot_magma <- plot_gp
 #'
 #' @examples
 #' TRUE
-plot_samples <- function(pred = NULL,
-                         samples = NULL,
-                         nb_samples = 50,
-                         x_input = NULL,
-                         plot_mean = TRUE,
-                         alpha_samples = 0.3
-                         ) {
-
+plot_samples <- function(
+  pred = NULL,
+  samples = NULL,
+  nb_samples = 50,
+  x_input = NULL,
+  plot_mean = TRUE,
+  alpha_samples = 0.3
+) {
   ## Check whether 'samples' or 'pred' exist
-  if(is.null(samples) & is.null(pred) ){
-      stop("Either 'sample' or 'pred' is needed as an argument.")
+  if (is.null(samples) & is.null(pred)) {
+    stop("Either 'sample' or 'pred' is needed as an argument.")
   }
 
   ## If provided, check format of 'pred' and extract the mixture prediction
-  if(!is.null(pred)){
-
+  if (!is.null(pred)) {
     ## Check 'pred' format
-    if (!(is.list(pred) & ('cov' %in% names(pred))) ) {
+    if (!(is.list(pred) & ('cov' %in% names(pred)))) {
       stop(
         "The 'pred' argument should be a list containing 'pred' and 'cov' ",
         "elements. Consider re-running the prediction function using the ",
@@ -483,19 +494,16 @@ plot_samples <- function(pred = NULL,
     }
 
     ## Check whether 'pred' is a GP/Magma or a MagmaClust prediction
-    if ('mixture_pred' %in% names(pred)){
-
+    if ('mixture_pred' %in% names(pred)) {
       ## If 'samples' is not provided, draw new samples
-      if(is.null(samples)){
+      if (is.null(samples)) {
         samples = sample_magmaclust(pred_clust = pred, nb_samples = nb_samples)
       }
 
       mean_pred = pred$mixture_pred
-
     } else {
-
       ## If 'samples' is not provided, draw new samples
-      if(is.null(samples)){
+      if (is.null(samples)) {
         samples = sample_gp(pred_gp = pred, nb_samples = nb_samples)
       }
 
@@ -515,7 +523,7 @@ plot_samples <- function(pred = NULL,
     ## Extract only one sample when displaying in 2D
     samples <- samples %>%
       dplyr::filter(.data$Sample == unique(samples$Sample)[1]) %>%
-      dplyr::select(- .data$Sample)
+      dplyr::select(-.data$Sample)
 
     gg <- ggplot2::ggplot() +
       ggplot2::geom_raster(
@@ -528,7 +536,6 @@ plot_samples <- function(pred = NULL,
         interpolate = TRUE
       ) +
       ggplot2::scale_fill_distiller(palette = "RdPu", trans = "reverse")
-
   } else if (ncol(inputs) == 1) {
     gg <- ggplot2::ggplot() +
       ggplot2::geom_line(
@@ -543,17 +550,17 @@ plot_samples <- function(pred = NULL,
       ) +
       ggplot2::guides(group = "none")
 
-    if(plot_mean){
-      if(is.null(pred)){
+    if (plot_mean) {
+      if (is.null(pred)) {
         warning("The 'pred' argument is needed to display the mean prediction.")
       } else {
-        gg = gg + ggplot2::geom_line(
-          data = mean_pred,
-          ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Mean),
-          color = "#DB15C1"
-        )
+        gg = gg +
+          ggplot2::geom_line(
+            data = mean_pred,
+            ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Mean),
+            color = "#DB15C1"
+          )
       }
-
     }
   } else {
     stop(
@@ -624,20 +631,22 @@ plot_samples <- function(pred = NULL,
 #'
 #' @examples
 #' TRUE
-plot_gif <- function(pred_gp,
-                     x_input = NULL,
-                     data = NULL,
-                     data_train = NULL,
-                     prior_mean = NULL,
-                     y_grid = NULL,
-                     heatmap = FALSE,
-                     prob_CI = 0.95,
-                     size_data = 3,
-                     size_data_train = 1,
-                     alpha_data_train = 0.5,
-                     export_gif = FALSE,
-                     path = "gif_gp.gif",
-                     ...) {
+plot_gif <- function(
+  pred_gp,
+  x_input = NULL,
+  data = NULL,
+  data_train = NULL,
+  prior_mean = NULL,
+  y_grid = NULL,
+  heatmap = FALSE,
+  prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5,
+  export_gif = FALSE,
+  path = "gif_gp.gif",
+  ...
+) {
   ## If 'heatmap' is TRUE, a grid of values on the y-axis is define
   if (heatmap) {
     if (is.null(y_grid)) {
@@ -777,25 +786,25 @@ plot_gif <- function(pred_gp,
 #'
 #' @examples
 #' TRUE
-plot_magmaclust <- function(pred_clust,
-                            cluster = "all",
-                            x_input = NULL,
-                            data = NULL,
-                            data_train = NULL,
-                            col_clust = FALSE,
-                            prior_mean = NULL,
-                            y_grid = NULL,
-                            heatmap = FALSE,
-                            samples = FALSE,
-                            nb_samples = 50,
-                            plot_mean = TRUE,
-                            alpha_samples = 0.3,
-                            prob_CI = 0.95,
-                            size_data = 3,
-                            size_data_train = 1,
-                            alpha_data_train = 0.5
-                            ) {
-
+plot_magmaclust <- function(
+  pred_clust,
+  cluster = "all",
+  x_input = NULL,
+  data = NULL,
+  data_train = NULL,
+  col_clust = FALSE,
+  prior_mean = NULL,
+  y_grid = NULL,
+  heatmap = FALSE,
+  samples = FALSE,
+  nb_samples = 50,
+  plot_mean = TRUE,
+  alpha_samples = 0.3,
+  prob_CI = 0.95,
+  size_data = 3,
+  size_data_train = 1,
+  alpha_data_train = 0.5
+) {
   ## Check prob_CI format
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
@@ -830,7 +839,9 @@ plot_magmaclust <- function(pred_clust,
     if (round(max_clust$Proba[1], 3) == 1) {
       cluster <- max_clust$Cluster
       cat(
-        "The mixture probability of the cluster", cluster, "is 1. Therefore,",
+        "The mixture probability of the cluster",
+        cluster,
+        "is 1. Therefore,",
         "the predictive distribution is Gaussian and the associated",
         "credible interval can be displayed. \n\n"
       )
@@ -879,7 +890,7 @@ plot_magmaclust <- function(pred_clust,
     }
   }
 
-  if(samples) {
+  if (samples) {
     ## Display samples drawn from the posterior mixture of GPs
     gg <- plot_samples(
       pred = pred_clust,
@@ -887,36 +898,37 @@ plot_magmaclust <- function(pred_clust,
       x_input = x_input,
       plot_mean = plot_mean,
       alpha_samples = alpha_samples
-      )
+    )
 
     ## Display the observed data if provided
     if (!is.null(data)) {
       ## Check dimension of the inputs
       if (ncol(inputs) == 2) {
         ## Display labels if 2-D
-        gg <- gg + ggplot2::geom_label(
-          data = data,
-          ggplot2::aes(
-            x = .data[[names(inputs)[1]]],
-            y = .data[[names(inputs)[2]]],
-            label = .data$Output,
-            fill = .data$Output
-          ),
-          size = 3
-        )
-      } else if (ncol(inputs) == 1){
+        gg <- gg +
+          ggplot2::geom_label(
+            data = data,
+            ggplot2::aes(
+              x = .data[[names(inputs)[1]]],
+              y = .data[[names(inputs)[2]]],
+              label = .data$Output,
+              fill = .data$Output
+            ),
+            size = 3
+          )
+      } else if (ncol(inputs) == 1) {
         ## Display points if 1-D
-        gg <- gg + ggplot2::geom_point(
-          data = data,
-          ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Output),
-          size = size_data,
-          shape = 20
-        )
+        gg <- gg +
+          ggplot2::geom_point(
+            data = data,
+            ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Output),
+            size = size_data,
+            shape = 20
+          )
       }
     }
     ## Define the adequate title
     gtitle <- paste0("Samples from a mixture of GPs")
-
   } else if (all_clust) {
     ## GP visualisation without Credible Interval
     gg <- plot_gp(
@@ -931,7 +943,6 @@ plot_magmaclust <- function(pred_clust,
 
     ## Define the adequate title
     gtitle <- paste0("Mixture of GP predictions")
-
   } else {
     ## Classic GP visualisation for cluster-specific predictions
     gg <- plot_gp(
@@ -968,7 +979,8 @@ plot_magmaclust <- function(pred_clust,
             data = data_train,
             ggplot2::aes(
               x = .data[[names(inputs)[1]]],
-              y = .data$Output, col = .data$Cluster
+              y = .data$Output,
+              col = .data$Cluster
             ),
             size = size_data_train,
             alpha = alpha_data_train
@@ -980,18 +992,19 @@ plot_magmaclust <- function(pred_clust,
           data = data_train,
           ggplot2::aes(
             x = .data[[names(inputs)[1]]],
-            y = .data$Output, fill = .data$ID
+            y = .data$Output,
+            fill = .data$ID
           ),
           shape = 21,
           size = size_data_train,
           alpha = alpha_data_train
-        ) + ggplot2::guides(fill = "none")
+        ) +
+        ggplot2::guides(fill = "none")
     }
   }
 
   ## Display the prior mean process if provided
   if (!is.null(prior_mean)) {
-
     ## Extract 'mean' if the user provides the full 'hyperpost'
     ## Bind the tibbles of hyper-posterior mean processes
     mean_k <- prior_mean %>% dplyr::bind_rows(.id = "Cluster")
@@ -1010,7 +1023,9 @@ plot_magmaclust <- function(pred_clust,
         )
     } else {
       warning(
-        "The ", names(inputs)[1], " column does not exist in the ",
+        "The ",
+        names(inputs)[1],
+        " column does not exist in the ",
         "'prior_mean' argument. The mean function cannot be displayed."
       )
     }

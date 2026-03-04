@@ -22,7 +22,7 @@
 #' @examples
 #' TRUE
 simu_indiv_se <- function(ID, input, mean, v, l, sigma) {
-  if(is.data.frame(input)){
+  if (is.data.frame(input)) {
     db <- tibble::tibble(
       "ID" = ID,
       input,
@@ -35,12 +35,13 @@ simu_indiv_se <- function(ID, input, mean, v, l, sigma) {
           tibble::tibble(se_variance = v, se_lengthscale = l)
         ) +
           diag(sigma, length(input$Reference), length(input$Reference))
-      ) %>% as.vector(),
+      ) %>%
+        as.vector(),
       "se_variance" = v,
       "se_lengthscale" = l,
       "noise" = sigma
     )
-  }else{
+  } else {
     db <- tibble::tibble(
       "ID" = ID,
       "Input" = input,
@@ -53,7 +54,8 @@ simu_indiv_se <- function(ID, input, mean, v, l, sigma) {
           tibble::tibble(se_variance = v, se_lengthscale = l)
         ) +
           diag(sigma, length(input), length(input))
-      ) %>% as.vector(),
+      ) %>%
+        as.vector(),
       "se_variance" = v,
       "se_lengthscale" = l,
       "noise" = sigma
@@ -143,126 +145,135 @@ draw <- function(int) {
 #'
 #' ## Generate a dataset with an additional column indicating the true clusters
 #' data = simu_db(K = 3, add_clust = TRUE)
-simu_db <- function(M = 10,
-                    N = 10,
-                    K = 1,
-                    covariate = FALSE,
-                    grid = seq(0, 10, 0.05),
-                    grid_cov = seq(0, 10, 0.5),
-                    common_input = TRUE,
-                    common_hp = TRUE,
-                    add_hp = FALSE,
-                    add_clust = FALSE,
-                    int_mu_v = c(4, 5),
-                    int_mu_l = c(0, 1),
-                    int_i_v = c(1, 2),
-                    int_i_l = c(0, 1),
-                    int_i_sigma = c(0, 0.2),
-                    lambda_int = c(30,40),
-                    m_int = c(0,10),
-                    lengthscale_int = c(30, 40),
-                    m0_slope = c(-5, 5),
-                    m0_intercept = c(-50, 50)) {
-  if(covariate){
-    exponential_mean <- function(x, y, lambda, m1, m2, lengthscale){
-      return (lambda * base::exp(-((x-m1)^2 + (y-m2)^2)/lengthscale))
+simu_db <- function(
+  M = 10,
+  N = 10,
+  K = 1,
+  covariate = FALSE,
+  grid = seq(0, 10, 0.05),
+  grid_cov = seq(0, 10, 0.5),
+  common_input = TRUE,
+  common_hp = TRUE,
+  add_hp = FALSE,
+  add_clust = FALSE,
+  int_mu_v = c(4, 5),
+  int_mu_l = c(0, 1),
+  int_i_v = c(1, 2),
+  int_i_l = c(0, 1),
+  int_i_sigma = c(0, 0.2),
+  lambda_int = c(30, 40),
+  m_int = c(0, 10),
+  lengthscale_int = c(30, 40),
+  m0_slope = c(-5, 5),
+  m0_intercept = c(-50, 50)
+) {
+  if (covariate) {
+    exponential_mean <- function(x, y, lambda, m1, m2, lengthscale) {
+      return(lambda * base::exp(-((x - m1)^2 + (y - m2)^2) / lengthscale))
     }
     t_0_tibble <- tidyr::expand_grid(Input = grid, Covariate = grid_cov) %>%
-        purrr::modify(signif) %>%
-        tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
-        dplyr::arrange(.data$Reference)
+      purrr::modify(signif) %>%
+      tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
+      dplyr::arrange(.data$Reference)
 
     t_0 <- t_0_tibble %>% dplyr::pull(.data$Reference)
 
     if (common_input) {
-        t_i_input <- sample(grid, N, replace = F)
-        t_i_covariate <- sample(grid_cov, N, replace = F)
-        t_i_tibble <- tibble::tibble(Input = t_i_input,
-                                     Covariate = t_i_covariate) %>%
-          purrr::modify(signif) %>%
-          tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
-          dplyr::arrange(.data$Reference)
+      t_i_input <- sample(grid, N, replace = F)
+      t_i_covariate <- sample(grid_cov, N, replace = F)
+      t_i_tibble <- tibble::tibble(
+        Input = t_i_input,
+        Covariate = t_i_covariate
+      ) %>%
+        purrr::modify(signif) %>%
+        tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
+        dplyr::arrange(.data$Reference)
 
       t_i <- t_i_tibble %>% dplyr::pull(.data$Reference)
-
     }
 
     floop_k <- function(k) {
-
       m_0 <- tibble::tibble(
         Input = t_0_tibble$Input,
-        Covariate = t_0_tibble$Covariate) %>%
+        Covariate = t_0_tibble$Covariate
+      ) %>%
         purrr::modify(signif) %>%
         tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
-        dplyr::mutate(Output =  exponential_mean(.data$Input,
-                                          .data$Covariate,
-                                          lambda = draw(lambda_int),
-                                          m1 = draw(m_int),
-                                          m2 = draw(m_int),
-                                          lengthscale = draw(lengthscale_int)))
+        dplyr::mutate(
+          Output = exponential_mean(
+            .data$Input,
+            .data$Covariate,
+            lambda = draw(lambda_int),
+            m1 = draw(m_int),
+            m2 = draw(m_int),
+            lengthscale = draw(lengthscale_int)
+          )
+        )
 
-        if (common_hp) {
+      if (common_hp) {
+        i_v <- draw(int_i_v)
+        i_l <- draw(int_i_l)
+        i_sigma <- draw(int_i_sigma)
+      }
+
+      floop_i <- function(i, k) {
+        if (!common_input) {
+          t_i_input <- sample(grid, N, replace = F)
+          t_i_covariate <- sample(grid_cov, N, replace = F)
+          t_i_tibble <- tibble::tibble(
+            Input = t_i_input,
+            Covariate = t_i_covariate
+          ) %>%
+            purrr::modify(signif) %>%
+            tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
+            dplyr::arrange(.data$Reference)
+
+          t_i <- t_i_tibble %>% dplyr::pull(.data$Reference)
+        }
+        if (!common_hp) {
           i_v <- draw(int_i_v)
           i_l <- draw(int_i_l)
           i_sigma <- draw(int_i_sigma)
         }
+        mean_i <- m_0 %>%
+          dplyr::filter(.data$Reference %in% t_i) %>%
+          dplyr::pull(.data$Output)
 
-        floop_i <- function(i, k) {
-          if (!common_input) {
-            t_i_input <- sample(grid, N, replace = F)
-            t_i_covariate <- sample(grid_cov, N, replace = F)
-            t_i_tibble <- tibble::tibble(Input = t_i_input,
-                                         Covariate = t_i_covariate) %>%
-              purrr::modify(signif) %>%
-              tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
-              dplyr::arrange(.data$Reference)
-
-            t_i <- t_i_tibble %>% dplyr::pull(.data$Reference)
-          }
-          if (!common_hp) {
-            i_v <- draw(int_i_v)
-            i_l <- draw(int_i_l)
-            i_sigma <- draw(int_i_sigma)
-          }
-          mean_i <- m_0 %>%
-            dplyr::filter(.data$Reference %in% t_i) %>%
-            dplyr::pull(.data$Output)
-
-          if (K > 1) {
-            ID <- paste0("ID", i, "-Clust", k)
-          } else {
-            ID <- as.character(i)
-          }
-
-          simu_indiv_se(
-            ID = ID,
-            input = t_i_tibble,
-            mean = mean_i,
-            v = i_v,
-            l = i_l,
-            sigma = i_sigma
-          ) %>%
-            return()
+        if (K > 1) {
+          ID <- paste0("ID", i, "-Clust", k)
+        } else {
+          ID <- as.character(i)
         }
 
-        db <- sapply(seq_len(M), floop_i, k = k,simplify = F, USE.NAMES = T) %>%
-          dplyr::bind_rows() %>%
-          dplyr::select(-.data$Reference)
-        if (!add_hp) {
-          db <- db %>%
-            dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
-        }
-
-        if (add_clust) {
-          db <- db %>% dplyr::mutate("Cluster" = k)
-        }
-        return(db)
+        simu_indiv_se(
+          ID = ID,
+          input = t_i_tibble,
+          mean = mean_i,
+          v = i_v,
+          l = i_l,
+          sigma = i_sigma
+        ) %>%
+          return()
       }
 
-      lapply(seq_len(K), floop_k) %>%
+      db <- sapply(seq_len(M), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
         dplyr::bind_rows() %>%
-        return()
-  }else{
+        dplyr::select(-.data$Reference)
+      if (!add_hp) {
+        db <- db %>%
+          dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
+      }
+
+      if (add_clust) {
+        db <- db %>% dplyr::mutate("Cluster" = k)
+      }
+      return(db)
+    }
+
+    lapply(seq_len(K), floop_k) %>%
+      dplyr::bind_rows() %>%
+      return()
+  } else {
     if (common_input) {
       t_i <- sample(grid, N, replace = F) %>% sort()
     }

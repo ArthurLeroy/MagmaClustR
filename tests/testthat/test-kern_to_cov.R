@@ -3,8 +3,7 @@ test_that("kern_to_cov() works for scalar inputs", {
   input <- c(2, 3, 4)
 
   res <- matrix(NA, ncol = 3, nrow = 3)
-  for (i in 1:3)
-  {
+  for (i in 1:3) {
     for (j in 1:3) {
       res[i, j] <- se_kernel(input[i], input[j], hp)
     }
@@ -21,14 +20,13 @@ test_that("kern_to_cov() works for vector inputs", {
   input <- data.frame(Input = c(1, 2, 3), Cov1 = c(2, 3, 4))
 
   res <- matrix(NA, ncol = 3, nrow = 3)
-  for (i in 1:3)
-  {
+  for (i in 1:3) {
     for (j in 1:3) {
       res[i, j] <- se_kernel(input[i, ], input[j, ], hp)
     }
   }
 
-  ref = paste(input$Input, Cov1 = input$Cov1, sep=":")
+  ref = paste(input$Input, Cov1 = input$Cov1, sep = ":")
   res <- res %>%
     `rownames<-`(ref) %>%
     `colnames<-`(ref)
@@ -57,10 +55,16 @@ test_that("1D-matrix and vector work the same", {
 
 test_that("dimension names are correct", {
   hp <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
-  df <- data.frame(Input = c(5, 6, 7), Cov1 = c(2, 3, 4),
-                   Reference = c('5:2', '6:3', '7:4'))
-  df2 <- data.frame(Cov1 = c(2, 3, 4), Reference = c('5:2', '6:3', '7:4'),
-                    Input = c(5, 6, 7))
+  df <- data.frame(
+    Input = c(5, 6, 7),
+    Cov1 = c(2, 3, 4),
+    Reference = c('5:2', '6:3', '7:4')
+  )
+  df2 <- data.frame(
+    Cov1 = c(2, 3, 4),
+    Reference = c('5:2', '6:3', '7:4'),
+    Input = c(5, 6, 7)
+  )
   df3 <- data.frame(c(5, 6, 7), c(2, 3, 4))
   df4 <- data.frame(fu = c(5, 6, 7), blob = c(2, 3, 4))
 
@@ -75,7 +79,8 @@ test_that("dimension names are correct", {
 test_that("kern_to_cov() works for custom kernels", {
   hp_se <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
   hp_perio <- tibble::tibble(
-    perio_variance = 2, perio_lengthscale = 1,
+    perio_variance = 2,
+    perio_lengthscale = 1,
     period = 1
   )
   hp_rq <- tibble::tibble(rq_variance = 2, rq_lengthscale = 1, rq_scale = 1)
@@ -92,7 +97,8 @@ test_that("kern_to_cov() works for custom kernels", {
 test_that("kern_to_cov() works for derivative matrices", {
   hp_se <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
   hp_perio <- tibble::tibble(
-    perio_variance = 2, perio_lengthscale = 1,
+    perio_variance = 2,
+    perio_lengthscale = 1,
     period = 1
   )
   hp_rq <- tibble::tibble(rq_variance = 2, rq_lengthscale = 1, rq_scale = 1)
@@ -112,7 +118,8 @@ test_that("kern_to_cov() works for derivative matrices", {
 test_that("kern_to_cov() works for compound kernels", {
   hp_se <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
   hp_perio <- tibble::tibble(
-    perio_variance = 2, perio_lengthscale = 1,
+    perio_variance = 2,
+    perio_lengthscale = 1,
     period = 1
   )
   hp_rq <- tibble::tibble(rq_variance = 2, rq_lengthscale = 1, rq_scale = 1)
@@ -122,25 +129,32 @@ test_that("kern_to_cov() works for compound kernels", {
   df <- data.frame(Input = c(5, 6, 7), Cov1 = c(2, 3, 4))
 
   kern_to_cov(df, "SE + RQ + PERIO", hp) %>%
-    expect_equal(kern_to_cov(df, "SE", hp_se) +
-      kern_to_cov(df, "RQ", hp_rq) +
-      kern_to_cov(df, "PERIO", hp_perio))
+    expect_equal(
+      kern_to_cov(df, "SE", hp_se) +
+        kern_to_cov(df, "RQ", hp_rq) +
+        kern_to_cov(df, "PERIO", hp_perio)
+    )
 
   kern_to_cov(df, "SE * RQ * PERIO", hp) %>%
-    expect_equal(kern_to_cov(df, "SE", hp_se) *
-      kern_to_cov(df, "RQ", hp_rq) *
-      kern_to_cov(df, "PERIO", hp_perio))
+    expect_equal(
+      kern_to_cov(df, "SE", hp_se) *
+        kern_to_cov(df, "RQ", hp_rq) *
+        kern_to_cov(df, "PERIO", hp_perio)
+    )
 
   kern_to_cov(df, "SE * RQ + PERIO", hp) %>%
-    expect_equal(kern_to_cov(df, "SE", hp_se) *
-      kern_to_cov(df, "RQ", hp_rq) +
-      kern_to_cov(df, "PERIO", hp_perio))
+    expect_equal(
+      kern_to_cov(df, "SE", hp_se) *
+        kern_to_cov(df, "RQ", hp_rq) +
+        kern_to_cov(df, "PERIO", hp_perio)
+    )
 })
 
 test_that("kern_to_cov() works for compound kernels' derivatives", {
   hp_se <- tibble::tibble(se_variance = 2, se_lengthscale = 1)
   hp_perio <- tibble::tibble(
-    perio_variance = 2, perio_lengthscale = 1,
+    perio_variance = 2,
+    perio_lengthscale = 1,
     period = 1
   )
   hp_rq <- tibble::tibble(rq_variance = 2, rq_lengthscale = 1, rq_scale = 1)
@@ -153,15 +167,19 @@ test_that("kern_to_cov() works for compound kernels' derivatives", {
     expect_equal(kern_to_cov(df, "SE", hp_se, "se_variance"))
 
   kern_to_cov(df, "SE * RQ * PERIO * LIN", hp, "rq_lengthscale") %>%
-    expect_equal(kern_to_cov(df, "SE", hp_se, ) *
-      kern_to_cov(df, "RQ", hp_rq, "rq_lengthscale") *
-      kern_to_cov(df, "PERIO", hp_perio) *
-      kern_to_cov(df, "LIN", hp_lin))
+    expect_equal(
+      kern_to_cov(df, "SE", hp_se, ) *
+        kern_to_cov(df, "RQ", hp_rq, "rq_lengthscale") *
+        kern_to_cov(df, "PERIO", hp_perio) *
+        kern_to_cov(df, "LIN", hp_lin)
+    )
 
   kern_to_cov(df, "SE * RQ + PERIO", hp, "period") %>%
     expect_equal(kern_to_cov(df, "PERIO", hp_perio, "period"))
 
   kern_to_cov(df, "LIN", hp, "lin_offset") %>%
-    expect_equal(kern_to_cov(df, "LIN", hp, NULL) -
-      kern_to_cov(df, "LIN", hp, "lin_slope"))
+    expect_equal(
+      kern_to_cov(df, "LIN", hp, NULL) -
+        kern_to_cov(df, "LIN", hp, "lin_slope")
+    )
 })

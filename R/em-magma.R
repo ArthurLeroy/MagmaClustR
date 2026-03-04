@@ -22,13 +22,7 @@
 #'
 #' @examples
 #' TRUE
-e_step <- function(db,
-                   m_0,
-                   kern_0,
-                   kern_i,
-                   hp_0,
-                   hp_i,
-                   pen_diag) {
+e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- db %>%
     dplyr::select(-.data$ID, -.data$Output) %>%
@@ -43,8 +37,7 @@ e_step <- function(db,
 
   ## Update the posterior inverse covariance ##
   post_inv <- inv_0
-  for (inv_i in list_inv_i)
-  {
+  for (inv_i in list_inv_i) {
     ## Collect the input's common indices between mean and individual processes
     co_input <- intersect(row.names(inv_i), row.names(post_inv))
     ## Sum the common inverse covariance's terms
@@ -54,18 +47,19 @@ e_step <- function(db,
 
   post_cov <- post_inv %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
-    `rownames<-`(all_inputs %>%
-                   dplyr::pull(.data$Reference)
+    `rownames<-`(
+      all_inputs %>%
+        dplyr::pull(.data$Reference)
     ) %>%
-    `colnames<-`(all_inputs %>%
-                   dplyr::pull(.data$Reference)
+    `colnames<-`(
+      all_inputs %>%
+        dplyr::pull(.data$Reference)
     )
   ##############################################
 
   ## Update the posterior mean ##
   weighted_0 <- inv_0 %*% m_0
-  for (i in names(list_inv_i))
-  {
+  for (i in names(list_inv_i)) {
     ## Compute the weighted mean for the i-th individual
     weighted_i <- list_inv_i[[i]] %*% list_output_i[[i]]
     ## Collect the input's common indices between mean and individual processes
@@ -79,9 +73,7 @@ e_step <- function(db,
   ##############################################
 
   ## Format the mean parameter of the hyper-posterior distribution
-  tib_mean <- tibble::tibble(all_inputs,
-                             "Output" = post_mean
-  )
+  tib_mean <- tibble::tibble(all_inputs, "Output" = post_mean)
   list(
     "mean" = tib_mean,
     "cov" = post_cov
@@ -124,17 +116,18 @@ e_step <- function(db,
 #'
 #' @examples
 #' TRUE
-m_step <- function(db,
-                   m_0,
-                   kern_0,
-                   kern_i,
-                   old_hp_0,
-                   old_hp_i,
-                   post_mean,
-                   post_cov,
-                   common_hp,
-                   pen_diag) {
-
+m_step <- function(
+  db,
+  m_0,
+  kern_0,
+  kern_i,
+  old_hp_0,
+  old_hp_i,
+  post_mean,
+  post_cov,
+  common_hp,
+  pen_diag
+) {
   list_ID <- unique(db$ID)
   list_hp_0 <- old_hp_0 %>% names()
   list_hp_i <- old_hp_i %>%
@@ -230,10 +223,7 @@ m_step <- function(db,
         tibble::as_tibble_row() %>%
         return()
     }
-    new_hp_i <- sapply(list_ID,
-                       floop,
-                       simplify = FALSE,
-                       USE.NAMES = TRUE) %>%
+    new_hp_i <- sapply(list_ID, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
       tibble::enframe(name = "ID") %>%
       tidyr::unnest(cols = .data$value)
   }

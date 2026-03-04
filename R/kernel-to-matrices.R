@@ -49,11 +49,7 @@
 #'
 #' @examples
 #' TRUE
-kern_to_cov <- function(input,
-                        kern = "SE",
-                        hp,
-                        deriv = NULL,
-                        input_2 = NULL) {
+kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
   ## If a second set of inputs is not provided, only 'input' against itself
   if (input_2 %>% is.null()) {
     input_2 <- input
@@ -85,8 +81,7 @@ kern_to_cov <- function(input,
       true_deriv <- F
       past_true_deriv <- F
 
-      for (i in 2:(length(str) - 1))
-      {
+      for (i in 2:(length(str) - 1)) {
         s_m <- str[i - 1]
         s <- str[i]
         s_p <- str[i + 1]
@@ -122,15 +117,23 @@ kern_to_cov <- function(input,
               }
             } else if (s == "PERIO") {
               temp_kern <- perio_kernel
-              if (any(deriv %in%
-                      c("perio_variance", "perio_lengthscale", "period"))) {
+              if (
+                any(
+                  deriv %in%
+                    c("perio_variance", "perio_lengthscale", "period")
+                )
+              ) {
                 true_deriv <- T
                 past_true_deriv <- T
               }
             } else if (s == "RQ") {
               temp_kern <- rq_kernel
-              if (any(deriv %in%
-                      c("rq_variance", "rq_lengthscale", "rq_scale"))) {
+              if (
+                any(
+                  deriv %in%
+                    c("rq_variance", "rq_lengthscale", "rq_scale")
+                )
+              ) {
                 true_deriv <- T
                 past_true_deriv <- T
               }
@@ -249,8 +252,9 @@ kern_to_cov <- function(input,
   } else if (is.function(kern)) {
     kernel <- kern
   } else {
-    stop("Error in the 'kern' argument: please use a valid character string, or",
-         "provide a valid custom kernel function"
+    stop(
+      "Error in the 'kern' argument: please use a valid character string, or",
+      "provide a valid custom kernel function"
     )
   }
 
@@ -261,8 +265,10 @@ kern_to_cov <- function(input,
     reference <- as.character(input)
     reference_2 <- as.character(input_2)
   } else {
-    if (("Reference" %in% colnames(input)) &
-        ("Reference" %in% colnames(input_2))) {
+    if (
+      ("Reference" %in% colnames(input)) &
+        ("Reference" %in% colnames(input_2))
+    ) {
       ## If the Reference column exists, store it to name rows and columns
       reference <- input$Reference %>% as.character()
 
@@ -270,9 +276,7 @@ kern_to_cov <- function(input,
       input <- input %>% dplyr::select(-.data$Reference)
 
       ## Format inputs to be used in a subsequent 'outer()' function
-      list_input <- split(t(input),
-                          rep(1:nrow(input),each = ncol(input))
-      )
+      list_input <- split(t(input), rep(1:nrow(input), each = ncol(input)))
 
       ## If the Reference column exists, store it to name rows and columns
       reference_2 <- input_2$Reference %>% as.character()
@@ -281,8 +285,9 @@ kern_to_cov <- function(input,
       input_2 <- input_2 %>% dplyr::select(-.data$Reference)
 
       ## Format inputs to be used in a subsequent 'outer()' function
-      list_input_2 <- split(t(input_2),
-                            rep(1:nrow(input_2), each = ncol(input_2))
+      list_input_2 <- split(
+        t(input_2),
+        rep(1:nrow(input_2), each = ncol(input_2))
       )
     } else {
       ## Create the Reference column if absent
@@ -290,7 +295,8 @@ kern_to_cov <- function(input,
         as.data.frame(input),
         'Reference',
         tidyselect::everything(),
-        sep = ':') %>%
+        sep = ':'
+      ) %>%
         dplyr::pull(.data$Reference) %>%
         as.character()
 
@@ -298,16 +304,16 @@ kern_to_cov <- function(input,
         as.data.frame(input_2),
         'Reference',
         tidyselect::everything(),
-        sep = ':') %>%
+        sep = ':'
+      ) %>%
         dplyr::pull(.data$Reference) %>%
         as.character()
 
       ## Format inputs to be used in a subsequent 'outer()' function
-      list_input <- split(t(input),
-                          rep(1:nrow(input), each = ncol(input))
-      )
-      list_input_2 <- split(t(input_2),
-                            rep(1:nrow(input_2), each = ncol(input_2))
+      list_input <- split(t(input), rep(1:nrow(input), each = ncol(input)))
+      list_input_2 <- split(
+        t(input_2),
+        rep(1:nrow(input_2), each = ncol(input_2))
       )
     }
   }
@@ -315,10 +321,7 @@ kern_to_cov <- function(input,
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
     if (deriv == "noise") {
-      mat <- cpp_noise(as.matrix(input),
-                       as.matrix(input_2),
-                       hp[["noise"]]
-      ) %>%
+      mat <- cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]]) %>%
         `rownames<-`(reference) %>%
         `colnames<-`(reference_2)
       return(mat)
@@ -336,9 +339,11 @@ kern_to_cov <- function(input,
         deriv = deriv,
         vectorized = T
       )
-    } else { ## Compute the matrix element by element
+    } else {
+      ## Compute the matrix element by element
       mat <- outer(
-        list_input, list_input_2,
+        list_input,
+        list_input_2,
         Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))
       )
     }
@@ -346,9 +351,11 @@ kern_to_cov <- function(input,
     ## Detect whether speed-up vectorised computation is provided
     if ("vectorized" %in% methods::formalArgs(kernel)) {
       mat <- kernel(x = input, y = input_2, hp = hp, vectorized = TRUE)
-    } else { ## Compute the matrix element by element
+    } else {
+      ## Compute the matrix element by element
       mat <- outer(
-        list_input, list_input_2,
+        list_input,
+        list_input_2,
         Vectorize(function(x, y) kernel(x, y, hp))
       )
     }
@@ -414,7 +421,6 @@ kern_to_cov <- function(input,
 #' @examples
 #' TRUE
 kern_to_inv <- function(input, kern, hp, pen_diag = 1e-10, deriv = NULL) {
-
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
   reference <- row.names(mat_cov)
 
@@ -531,16 +537,16 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
 #'
 #' @examples
 #' TRUE
-chol_inv_jitter <- function(mat, pen_diag){
+chol_inv_jitter <- function(mat, pen_diag) {
   ## Add a jitter term to the diagonal
   diag(mat) <- diag(mat) + pen_diag
   ## Recursive pattern for the adaptive jitter (if error, increase jitter)
   tryCatch(
     mat %>% chol() %>% chol2inv(),
     error = function(e) {
-      chol_inv_jitter(mat, 10*pen_diag)
-      }
-    )
+      chol_inv_jitter(mat, 10 * pen_diag)
+    }
+  )
 }
 
 #' Round a matrix to make if symmetric
@@ -558,17 +564,15 @@ chol_inv_jitter <- function(mat, pen_diag){
 #'
 #' @examples
 #' TRUE
-check_symmetric <- function(mat, digits = 10){
-
-  if(mat %>% isSymmetric()) {
+check_symmetric <- function(mat, digits = 10) {
+  if (mat %>% isSymmetric()) {
     return(mat)
-  }
-  else {
+  } else {
     ## Round matrix to remove numerical errors and make it symmetric
     mat <- round(x = mat, digits = digits)
 
     ## Recursive loop
-    check_symmetric(mat, digits-1)
+    check_symmetric(mat, digits - 1)
   }
 }
 

@@ -19,13 +19,7 @@
 #'
 #' @examples
 #' TRUE
-gr_GP <- function(hp,
-                  db,
-                  mean,
-                  kern,
-                  post_cov,
-                  pen_diag) {
-
+gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
   output <- db$Output
   ## Extract the reference Input
@@ -72,12 +66,7 @@ gr_GP <- function(hp,
 #'
 #' @examples
 #' TRUE
-gr_GP_mod <- function(hp,
-                      db,
-                      mean,
-                      kern,
-                      post_cov,
-                      pen_diag) {
+gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
   output <- db$Output
   ## Extract the reference Input
@@ -88,7 +77,8 @@ gr_GP_mod <- function(hp,
   inv <- kern_to_inv(inputs, kern, hp, pen_diag)
   ## Compute the term common to all partial derivatives
   prod_inv <- inv %*% (output - mean)
-  common_term <- prod_inv %*% t(prod_inv) +
+  common_term <- prod_inv %*%
+    t(prod_inv) +
     inv %*% (post_cov %*% inv - diag(1, length(input)))
 
   ## Loop over the derivatives of hyper-parameters for computing the gradient
@@ -124,13 +114,7 @@ gr_GP_mod <- function(hp,
 #'
 #' @examples
 #' TRUE
-gr_GP_mod_common_hp <- function(hp,
-                                db,
-                                mean,
-                                kern,
-                                post_cov,
-                                pen_diag) {
-
+gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
   ## Loop over individuals to compute the sum of log-Likelihoods
   funloop <- function(i) {
@@ -151,14 +135,13 @@ gr_GP_mod_common_hp <- function(hp,
       dplyr::filter(.data$Reference %in% input_i) %>%
       dplyr::pull(.data$Output)
     ## Extract the covariance values associated with the i-th specific inputs
-    post_cov_i <- post_cov[as.character(input_i),
-                           as.character(input_i)
-    ]
+    post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
 
     ## Compute the term common to all partial derivatives
     inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
     prod_inv <- inv %*% (output_i - mean_i)
-    common_term <- prod_inv %*% t(prod_inv) +
+    common_term <- prod_inv %*%
+      t(prod_inv) +
       inv %*% (post_cov_i %*% inv - diag(1, length(input_i)))
     ## Loop over the derivatives of hyper-parameters for computing the gradient
     floop <- function(deriv) {
@@ -200,13 +183,15 @@ gr_GP_mod_common_hp <- function(hp,
 #'
 #' @examples
 #' TRUE
-gr_sum_logL_GP_clust <- function(hp,
-                                 db,
-                                 mixture,
-                                 mean,
-                                 kern,
-                                 post_cov,
-                                 pen_diag) {
+gr_sum_logL_GP_clust <- function(
+  hp,
+  db,
+  mixture,
+  mean,
+  kern,
+  post_cov,
+  pen_diag
+) {
   ## Extract the observed (reference) Input
   input_obs <- db %>%
     dplyr::arrange(.data$Reference) %>%

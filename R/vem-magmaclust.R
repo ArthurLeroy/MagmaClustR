@@ -29,19 +29,20 @@
 #'
 #' @examples
 #' TRUE
-ve_step <- function(db,
-                    m_k,
-                    kern_k,
-                    kern_i,
-                    hp_k,
-                    hp_i,
-                    old_mixture,
-                    iter,
-                    pen_diag) {
-
+ve_step <- function(
+  db,
+  m_k,
+  kern_k,
+  kern_i,
+  hp_k,
+  hp_i,
+  old_mixture,
+  iter,
+  pen_diag
+) {
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- db %>%
-    dplyr::select(-.data$ID,-.data$Output) %>%
+    dplyr::select(-.data$ID, -.data$Output) %>%
     unique() %>%
     dplyr::arrange(.data$Reference)
 
@@ -54,9 +55,7 @@ ve_step <- function(db,
     dplyr::pull(.data$prop_mixture, name = .data$ID)
 
   ## Format a sequence of inputs for all clusters
-  t_clust <- tidyr::expand_grid("ID" = names(m_k),
-                                all_inputs
-  )
+  t_clust <- tidyr::expand_grid("ID" = names(m_k), all_inputs)
 
   ## Compute all the inverse covariance matrices
   list_inv_k <- list_kern_to_inv(t_clust, kern_k, hp_k, pen_diag)
@@ -68,15 +67,19 @@ ve_step <- function(db,
   ## Update each mu_k parameters for each cluster ##
   floop <- function(k) {
     post_inv <- list_inv_k[[k]]
+
+    cat("det(inv_k) =", det(post_inv), "\n")
+
     tau_k <- old_mixture %>% dplyr::select(.data$ID, k)
-    for (i in list_inv_i %>% names())
-    {
+    for (i in list_inv_i %>% names()) {
       ## Extract the corresponding mixture probability
       tau_i_k <- tau_k %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(k)
 
       inv_i <- list_inv_i[[i]]
+
+      cat("det(inv_i) =", det(inv_i), "\n")
       ## Collect input's common indices between mean and individual processes
       co_input <- intersect(row.names(inv_i), row.names(post_inv))
       ## Sum the common inverse covariance's terms
@@ -90,10 +93,12 @@ ve_step <- function(db,
       `colnames<-`(all_input) %>%
       return()
   }
-  cov_k <- sapply(tidyselect::all_of(names(m_k)),
-                  floop,
-                  simplify = FALSE,
-                  USE.NAMES = TRUE)
+  cov_k <- sapply(
+    tidyselect::all_of(names(m_k)),
+    floop,
+    simplify = FALSE,
+    USE.NAMES = TRUE
+  )
 
   ## Update the posterior mean for each cluster ##
 
@@ -104,8 +109,7 @@ ve_step <- function(db,
 
     weighted_mean <- prior_inv %*% prior_mean
 
-    for (i in list_inv_i %>% names())
-    {
+    for (i in list_inv_i %>% names()) {
       ## Extract the corresponding mixture probability
       tau_i_k <- tau_k %>%
         dplyr::filter(.data$ID == i) %>%
@@ -121,15 +125,14 @@ ve_step <- function(db,
 
     ## Compute the updated mean parameter
     new_mean <- cov_k[[k]] %*% weighted_mean %>% as.vector()
-    tibble::tibble(all_inputs,
-                   "Output" = new_mean) %>% return()
+    tibble::tibble(all_inputs, "Output" = new_mean) %>% return()
   }
   mean_k <- sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
   ## Update mixture (skip first iteration to avoid bad HP initialisation issues)
-  if(iter == 1){
+  if (iter == 1) {
     mixture <- old_mixture
-  } else{
+  } else {
     mixture <- update_mixture(
       db,
       mean_k,
@@ -163,7 +166,7 @@ ve_step <- function(db,
 #' @param kern_i A kernel used to compute the covariance matrix of individuals
 #'    GP at corresponding timestamps.
 #' @param m_k A named list of prior mean parameters for the K mean GPs.
-#'    Length = 1 or nrow(unique(db$Input))
+#'    Length = nrow(unique(db$Input))
 #' @param common_hp_k A boolean indicating whether hp are common among
 #'    mean GPs (for each mu_k)
 #' @param common_hp_i A boolean indicating whether hp are common among
@@ -188,17 +191,18 @@ ve_step <- function(db,
 #'
 #' @examples
 #' TRUE
-vm_step <- function(db,
-                    old_hp_k,
-                    old_hp_i,
-                    list_mu_param,
-                    kern_k,
-                    kern_i,
-                    m_k,
-                    common_hp_k,
-                    common_hp_i,
-                    pen_diag) {
-
+vm_step <- function(
+  db,
+  old_hp_k,
+  old_hp_i,
+  list_mu_param,
+  kern_k,
+  kern_i,
+  m_k,
+  common_hp_k,
+  common_hp_i,
+  pen_diag
+) {
   list_ID_k <- names(m_k)
   list_ID_i <- unique(db$ID)
 
@@ -226,6 +230,22 @@ vm_step <- function(db,
       gr_clust_multi_GP <- NULL
     }
   }
+
+  # Recompute prior mean parameters for each cluster with the updated mixture probabilities
+  floop <- function(k) {
+
+    ## Mean of the Output values for each individual weighted by cluster membership probabilities
+    list_mu_param$mixture %>%
+      left_join(data, by = 'ID') %>%
+      mutate(new_m_k := (Output * .data[[k]]) / sum(.data[[k]])) %>%
+      pull(new_m_k)  %>%
+      sum() %>% 
+      rep(length(m_k[[k]])) %>%
+      return()
+  }
+  new_m_k <- lapply(list_ID_k, floop) %>%
+    `names<-`(list_ID_k)
+    
 
   ## Check whether hyper-parameters are common to all individuals
   if (common_hp_i) {
@@ -297,7 +317,7 @@ vm_step <- function(db,
       fn = elbo_GP_mod_common_hp_k,
       gr = gr_GP_mod_common_hp_k,
       db = list_mu_param$mean,
-      mean = m_k,
+      mean = new_m_k,
       kern = kern_k,
       post_cov = list_mu_param$cov,
       pen_diag = pen_diag,
@@ -318,7 +338,7 @@ vm_step <- function(db,
       ## Extract the data associated with the k-th cluster
       db_k <- list_mu_param$mean[[k]]
       ## Extract the mean values associated with the k-th specific inputs
-      mean_k <- m_k[[k]]
+      mean_k <- new_m_k[[k]]
       ## Extract the covariance values associated with the k-th specific inputs
       post_cov_k <- list_mu_param$cov[[k]]
 
@@ -345,6 +365,7 @@ vm_step <- function(db,
   }
 
   list(
+    "m_k" = new_m_k,
     "hp_k" = new_hp_k,
     "hp_i" = new_hp_i
   ) %>%
@@ -376,13 +397,15 @@ vm_step <- function(db,
 #'
 #' @examples
 #' TRUE
-update_mixture <- function(db,
-                           mean_k,
-                           cov_k,
-                           hp,
-                           kern,
-                           prop_mixture,
-                           pen_diag) {
+update_mixture <- function(
+  db,
+  mean_k,
+  cov_k,
+  hp,
+  kern,
+  prop_mixture,
+  pen_diag
+) {
   c_i <- 0
   c_k <- 0
   ID_i <- unique(db$ID)
@@ -390,8 +413,7 @@ update_mixture <- function(db,
   mat_elbo <- matrix(NA, nrow = length(ID_k), ncol = length(ID_i))
   vec_prop <- c()
 
-  for (i in ID_i)
-  {
+  for (i in ID_i) {
     c_i <- c_i + 1
     ## Extract the i-th specific Input
     input_i <- db %>%
@@ -405,8 +427,7 @@ update_mixture <- function(db,
       dplyr::filter(.data$ID == i) %>%
       dplyr::select(-.data$ID)
 
-    for (k in ID_k)
-    {
+    for (k in ID_k) {
       c_k <- c_k + 1
 
       ## Create a vector of proportion with the clusters in adequate order

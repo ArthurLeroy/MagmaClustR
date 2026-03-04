@@ -4,8 +4,8 @@ quiet <- function(x) {
   invisible(force(x))
 }
 
-match_closest <- function(x, table, tolerance=Inf, nomatch=NA_integer_) {
-  lIdx <- findInterval(x, table, rightmost.closed=FALSE, all.inside=TRUE)
+match_closest <- function(x, table, tolerance = Inf, nomatch = NA_integer_) {
+  lIdx <- findInterval(x, table, rightmost.closed = FALSE, all.inside = TRUE)
   rIdx <- lIdx + 1L
 
   lIdx[lIdx == 0L] <- 1L

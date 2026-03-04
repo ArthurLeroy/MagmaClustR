@@ -14,15 +14,15 @@
 #' @examples
 #' TRUE
 sample_gp = function(
-    pred_gp,
-    nb_samples = 50){
-
+  pred_gp,
+  nb_samples = 50
+) {
   ## Extract the GP prediction
   pred <- pred_gp$pred
 
   ## Remove 'ID' if present
   if ("ID" %in% names(pred)) {
-    pred = pred %>% dplyr::select(- .data$ID)
+    pred = pred %>% dplyr::select(-.data$ID)
   }
 
   ## Extract parameters and inputs from the prediction
@@ -31,17 +31,21 @@ sample_gp = function(
   cov <- pred_gp$cov
 
   #Draw samples and format the tibble
-  mvtnorm::rmvnorm(n = nb_samples,
-                   mean = mean,
-                   sigma = cov,
-                   checkSymmetry = FALSE) %>%
+  mvtnorm::rmvnorm(
+    n = nb_samples,
+    mean = mean,
+    sigma = cov,
+    checkSymmetry = FALSE
+  ) %>%
     t() %>%
     magrittr::set_colnames(1:nb_samples) %>%
     tibble::as_tibble() %>%
     dplyr::bind_cols(inputs) %>%
-    tidyr::pivot_longer(- names(inputs) ,
-                        names_to= "Sample",
-                        values_to = "Output") %>%
+    tidyr::pivot_longer(
+      -names(inputs),
+      names_to = "Sample",
+      values_to = "Output"
+    ) %>%
     return()
 }
 
@@ -67,9 +71,9 @@ sample_magma <- sample_gp
 #' @examples
 #' TRUE
 sample_magmaclust = function(
-    pred_clust,
-    nb_samples = 50){
-
+  pred_clust,
+  nb_samples = 50
+) {
   ## Extract the vector of membership probabilities
   proba_mixture = pred_clust$mixture[1, -1]
 
@@ -78,40 +82,44 @@ sample_magmaclust = function(
     x = names(proba_mixture),
     size = nb_samples,
     replace = TRUE,
-    prob = proba_mixture)
+    prob = proba_mixture
+  )
 
-  floop = function(k){
+  floop = function(k) {
+    ## Compute the number of samples to draw in each cluster
+    n_k = sum(draw_clust == k)
 
-  ## Compute the number of samples to draw in each cluster
-  n_k = sum(draw_clust == k)
+    if (n_k == 0) {
+      return(NULL)
+    }
 
-  if(n_k == 0){return(NULL)}
+    ## Extract the GP prediction
+    pred <- pred_clust$pred[[k]]
 
-  ## Extract the GP prediction
-  pred <- pred_clust$pred[[k]]
+    ## Remove 'ID' if present
+    if ("ID" %in% names(pred)) {
+      pred = pred %>% dplyr::select(-.data$ID)
+    }
 
-  ## Remove 'ID' if present
-  if ("ID" %in% names(pred)) {
-    pred = pred %>% dplyr::select(- .data$ID)
-  }
+    ## Extract parameters and inputs from the prediction
+    inputs <- pred %>% dplyr::select(-c(.data$Mean, .data$Var))
+    mean <- pred %>% dplyr::pull(.data$Mean)
+    cov <- pred_clust$cov[[k]]
+    weight <- pred_clust$mixture[[k]]
 
-  ## Extract parameters and inputs from the prediction
-  inputs <- pred %>% dplyr::select(-c(.data$Mean, .data$Var))
-  mean <- pred %>% dplyr::pull(.data$Mean)
-  cov <- pred_clust$cov[[k]]
-  weight <- pred_clust$mixture[[k]]
-
-  #Draw samples and format the tibble
-  mvtnorm::rmvnorm(n_k, mean, cov, checkSymmetry = FALSE) %>%
-    t() %>%
-    magrittr::set_colnames(1:n_k) %>%
-    tibble::as_tibble() %>%
-    dplyr::bind_cols(inputs) %>%
-    tidyr::pivot_longer(- names(inputs) ,
-                        names_to= "Sample",
-                        values_to = "Output") %>%
-    dplyr::mutate(Sample = paste0(k, '_', .data$Sample)) %>%
-    return()
+    #Draw samples and format the tibble
+    mvtnorm::rmvnorm(n_k, mean, cov, checkSymmetry = FALSE) %>%
+      t() %>%
+      magrittr::set_colnames(1:n_k) %>%
+      tibble::as_tibble() %>%
+      dplyr::bind_cols(inputs) %>%
+      tidyr::pivot_longer(
+        -names(inputs),
+        names_to = "Sample",
+        values_to = "Output"
+      ) %>%
+      dplyr::mutate(Sample = paste0(k, '_', .data$Sample)) %>%
+      return()
   }
 
   names(pred_clust$pred) %>%

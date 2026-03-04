@@ -15,20 +15,15 @@
 #'
 #' @examples
 #' TRUE
-elbo_clust_multi_GP <- function(hp,
-                                db,
-                                hyperpost,
-                                kern,
-                                pen_diag) {
-
+elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
   names_k <- hyperpost$mean %>% names()
   t_i <- db$Reference
   y_i <- db$Output
   i <- unique(db$ID)
 
-  if("ID" %in% names(db)){
+  if ("ID" %in% names(db)) {
     inputs <- db %>% dplyr::select(-.data$Output, -.data$ID)
-  } else{
+  } else {
     inputs <- db %>% dplyr::select(-.data$Output)
   }
 
@@ -40,8 +35,7 @@ elbo_clust_multi_GP <- function(hp,
   corr1 <- 0
   corr2 <- 0
 
-  for (k in (names_k))
-  {
+  for (k in (names_k)) {
     tau_i_k <- tau_i_k <- hyperpost$mixture %>%
       dplyr::filter(.data$ID == i) %>%
       dplyr::pull(k)
@@ -49,9 +43,11 @@ elbo_clust_multi_GP <- function(hp,
       dplyr::filter(.data$Reference %in% t_i) %>%
       dplyr::pull(.data$Output)
     corr1 <- corr1 + tau_i_k * mean_mu_k
-    corr2 <- corr2 + tau_i_k *
-      (mean_mu_k %*% t(mean_mu_k) +
-         hyperpost$cov[[k]][as.character(t_i), as.character(t_i)])
+    corr2 <- corr2 +
+      tau_i_k *
+        (mean_mu_k %*%
+          t(mean_mu_k) +
+          hyperpost$cov[[k]][as.character(t_i), as.character(t_i)])
   }
 
   (LL_norm - y_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2)) %>% return()
@@ -78,18 +74,12 @@ elbo_clust_multi_GP <- function(hp,
 #'
 #' @examples
 #' TRUE
-elbo_GP_mod_common_hp_k <- function( hp,
-                                     db,
-                                     mean,
-                                     kern,
-                                     post_cov,
-                                     pen_diag) {
-
+elbo_GP_mod_common_hp_k <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_ID_k <- names(db)
 
-  if("ID" %in% names(db)){
+  if ("ID" %in% names(db)) {
     inputs <- db[[1]] %>% dplyr::select(-.data$Output, -.data$ID)
-  } else{
+  } else {
     inputs <- db[[1]] %>% dplyr::select(-.data$Output)
   }
 
@@ -98,8 +88,7 @@ elbo_GP_mod_common_hp_k <- function( hp,
   LL_norm <- 0
   cor_term <- 0
 
-  for (k in list_ID_k)
-  {
+  for (k in list_ID_k) {
     y_k <- db[[k]] %>% dplyr::pull(.data$Output)
 
     LL_norm <- LL_norm - dmnorm(y_k, mean[[k]], inv, log = T)
@@ -126,17 +115,11 @@ elbo_GP_mod_common_hp_k <- function( hp,
 #'
 #' @examples
 #' TRUE
-elbo_clust_multi_GP_common_hp_i <- function(hp,
-                                            db,
-                                            hyperpost,
-                                            kern,
-                                            pen_diag) {
-
+elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
   names_k <- hyperpost$mean %>% names()
 
   sum_i <- 0
-  for (i in unique(db$ID))
-  {
+  for (i in unique(db$ID)) {
     ## Extract the i-th specific reference Input
     input_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
@@ -153,8 +136,7 @@ elbo_clust_multi_GP_common_hp_i <- function(hp,
     corr1 <- 0
     corr2 <- 0
 
-    for (k in (names_k))
-    {
+    for (k in (names_k)) {
       ## Extract the covariance values associated with the i-th specific inputs
       post_cov_i <- hyperpost$cov[[k]][
         as.character(input_i),
@@ -168,8 +150,9 @@ elbo_clust_multi_GP_common_hp_i <- function(hp,
         dplyr::filter(.data$Reference %in% input_i) %>%
         dplyr::pull(.data$Output)
       corr1 <- corr1 + tau_i_k * mean_mu_k
-      corr2 <- corr2 + tau_i_k *
-        (mean_mu_k %*% t(mean_mu_k) + post_cov_i)
+      corr2 <- corr2 +
+        tau_i_k *
+          (mean_mu_k %*% t(mean_mu_k) + post_cov_i)
     }
 
     inv <- kern_to_inv(inputs_i, kern, hp, pen_diag)
@@ -178,7 +161,9 @@ elbo_clust_multi_GP_common_hp_i <- function(hp,
     LL_norm <- -dmnorm(output_i, rep(0, length(output_i)), inv, log = T)
 
     sum_i <- sum_i +
-      LL_norm - output_i %*% inv %*% corr1 + 0.5 * sum(inv * corr2)
+      LL_norm -
+      output_i %*% inv %*% corr1 +
+      0.5 * sum(inv * corr2)
   }
   return(sum_i)
 }
@@ -209,14 +194,16 @@ elbo_clust_multi_GP_common_hp_i <- function(hp,
 #'
 #' @examples
 #' TRUE
-elbo_monitoring_VEM <- function(hp_k,
-                                hp_i,
-                                db,
-                                kern_i,
-                                kern_k,
-                                hyperpost,
-                                m_k,
-                                pen_diag) {
+elbo_monitoring_VEM <- function(
+  hp_k,
+  hp_i,
+  db,
+  kern_i,
+  kern_k,
+  hyperpost,
+  m_k,
+  pen_diag
+) {
   floop <- function(k) {
     logL_GP_mod(
       hp_k[hp_k$ID == k, ],
@@ -266,11 +253,12 @@ elbo_monitoring_VEM <- function(hp_k,
     }
     ## Compute the sum of log-determinant terms using Cholesky decomposition
     ## log(det(A)) = 2*sum(log(diag(chol(A))))
-    det <- det + hyperpost$cov[[k]] %>%
-      chol() %>%
-      diag() %>%
-      log() %>%
-      sum()
+    det <- det +
+      hyperpost$cov[[k]] %>%
+        chol() %>%
+        diag() %>%
+        log() %>%
+        sum()
 
     return(sum_tau + det)
   }

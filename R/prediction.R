@@ -71,25 +71,26 @@
 #'
 #' @examples
 #' TRUE
-pred_gp <- function(data = NULL,
-                    grid_inputs = NULL,
-                    mean = NULL,
-                    hp = NULL,
-                    kern = "SE",
-                    get_full_cov = FALSE,
-                    plot = TRUE,
-                    pen_diag = 1e-10) {
-
+pred_gp <- function(
+  data = NULL,
+  grid_inputs = NULL,
+  mean = NULL,
+  hp = NULL,
+  kern = "SE",
+  get_full_cov = FALSE,
+  plot = TRUE,
+  pen_diag = 1e-10
+) {
   ## Create a dummy dataset if no data is provided
-  if(data %>% is.null()){
+  if (data %>% is.null()) {
     data = tibble::tibble(
       'ID' = 'ID_pred',
-      'Input' = c(0,10),
-      'Output' = c(0,0)
-      )
+      'Input' = c(0, 10),
+      'Output' = c(0, 0)
+    )
 
     ## Draw random hyper-parameters if not provided
-    if(hp %>% is.null()){
+    if (hp %>% is.null()) {
       hp = hp(kern = kern, noise = TRUE)
       cat(
         "The 'hp' argument has not been specified. Random hyper-parameters",
@@ -122,17 +123,19 @@ pred_gp <- function(data = NULL,
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(- c(.data$Output, .data$Reference)) %>%
+      dplyr::select(-c(.data$Output, .data$Reference)) %>%
       names()
   }
 
   ## Keep 6 significant digits for entries to avoid numerical errors
   data <- data %>%
     purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep = ":",
-                 remove = FALSE) %>%
+    tidyr::unite(
+      "Reference",
+      tidyselect::all_of(names_col),
+      sep = ":",
+      remove = FALSE
+    ) %>%
     dplyr::arrange(.data$Reference) %>%
     tidyr::drop_na()
 
@@ -151,10 +154,7 @@ pred_gp <- function(data = NULL,
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
     set_grid <- function(data, size_grid) {
-      seq(data %>% min(),
-          data %>% max(),
-          length.out = size_grid
-      ) %>%
+      seq(data %>% min(), data %>% max(), length.out = size_grid) %>%
         return()
     }
     if (inputs_obs %>% names() %>% length() == 2) {
@@ -178,14 +178,15 @@ pred_gp <- function(data = NULL,
       purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
       expand.grid() %>%
       tibble::as_tibble() %>% ## df to tibble
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_col),
-                   sep = ":",
-                   remove = FALSE) %>%
+      tidyr::unite(
+        "Reference",
+        tidyselect::all_of(names_col),
+        sep = ":",
+        remove = FALSE
+      ) %>%
       dplyr::arrange(.data$Reference)
 
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
-
   } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
     if (inputs_obs %>% names() %>% length() == 2) {
@@ -209,10 +210,11 @@ pred_gp <- function(data = NULL,
 
     if (!("Reference" %in% (grid_inputs %>% names()))) {
       grid_inputs <- grid_inputs %>%
-        tidyr::unite("Reference",
-                     grid_inputs %>% names(),
-                     sep = ":",
-                     remove = FALSE
+        tidyr::unite(
+          "Reference",
+          grid_inputs %>% names(),
+          sep = ":",
+          remove = FALSE
         ) %>%
         dplyr::arrange(.data$Reference)
     }
@@ -252,7 +254,9 @@ pred_gp <- function(data = NULL,
       mean_obs <- rep(mean, length(input_obs))
       mean_pred <- rep(mean, length(input_pred))
       cat(
-        "The mean function has been set to be", mean, "everywhere.\n \n"
+        "The mean function has been set to be",
+        mean,
+        "everywhere.\n \n"
       )
     } else {
       stop(
@@ -272,8 +276,10 @@ pred_gp <- function(data = NULL,
         dplyr::arrange(.data$Reference) %>%
         dplyr::pull(.data$Output)
 
-      if ((length(mean_obs) != length(input_obs)) |
-          (length(mean_pred) != length(input_pred))) {
+      if (
+        (length(mean_obs) != length(input_obs)) |
+          (length(mean_pred) != length(input_pred))
+      ) {
         stop(
           "Problem in the length of the mean parameter. The ",
           "'mean' argument should provide an Output value for each Input ",
@@ -305,12 +311,13 @@ pred_gp <- function(data = NULL,
       )
     } else if (kern %>% is.character()) {
       hp <- quiet(
-        train_gp(data,
-                 prior_mean = mean_obs,
-                 ini_hp = hp(kern, noise = T),
-                 kern = kern,
-                 hyperpost = NULL,
-                 pen_diag = pen_diag
+        train_gp(
+          data,
+          prior_mean = mean_obs,
+          ini_hp = hp(kern, noise = T),
+          kern = kern,
+          hyperpost = NULL,
+          pen_diag = pen_diag
         )
       )
 
@@ -343,15 +350,14 @@ pred_gp <- function(data = NULL,
 
   ## Compute the posterior mean
   pred_mean <- (mean_pred +
-                  t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+    t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
     as.vector()
 
   ## Compute the posterior covariance matrix
   pred_cov <- cov_pred - t(cov_crossed) %*% inv_obs %*% cov_crossed
 
-
   ## If no data were originally provided, return the GP prior as a prediction
-  if(no_data){
+  if (no_data) {
     pred_mean = mean_pred
     pred_cov = cov_pred
 
@@ -368,7 +374,6 @@ pred_gp <- function(data = NULL,
 
   ## Display the graph of the prediction if expected
   if (plot) {
-
     ## Display samples only in 1D and Credible Interval otherwise
     display_samples = dplyr::if_else(ncol(pred_gp) == 3, TRUE, FALSE)
 
@@ -376,7 +381,8 @@ pred_gp <- function(data = NULL,
       list('pred' = pred_gp, 'cov' = pred_cov),
       data = data,
       samples = display_samples
-    ) %>% print()
+    ) %>%
+      print()
   }
 
   ## Add the posterior covariance matrix in the results if expected
@@ -470,43 +476,62 @@ pred_gp <- function(data = NULL,
 #'
 #' @examples
 #' TRUE
-hyperposterior <- function(trained_model = NULL,
-                           data = NULL,
-                           hp_0 = NULL,
-                           hp_i = NULL,
-                           kern_0 = NULL,
-                           kern_i = NULL,
-                           prior_mean = NULL,
-                           grid_inputs = NULL,
-                           pen_diag = 1e-10) {
+hyperposterior <- function(
+  trained_model = NULL,
+  data = NULL,
+  hp_0 = NULL,
+  hp_i = NULL,
+  kern_0 = NULL,
+  kern_i = NULL,
+  prior_mean = NULL,
+  grid_inputs = NULL,
+  pen_diag = 1e-10
+) {
   ## Check whether a model trained by train_magma() is provided
-  if(trained_model %>% is.null()){
+  if (trained_model %>% is.null()) {
     ## Check whether all mandatory arguments are present otherwise
-    if(is.null(data)|is.null(hp_0)|is.null(hp_i)|
-       is.null(kern_0)|is.null(kern_i)){
+    if (
+      is.null(data) |
+        is.null(hp_0) |
+        is.null(hp_i) |
+        is.null(kern_0) |
+        is.null(kern_i)
+    ) {
       stop(
         "If no 'trained_model' argument is provided, the arguments 'data', ",
         "'hp_0', 'hp_i' 'kern_0', and 'kern_i' are all required."
       )
-      }
+    }
   } else {
     ## For each argument, retrieve the value from 'trained_model' if missing
-    if(data %>% is.null()){data = trained_model$ini_args$data}
-    if(hp_0 %>% is.null()){hp_0 = trained_model$hp_0}
-    if(hp_i %>% is.null()){hp_i = trained_model$hp_i}
-    if(kern_0 %>% is.null()){kern_0 = trained_model$ini_args$kern_0}
-    if(kern_i %>% is.null()){kern_i = trained_model$ini_args$kern_i}
-    if(prior_mean %>% is.null()){prior_mean = trained_model$ini_args$prior_mean}
+    if (data %>% is.null()) {
+      data = trained_model$ini_args$data
+    }
+    if (hp_0 %>% is.null()) {
+      hp_0 = trained_model$hp_0
+    }
+    if (hp_i %>% is.null()) {
+      hp_i = trained_model$hp_i
+    }
+    if (kern_0 %>% is.null()) {
+      kern_0 = trained_model$ini_args$kern_0
+    }
+    if (kern_i %>% is.null()) {
+      kern_i = trained_model$ini_args$kern_i
+    }
+    if (prior_mean %>% is.null()) {
+      prior_mean = trained_model$ini_args$prior_mean
+    }
   }
 
   ## Get input column names
   if (!("Reference" %in% (names(data)))) {
     names_col <- data %>%
-      dplyr::select(- c(.data$ID, .data$Output)) %>%
+      dplyr::select(-c(.data$ID, .data$Output)) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(- c(.data$ID, .data$Output, .data$Reference)) %>%
+      dplyr::select(-c(.data$ID, .data$Output, .data$Reference)) %>%
       names()
   }
 
@@ -514,10 +539,12 @@ hyperposterior <- function(trained_model = NULL,
   ## Add Reference column if missing
   data <- data %>%
     purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep = ":",
-                 remove = FALSE) %>%
+    tidyr::unite(
+      "Reference",
+      tidyselect::all_of(names_col),
+      sep = ":",
+      remove = FALSE
+    ) %>%
     tidyr::drop_na() %>%
     dplyr::group_by(.data$ID) %>%
     dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
@@ -535,19 +562,20 @@ hyperposterior <- function(trained_model = NULL,
       "will only be evaluated on observed Input from 'data'.\n \n"
     )
   } else {
-
     ## If 'grid_input' is a vector, convert to the correct format
-    if(grid_inputs %>% is.vector()){
+    if (grid_inputs %>% is.vector()) {
       grid_inputs <- tibble::tibble('Input' = grid_inputs)
     }
 
     ## Define the union among all reference Inputs and a specified grid
     grid_inputs <- grid_inputs %>%
       purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_col),
-                   sep = ":",
-                   remove = FALSE) %>%
+      tidyr::unite(
+        "Reference",
+        tidyselect::all_of(names_col),
+        sep = ":",
+        remove = FALSE
+      ) %>%
       dplyr::arrange(.data$Reference)
 
     all_inputs <- data %>%
@@ -577,23 +605,29 @@ hyperposterior <- function(trained_model = NULL,
       )
     } else {
       stop(
-        "The 'prior_mean' argument is of length ", length(prior_mean),
+        "The 'prior_mean' argument is of length ",
+        length(prior_mean),
         ", whereas the grid of training inputs is of length ",
         length(all_input)
       )
     }
   } else if (prior_mean %>% is.function()) {
-    m_0 <- prior_mean(all_inputs %>%
-                        dplyr::select(-.data$Reference)
+    m_0 <- prior_mean(
+      all_inputs %>%
+        dplyr::select(-.data$Reference)
     )
   } else if (prior_mean %>% is.data.frame()) {
-    if (all(c(tidyselect::all_of(names_col),"Output") %in% names(prior_mean))) {
+    if (
+      all(c(tidyselect::all_of(names_col), "Output") %in% names(prior_mean))
+    ) {
       m_0 <- prior_mean %>%
         purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-        tidyr::unite("Reference",
-                     tidyselect::all_of(names_col),
-                     sep = ":",
-                     remove = FALSE) %>%
+        tidyr::unite(
+          "Reference",
+          tidyselect::all_of(names_col),
+          sep = ":",
+          remove = FALSE
+        ) %>%
         dplyr::filter(.data$Reference %in% all_input) %>%
         dplyr::arrange(.data$Reference) %>%
         dplyr::pull(.data$Output)
@@ -628,8 +662,7 @@ hyperposterior <- function(trained_model = NULL,
 
   ## Update the posterior inverse covariance ##
   post_inv <- inv_0
-  for (inv_i in list_inv_i)
-  {
+  for (inv_i in list_inv_i) {
     ## Collect the input's common indices between mean and individual processes
     co_input <- intersect(row.names(inv_i), row.names(post_inv))
     ## Sum the common inverse covariance's terms
@@ -641,8 +674,7 @@ hyperposterior <- function(trained_model = NULL,
   ## Update the posterior mean ##
   weighted_0 <- inv_0 %*% m_0
 
-  for (i in names(list_inv_i))
-  {
+  for (i in names(list_inv_i)) {
     ## Compute the weighted mean for the i-th individual
     weighted_i <- list_inv_i[[i]] %*% list_output_i[[i]]
     ## Collect the input's common indices between mean and individual processes
@@ -661,16 +693,15 @@ hyperposterior <- function(trained_model = NULL,
   ##############################################
 
   ## Format the mean parameter of the hyper-posterior distribution
-  mean <- tibble::tibble(all_inputs,
-                         "Output" = post_mean
-  )
+  mean <- tibble::tibble(all_inputs, "Output" = post_mean)
 
   ## Format the GP prediction of the hyper-posterior mean (for direct plot)
-  pred <- tibble::tibble(all_inputs,
-                         "Mean" = post_mean,
-                         "Var" = post_cov %>% diag() %>% as.vector()
+  pred <- tibble::tibble(
+    all_inputs,
+    "Mean" = post_mean,
+    "Var" = post_cov %>% diag() %>% as.vector()
   ) %>%
-    dplyr::select(- .data$Reference)
+    dplyr::select(-.data$Reference)
 
   list(
     "mean" = mean,
@@ -764,44 +795,41 @@ hyperposterior <- function(trained_model = NULL,
 #'
 #' @examples
 #' TRUE
-pred_magma <- function(data = NULL,
-                       trained_model = NULL,
-                       grid_inputs = NULL,
-                       hp = NULL,
-                       kern = "SE",
-                       hyperpost = NULL,
-                       get_hyperpost = FALSE,
-                       get_full_cov = FALSE,
-                       plot = TRUE,
-                       pen_diag = 1e-10) {
+pred_magma <- function(
+  data = NULL,
+  trained_model = NULL,
+  grid_inputs = NULL,
+  hp = NULL,
+  kern = "SE",
+  hyperpost = NULL,
+  get_hyperpost = FALSE,
+  get_full_cov = FALSE,
+  plot = TRUE,
+  pen_diag = 1e-10
+) {
   ## Return the mean process if no data is provided
-  if(data %>% is.null()){
+  if (data %>% is.null()) {
     ## Check whether trained_model is provided
-    if(trained_model %>% is.null()){
+    if (trained_model %>% is.null()) {
       stop(
         "If 'data' is not provided, the 'trained_model' argument is needed ",
         "to provide the mean process as a generic prediction."
       )
-    }
-    else{
+    } else {
       ## Return the mean process as a generic prediction
-      if(grid_inputs %>% is.null()){
+      if (grid_inputs %>% is.null()) {
         hyperpost = trained_model$hyperpost
-
-      } else{
-
+      } else {
         ## Recompute the mean process at the required inputs if necessary
         hyperpost = hyperposterior(
           trained_model = trained_model,
           grid_inputs = grid_inputs
-          )
-
+        )
       }
 
       pred = hyperpost$pred
       ## Display the graph of the prediction if expected
       if (plot) {
-
         data_train <- trained_model$ini_args$data
 
         ## Add 'cov' to display samples
@@ -812,11 +840,12 @@ pred_magma <- function(data = NULL,
         display_samples = dplyr::if_else(ncol(res$pred) == 3, TRUE, FALSE)
 
         ## Plot results
-        plot_gp(res,
-                data_train = data_train,
-                prior_mean = hyperpost$mean %>%
-                  dplyr::select(-.data$Reference),
-                samples = display_samples
+        plot_gp(
+          res,
+          data_train = data_train,
+          prior_mean = hyperpost$mean %>%
+            dplyr::select(-.data$Reference),
+          samples = display_samples
         ) %>%
           print()
       }
@@ -843,22 +872,24 @@ pred_magma <- function(data = NULL,
 
   ## Get input column names
   if ("Reference" %in% names(data)) {
-      names_col <- data %>%
-        dplyr::select(- c(.data$Output, .data$Reference)) %>%
-        names()
+    names_col <- data %>%
+      dplyr::select(-c(.data$Output, .data$Reference)) %>%
+      names()
   } else {
-      names_col <- data %>%
-        dplyr::select(-.data$Output) %>%
-        names()
+    names_col <- data %>%
+      dplyr::select(-.data$Output) %>%
+      names()
   }
 
   ## Keep 6 significant digits for entries to avoid numerical errors
   data <- data %>%
     purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep = ":",
-                 remove = FALSE) %>%
+    tidyr::unite(
+      "Reference",
+      tidyselect::all_of(names_col),
+      sep = ":",
+      remove = FALSE
+    ) %>%
     tidyr::drop_na() %>%
     dplyr::arrange(.data$Reference)
 
@@ -877,10 +908,7 @@ pred_magma <- function(data = NULL,
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
     set_grid <- function(data, size_grid) {
-      seq(data %>% min(),
-          data %>% max(),
-          length.out = size_grid
-      ) %>%
+      seq(data %>% min(), data %>% max(), length.out = size_grid) %>%
         return()
     }
 
@@ -905,14 +933,15 @@ pred_magma <- function(data = NULL,
       purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
       expand.grid() %>%
       tibble::as_tibble() %>% ## df to tibble
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_col),
-                   sep = ":",
-                   remove = FALSE) %>%
+      tidyr::unite(
+        "Reference",
+        tidyselect::all_of(names_col),
+        sep = ":",
+        remove = FALSE
+      ) %>%
       dplyr::arrange(.data$Reference)
 
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
-
   } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
     if (inputs_obs %>% names() %>% length() == 2) {
@@ -927,7 +956,6 @@ pred_magma <- function(data = NULL,
         dplyr::arrange(.data$Reference)
 
       input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
-
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
@@ -935,15 +963,15 @@ pred_magma <- function(data = NULL,
       )
     }
   } else if (grid_inputs %>% is.data.frame()) {
-
     grid_inputs <- grid_inputs %>%
       purrr::modify_at(tidyselect::all_of(names_col), signif)
     if (!("Reference" %in% (grid_inputs %>% names()))) {
       grid_inputs <- grid_inputs %>%
-        tidyr::unite("Reference",
-                     grid_inputs %>% names(),
-                     sep = ":",
-                     remove = FALSE
+        tidyr::unite(
+          "Reference",
+          grid_inputs %>% names(),
+          sep = ":",
+          remove = FALSE
         ) %>%
         dplyr::arrange(.data$Reference)
     }
@@ -989,7 +1017,8 @@ pred_magma <- function(data = NULL,
   }
 
   ## Check hyperpost format
-  if ((hyperpost %>% is.list()) &
+  if (
+    (hyperpost %>% is.list()) &
       (!is.null(hyperpost$mean)) &
       (!is.null(hyperpost$cov))
   ) {
@@ -1072,12 +1101,13 @@ pred_magma <- function(data = NULL,
         )
       } else if (kern %>% is.character()) {
         hp <- quiet(
-          train_gp(data,
-                   prior_mean = NULL,
-                   ini_hp = hp(kern, noise = T),
-                   kern = kern,
-                   hyperpost = hyperpost,
-                   pen_diag = pen_diag
+          train_gp(
+            data,
+            prior_mean = NULL,
+            ini_hp = hp(kern, noise = T),
+            kern = kern,
+            hyperpost = hyperpost,
+            pen_diag = pen_diag
           )
         )
         cat(
@@ -1096,12 +1126,13 @@ pred_magma <- function(data = NULL,
       )
     } else if (kern %>% is.character()) {
       hp <- quiet(
-        train_gp(data,
-                 prior_mean = NULL,
-                 ini_hp = hp(kern, noise = T),
-                 kern = kern,
-                 hyperpost = hyperpost,
-                 pen_diag = pen_diag
+        train_gp(
+          data,
+          prior_mean = NULL,
+          ini_hp = hp(kern, noise = T),
+          kern = kern,
+          hyperpost = hyperpost,
+          pen_diag = pen_diag
         )
       )
       cat(
@@ -1136,14 +1167,17 @@ pred_magma <- function(data = NULL,
 
   ## Compute the required sub-matrix for prediction
   cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi) + post_cov_pred
-  cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi,
-                             input_2 = inputs_pred
+  cov_crossed <- kern_to_cov(
+    inputs_obs,
+    kern,
+    hp_rm_noi,
+    input_2 = inputs_pred
   ) +
     post_cov_crossed
 
   ## Compute the posterior mean of a GP
   pred_mean <- (mean_pred +
-                  t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+    t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
     as.vector()
 
   ## Compute the posterior covariance matrix of a GP
@@ -1174,13 +1208,14 @@ pred_magma <- function(data = NULL,
     display_samples = dplyr::if_else(ncol(pred_gp) == 3, TRUE, FALSE)
 
     ## Plot results
-    plot_gp(res,
-            data = data,
-            data_train = data_train,
-            prior_mean = hyperpost$mean %>%
-              dplyr::select(-.data$Reference),
-            samples = display_samples
-            ) %>%
+    plot_gp(
+      res,
+      data = data,
+      data_train = data_train,
+      prior_mean = hyperpost$mean %>%
+        dplyr::select(-.data$Reference),
+      samples = display_samples
+    ) %>%
       print()
   }
 
@@ -1278,14 +1313,16 @@ pred_magma <- function(data = NULL,
 #'
 #' @examples
 #' TRUE
-pred_gif <- function(data,
-                     trained_model = NULL,
-                     grid_inputs = NULL,
-                     hyperpost = NULL,
-                     mean = NULL,
-                     hp = NULL,
-                     kern = "SE",
-                     pen_diag = 1e-10) {
+pred_gif <- function(
+  data,
+  trained_model = NULL,
+  grid_inputs = NULL,
+  hyperpost = NULL,
+  mean = NULL,
+  hp = NULL,
+  kern = "SE",
+  pen_diag = 1e-10
+) {
   ## Remove possible missing data
   data <- data %>% tidyr::drop_na()
 
@@ -1334,7 +1371,8 @@ pred_gif <- function(data,
     data_j <- data %>% dplyr::slice(1:j)
     if (!is.null(trained_model) | !is.null(hyperpost)) {
       ## Compute Magma prediction for this sub-dataset
-      all_pred <- quiet(pred_magma(data_j,
+      all_pred <- quiet(pred_magma(
+        data_j,
         trained_model = trained_model,
         hp = hp,
         kern = kern,
@@ -1348,7 +1386,8 @@ pred_gif <- function(data,
         dplyr::mutate(Index = j) %>%
         dplyr::bind_rows(all_pred)
     } else {
-      all_pred <- quiet(pred_gp(data_j,
+      all_pred <- quiet(pred_gp(
+        data_j,
         mean = mean,
         hp = hp,
         kern = kern,
@@ -1421,17 +1460,9 @@ pred_gif <- function(data,
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "LIN", PERIO" and "RQ" are also available here). Recovered from
 #'    \code{trained_model} if not provided.
-#' @param prior_mean_k The set of hyper-prior mean parameters (m_k) for the K
-#'    mean GPs, one value for each cluster.
-#'    cluster. This argument can be specified under various formats, such as:
-#'    - NULL (default). All hyper-prior means would be set to 0 everywhere.
-#'    - A numerical vector of the same length as the number of clusters.
-#'    Each number is associated with one cluster, and considered
-#'    to be the hyper-prior mean parameter of the cluster (i.e. a constant
-#'    function at all \code{Input}).
-#'    - A list of functions. Each function is associated with one cluster. These
-#'    functions are all evaluated at all \code{Input} values, to provide
-#'    specific hyper-prior mean vectors for each cluster.
+#' @param prior_mean_k A list of vectors, corresponding to the hyper-prior mean
+#'    parameters (m_k) for the K mean GPs, one value for each cluster. 
+#'    Recovered from \code{trained_model} if not provided.
 #' @param grid_inputs A vector or a data frame, indicating the grid of
 #'    additional reference inputs on which the mean process' hyper-posterior
 #'    should be evaluated.
@@ -1454,57 +1485,82 @@ pred_gif <- function(data,
 #'
 #' @examples
 #' TRUE
-hyperposterior_clust <- function(trained_model = NULL,
-                                 data = NULL,
-                                 mixture = NULL,
-                                 hp_k = NULL,
-                                 hp_i = NULL,
-                                 kern_k = NULL,
-                                 kern_i = NULL,
-                                 prior_mean_k = NULL,
-                                 grid_inputs = NULL,
-                                 pen_diag = 1e-10) {
-  ## Check whether a model trained by train_magma() is provided
-  if(trained_model %>% is.null()){
+hyperposterior_clust <- function(
+  trained_model = NULL,
+  data = NULL,
+  mixture = NULL,
+  hp_k = NULL,
+  hp_i = NULL,
+  kern_k = NULL,
+  kern_i = NULL,
+  prior_mean_k = NULL,
+  grid_inputs = NULL,
+  pen_diag = 1e-10
+) {
+  ## Check whether a model trained by train_magmaclust() is provided
+  if (trained_model %>% is.null()) {
     ## Check whether all mandatory arguments are present otherwise
-    if(is.null(data)|is.null(hp_k)|is.null(hp_i)|is.null(mixture)|
-       is.null(kern_k)|is.null(kern_i)){
+    if (
+      is.null(data) |
+        is.null(prior_mean_k) |
+        is.null(hp_k) |
+        is.null(hp_i) |
+        is.null(mixture) |
+        is.null(kern_k) |
+        is.null(kern_i)
+    ) {
       stop(
         "If no 'trained_model' argument is provided, the arguments 'data', ",
+        "'prior_mean_k', ",
         "'mixture', 'hp_k', 'hp_i' 'kern_k', and 'kern_i' are all required."
       )
     }
+
   } else {
     ## For each argument, retrieve the value from 'trained_model' if missing
-    if(data %>% is.null()){data = trained_model$ini_args$data}
-    if(mixture %>% is.null()){mixture = trained_model$hyperpost$mixture}
-    if(hp_k %>% is.null()){hp_k = trained_model$hp_k}
-    if(hp_i %>% is.null()){hp_i = trained_model$hp_i}
-    if(kern_k %>% is.null()){kern_k = trained_model$ini_args$kern_k}
-    if(kern_i %>% is.null()){kern_i = trained_model$ini_args$kern_i}
-    if(prior_mean_k %>% is.null()){
-      prior_mean_k = trained_model$ini_args$prior_mean_k
-      }
+    if (data %>% is.null()) {
+      data = trained_model$ini_args$data
+    }
+    if (mixture %>% is.null()) {
+      mixture = trained_model$hyperpost$mixture
+    }
+    if (hp_k %>% is.null()) {
+      hp_k = trained_model$hp_k
+    }
+    if (hp_i %>% is.null()) {
+      hp_i = trained_model$hp_i
+    }
+    if (kern_k %>% is.null()) {
+      kern_k = trained_model$ini_args$kern_k
+    }
+    if (kern_i %>% is.null()) {
+      kern_i = trained_model$ini_args$kern_i
+    }
+    if (prior_mean_k %>% is.null()) {
+      prior_mean_k = trained_model$m_k
+    }
   }
 
   ## Get input column names
-  if("Reference" %in% names(data)){
+  if ("Reference" %in% names(data)) {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID,.data$Output,.data$Reference)) %>%
+      dplyr::select(-c(.data$ID, .data$Output, .data$Reference)) %>%
       names()
-  }else{
+  } else {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID,.data$Output)) %>%
+      dplyr::select(-c(.data$ID, .data$Output)) %>%
       names()
   }
   ## Keep 6 significant digits for entries to avoid numerical errors and
   ## Add Reference column if missing
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep=":",
-                 remove = FALSE) %>%
+    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    tidyr::unite(
+      "Reference",
+      tidyselect::all_of(names_col),
+      sep = ":",
+      remove = FALSE
+    ) %>%
     tidyr::drop_na() %>%
     dplyr::group_by(.data$ID) %>%
     dplyr::arrange(.data$Reference, .by_group = TRUE) %>%
@@ -1523,10 +1579,9 @@ hyperposterior_clust <- function(trained_model = NULL,
   data$ID <- data$ID %>% as.character()
 
   if (grid_inputs %>% is.null()) {
-
     ## Define the union of all reference Inputs in the dataset
     all_inputs <- data %>%
-      dplyr::select(.data$Reference,tidyselect::all_of(names_col)) %>%
+      dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
       dplyr::arrange(.data$Reference) %>%
       unique()
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
@@ -1534,24 +1589,25 @@ hyperposterior_clust <- function(trained_model = NULL,
       "The argument 'grid_inputs' is NULL, the hyper-posterior distribution",
       "will only be evaluated on observed Input from 'data'.\n \n"
     )
-
   } else {
     ## If 'grid_input' is a vector, convert to the correct format
-    if(grid_inputs %>% is.vector()){
+    if (grid_inputs %>% is.vector()) {
       grid_inputs <- tibble::tibble('Input' = grid_inputs)
     }
 
     ## Define the union among all reference Inputs and a specified grid
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_col),
-                   sep=":",
-                   remove = FALSE) %>%
+      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+      tidyr::unite(
+        "Reference",
+        tidyselect::all_of(names_col),
+        sep = ":",
+        remove = FALSE
+      ) %>%
       dplyr::arrange(.data$Reference)
 
     all_inputs <- data %>%
-      dplyr::select(.data$Reference,tidyselect::all_of(names_col)) %>%
+      dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
       dplyr::union(grid_inputs) %>%
       dplyr::arrange(.data$Reference) %>%
       unique()
@@ -1559,51 +1615,12 @@ hyperposterior_clust <- function(trained_model = NULL,
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
   }
 
-  ## Initialise m_k according to the value provided by the user
+  ## Create a list named by cluster with evaluation of the prior mean (m_k) at all Input locations
   m_k <- list()
-  if (prior_mean_k %>% is.null()) {
-    ## Create a list named by cluster with evaluation of the mean at all Input
-    for (k in 1:nb_cluster) {
-      m_k[[ID_k[k]]] <- rep(0, length(all_input))
-    }
-    cat(
-      "The 'prior_mean_k' argument has not been specified. The hyper-prior ",
-      "mean functions are thus set to be 0 everywhere.\n \n"
-    )
-  } else if (prior_mean_k[[1]] %>% is.function()) {
-    ## Create a list named by cluster with evaluation of the mean at all Input
-    for (k in 1:nb_cluster) {
-      m_k[[ID_k[k]]] <- prior_mean_k[[k]](all_inputs %>%
-                                            dplyr::select(-.data$Reference))
-    }
-  } else if (prior_mean_k %>% is.vector()) {
-    if (length(prior_mean_k) == nb_cluster) {
-      ## Create a list named by cluster with evaluation of the mean at all Input
-      for (k in 1:nb_cluster) {
-        m_k[[ID_k[k]]] <- rep(prior_mean_k[[k]], length(all_input))
-      }
-    } else if (length(prior_mean_k) == 1) {
-      ## Create a list named by cluster with evaluation of the mean at all Input
-      for (k in 1:nb_cluster) {
-        m_k[[ID_k[k]]] <- rep(prior_mean_k, length(all_input))
-      }
-      cat(
-        "The provided 'prior_mean_k' argument is of length 1. Thus, the same",
-        "hyper-prior constant mean function has been set for each",
-        "cluster.\n \n "
-      )
-    }else {
-      stop(
-        "The 'prior_mean_k' argument is of length ", length(prior_mean_k),
-        ", whereas there are ", length(hp_k$ID), " clusters."
-      )
-    }
-  } else {
-    stop(
-      "Incorrect format for the 'prior_mean_k' argument. Please read ",
-      "?hyperposterior_clust() for details."
-    )
+  for (k in 1:nb_cluster) {
+    m_k[[ID_k[k]]] <- rep(prior_mean_k[[ID_k[k]]], length(all_input))
   }
+
   ## Create a dummy tibble for Input of the K mean processes
   input_clust <- tidyr::expand_grid("ID" = names(m_k), all_inputs)
 
@@ -1619,8 +1636,7 @@ hyperposterior_clust <- function(trained_model = NULL,
   floop <- function(k) {
     ## Get the inverse covariance matrice of the k-th cluster
     post_inv <- inv_k[[k]]
-    for (i in names(list_inv_i))
-    {
+    for (i in names(list_inv_i)) {
       ## Get the inverse covariance matrice of the i-th individual
       inv_i <- list_inv_i[[i]]
       ## Collect the common inputs between mean and individual processes
@@ -1648,8 +1664,7 @@ hyperposterior_clust <- function(trained_model = NULL,
     ## Compute the weighted mean of the k-th cluster
     weighted_k <- inv_k[[k]] %*% m_k[[k]]
 
-    for (i in list_inv_i %>% names())
-    {
+    for (i in list_inv_i %>% names()) {
       ## Get the probability of the i-th individual to be in the k-th cluster
       tau_i_k <- mixture %>%
         dplyr::filter(.data$ID == i) %>%
@@ -1665,9 +1680,7 @@ hyperposterior_clust <- function(trained_model = NULL,
     ## Compute the updated mean parameter
     post_mean <- cov_k[[k]] %*% weighted_k %>% as.vector()
 
-    tibble::tibble(all_inputs,
-                   "Output" = post_mean
-    ) %>%
+    tibble::tibble(all_inputs, "Output" = post_mean) %>%
       return()
   }
   mean_k <- sapply(ID_k, floop2, simplify = FALSE, USE.NAMES = TRUE)
@@ -1675,11 +1688,12 @@ hyperposterior_clust <- function(trained_model = NULL,
 
   ## Format the GP prediction of the hyper-posterior mean (for direct plot)
   floop_pred <- function(k) {
-    tibble::tibble(mean_k[[k]],
-                   "Var" = cov_k[[k]] %>% diag() %>% as.vector()
+    tibble::tibble(
+      mean_k[[k]],
+      "Var" = cov_k[[k]] %>% diag() %>% as.vector()
     ) %>%
       dplyr::rename("Mean" = .data$Output) %>%
-      dplyr::select(- .data$Reference) %>%
+      dplyr::select(-.data$Reference) %>%
       return()
   }
   pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
@@ -1796,34 +1810,33 @@ hyperposterior_clust <- function(trained_model = NULL,
 #'
 #' @examples
 #' TRUE
-pred_magmaclust <- function(data = NULL,
-                            trained_model = NULL,
-                            grid_inputs = NULL,
-                            mixture = NULL,
-                            hp = NULL,
-                            kern = "SE",
-                            hyperpost = NULL,
-                            prop_mixture = NULL,
-                            get_hyperpost = FALSE,
-                            get_full_cov = TRUE,
-                            plot = TRUE,
-                            pen_diag = 1e-10) {
-
+pred_magmaclust <- function(
+  data = NULL,
+  trained_model = NULL,
+  grid_inputs = NULL,
+  mixture = NULL,
+  hp = NULL,
+  kern = "SE",
+  hyperpost = NULL,
+  prop_mixture = NULL,
+  get_hyperpost = FALSE,
+  get_full_cov = TRUE,
+  plot = TRUE,
+  pen_diag = 1e-10
+) {
   ## Return the mean process if no data is provided
-  if(data %>% is.null()){
+  if (data %>% is.null()) {
     ## Check whether trained_model is provided
-    if(trained_model %>% is.null()){
+    if (trained_model %>% is.null()) {
       stop(
         "If 'data' is not provided, the 'trained_model' argument is needed ",
         "to provide the mixture of mean processes as a generic prediction."
       )
-    }
-    else{
+    } else {
       ## Return the mean process as a generic prediction
-      if(grid_inputs %>% is.null()){
+      if (grid_inputs %>% is.null()) {
         hyperpost = trained_model$hyperpost
-
-      } else{
+      } else {
         ## Recompute the mean process at the required inputs if necessary
         hyperpost = hyperposterior_clust(
           trained_model = trained_model,
@@ -1835,12 +1848,12 @@ pred_magmaclust <- function(data = NULL,
 
       ## Compute the generic mixture weights
       mixture = hyperpost$mixture %>%
-        dplyr::select(- .data$ID) %>%
+        dplyr::select(-.data$ID) %>%
         dplyr::summarise(dplyr::across(tidyselect::everything(), mean)) %>%
         dplyr::mutate('ID' = 'ID_pred', .before = 1)
 
       ## Add the ID and Proba columns to 'pred'
-      floop_k = function(k){
+      floop_k = function(k) {
         hyperpost$pred[[k]] %>%
           dplyr::mutate(
             'ID' = 'ID_pred',
@@ -1853,15 +1866,13 @@ pred_magmaclust <- function(data = NULL,
 
       ## Compute the mixture mean and variance of predictions
       mixture_mean <- 0
-      for (k in names_k)
-      {
+      for (k in names_k) {
         proba_k <- mixture %>% dplyr::pull(k)
         mixture_mean = mixture_mean + proba_k * pred_k[[k]]$Mean
       }
 
       mixture_var <- 0
-      for (k in names_k)
-      {
+      for (k in names_k) {
         proba_k <- mixture %>% dplyr::pull(k)
         ## Cov(mixture) = Sum_k{ tau_k * (C_k + (m_k - m)(m_k - m)T) }
         mixture_var <- mixture_var +
@@ -1871,27 +1882,27 @@ pred_magmaclust <- function(data = NULL,
       ## Create the mixture of GPs prediction
       mixture_pred <- pred_k[[names_k[1]]] %>%
         dplyr::mutate(
-        "Mean" = mixture_mean,
-        "Var" = mixture_var %>% as.vector()
+          "Mean" = mixture_mean,
+          "Var" = mixture_var %>% as.vector()
         ) %>%
-        dplyr::select(- .data$Proba)
+        dplyr::select(-.data$Proba)
 
       ## Define the list to return with the correct format
       pred <- list(
         "pred" = pred_k,
         'mixture' = mixture,
-        'mixture_pred' = mixture_pred)
+        'mixture_pred' = mixture_pred
+      )
 
       ## Display the graph of the prediction if expected
       if (plot) {
-
         data_train <- trained_model$ini_args$data
 
         ## Add 'cov' to display samples
         pred[["cov"]] <- hyperpost$cov
 
         ## Display samples only in 1D and Credible Interval otherwise
-        if(ncol(mixture_pred) == 4){
+        if (ncol(mixture_pred) == 4) {
           ## Plot 1D prediction
           plot_magmaclust(
             pred,
@@ -1911,12 +1922,12 @@ pred_magmaclust <- function(data = NULL,
             print()
         }
 
-      ## Check whether posterior covariance should be returned
-      if (!get_full_cov) {
-        pred[["cov"]] <- NULL
-      }
+        ## Check whether posterior covariance should be returned
+        if (!get_full_cov) {
+          pred[["cov"]] <- NULL
+        }
 
-       return(pred)
+        return(pred)
       }
     }
   }
@@ -1938,24 +1949,26 @@ pred_magmaclust <- function(data = NULL,
     data <- data %>% dplyr::mutate("ID" = "ID_pred", .before = 1)
   }
 
-  if("Reference" %in% names(data)){
+  if ("Reference" %in% names(data)) {
     ## Get input column names
     names_col <- data %>%
-      dplyr::select(- c(.data$ID, .data$Output, .data$Reference)) %>%
+      dplyr::select(-c(.data$ID, .data$Output, .data$Reference)) %>%
       names()
-  }else{
+  } else {
     names_col <- data %>%
-      dplyr::select(- c(.data$ID, .data$Output)) %>%
+      dplyr::select(-c(.data$ID, .data$Output)) %>%
       names()
   }
 
   ## Keep 6 significant digits for entries to avoid numerical errors
   data <- data %>%
     purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite("Reference",
-                 tidyselect::all_of(names_col),
-                 sep=":",
-                 remove = FALSE) %>%
+    tidyr::unite(
+      "Reference",
+      tidyselect::all_of(names_col),
+      sep = ":",
+      remove = FALSE
+    ) %>%
     tidyr::drop_na() %>%
     dplyr::arrange(.data$Reference)
 
@@ -1969,20 +1982,19 @@ pred_magmaclust <- function(data = NULL,
 
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
-    dplyr::select(- c(.data$ID, .data$Output))
+    dplyr::select(-c(.data$ID, .data$Output))
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
-
-    set_grid <- function(data, size_grid){
-      seq(data %>% min(),data %>% max(), length.out = size_grid) %>%
+    set_grid <- function(data, size_grid) {
+      seq(data %>% min(), data %>% max(), length.out = size_grid) %>%
         return()
     }
 
     if (ncol(inputs_obs) == 2) {
       size_grid = 500
     } else if (ncol(inputs_obs) > 2) {
-      size_grid = 1000^(1/(ncol(inputs_obs) - 1)) %>% round()
+      size_grid = 1000^(1 / (ncol(inputs_obs) - 1)) %>% round()
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
@@ -1991,32 +2003,36 @@ pred_magmaclust <- function(data = NULL,
       )
     }
 
-    inputs_pred <- purrr::map_dfr(data %>%
-                                    dplyr::select(tidyselect::all_of(names_col)),
-                                  set_grid,
-                                  size_grid) %>%
+    inputs_pred <- purrr::map_dfr(
+      data %>%
+        dplyr::select(tidyselect::all_of(names_col)),
+      set_grid,
+      size_grid
+    ) %>%
       unique() %>%
-      purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
+      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
       expand.grid() %>%
       tibble::as_tibble() %>%
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_col),
-                   sep=":",
-                   remove = FALSE) %>%
+      tidyr::unite(
+        "Reference",
+        tidyselect::all_of(names_col),
+        sep = ":",
+        remove = FALSE
+      ) %>%
       dplyr::arrange(.data$Reference)
 
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
-
-  }else if (grid_inputs %>% is.vector()) {
+  } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
     if (ncol(inputs_obs) == 2) {
       input_temp <- grid_inputs %>%
         signif() %>%
         sort() %>%
         unique()
-      inputs_pred <- tibble::tibble("Input" = input_temp,
-                                    "Reference" = input_temp %>%
-                                      as.character()
+      inputs_pred <- tibble::tibble(
+        "Input" = input_temp,
+        "Reference" = input_temp %>%
+          as.character()
       ) %>%
         dplyr::arrange(.data$Reference)
 
@@ -2028,19 +2044,21 @@ pred_magmaclust <- function(data = NULL,
       )
     }
   } else if (grid_inputs %>% is.data.frame()) {
-    if("Reference" %in% names(grid_inputs)){
+    if ("Reference" %in% names(grid_inputs)) {
       names_grid <- grid_inputs %>%
         dplyr::select(-.data$Reference) %>%
         names()
-    }else{
+    } else {
       names_grid <- names(grid_inputs)
     }
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col),signif) %>%
-      tidyr::unite("Reference",
-                   tidyselect::all_of(names_grid),
-                   sep=":",
-                   remove = FALSE) %>%
+      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+      tidyr::unite(
+        "Reference",
+        tidyselect::all_of(names_grid),
+        sep = ":",
+        remove = FALSE
+      ) %>%
       dplyr::arrange(.data$Reference)
 
     ## Test whether 'data' has the same columns as grid_inputs
@@ -2094,6 +2112,7 @@ pred_magmaclust <- function(data = NULL,
           "'hyperpost' argument isn't evaluated on the expected inputs.",
           "Start evaluating the hyper-posterior on the correct inputs...\n \n"
         )
+
         hyperpost <- hyperposterior_clust(
           data = trained_model$ini_args$data,
           mixture = trained_model$hyperpost$mixture,
@@ -2101,7 +2120,7 @@ pred_magmaclust <- function(data = NULL,
           hp_i = trained_model$hp_i,
           kern_k = trained_model$ini_args$kern_k,
           kern_i = trained_model$ini_args$kern_i,
-          prior_mean_k = trained_model$ini_args$prior_mean_k,
+          prior_mean_k = trained_model$m_k,
           grid_inputs = all_inputs,
           pen_diag = pen_diag
         )
@@ -2139,9 +2158,9 @@ pred_magmaclust <- function(data = NULL,
   if (hp %>% is.null()) {
     if (!is.null(trained_model)) {
       ## Check whether hyper-parameters are common if we have 'trained_model'
-      if (tryCatch(trained_model$ini_args$common_hp_i,
-                   error = function(e) FALSE
-      )) {
+      if (
+        tryCatch(trained_model$ini_args$common_hp_i, error = function(e) FALSE)
+      ) {
         ## Extract the hyper-parameters common to all 'i'
         hp <- trained_model$hp_i %>%
           dplyr::slice(1) %>%
@@ -2284,11 +2303,12 @@ pred_magmaclust <- function(data = NULL,
       kern,
       hp_rm_noi,
       input_2 = inputs_pred
-    ) + post_cov_crossed
+    ) +
+      post_cov_crossed
 
     ## Compute the posterior mean of a GP
     pred_mean <- (mean_pred +
-                    t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
+      t(cov_crossed) %*% inv_obs %*% (data_obs - mean_obs)) %>%
       as.vector()
 
     ## Compute the posterior covariance matrix of a GP
@@ -2320,8 +2340,7 @@ pred_magmaclust <- function(data = NULL,
 
   ## Compute the mixture variance of predictions
   mixture_var <- 0
-  for (k in ID_k)
-  {
+  for (k in ID_k) {
     proba_k <- mixture %>%
       dplyr::filter(.data$ID == ID_data) %>%
       dplyr::pull(k)
@@ -2359,7 +2378,7 @@ pred_magmaclust <- function(data = NULL,
     }
 
     ## Display samples only in 1D and Credible Interval otherwise
-    if(ncol(mixture_pred) == 4){
+    if (ncol(mixture_pred) == 4) {
       ## Plot 1D prediction
       plot_magmaclust(
         res,
@@ -2378,7 +2397,6 @@ pred_magmaclust <- function(data = NULL,
       ) %>%
         print()
     }
-
   }
 
   ## Check whether posterior covariance should be returned
@@ -2452,4 +2470,3 @@ data_allocate_cluster <- function(trained_model) {
     dplyr::left_join(max_clust, by = "ID") %>%
     return()
 }
-

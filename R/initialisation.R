@@ -21,9 +21,10 @@ expand_grid_inputs <- function(Input, ...) {
     prod()
 
   if (dim_all > 10000) {
-    warning("The number of grid points is too high. Magma has a cubic ",
-            "complexity, so the execution will be extremely long. ",
-            "We advise to reduce the length of your grid of inputs."
+    warning(
+      "The number of grid points is too high. Magma has a cubic ",
+      "complexity, so the execution will be extremely long. ",
+      "We advise to reduce the length of your grid of inputs."
     )
   }
 
@@ -87,11 +88,12 @@ expand_grid_inputs <- function(Input, ...) {
 #' ## Define a 2D custom input grid
 #' my_grid_2D = MagmaClustR::expand_grid_inputs(c(2, 4, 8), 'Input2' = c(3, 5))
 #' regularize_data(data_2D, grid_inputs = my_grid_2D)
-regularize_data <- function(data,
-                            size_grid = 30,
-                            grid_inputs = NULL,
-                            summarise_fct = base::mean) {
-
+regularize_data <- function(
+  data,
+  size_grid = 30,
+  grid_inputs = NULL,
+  summarise_fct = base::mean
+) {
   if (data %>% is.data.frame()) {
     if (!all(c("ID", "Output") %in% names(data))) {
       stop(
@@ -106,19 +108,20 @@ regularize_data <- function(data,
     )
   }
   ## summarize function for data on the same grid node
-  if(is.character(summarise_fct)){
-    if (summarise_fct == "mean"){
+  if (is.character(summarise_fct)) {
+    if (summarise_fct == "mean") {
       summarise_fct <- base::mean
-    } else if (summarise_fct == "min"){
+    } else if (summarise_fct == "min") {
       summarise_fct <- base::min
-    } else if (summarise_fct == "max"){
+    } else if (summarise_fct == "max") {
       summarise_fct <- base::max
-    } else if (summarise_fct == "median"){
+    } else if (summarise_fct == "median") {
       summarise_fct <- stats::median
     }
-  } else if(!(is.function(summarise_fct))){
-    stop("Incorrect type. summarise_fct argument must be either a character or",
-         "a function."
+  } else if (!(is.function(summarise_fct))) {
+    stop(
+      "Incorrect type. summarise_fct argument must be either a character or",
+      "a function."
     )
   }
 
@@ -126,7 +129,6 @@ regularize_data <- function(data,
   names_col <- data %>%
     dplyr::select(-.data$ID, -.data$Output) %>%
     names()
-
 
   if (is.null(grid_inputs)) {
     ## Put the data on a grid node
