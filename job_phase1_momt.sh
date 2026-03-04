@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #===============================================================================
 # job_phase1_momt.sh — PHASE 1 : Entraînement MOMT (several_outputs)
 #
@@ -29,8 +29,13 @@ echo " 15 processus R en parallèle"
 echo "=============================================="
 
 # --- Environnement ---
+# En mode batch, le shell n'est ni login ni interactif :
+# les fichiers ~/.bashrc et ~/.bash_profile ne sont pas lus.
+# On les source explicitement pour rendre load_spack disponible.
+source ~/.bashrc
+
 load_spack
-spack load r@4.4.0 
+spack load r@4.4.0
 export R_LIBS=/scratch/${USER}/R
 
 # Limiter BLAS à 1 thread par processus (éviter la surcharge)
