@@ -211,73 +211,73 @@ model_clust <- train_magmaclust(data = weight_train,
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 8.7 seconds 
+#> VEM algorithm, step 1: 7.5 seconds 
 #>  
-#> Value of the elbo: -614.01449 --- Convergence ratio = Inf
+#> Value of the elbo: -580.10281 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 4.82 seconds 
+#> VEM algorithm, step 2: 3.79 seconds 
 #>  
-#> Value of the elbo: -490.95276 --- Convergence ratio = 0.25066
+#> Value of the elbo: -471.22535 --- Convergence ratio = 0.23105
 #>  
-#> VEM algorithm, step 3: 6.53 seconds 
+#> VEM algorithm, step 3: 5.46 seconds 
 #>  
-#> Value of the elbo: -431.92636 --- Convergence ratio = 0.13666
+#> Value of the elbo: -416.68426 --- Convergence ratio = 0.13089
 #>  
-#> VEM algorithm, step 4: 5.18 seconds 
+#> VEM algorithm, step 4: 4.27 seconds 
 #>  
-#> Value of the elbo: -399.90849 --- Convergence ratio = 0.08006
+#> Value of the elbo: -388.657 --- Convergence ratio = 0.07211
 #>  
-#> VEM algorithm, step 5: 4.47 seconds 
+#> VEM algorithm, step 5: 3.55 seconds 
 #>  
-#> Value of the elbo: -392.73377 --- Convergence ratio = 0.01827
+#> Value of the elbo: -382.75785 --- Convergence ratio = 0.01541
 #>  
-#> VEM algorithm, step 6: 5.01 seconds 
+#> VEM algorithm, step 6: 2.37 seconds 
 #>  
-#> Value of the elbo: -389.33247 --- Convergence ratio = 0.00874
+#> Value of the elbo: -381.53776 --- Convergence ratio = 0.0032
 #>  
-#> VEM algorithm, step 7: 3.53 seconds 
+#> VEM algorithm, step 7: 3.02 seconds 
 #>  
-#> Value of the elbo: -387.01608 --- Convergence ratio = 0.00599
+#> Value of the elbo: -378.07479 --- Convergence ratio = 0.00916
 #>  
-#> VEM algorithm, step 8: 3.54 seconds 
+#> VEM algorithm, step 8: 2.87 seconds 
 #>  
-#> Value of the elbo: -385.18784 --- Convergence ratio = 0.00475
+#> Value of the elbo: -377.17075 --- Convergence ratio = 0.0024
 #>  
-#> VEM algorithm, step 9: 3.51 seconds 
+#> VEM algorithm, step 9: 2.88 seconds 
 #>  
-#> Value of the elbo: -383.4405 --- Convergence ratio = 0.00456
+#> Value of the elbo: -376.36583 --- Convergence ratio = 0.00214
 #>  
-#> VEM algorithm, step 10: 3.62 seconds 
+#> VEM algorithm, step 10: 2.89 seconds 
 #>  
-#> Value of the elbo: -381.78493 --- Convergence ratio = 0.00434
+#> Value of the elbo: -375.662 --- Convergence ratio = 0.00187
 #>  
-#> VEM algorithm, step 11: 3.51 seconds 
+#> VEM algorithm, step 11: 2.88 seconds 
 #>  
-#> Value of the elbo: -380.30595 --- Convergence ratio = 0.00389
+#> Value of the elbo: -375.02438 --- Convergence ratio = 0.0017
 #>  
-#> VEM algorithm, step 12: 3.51 seconds 
+#> VEM algorithm, step 12: 2.89 seconds 
 #>  
-#> Value of the elbo: -379.03158 --- Convergence ratio = 0.00336
+#> Value of the elbo: -374.46114 --- Convergence ratio = 0.0015
 #>  
-#> VEM algorithm, step 13: 3.53 seconds 
+#> VEM algorithm, step 13: 3.09 seconds 
 #>  
-#> Value of the elbo: -378.03565 --- Convergence ratio = 0.00263
+#> Value of the elbo: -373.93017 --- Convergence ratio = 0.00142
 #>  
-#> VEM algorithm, step 14: 3.52 seconds 
+#> VEM algorithm, step 14: 3 seconds 
 #>  
-#> Value of the elbo: -377.25121 --- Convergence ratio = 0.00208
+#> Value of the elbo: -373.44386 --- Convergence ratio = 0.0013
 #>  
-#> VEM algorithm, step 15: 3.6 seconds 
+#> VEM algorithm, step 15: 3.01 seconds 
 #>  
-#> Value of the elbo: -376.7127 --- Convergence ratio = 0.00143
+#> Value of the elbo: -372.94651 --- Convergence ratio = 0.00133
 #>  
-#> VEM algorithm, step 16: 3.52 seconds 
+#> VEM algorithm, step 16: 2.95 seconds 
 #>  
-#> Value of the elbo: -376.31287 --- Convergence ratio = 0.00106
+#> Value of the elbo: -372.47822 --- Convergence ratio = 0.00126
 #>  
-#> VEM algorithm, step 17: 3.48 seconds 
+#> VEM algorithm, step 17: 2.98 seconds 
 #>  
-#> Value of the elbo: -376.05439 --- Convergence ratio = 0.00069
+#> Value of the elbo: -372.12351 --- Convergence ratio = 0.00095
 #>  
 #> The EM algorithm successfully converged, training is completed. 
 #> 
@@ -308,8 +308,6 @@ pred_clust <- pred_magmaclust(data = weight_pred,
                               plot = FALSE,
                               get_hyperpost = TRUE)
 #> The hyper-posterior distribution of the mean process provided in 'hyperpost' argument isn't evaluated on the expected inputs. Start evaluating the hyper-posterior on the correct inputs...
-#>  
-#> The 'prior_mean_k' argument has not been specified. The hyper-prior  mean functions are thus set to be 0 everywhere.
 #>  
 #> Done!
 #> 
