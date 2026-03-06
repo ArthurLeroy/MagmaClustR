@@ -68,8 +68,6 @@ ve_step <- function(
   floop <- function(k) {
     post_inv <- list_inv_k[[k]]
 
-    cat("det(inv_k) =", det(post_inv), "\n")
-
     tau_k <- old_mixture %>% dplyr::select(.data$ID, k)
     for (i in list_inv_i %>% names()) {
       ## Extract the corresponding mixture probability
@@ -79,7 +77,6 @@ ve_step <- function(
 
       inv_i <- list_inv_i[[i]]
 
-      cat("det(inv_i) =", det(inv_i), "\n")
       ## Collect input's common indices between mean and individual processes
       co_input <- intersect(row.names(inv_i), row.names(post_inv))
       ## Sum the common inverse covariance's terms
@@ -236,7 +233,7 @@ vm_step <- function(
 
     ## Mean of the Output values for each individual weighted by cluster membership probabilities
     list_mu_param$mixture %>%
-      left_join(data, by = 'ID') %>%
+      left_join(db, by = 'ID') %>%
       mutate(new_m_k := (Output * .data[[k]]) / sum(.data[[k]])) %>%
       pull(new_m_k)  %>%
       sum() %>% 
