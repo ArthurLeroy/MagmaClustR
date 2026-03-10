@@ -961,7 +961,11 @@ train_gp <- function(data,
 #' @param grid_inputs A vector, indicating the grid of additional reference
 #'    inputs on which the mean processes' hyper-posteriors should be evaluated.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
-#'    numerical issues when inverting nearly singular matrices.
+#'    numerical issues when inverting nearly singular matrices. Used by the
+#'    VE-step and ELBO monitoring.
+#' @param pen_diag_optim A number. A separate (typically larger) jitter term
+#'    used during the VM-step (HP optimisation via \code{optim}), where many
+#'    trial HP configurations are evaluated. Default 1e-5.
 #' @param n_iter_max A number, indicating the maximum number of iterations of
 #'    the VEM algorithm to proceed while not reaching convergence.
 #' @param cv_threshold A number, indicating the threshold of the likelihood gain
@@ -1025,6 +1029,7 @@ train_magmaclust <- function(data,
                              shared_hp_tasks = TRUE,
                              grid_inputs = NULL,
                              pen_diag = 1e-10,
+                             # pen_diag_optim = 1e-10,
                              n_iter_max = 25,
                              cv_threshold = 1e-3,
                              fast_approx = FALSE) {
@@ -1496,7 +1501,8 @@ train_magmaclust <- function(data,
       break
     }
 
-    ## VM-Step of MagmaClsut
+    ## VM-Step of MagmaClust — uses a separate, larger pen_diag to stabilise
+    ## the many trial inversions that optim() performs during HP optimisation.
     new_hp <- vm_step(data,
                       hp_k,
                       hp_t,
@@ -1523,7 +1529,10 @@ train_magmaclust <- function(data,
       break
     }
 
-    ## Monitoring of the elbo
+    ## Monitoring of the ELBO — uses the same base pen_diag as the VE-step.
+    ## The ELBO does its own inversions with go_one_more = TRUE, so it finds
+    ## its own optimal jitter independently (since HPs have changed after
+    ## the VM-step, the conditioning may differ from the VE-step).
     new_elbo_monitoring <- elbo_monitoring_VEM(
       new_hp_k,
       new_hp_t,
@@ -1541,7 +1550,7 @@ train_magmaclust <- function(data,
     }
 
     if (diff_moni < 0) {
-      warning("Likelihood descreased")
+      warning("Likelihood decreased")
     }
 
     ## Update HPs values and the elbo monitoring

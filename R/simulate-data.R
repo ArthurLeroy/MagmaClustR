@@ -624,7 +624,7 @@ generate_single_task_data <- function(
 #'
 #' @return A list with simulated data, mean process, and HPs.
 #'
-#' @example
+#' @examples
 #'
 #' simulation_results <- simulate_multi_output_data_convol(
 #' num_tasks = 30,

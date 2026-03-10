@@ -26,7 +26,8 @@ elbo_clust_multi_GP <- function(hp,
                                 kern,
                                 pen_diag,
                                 hp_col_names,
-                                output_ids) {
+                                output_ids,
+                                go_one_more = FALSE) {
   names_k <- hyperpost$mean %>% names()
   t_t <- db$Reference
   y_t <- db$Output
@@ -84,7 +85,7 @@ elbo_clust_multi_GP <- function(hp,
 
   cov <- kern_to_cov(inputs, kern, hp_tibble, deriv = NULL)
   references <- rownames(cov)
-  inv <- cov %>% chol_inv_jitter(pen_diag)
+  inv <- cov %>% chol_inv_jitter(pen_diag, go_one_more = go_one_more)
   dimnames(inv) <- list(references, references)
 
   # inv <- kern_to_inv(inputs,
@@ -380,8 +381,9 @@ elbo_monitoring_VEM <- function(hp_k,
                            dplyr::select(-c(Cluster_ID, prop_mixture)))
 
     references <- rownames(cov_k)
-    # Invert cov_k (with jitter for numerical stability)
-    inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
+    # Invert cov_k (with jitter for numerical stability + safety margin)
+    inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag,
+                                        go_one_more = TRUE)
 
     # Re-apply the stored names to the inverted matrix
     dimnames(inv_k) <- list(references, references)
@@ -409,7 +411,8 @@ elbo_monitoring_VEM <- function(hp_k,
       kern_t,
       pen_diag,
       hp_col_names,
-      output_ids
+      output_ids,
+      go_one_more = TRUE
     ) %>%
       return()
   }

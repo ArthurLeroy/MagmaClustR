@@ -106,7 +106,8 @@ ve_step <- function(db,
 
     # Stored row names of cov_k
     references <- rownames(cov_k)
-    inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
+    inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag,
+                                        go_one_more = TRUE)
 
     # Re-apply the stored names to the inverted matrix
     dimnames(inv_k) <- list(references, references)
@@ -149,7 +150,8 @@ ve_step <- function(db,
     task_references <- rownames(K_task_t)
 
     # Invert the covariance matrix (this strips the names)
-    K_inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag)
+    K_inv_t <- K_task_t %>% chol_inv_jitter(pen_diag = pen_diag,
+                                            go_one_more = TRUE)
 
     # Re-apply the stored names to the inverted matrix
     dimnames(K_inv_t) <- list(task_references, task_references)
@@ -182,7 +184,7 @@ ve_step <- function(db,
     }
 
     post_inv %>%
-      chol_inv_jitter(pen_diag = pen_diag) %>%
+      chol_inv_jitter(pen_diag = pen_diag, go_one_more = TRUE) %>%
       `rownames<-`(all_input) %>%
       `colnames<-`(all_input) %>%
       return()
@@ -328,6 +330,7 @@ vm_step <- function(db,
     }
   }
 
+  # browser()
   # Recompute prior mean parameters for each cluster with the updated mixture
   # probabilities
   floop <- function(k) {
@@ -354,6 +357,17 @@ vm_step <- function(db,
 
     new_m_k_vector <- mean_map[prefixes] %>% unname()
     names(new_m_k_vector) <- names(m_k[[k]])
+
+    ## If the cluster is empty (all membership probabilities are zero),
+    ## the weighted mean is 0/0 = NaN. Replace NaN with 0 to keep the
+    ## algorithm running: the prior mean for an empty cluster is set to 0.
+    if (any(is.nan(new_m_k_vector))) {
+      warning(
+        "Cluster ", k, " appears to be empty (all membership probabilities ",
+        "are zero). Setting its prior mean to 0."
+      )
+      new_m_k_vector[is.nan(new_m_k_vector)] <- 0
+    }
 
     return(new_m_k_vector)
   }

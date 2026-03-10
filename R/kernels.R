@@ -392,6 +392,10 @@ lin_kernel <- function(
 #'   to the convolution_kernel. If NULL, default bounds are used.
 #'
 #' @return A `tibble` containing the generated hyperparameters.
+#' @export
+#'
+#' @examples
+#' TRUE
 
 hp <- function(kern = "SE",
                list_task_ID = NULL,
