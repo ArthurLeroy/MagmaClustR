@@ -1896,7 +1896,7 @@ hyperposterior_clust <- function(trained_model = NULL,
     if(kern_k %>% is.null()){kern_k = trained_model$ini_args$kern_k}
     if(kern_t %>% is.null()){kern_t = trained_model$ini_args$kern_t}
     if(prior_mean_k %>% is.null()){
-      prior_mean_k = trained_model$ini_args$prior_mean_k
+      prior_mean_k = trained_model$m_k
     }
   }
 
@@ -2100,162 +2100,165 @@ hyperposterior_clust <- function(trained_model = NULL,
   #   }
   # }
 
-  # Label switching check
-  if (!is.null(prior_mean_k) && !is.null(mixture)) {
-    # cat("Checking for label switching across multiple outputs (Hyperposterior step)...\n")
+  # # Label switching check
+  # if (!is.null(prior_mean_k) && !is.null(mixture)) {
+  #   # cat("Checking for label switching across multiple outputs (Hyperposterior step)...\n")
+  #
+  #   # Helper: Get profile from Prior (m_k)
+  #   get_prior_profile <- function(cluster_name) {
+  #     browser()
+  #     vals <- m_k[[cluster_name]]
+  #     # We rely on all_input vector for names implicitly if not named,
+  #     # but m_k lists are usually just vectors.
+  #     # Let's use all_input to map back to Output_IDs
+  #     if(is.null(names(vals))) refs <- all_input else refs <- names(vals)
+  #
+  #     oids <- stringr::str_extract(refs, "^o[0-9]+")
+  #
+  #     tibble::tibble(Output_ID = oids, value = vals) %>%
+  #       dplyr::group_by(Output_ID) %>%
+  #       dplyr::summarise(mean_val = mean(value), .groups = "drop") %>%
+  #       dplyr::arrange(Output_ID) %>%
+  #       dplyr::pull(mean_val)
+  #   }
+  #
+  #   prior_signatures <- do.call(rbind, lapply(names_k, get_prior_profile))
+  #   rownames(prior_signatures) <- names_k
+  #
+  #   # Helper: Get profile from Data + Mixture
+  #   # Note: 'data' has columns: Task_ID, Output_ID, Output, Reference...
+  #   df_check <- data %>%
+  #     dplyr::mutate(OID_label = paste0("o", Output_ID)) %>%
+  #     dplyr::select(Task_ID, OID_label, Output) %>%
+  #     dplyr::left_join(mixture, by = "Task_ID")
+  #
+  #   get_empiric_profile <- function(cluster_col) {
+  #     # browser() # À retirer une fois le debug fini
+  #     col_name_str <- as.character(cluster_col)
+  #     # Calcul de la somme des poids pour ce cluster
+  #     sum_weights <- sum(df_check[[col_name_str]], na.rm = TRUE)
+  #     # Si le cluster est vide (poids quasi nuls), on retourne NA directement
+  #     if (sum_weights < 1e-9) {
+  #       # On retourne un vecteur de NA de la taille du nombre d'outputs uniques
+  #       # (Supposons que OID_label est trié et complet)
+  #       n_outputs <- dplyr::n_distinct(df_check$OID_label)
+  #       return(rep(NA_real_, n_outputs))
+  #     }
+  #
+  #     df_check %>%
+  #       dplyr::group_by(OID_label) %>%
+  #       dplyr::summarise(
+  #         w_mean = stats::weighted.mean(Output, w = .data[[col_name_str]], na.rm = TRUE),
+  #         .groups = "drop"
+  #       ) %>%
+  #       dplyr::arrange(OID_label) %>%
+  #       dplyr::pull(w_mean)
+  #   }
+  #
+  #   # Ensure we look at the clusters present in the mixture
+  #   # The mixture columns usually match ID_k
+  #   empiric_signatures <- do.call(rbind, lapply(ID_k, get_empiric_profile))
+  #   rownames(empiric_signatures) <- ID_k
+  #
+  #   # Compute distance matrix between Prior (rows) and Empiric (cols of loop, rows of matrix)
+  #   dist_mat <- matrix(NA, nrow = nb_cluster, ncol = nb_cluster,
+  #                      dimnames = list(ID_k, names_k))
+  #
+  #   for(i in 1:nb_cluster) { # Loop over Empiric (ID_k)
+  #     for(j in 1:nb_cluster) { # Loop over Prior (names_k)
+  #       # Check dimensions to avoid crash if priors and data don't span same outputs
+  #       if(length(empiric_signatures[i, ]) == length(prior_signatures[j, ])) {
+  #         dist_mat[i, j] <- sum((empiric_signatures[i, ] - prior_signatures[j, ])^2)
+  #       } else {
+  #         dist_mat[i, j] <- Inf # Safety
+  #       }
+  #     }
+  #   }
+  #
+  #   # 1. On cherche pour CHAQUE PRIOR (colonne) quel est son cluster empirique le plus proche
+  #   # Cela nous donne un vecteur de taille nb_cluster (ex: c(1, 1, 2) -> Priors 1 et 2 vont vers Empiric 1)
+  #   # Note : which.min ignore les Inf, donc les clusters empiriques vides ne seront pas choisis ici.
+  #   assigned_empiric_indices <- apply(dist_mat, 2, which.min)
+  #
+  #   # Création de la matrice pour stocker les nouvelles moyennes de priors réordonnées
+  #   # Elle doit avoir la même structure que prior_signatures
+  #   new_prior_means <- matrix(NA, nrow = nrow(prior_signatures), ncol = ncol(prior_signatures))
+  #   rownames(new_prior_means) <- ID_k # On garde les IDs des clusters empiriques (K1, K2...)
+  #
+  #   # Liste pour suivre les priors qui ont été utilisés
+  #   used_priors <- numeric()
+  #
+  #   # 2. Boucle sur les clusters EMPIRIQUES (i) pour construire leur nouveau prior
+  #   for(i in 1:nb_cluster) {
+  #
+  #     # Quels priors ont "choisi" ce cluster empirique i ?
+  #     priors_merged_here <- which(assigned_empiric_indices == i)
+  #
+  #     if(length(priors_merged_here) > 1) {
+  #       # --- CAS DE FUSION ---
+  #       # Plusieurs priors pointent vers ce cluster empirique.
+  #       # On prend la moyenne arithmétique de leurs signatures (Moyenne des vecteurs de moyennes)
+  #
+  #       # colMeans gère correctement la moyenne par colonne (par Output)
+  #       new_prior_means[i, ] <- colMeans(prior_signatures[priors_merged_here, , drop = FALSE])
+  #
+  #       # On note ces priors comme utilisés
+  #       used_priors <- c(used_priors, priors_merged_here)
+  #
+  #     } else if(length(priors_merged_here) == 1) {
+  #       # --- CAS 1-pour-1 ---
+  #       # Un seul prior pointe ici, on le copie simplement
+  #       new_prior_means[i, ] <- prior_signatures[priors_merged_here, ]
+  #       used_priors <- c(used_priors, priors_merged_here)
+  #
+  #     } else {
+  #       # --- CAS CLUSTER EMPIRIQUE VIDE ---
+  #       # Aucun prior n'a choisi ce cluster (souvent car sa ligne est Inf ou très loin)
+  #       # On laisse NA pour l'instant, on remplira avec les priors orphelins juste après
+  #     }
+  #   }
+  #
+  #   # 3. Gestion des Orphelins (Priors non assignés) et des Trous (Clusters vides)
+  #   # Si des priors ont fusionné ailleurs, cela laisse des clusters empiriques vides.
+  #   # Il faut réassigner les priors "perdus" (ceux qui n'ont pas été choisis du tout)
+  #   # aux clusters vides pour ne pas perdre de diversité (mécanisme de sauvetage).
+  #
+  #   all_priors <- 1:nb_cluster
+  #   orphan_priors <- setdiff(all_priors, used_priors)
+  #   empty_empiric_slots <- which(is.na(new_prior_means[, 1])) # On regarde la 1ère colonne pour voir les NA
+  #
+  #   # Si on a des trous et des orphelins, on remplit
+  #   if(length(empty_empiric_slots) > 0 && length(orphan_priors) > 0) {
+  #
+  #     # On peut faire un matching simple ou aléatoire ici.
+  #     # Prenons les dans l'ordre pour simplifier.
+  #     n_fill <- min(length(empty_empiric_slots), length(orphan_priors))
+  #
+  #     for(k in 1:n_fill) {
+  #       slot_idx <- empty_empiric_slots[k]
+  #       prior_idx <- orphan_priors[k]
+  #       new_prior_means[slot_idx, ] <- prior_signatures[prior_idx, ]
+  #     }
+  #   }
+  #
+  #   # S'il reste encore des NA (ex: plus de clusters vides que de priors dispo - rare),
+  #   # on peut réinitialiser ou dupliquer un existant.
+  #   # Ici, sécurité simple : remplacer les NA restants par 0 ou la moyenne globale.
+  #   new_prior_means[is.na(new_prior_means)] <- 0
+  #
+  #   # Mise à jour des noms pour la suite du code (si besoin)
+  #   # Note : new_prior_means contient maintenant les valeurs numériques directement
+  #   # Si votre code attend une liste de noms de clusters, la logique change légèrement,
+  #   # mais pour mettre à jour les hyper-paramètres, c'est cette matrice `new_prior_means` qu'il faut utiliser.
+  # }
 
-    # Helper: Get profile from Prior (m_k)
-    get_prior_profile <- function(cluster_name) {
-      vals <- m_k[[cluster_name]]
-      # We rely on all_input vector for names implicitly if not named,
-      # but m_k lists are usually just vectors.
-      # Let's use all_input to map back to Output_IDs
-      if(is.null(names(vals))) refs <- all_input else refs <- names(vals)
-
-      oids <- stringr::str_extract(refs, "^o[0-9]+")
-
-      tibble::tibble(Output_ID = oids, value = vals) %>%
-        dplyr::group_by(Output_ID) %>%
-        dplyr::summarise(mean_val = mean(value), .groups = "drop") %>%
-        dplyr::arrange(Output_ID) %>%
-        dplyr::pull(mean_val)
-    }
-
-    prior_signatures <- do.call(rbind, lapply(names_k, get_prior_profile))
-    rownames(prior_signatures) <- names_k
-
-    # Helper: Get profile from Data + Mixture
-    # Note: 'data' has columns: Task_ID, Output_ID, Output, Reference...
-    df_check <- data %>%
-      dplyr::mutate(OID_label = paste0("o", Output_ID)) %>%
-      dplyr::select(Task_ID, OID_label, Output) %>%
-      dplyr::left_join(mixture, by = "Task_ID")
-
-    get_empiric_profile <- function(cluster_col) {
-      # browser() # À retirer une fois le debug fini
-      col_name_str <- as.character(cluster_col)
-      # Calcul de la somme des poids pour ce cluster
-      sum_weights <- sum(df_check[[col_name_str]], na.rm = TRUE)
-      # Si le cluster est vide (poids quasi nuls), on retourne NA directement
-      if (sum_weights < 1e-9) {
-        # On retourne un vecteur de NA de la taille du nombre d'outputs uniques
-        # (Supposons que OID_label est trié et complet)
-        n_outputs <- dplyr::n_distinct(df_check$OID_label)
-        return(rep(NA_real_, n_outputs))
-      }
-
-      df_check %>%
-        dplyr::group_by(OID_label) %>%
-        dplyr::summarise(
-          w_mean = stats::weighted.mean(Output, w = .data[[col_name_str]], na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
-        dplyr::arrange(OID_label) %>%
-        dplyr::pull(w_mean)
-    }
-
-    # Ensure we look at the clusters present in the mixture
-    # The mixture columns usually match ID_k
-    empiric_signatures <- do.call(rbind, lapply(ID_k, get_empiric_profile))
-    rownames(empiric_signatures) <- ID_k
-
-    # Compute distance matrix between Prior (rows) and Empiric (cols of loop, rows of matrix)
-    dist_mat <- matrix(NA, nrow = nb_cluster, ncol = nb_cluster,
-                       dimnames = list(ID_k, names_k))
-
-    for(i in 1:nb_cluster) { # Loop over Empiric (ID_k)
-      for(j in 1:nb_cluster) { # Loop over Prior (names_k)
-        # Check dimensions to avoid crash if priors and data don't span same outputs
-        if(length(empiric_signatures[i, ]) == length(prior_signatures[j, ])) {
-          dist_mat[i, j] <- sum((empiric_signatures[i, ] - prior_signatures[j, ])^2)
-        } else {
-          dist_mat[i, j] <- Inf # Safety
-        }
-      }
-    }
-
-    # 1. On cherche pour CHAQUE PRIOR (colonne) quel est son cluster empirique le plus proche
-    # Cela nous donne un vecteur de taille nb_cluster (ex: c(1, 1, 2) -> Priors 1 et 2 vont vers Empiric 1)
-    # Note : which.min ignore les Inf, donc les clusters empiriques vides ne seront pas choisis ici.
-    assigned_empiric_indices <- apply(dist_mat, 2, which.min)
-
-    # Création de la matrice pour stocker les nouvelles moyennes de priors réordonnées
-    # Elle doit avoir la même structure que prior_signatures
-    new_prior_means <- matrix(NA, nrow = nrow(prior_signatures), ncol = ncol(prior_signatures))
-    rownames(new_prior_means) <- ID_k # On garde les IDs des clusters empiriques (K1, K2...)
-
-    # Liste pour suivre les priors qui ont été utilisés
-    used_priors <- numeric()
-
-    # 2. Boucle sur les clusters EMPIRIQUES (i) pour construire leur nouveau prior
-    for(i in 1:nb_cluster) {
-
-      # Quels priors ont "choisi" ce cluster empirique i ?
-      priors_merged_here <- which(assigned_empiric_indices == i)
-
-      if(length(priors_merged_here) > 1) {
-        # --- CAS DE FUSION ---
-        # Plusieurs priors pointent vers ce cluster empirique.
-        # On prend la moyenne arithmétique de leurs signatures (Moyenne des vecteurs de moyennes)
-
-        # colMeans gère correctement la moyenne par colonne (par Output)
-        new_prior_means[i, ] <- colMeans(prior_signatures[priors_merged_here, , drop = FALSE])
-
-        # On note ces priors comme utilisés
-        used_priors <- c(used_priors, priors_merged_here)
-
-      } else if(length(priors_merged_here) == 1) {
-        # --- CAS 1-pour-1 ---
-        # Un seul prior pointe ici, on le copie simplement
-        new_prior_means[i, ] <- prior_signatures[priors_merged_here, ]
-        used_priors <- c(used_priors, priors_merged_here)
-
-      } else {
-        # --- CAS CLUSTER EMPIRIQUE VIDE ---
-        # Aucun prior n'a choisi ce cluster (souvent car sa ligne est Inf ou très loin)
-        # On laisse NA pour l'instant, on remplira avec les priors orphelins juste après
-      }
-    }
-
-    # 3. Gestion des Orphelins (Priors non assignés) et des Trous (Clusters vides)
-    # Si des priors ont fusionné ailleurs, cela laisse des clusters empiriques vides.
-    # Il faut réassigner les priors "perdus" (ceux qui n'ont pas été choisis du tout)
-    # aux clusters vides pour ne pas perdre de diversité (mécanisme de sauvetage).
-
-    all_priors <- 1:nb_cluster
-    orphan_priors <- setdiff(all_priors, used_priors)
-    empty_empiric_slots <- which(is.na(new_prior_means[, 1])) # On regarde la 1ère colonne pour voir les NA
-
-    # Si on a des trous et des orphelins, on remplit
-    if(length(empty_empiric_slots) > 0 && length(orphan_priors) > 0) {
-
-      # On peut faire un matching simple ou aléatoire ici.
-      # Prenons les dans l'ordre pour simplifier.
-      n_fill <- min(length(empty_empiric_slots), length(orphan_priors))
-
-      for(k in 1:n_fill) {
-        slot_idx <- empty_empiric_slots[k]
-        prior_idx <- orphan_priors[k]
-        new_prior_means[slot_idx, ] <- prior_signatures[prior_idx, ]
-      }
-    }
-
-    # S'il reste encore des NA (ex: plus de clusters vides que de priors dispo - rare),
-    # on peut réinitialiser ou dupliquer un existant.
-    # Ici, sécurité simple : remplacer les NA restants par 0 ou la moyenne globale.
-    new_prior_means[is.na(new_prior_means)] <- 0
-
-    # Mise à jour des noms pour la suite du code (si besoin)
-    # Note : new_prior_means contient maintenant les valeurs numériques directement
-    # Si votre code attend une liste de noms de clusters, la logique change légèrement,
-    # mais pour mettre à jour les hyper-paramètres, c'est cette matrice `new_prior_means` qu'il faut utiliser.
-  }
-
-
-  browser()
   ## Create a list named by cluster with evaluation of the prior mean (m_k) at all Input locations
   for (k in 1:nb_cluster) {
-    m_k[[ID_k[k]]] <- rep(prior_mean_k[[ID_k[k]]], length(all_input))
+    # Extrait le numéro après le 'o' (ex: "o1" -> 1, "o2" -> 2)
+    out_indices <- as.numeric(gsub("^o([0-9]+);.*", "\\1", all_input))
+
+    # Assigne directement en utilisant ces indices pour piocher dans prior_mean_k
+    m_k[[ID_k[k]]] <- prior_mean_k[[ID_k[k]]][out_indices]
   }
 
   ## Format a sequence of inputs for all clusters
