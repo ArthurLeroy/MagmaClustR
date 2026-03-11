@@ -34,6 +34,7 @@ setwd(pkg_dir)
 
 library(tidyverse)
 library(readr)
+library(MagmaClustR)
 # library(devtools)
 # devtools::load_all()
 
