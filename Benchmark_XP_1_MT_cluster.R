@@ -115,7 +115,7 @@ for (iter in 1:n_iterations) {
 
     ini_hp_t <- trained_model_momt$hp_t %>%
       dplyr::filter(Output_ID == "1") %>%
-      dplyr::filter(!(Task_ID %in% unique(train_data$Task_ID))) %>%
+      dplyr::filter(Task_ID %in% unique(train_data$Task_ID)) %>%
       dplyr::select(-c(l_u_t, Task_ID)) %>%
       dplyr::mutate(se_lengthscale = l_t, se_variance = S_t) %>%
       dplyr::select(-c(l_t, S_t)) %>%
@@ -131,7 +131,7 @@ for (iter in 1:n_iterations) {
       data = train_data_o1, ini_mixture = ini_mixture,
       ini_hp_k = ini_hp_k, nb_cluster = n_clusters,
       kern_k = "SE", ini_hp_t = ini_hp_t, kern_t = "SE",
-      shared_hp_tasks = TRUE, prior_mean_k = prior_mean_k_o1, pen_diag = 1e-10
+      shared_hp_tasks = TRUE, shared_hp_clusts = FALSE, prior_mean_k = prior_mean_k_o1, pen_diag = 1e-10
     )
     duration_train <- as.numeric(difftime(Sys.time(), t_train_start, units = "secs"))
 
