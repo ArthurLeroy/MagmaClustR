@@ -32,9 +32,16 @@ echo " 30 processus R en parallèle (15 MT + 15 MO)"
 echo "=============================================="
 
 # --- Environnement ---
+source ~/.bashrc             # Force le chargement de ton environnement personnel
+shopt -s expand_aliases      # Active les alias au cas où load_spack en soit un
+
 load_spack
 spack load r@4.4.0 cmake
 export R_LIBS=/scratch/${USER}/R
+# # --- Environnement ---
+# load_spack
+# spack load r@4.4.0 cmake
+# export R_LIBS=/scratch/${USER}/R
 
 export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
