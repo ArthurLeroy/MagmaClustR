@@ -100,91 +100,97 @@ for (iter in 1:n_iterations) {
     ini_hp_template <- trained_model_momt$hp_t %>%
       dplyr::slice(1:n_out) %>% dplyr::select(-Task_ID)
 
-    # Boucle sur les subsets
-    for (n_pred in n_pred_subsets) {
-      n_pred_actual <- min(n_pred, length(test_task_ids_max))
-      if (n_pred_actual == 0) next
+    # Traitement des tâches dans l'ordre, sauvegarde de chaque subset dès qu'il est complet
+    all_predictions <- list()
+    all_models <- list()
+    n_tasks_total <- length(test_task_ids_max)
 
-      test_task_ids <- test_task_ids_max[1:n_pred_actual]
+    # Points de sauvegarde : dès qu'on atteint n_pred tâches traitées, on sauvegarde
+    save_points <- sort(unique(pmin(n_pred_subsets, n_tasks_total)))
+    n_tasks_needed <- max(save_points)
 
-      # dir_predictions_mo <- file.path(dir_n_out, "Predictions_MO", paste0("train_", n_train, "_pred_", n_pred))
-      # dir_models_mo <- file.path(dir_n_out, "Models_MO", paste0("train_", n_train, "_pred_", n_pred))
-      dir_predictions_mo <- file.path(base_path, "Predictions_MO", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred))
-      dir_models_mo <- file.path(base_path, "Models_MO", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred))
-      if (!dir.exists(dir_predictions_mo)) dir.create(dir_predictions_mo, recursive = TRUE)
-      if (!dir.exists(dir_models_mo)) dir.create(dir_models_mo, recursive = TRUE)
+    for (idx in 1:n_tasks_needed) {
+      test_task_id <- test_task_ids_max[idx]
 
-      all_predictions <- list()
-      all_models <- list()
-      t_train_total <- 0
-      t_pred_total <- 0
+      pred_task_input_data <- pred_tasks_data_all[[test_task_id]]
+      test_data_truth <- test_tasks_data_all[[test_task_id]]
 
-      for (test_task_id in test_task_ids) {
-        pred_task_input_data <- pred_tasks_data_all[[test_task_id]]
-        test_data_truth <- test_tasks_data_all[[test_task_id]]
+      train_data_task <- pred_task_input_data %>%
+        dplyr::select(-Task_ID, -Cluster_ID) %>%
+        dplyr::mutate(Output_ID = as.factor(Output_ID))
 
-        train_data_task <- pred_task_input_data %>%
-          dplyr::select(-Task_ID, -Cluster_ID) %>%
-          dplyr::mutate(Output_ID = as.factor(Output_ID))
+      mean_emp_per_output <- train_data_task %>%
+        group_by(Output_ID) %>%
+        summarise(Empirical_mean = mean(Output, na.rm = TRUE), .groups = 'drop')
 
-        mean_emp_per_output <- train_data_task %>%
-          group_by(Output_ID) %>%
-          summarise(Empirical_mean = mean(Output, na.rm = TRUE), .groups = 'drop')
+      test_grid_inputs <- test_data_truth %>%
+        dplyr::select(Input, Input_ID, Output_ID) %>%
+        dplyr::distinct() %>% dplyr::mutate(Output_ID = as.factor(Output_ID))
 
-        test_grid_inputs <- test_data_truth %>%
-          dplyr::select(Input, Input_ID, Output_ID) %>%
-          dplyr::distinct() %>% dplyr::mutate(Output_ID = as.factor(Output_ID))
+      # Entraînement
+      t_train_start <- Sys.time()
+      hp_optim <- train_gp(
+        data = train_data_task, ini_hp = ini_hp_template,
+        kern = convolution_kernel,
+        prior_mean = mean_emp_per_output$Empirical_mean %>% as.vector()
+      )
+      t_train_task <- as.numeric(difftime(Sys.time(), t_train_start, units = "secs"))
 
-        # Entraînement
-        t_train_start <- Sys.time()
-        hp_optim <- train_gp(
-          data = train_data_task, ini_hp = ini_hp_template,
-          kern = convolution_kernel,
-          prior_mean = mean_emp_per_output$Empirical_mean %>% as.vector()
-        )
-        t_train_task <- as.numeric(difftime(Sys.time(), t_train_start, units = "secs"))
-        t_train_total <- t_train_total + t_train_task
+      # Prédiction
+      t_pred_start <- Sys.time()
+      pred_res <- pred_gp(
+        data = train_data_task, kern = convolution_kernel,
+        hp = hp_optim,
+        mean = mean_emp_per_output$Empirical_mean %>% as.vector(),
+        grid_inputs = test_grid_inputs, get_full_cov = TRUE, plot = FALSE
+      )
+      t_pred_task <- as.numeric(difftime(Sys.time(), t_pred_start, units = "secs"))
 
-        # Prédiction
-        t_pred_start <- Sys.time()
-        pred_res <- pred_gp(
-          data = train_data_task, kern = convolution_kernel,
-          hp = hp_optim,
-          mean = mean_emp_per_output$Empirical_mean %>% as.vector(),
-          grid_inputs = test_grid_inputs, get_full_cov = TRUE, plot = FALSE
-        )
-        t_pred_task <- as.numeric(difftime(Sys.time(), t_pred_start, units = "secs"))
-        t_pred_total <- t_pred_total + t_pred_task
+      all_predictions[[test_task_id]] <- list(
+        prediction = pred_res, truth = test_data_truth,
+        inputs_pred = pred_task_input_data,
+        t_train = t_train_task, t_pred = t_pred_task
+      )
+      all_models[[test_task_id]] <- list(
+        hp_optim = hp_optim,
+        prior_mean = mean_emp_per_output$Empirical_mean
+      )
 
-        all_predictions[[test_task_id]] <- list(
-          prediction = pred_res, truth = test_data_truth,
-          inputs_pred = pred_task_input_data,
-          t_train = t_train_task, t_pred = t_pred_task
-        )
-        all_models[[test_task_id]] <- list(
-          hp_optim = hp_optim,
-          prior_mean = mean_emp_per_output$Empirical_mean
-        )
+      # Sauvegarde immédiate dès qu'un subset est complet
+      if (idx %in% save_points) {
+        # Tous les n_pred_subsets dont min(n_pred, n_tasks_total) == idx
+        for (n_pred in n_pred_subsets[pmin(n_pred_subsets, n_tasks_total) == idx]) {
+          test_task_ids <- test_task_ids_max[1:idx]
+
+          dir_predictions_mo <- file.path(base_path, "Predictions_MO", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred))
+          dir_models_mo <- file.path(base_path, "Models_MO", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred))
+          if (!dir.exists(dir_predictions_mo)) dir.create(dir_predictions_mo, recursive = TRUE)
+          if (!dir.exists(dir_models_mo)) dir.create(dir_models_mo, recursive = TRUE)
+
+          subset_predictions <- all_predictions[test_task_ids]
+          subset_models <- all_models[test_task_ids]
+          t_train_total <- sum(sapply(subset_predictions, function(x) x$t_train))
+          t_pred_total <- sum(sapply(subset_predictions, function(x) x$t_pred))
+
+          predictions_to_save <- list(
+            predictions = subset_predictions, t_train_total = t_train_total,
+            t_pred_total = t_pred_total, seed = datasets$seed,
+            test_task_ids = test_task_ids, n_train = n_train, n_pred = n_pred
+          )
+          models_to_save <- list(
+            models = subset_models, t_train_total = t_train_total,
+            seed = datasets$seed, n_train = n_train, n_pred = n_pred
+          )
+
+          saveRDS(predictions_to_save, file.path(dir_predictions_mo, paste0("predictions_iter_", iter, ".rds")))
+          saveRDS(models_to_save, file.path(dir_models_mo, paste0("models_iter_", iter, ".rds")))
+          cat(paste0("[saved pred_", n_pred, "] "))
+        }
       }
-
-      # Sauvegarde
-      predictions_to_save <- list(
-        predictions = all_predictions, t_train_total = t_train_total,
-        t_pred_total = t_pred_total, seed = datasets$seed,
-        test_task_ids = test_task_ids, n_train = n_train, n_pred = n_pred
-      )
-      models_to_save <- list(
-        models = all_models, t_train_total = t_train_total,
-        seed = datasets$seed, n_train = n_train, n_pred = n_pred
-      )
-
-      saveRDS(predictions_to_save, file.path(dir_predictions_mo, paste0("predictions_iter_", iter, ".rds")))
-      saveRDS(models_to_save, file.path(dir_models_mo, paste0("models_iter_", iter, ".rds")))
     }
 
     cat(paste0("OK\n"))
-    if(exists("all_predictions")) rm(all_predictions)
-    if(exists("all_models")) rm(all_models)
+    rm(all_predictions, all_models)
     gc()
 
   }, error = function(e) {
