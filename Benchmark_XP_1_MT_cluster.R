@@ -27,7 +27,7 @@ N_TRAIN_TARGET <- parse_arg(args, "n_train")
 
 # --- 1. SETUP & LIBRARIES ---
 username  <- Sys.getenv("USER")
-pkg_dir   <- file.path("/scratch", username, "MagmaClustR_dev")
+pkg_dir   <- file.path("/scratch", username, "MagmaClustR")
 base_path <- file.path("/scratch", username, "NeurIPS_experiments", "Experience_1")
 
 setwd(pkg_dir)

@@ -32,16 +32,9 @@ echo " 30 processus R en parallèle (15 MT + 15 MO)"
 echo "=============================================="
 
 # --- Environnement ---
-source ~/.bashrc             # Force le chargement de ton environnement personnel
-shopt -s expand_aliases      # Active les alias au cas où load_spack en soit un
-
 load_spack
 spack load r@4.4.0 cmake
 export R_LIBS=/scratch/${USER}/R
-# # --- Environnement ---
-# load_spack
-# spack load r@4.4.0 cmake
-# export R_LIBS=/scratch/${USER}/R
 
 export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
@@ -90,7 +83,7 @@ for N_OUT in 2 3 4 6 8; do
     LOGFILE="${LOGDIR}/mt_nout${N_OUT}_ntrain${N_TRAIN}.log"
     echo "[$(date +%H:%M:%S)] Lancement MT  n_out=${N_OUT} n_train=${N_TRAIN} → ${LOGFILE}"
 
-    Rscript --vanilla Benchmark_XP_1_MT_cluster.R \
+    /opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript --vanilla Benchmark_XP_1_MT_cluster.R \
       --n_out=${N_OUT} --n_train=${N_TRAIN} \
       > "${LOGFILE}" 2>&1 &
 
@@ -104,7 +97,7 @@ for N_OUT in 2 3 4 6 8; do
     LOGFILE="${LOGDIR}/mo_nout${N_OUT}_ntrain${N_TRAIN}.log"
     echo "[$(date +%H:%M:%S)] Lancement MO  n_out=${N_OUT} n_train=${N_TRAIN} → ${LOGFILE}"
 
-    Rscript --vanilla Benchmark_XP_1_MO_cluster.R \
+    /opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript --vanilla Benchmark_XP_1_MO_cluster.R \
       --n_out=${N_OUT} --n_train=${N_TRAIN} \
       > "${LOGFILE}" 2>&1 &
 
