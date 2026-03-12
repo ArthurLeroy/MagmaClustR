@@ -142,15 +142,37 @@ for (iter in 1:n_iterations) {
     )
     saveRDS(model_mt_to_save, file.path(dir_models_mt, paste0("model_iter_", iter, ".rds")))
 
-    # Prédiction tâche par tâche, sauvegarde de chaque subset dès qu'il est complet
-    # Hyperpost par tâche : grille réduite aux inputs de CETTE tâche uniquement
-    all_predictions <- list()
+    # --- Hyperpostérieur global (1 seul calcul, comme MOMT) ---
     n_tasks_total <- length(test_task_ids_max)
-    t_hyperpost_total <- 0
-
-    # Points de sauvegarde : dès qu'on atteint n_pred tâches traitées, on sauvegarde
     save_points <- sort(unique(pmin(n_pred_subsets, n_tasks_total)))
     n_tasks_needed <- max(save_points)
+
+    # Construire la grille globale : tous les inputs (pred + test) de toutes les tâches
+    all_pred_inputs_global <- list()
+    all_test_inputs_global <- list()
+    for (tid in test_task_ids_max[1:n_tasks_needed]) {
+      pred_task_o1 <- pred_tasks_data_all[[tid]] %>% dplyr::filter(Output_ID == "1")
+      test_task_o1 <- test_tasks_data_all[[tid]] %>% dplyr::filter(Output_ID == "1")
+      all_pred_inputs_global[[tid]] <- pred_task_o1 %>% dplyr::select(Output_ID, Input_ID, Input)
+      all_test_inputs_global[[tid]] <- test_task_o1 %>% dplyr::select(Input, Input_ID, Output_ID)
+    }
+    grid_hyperpost_global <- bind_rows(bind_rows(all_pred_inputs_global), bind_rows(all_test_inputs_global)) %>%
+      dplyr::distinct() %>% dplyr::arrange(Output_ID, Input_ID, Input)
+
+    t_hp_start <- Sys.time()
+    hyperpost_global <- hyperposterior_clust(
+      trained_model = trained_model_mt, data = trained_model_mt$ini_args$data,
+      mixture = trained_model_mt$hyperpost$mixture,
+      hp_k = trained_model_mt$hp_k, hp_t = trained_model_mt$hp_t,
+      grid_inputs = grid_hyperpost_global,
+      kern_k = trained_model_mt$kern_k, kern_t = trained_model_mt$kern_t,
+      prior_mean_k = trained_model_mt$prior_mean_k
+    )
+    duration_hyperpost_global <- as.numeric(difftime(Sys.time(), t_hp_start, units = "secs"))
+    cat(paste0("  Hyperpost: ", round(duration_hyperpost_global, 1), "s\n"))
+
+    # --- Prédiction tâche par tâche (réutilisation de l'hyperpost global) ---
+    all_predictions <- list()
 
     for (idx in 1:n_tasks_needed) {
       test_task_id <- test_task_ids_max[idx]
@@ -166,36 +188,18 @@ for (iter in 1:n_iterations) {
         dplyr::select(-Task_ID, -Cluster_ID) %>%
         dplyr::mutate(Output_ID = as.factor(Output_ID))
 
-      # Hyperpost par tâche (grille réduite : inputs observés + grille test de cette seule tâche)
-      task_pred_inputs <- pred_task_input_data %>% dplyr::select(Output_ID, Input_ID, Input)
-      task_test_inputs <- test_data_truth %>% dplyr::select(Input, Input_ID, Output_ID)
-      task_grid <- bind_rows(task_pred_inputs, task_test_inputs) %>%
-        dplyr::distinct() %>% dplyr::arrange(Output_ID, Input_ID, Input)
-
-      t_hp_start <- Sys.time()
-      hyperpost_task <- hyperposterior_clust(
-        trained_model = trained_model_mt, data = trained_model_mt$ini_args$data,
-        mixture = trained_model_mt$hyperpost$mixture,
-        hp_k = trained_model_mt$hp_k, hp_t = trained_model_mt$hp_t,
-        grid_inputs = task_grid,
-        kern_k = trained_model_mt$kern_k, kern_t = trained_model_mt$kern_t,
-        prior_mean_k = trained_model_mt$prior_mean_k
-      )
-      t_hyperpost_task <- as.numeric(difftime(Sys.time(), t_hp_start, units = "secs"))
-      t_hyperpost_total <- t_hyperpost_total + t_hyperpost_task
-
       t_pred_start <- Sys.time()
       pred_res <- pred_magmaclust(
         data = pred_data_task, trained_model = trained_model_mt,
         grid_inputs = test_grid_inputs, kern = "SE",
-        hyperpost = hyperpost_task, get_full_cov = TRUE, plot = FALSE
+        hyperpost = hyperpost_global, get_full_cov = TRUE, plot = FALSE
       )
       t_pred_task <- as.numeric(difftime(Sys.time(), t_pred_start, units = "secs"))
 
       all_predictions[[test_task_id]] <- list(
         prediction = pred_res, truth = test_data_truth,
         inputs_pred = pred_task_input_data,
-        t_pred = t_pred_task, t_hyperpost = t_hyperpost_task
+        t_pred = t_pred_task
       )
 
       # Sauvegarde immédiate dès qu'un subset est complet
@@ -208,10 +212,9 @@ for (iter in 1:n_iterations) {
 
           subset_predictions <- all_predictions[test_task_ids]
           t_pred_total <- sum(sapply(subset_predictions, function(x) x$t_pred))
-          t_hyperpost_subset <- sum(sapply(subset_predictions, function(x) x$t_hyperpost))
 
           predictions_to_save <- list(
-            predictions = subset_predictions, t_hyperpost_total = t_hyperpost_subset,
+            predictions = subset_predictions, t_hyperpost_global = duration_hyperpost_global,
             t_pred_total = t_pred_total, t_training = duration_train,
             seed = datasets$seed, test_task_ids = test_task_ids,
             n_train = n_train, n_pred = n_pred
@@ -222,9 +225,10 @@ for (iter in 1:n_iterations) {
       }
     }
 
-    cat(paste0("OK (Train: ", round(duration_train, 1), "s, Hyp total: ", round(t_hyperpost_total, 1), "s)\n"))
+    cat(paste0("OK (Train: ", round(duration_train, 1), "s, Hyp: ", round(duration_hyperpost_global, 1), "s)\n"))
 
     if(exists("trained_model_mt")) rm(trained_model_mt)
+    if(exists("hyperpost_global")) rm(hyperpost_global)
     if(exists("all_predictions")) rm(all_predictions)
     gc()
 

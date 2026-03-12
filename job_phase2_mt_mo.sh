@@ -95,7 +95,7 @@ done
 for N_OUT in 2 3 4 6 8; do
   for N_TRAIN in 15 30 300; do
     LOGFILE="${LOGDIR}/mo_nout${N_OUT}_ntrain${N_TRAIN}.log"
-    echo "[$(date +%H:%M:%S)] Lancement MO  n_out=${N_OUT} n_train=${N_TRAIN} → ${LOGFILE}"
+    echo "[$(date +%H:%M:%S)] Lancement MO  n_out=${N_OUT} n_train=${N_TRAIN} (20 iters, pred_max=$([ ${N_OUT} -ge 6 ] && echo 100 || echo 1000)) → ${LOGFILE}"
 
     /opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript --vanilla Benchmark_XP_1_MO_cluster.R \
       --n_out=${N_OUT} --n_train=${N_TRAIN} \

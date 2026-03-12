@@ -42,9 +42,9 @@ convolution_kernel <- MagmaClustR:::convolution_kernel
 
 n_out <- N_OUT_TARGET
 n_train <- N_TRAIN_TARGET
-n_iterations <- 100
+n_iterations <- 20
 n_pred_max <- 1000
-n_pred_subsets <- c(1, 10, 100, 1000)
+n_pred_subsets <- if (n_out >= 6) c(1, 10, 100) else c(1, 10, 100, 1000)
 
 cat(paste0("=== Benchmark XP1 MO (Multi-Output GP) ===\n"))
 cat(paste0("  n_out   = ", n_out, "\n"))
