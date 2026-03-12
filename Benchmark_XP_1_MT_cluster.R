@@ -166,7 +166,7 @@ for (iter in 1:n_iterations) {
       hp_k = trained_model_mt$hp_k, hp_t = trained_model_mt$hp_t,
       grid_inputs = grid_hyperpost_global,
       kern_k = trained_model_mt$kern_k, kern_t = trained_model_mt$kern_t,
-      prior_mean_k = trained_model_mt$prior_mean_k
+      prior_mean_k = trained_model_mt$m_k
     )
     duration_hyperpost_global <- as.numeric(difftime(Sys.time(), t_hp_start, units = "secs"))
     cat(paste0("  Hyperpost: ", round(duration_hyperpost_global, 1), "s\n"))
