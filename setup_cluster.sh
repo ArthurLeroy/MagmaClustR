@@ -64,11 +64,8 @@ echo ""
 echo ">>> 3. Installation des packages R..."
 
 R --vanilla -e '
-  # Forcer le miroir CRAN à fournir des binaires pré-compilés pour Debian 11
-  options(
-    repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/bullseye/latest"),
-    HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(), paste(getRversion(), R.version$platform, R.version$arch, R.version$os))
-  )
+  # Fixer le miroir CRAN
+  options(repos = c(CRAN = "https://cloud.r-project.org"))
 
   # Liste des packages nécessaires
   pkgs <- c(
