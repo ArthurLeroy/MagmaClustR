@@ -36,7 +36,7 @@ export R_LIBS=/scratch/${USER}/R
 echo "R_LIBS=${R_LIBS}"
 
 # Répertoire du code source
-mkdir -p /scratch/${USER}/MagmaClustR_dev
+mkdir -p /scratch/${USER}/MagmaClustR
 
 # Répertoire des résultats
 RESULTS="/scratch/${USER}/NeurIPS_experiments/Experience_1"
@@ -95,7 +95,7 @@ R --vanilla -e '
 echo ""
 echo ">>> 4. Test de chargement de MagmaClustR (devtools::load_all)..."
 
-cd /scratch/${USER}/MagmaClustR_dev
+cd /scratch/${USER}/MagmaClustR
 
 R --vanilla -e '
   library(devtools)
