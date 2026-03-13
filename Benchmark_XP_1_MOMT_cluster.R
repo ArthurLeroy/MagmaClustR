@@ -27,7 +27,7 @@ N_TRAIN_TARGET <- parse_arg(args, "n_train")
 
 # --- 1. SETUP & LIBRARIES ---
 username <- Sys.getenv("USER")
-pkg_dir <- "/scratch/agrenoui/MagmaClustR"
+pkg_dir  <- file.path("/scratch", username, "MagmaClustR")
 base_dir <- file.path("/scratch", username, "NeurIPS_experiments", "Experience_1")
 
 setwd(pkg_dir)
@@ -35,11 +35,12 @@ setwd(pkg_dir)
 # library(Metrics)
 library(mvtnorm)
 library(tidyverse)
-library(devtools)
+# library(devtools)
 library(matrixStats)
-devtools::load_all(pkg_dir)
+library(MagmaClustR)
+# load_all()
 
-convolution_kernel <- convolution_kernel
+convolution_kernel <- MagmaClustR:::convolution_kernel
 
 cat(paste0("=== Benchmark XP1 MOMT ===\n"))
 cat(paste0("  n_out   = ", N_OUT_TARGET, "\n"))

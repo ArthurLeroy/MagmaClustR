@@ -5,7 +5,7 @@
 # Lance 12 processus R en parallèle (4 n_out × 3 n_train).
 # Chaque processus exécute 100 itérations pour une combinaison (n_out, n_train).
 #
-# Queue "large" : 16 threads, 7 jours max
+# Queue "huge" : 16 threads, 7 jours max
 # 12 processus R ≈ 12 cœurs utilisés (R est single-threaded par processus)
 #
 # Soumission : sbatch job_phase1_momt.sh
@@ -28,15 +28,9 @@ echo " CPUs    : ${SLURM_CPUS_ON_NODE}"
 echo " 12 processus R en parallèle"
 echo "=============================================="
 
-# # --- Environnement ---
-# load_spack
-# spack load r@4.4.0 
-# export R_LIBS=/scratch/${USER}/R
-
 # --- Environnement ---
-# Activer l'environnement Conda contenant R et devtools
-source /opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/miniconda3-24.7.1-jcgibxl7rkgsf3w6lwqsp7f73767rkn3/bin/activate /scratch/${USER}/env_R
-# Indiquer à R où installer ses autres packages (créé par le setup)
+load_spack
+spack load r@4.4.0 
 export R_LIBS=/scratch/${USER}/R
 
 # Limiter BLAS à 1 thread par processus (éviter la surcharge)
@@ -57,9 +51,7 @@ for N_OUT in 2 3 4 6 8; do
     LOGFILE="${LOGDIR}/momt_nout${N_OUT}_ntrain${N_TRAIN}.log"
     echo "[$(date +%H:%M:%S)] Lancement MOMT n_out=${N_OUT} n_train=${N_TRAIN} → ${LOGFILE}"
 
-    # /opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript --vanilla Benchmark_XP_1_MOMT_cluster.R \
-
-    Rscript --vanilla Benchmark_XP_1_MOMT_cluster.R \
+    /opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript --vanilla Benchmark_XP_1_MOMT_cluster.R \
       --n_out=${N_OUT} --n_train=${N_TRAIN} \
       > "${LOGFILE}" 2>&1 &
 

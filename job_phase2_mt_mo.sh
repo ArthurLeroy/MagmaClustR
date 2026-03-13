@@ -40,7 +40,7 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
-cd /scratch/${USER}/MagmaClustR_dev
+cd /scratch/${USER}/MagmaClustR
 
 # --- Vérification préalable : les données MOMT existent-elles ? ---
 RESULTS_DIR="/scratch/${USER}/NeurIPS_experiments/Experience_1"
