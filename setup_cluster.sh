@@ -21,8 +21,8 @@ echo "=============================================="
 # --- 1. Charger l'environnement ---
 echo ""
 echo ">>> 1. Chargement de Spack et R..."
-load_spack
-spack load r@4.4.0 cmake
+# load_spack
+# spack load r@4.4.0 cmake
 echo "R version :"
 R --version | head -1
 
