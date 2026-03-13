@@ -67,8 +67,7 @@ R --vanilla -e '
   # Forcer le miroir CRAN à fournir des binaires pré-compilés pour Debian 11
   options(
     repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/bullseye/latest"),
-    HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(), paste(getRversion(), R.version$platform, R.version$arch, R.version$os)),
-    pkgType = "binary"
+    HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(), paste(getRversion(), R.version$platform, R.version$arch, R.version$os))
   )
 
   # Liste des packages nécessaires
