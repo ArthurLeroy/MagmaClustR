@@ -64,8 +64,8 @@ echo ""
 echo ">>> 3. Installation des packages R..."
 
 R --vanilla -e '
-  # Fixer le miroir CRAN
-  options(repos = c(CRAN = "https://cloud.r-project.org"))
+  # Fixer le miroir CRAN pour utiliser des binaires pré-compilés
+  options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/bullseye/latest"))
 
   # Liste des packages nécessaires
   pkgs <- c(
