@@ -57,9 +57,9 @@ for N_OUT in 2 3 4 6 8; do
     LOGFILE="${LOGDIR}/momt_nout${N_OUT}_ntrain${N_TRAIN}.log"
     echo "[$(date +%H:%M:%S)] Lancement MOMT n_out=${N_OUT} n_train=${N_TRAIN} → ${LOGFILE}"
 
-    Rscript --vanilla Benchmark_XP_1_MOMT_cluster.R \
-
     # /opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript --vanilla Benchmark_XP_1_MOMT_cluster.R \
+
+    Rscript --vanilla Benchmark_XP_1_MOMT_cluster.R \
       --n_out=${N_OUT} --n_train=${N_TRAIN} \
       > "${LOGFILE}" 2>&1 &
 
