@@ -35,12 +35,11 @@ setwd(pkg_dir)
 # library(Metrics)
 library(mvtnorm)
 library(tidyverse)
-# library(devtools)
+library(devtools)
 library(matrixStats)
-library(MagmaClustR)
-# load_all()
+devtools::load_all(pkg_dir)
 
-convolution_kernel <- MagmaClustR:::convolution_kernel
+convolution_kernel <- convolution_kernel
 
 cat(paste0("=== Benchmark XP1 MOMT ===\n"))
 cat(paste0("  n_out   = ", N_OUT_TARGET, "\n"))

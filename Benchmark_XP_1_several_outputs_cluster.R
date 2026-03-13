@@ -6,11 +6,7 @@
 #   Rscript Benchmark_XP_1_several_outputs_cluster.R --n_out=3 --n_train=15
 #
 # Ce script traite UNE SEULE combinaison (n_out, n_train) avec 100 itérations.
-# Le job SLURM lance 15 instances en parallèle (5 n_out × 3 n_train).
-#
-# REPRISE AUTOMATIQUE : si le script est relancé, les itérations déjà
-# terminées (fichiers .rds présents) sont automatiquement sautées.
-# Les sauvegardes sont atomiques (écriture .tmp puis renommage).
+# Le job SLURM lance 12 instances en parallèle (4 n_out × 3 n_train).
 # ==========================================================================
 
 # --- 0. PARSING ARGUMENTS ---
@@ -31,7 +27,7 @@ N_TRAIN_TARGET <- parse_arg(args, "n_train")
 
 # --- 1. SETUP & LIBRARIES ---
 username <- Sys.getenv("USER")
-pkg_dir  <- file.path("/scratch", username, "MagmaClustR")
+pkg_dir  <- file.path("/scratch", username, "MagmaClustR_dev")
 base_dir <- file.path("/scratch", username, "NeurIPS_experiments", "Experience_1")
 
 setwd(pkg_dir)
@@ -39,12 +35,11 @@ setwd(pkg_dir)
 # library(Metrics)
 library(mvtnorm)
 library(tidyverse)
-# library(devtools)
+library(devtools)
 library(matrixStats)
-library(MagmaClustR)
-# load_all()
+devtools::load_all(pkg_dir)
 
-convolution_kernel <- MagmaClustR:::convolution_kernel
+convolution_kernel <- convolution_kernel
 
 cat(paste0("=== Benchmark XP1 MOMT ===\n"))
 cat(paste0("  n_out   = ", N_OUT_TARGET, "\n"))
@@ -52,7 +47,6 @@ cat(paste0("  n_train = ", N_TRAIN_TARGET, "\n"))
 cat(paste0("  Date    : ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n"))
 cat(paste0("  Host    : ", Sys.info()["nodename"], "\n"))
 cat(paste0("  PID     : ", Sys.getpid(), "\n\n"))
-flush.console()
 
 # --- 2. FONCTIONS UTILITAIRES ---
 generate_random_config <- function(n_out, n_clust = 3) {
@@ -191,44 +185,10 @@ for (n_pred in n_pred_subsets) {
   }
 }
 
-# --- 3b. DÉTECTION DES ITÉRATIONS DÉJÀ TERMINÉES (reprise après crash) ---
-completed_iters <- c()
-for (iter_check in 1:n_iterations) {
-  # Une itération est considérée terminée si le fichier predictions pour n_pred=1 existe
-  pred_file_check <- file.path(base_dir, "Predictions_MOMT", paste0("n_out_", n_out),
-                               paste0("train_", n_train, "_pred_1"),
-                               paste0("predictions_iter_", iter_check, ".rds"))
-  if (file.exists(pred_file_check)) {
-    completed_iters <- c(completed_iters, iter_check)
-  }
-}
-
-if (length(completed_iters) > 0) {
-  remaining <- setdiff(1:n_iterations, completed_iters)
-  cat(paste0("  Itérations déjà terminées : ", length(completed_iters), "/", n_iterations, "\n"))
-  if (length(remaining) > 0) {
-    cat(paste0("  Reprise à partir de l'itération ", min(remaining), "\n\n"))
-  } else {
-    cat("  Toutes les itérations sont déjà terminées. Rien à faire.\n\n")
-  }
-  flush.console()
-} else {
-  cat(paste0("  Aucune itération précédente trouvée, démarrage depuis le début.\n\n"))
-  flush.console()
-}
-
 # --- 4. BOUCLE PRINCIPALE (sur les itérations uniquement) ---
 t_global_start <- Sys.time()
 
 for (iter in 1:n_iterations) {
-  # --- Reprise : skip si itération déjà terminée ---
-  if (iter %in% completed_iters) {
-    cat(paste0("[n_out=", n_out, " n_train=", n_train, "] Iter ", iter,
-               "/", n_iterations, " déjà terminée, skip.\n"))
-    flush.console()
-    next
-  }
-
   if(exists("trained_model")) rm(trained_model)
   if(exists("pred_res")) rm(pred_res)
 
@@ -238,7 +198,6 @@ for (iter in 1:n_iterations) {
 
     cat(paste0("\n[n_out=", n_out, " n_train=", n_train, "] Iter ", iter, "/", n_iterations,
                " (seed=", current_seed, ") [", format(Sys.time(), "%H:%M:%S"), "]\n"))
-    flush.console()
 
     # --- A. Génération Config ---
     configs <- generate_random_config(n_out, n_clust = n_clusters)
@@ -262,7 +221,6 @@ for (iter in 1:n_iterations) {
     )
     duration_simu <- as.numeric(difftime(Sys.time(), t_simu_start, units = "secs"))
     cat(paste0("  Simulation: ", round(duration_simu, 1), "s\n"))
-    flush.console()
 
     data_obs <- sim_results$simulated_data_df
 
@@ -442,7 +400,6 @@ for (iter in 1:n_iterations) {
     )
     duration_train <- as.numeric(difftime(Sys.time(), t_model_start, units = "secs"))
     cat(paste0("  Training: ", round(duration_train, 1), "s\n"))
-    flush.console()
 
     # --- F. Hyperpostérieur global ---
     all_pred_inputs_global <- list()
@@ -461,11 +418,10 @@ for (iter in 1:n_iterations) {
       hp_k = trained_model$hp_k, hp_t = trained_model$hp_t,
       grid_inputs = grid_hyperpost_global,
       kern_k = trained_model$kern_k, kern_t = trained_model$kern_t,
-      prior_mean_k = trained_model$prior_mean_k
+      prior_mean_k = trained_model$ini_args$prior_mean_k
     )
     duration_hyperpost_global <- as.numeric(difftime(Sys.time(), t_hp_start, units = "secs"))
     cat(paste0("  Hyperpost: ", round(duration_hyperpost_global, 1), "s\n"))
-    flush.console()
 
     # --- G. Boucle sur les subsets ---
     for (n_pred in n_pred_subsets) {
@@ -489,19 +445,14 @@ for (iter in 1:n_iterations) {
         train_task_ids = train_task_ids, test_task_ids = test_task_ids,
         configs = configs, seed = current_seed, n_train = n_train, n_pred = n_pred
       )
-      # Sauvegarde atomique : écriture .tmp puis renommage
-      tmp_ds <- file.path(dir_datasets, paste0("datasets_iter_", iter, ".rds.tmp"))
-      saveRDS(datasets_to_save, tmp_ds)
-      file.rename(tmp_ds, file.path(dir_datasets, paste0("datasets_iter_", iter, ".rds")))
+      saveRDS(datasets_to_save, file.path(dir_datasets, paste0("datasets_iter_", iter, ".rds")))
 
       model_to_save <- list(
         trained_model = trained_model, t_training = duration_train,
         t_hyperpost_global = duration_hyperpost_global,
         seed = current_seed, n_train = n_train
       )
-      tmp_mod <- file.path(dir_models_momt, paste0("model_iter_", iter, ".rds.tmp"))
-      saveRDS(model_to_save, tmp_mod)
-      file.rename(tmp_mod, file.path(dir_models_momt, paste0("model_iter_", iter, ".rds")))
+      saveRDS(model_to_save, file.path(dir_models_momt, paste0("model_iter_", iter, ".rds")))
 
       all_predictions <- list()
       t_pred_total <- 0
@@ -530,12 +481,8 @@ for (iter in 1:n_iterations) {
         seed = current_seed, test_task_ids = test_task_ids,
         n_train = n_train, n_pred = n_pred
       )
-      tmp_pred <- file.path(dir_predictions_momt, paste0("predictions_iter_", iter, ".rds.tmp"))
-      saveRDS(predictions_to_save, tmp_pred)
-      file.rename(tmp_pred, file.path(dir_predictions_momt, paste0("predictions_iter_", iter, ".rds")))
-
+      saveRDS(predictions_to_save, file.path(dir_predictions_momt, paste0("predictions_iter_", iter, ".rds")))
       cat(paste0("OK (", round(t_pred_total, 1), "s)\n"))
-      flush.console()
       if(exists("all_predictions")) rm(all_predictions); gc()
     }
 
@@ -555,7 +502,6 @@ for (iter in 1:n_iterations) {
       }
     }
     cat("  Call:    ", deparse(e$call), "\n\n")
-    flush.console()
   })
 }
 

@@ -34,9 +34,8 @@ setwd(pkg_dir)
 
 library(tidyverse)
 library(readr)
-library(MagmaClustR)
-# library(devtools)
-# devtools::load_all()
+library(devtools)
+devtools::load_all(pkg_dir)
 
 n_out <- N_OUT_TARGET
 n_train <- N_TRAIN_TARGET

@@ -34,11 +34,10 @@ setwd(pkg_dir)
 
 library(tidyverse)
 library(readr)
-library(MagmaClustR)
-# library(devtools)
-# devtools::load_all()
+library(devtools)
+devtools::load_all(pkg_dir)
 
-convolution_kernel <- MagmaClustR:::convolution_kernel
+convolution_kernel <- convolution_kernel
 
 n_out <- N_OUT_TARGET
 n_train <- N_TRAIN_TARGET

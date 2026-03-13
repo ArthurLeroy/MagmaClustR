@@ -5,15 +5,15 @@
 # Lance 12 processus R en parallèle (4 n_out × 3 n_train).
 # Chaque processus exécute 100 itérations pour une combinaison (n_out, n_train).
 #
-# Queue "huge" : 32 threads, 7 jours max
+# Queue "large" : 16 threads, 7 jours max
 # 12 processus R ≈ 12 cœurs utilisés (R est single-threaded par processus)
 #
 # Soumission : sbatch job_phase1_momt.sh
 #===============================================================================
 
 #SBATCH --job-name=xp1_phase1
-#SBATCH --qos=huge
-#SBATCH -c 32
+#SBATCH --qos=large
+#SBATCH -c 16
 #SBATCH --output=/scratch/%u/logs/phase1_momt_%j.out
 #SBATCH --error=/scratch/%u/logs/phase1_momt_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
