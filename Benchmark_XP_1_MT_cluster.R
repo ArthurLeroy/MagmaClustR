@@ -81,7 +81,7 @@ for (iter in 1:n_iterations) {
     # dir_models_mt <- file.path(dir_n_out, "Models_MT", paste0("train_", n_train, "_pred_", n_pred_max))
     dir_datasets <- file.path(base_path, "Datasets", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred_max))
     # dir_models_momt <- file.path(base_path, "Models_MOMT", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred_max))
-    dir_models_momt <- file.path(base_path, "Models_MOMT", paste0("n_out_", n_out), paste0("train_", n_train)
+    dir_models_momt <- file.path(base_path, "Models_MOMT", paste0("n_out_", n_out), paste0("train_", n_train))
     dir_models_mt <- file.path(base_path, "Models_MT", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred_max))
     if (!dir.exists(dir_models_mt)) dir.create(dir_models_mt, recursive = TRUE)
 
