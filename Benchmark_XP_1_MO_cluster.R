@@ -81,7 +81,8 @@ for (iter in 1:n_iterations) {
     # dir_models_momt <- file.path(dir_n_out, "Models_MOMT", paste0("train_", n_train, "_pred_", n_pred_max))
 
     dir_datasets <- file.path(base_path, "Datasets", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred_max))
-    dir_models_momt <- file.path(base_path, "Models_MOMT", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred_max))
+    # dir_models_momt <- file.path(base_path, "Models_MOMT", paste0("n_out_", n_out), paste0("train_", n_train, "_pred_", n_pred_max))
+    dir_models_momt <- file.path(base_path, "Models_MOMT", paste0("n_out_", n_out), paste0("train_", n_train))
 
     file_name_datasets <- file.path(dir_datasets, paste0("datasets_iter_", iter, ".rds"))
     file_name_model_momt <- file.path(dir_models_momt, paste0("model_iter_", iter, ".rds"))
