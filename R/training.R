@@ -1283,62 +1283,8 @@ train_magmaclust <- function(data,
     }
   }
 
-  ## Initialise m_k according to the value provided by the user
-  m_k <- list()
-
   # Define clusters' names
   names_k <- paste0("K", 1:nb_cluster)
-
-  if (prior_mean_k %>% is.null()) {
-    ## Create a list named by cluster with evaluation of the mean at all Input
-    for (k in 1:nb_cluster) {
-      m_k[[names_k[k]]] <- rep(0, length(all_input))
-    }
-    cat(
-      "The 'prior_mean' argument has not been specified. The hyper_prior mean",
-      "function is thus set to be 0 everywhere.\n \n"
-    )
-  } else if (prior_mean_k %>% is.vector()) {
-    unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
-    num_outputs <- length(unique_outputs_sorted)
-
-    if (length(prior_mean_k) == nb_cluster * num_outputs) {
-      # Extract the prefix of each point of the grid all_input (ex: "o1", "o2")
-      all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
-
-      ## Create a list named by cluster
-      for (k in 1:nb_cluster) {
-
-        all_inputs_k <- all_inputs
-        start_index <- (k - 1) * num_outputs + 1
-        end_index   <- k * num_outputs
-        vals_cluster_k <- prior_mean_k[start_index:end_index]
-
-        # Create a corresponding table mapping:
-        # "o1" -> mean_val_1, "o2" -> mean_val_2
-        prior_mean_map <- setNames(vals_cluster_k,
-                                   paste0("o", unique_outputs_sorted))
-
-        # Assign it to the correctly named element of the list
-        # Map values to the full grid based on prefixes
-        m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
-        names(m_k[[names_k[k]]]) <- all_inputs$Reference
-      }
-
-    } else if (length(prior_mean_k) == num_outputs) {
-      # One mean per Output (all clusters share the same)
-      prior_mean_map <- setNames(prior_mean_k,
-                                 paste0("o", unique_outputs_sorted))
-      all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
-
-      for (k in 1:nb_cluster) {
-        m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
-      }
-    } else {
-      stop(sprintf("Incorrect length for prior_mean_k. Expected %d or %d, got %d.",
-                   nb_cluster * num_outputs, num_outputs, length(prior_mean_k)))
-    }
-  }
 
   ## Track the total training time
   t1 <- Sys.time()
@@ -1348,6 +1294,7 @@ train_magmaclust <- function(data,
   elbo_monitoring <- -Inf
   seq_elbo <- c()
 
+  # browser()
   if (is.null(ini_mixture)) {
     mixture <- ini_mixture(data,
                            k = nb_cluster,
@@ -1366,89 +1313,77 @@ train_magmaclust <- function(data,
          "?ini_mixture() for further details.")
   }
 
-  if (!is.null(prior_mean_k)) {
-    cat("Checking for label switching across multiple outputs...\n")
-    # For each point of m_k, we pull its Output_ID
-    get_prior_profile <- function(cluster_name) {
-      vals <- m_k[[cluster_name]]
-      refs <- names(vals)
-      oids <- stringr::str_extract(refs, "^o[0-9]+")
+  ## Initialise m_k to zero (not the definitive value, just to name each
+  ## component of the vector correctly)
+  m_k <- list()
 
-      tibble::tibble(Output_ID = oids, value = vals) %>%
-        dplyr::group_by(Output_ID) %>%
-        dplyr::summarise(mean_val = mean(value), .groups = "drop") %>%
-        dplyr::arrange(Output_ID) %>%
-        dplyr::pull(mean_val)
-    }
+  unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
+  num_outputs <- length(unique_outputs_sorted)
+  prior_mean_k <- rep(0, num_outputs * nb_cluster)
+  all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
 
-    prior_signatures <- do.call(rbind, lapply(names_k, get_prior_profile))
-    rownames(prior_signatures) <- names_k
+  ## Create a list named by cluster
+  for (k in 1:nb_cluster) {
+    all_inputs_k <- all_inputs
+    start_index <- (k - 1) * num_outputs + 1
+    end_index   <- k * num_outputs
+    vals_cluster_k <- prior_mean_k[start_index:end_index]
 
-    # Build the empirical vectors
-    df_check <- data %>%
-      dplyr::mutate(OID_label = paste0("o", Output_ID)) %>%
-      dplyr::select(Task_ID, OID_label, Output) %>%
-      dplyr::left_join(mixture, by = "Task_ID")
+    # Create a corresponding table mapping:
+    # "o1" -> mean_val_1, "o2" -> mean_val_2
+    prior_mean_map <- setNames(vals_cluster_k,
+                               paste0("o", unique_outputs_sorted))
 
-    get_empiric_profile <- function(cluster_col) {
-      col_name_str <- as.character(cluster_col)
-
-      df_check %>%
-        dplyr::group_by(OID_label) %>%
-        dplyr::summarise(
-          w_mean = stats::weighted.mean(Output, w = .data[[col_name_str]], na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
-        dplyr::arrange(OID_label) %>%
-        dplyr::pull(w_mean)
-    }
-
-    empiric_signatures <- do.call(rbind, lapply(ID_k, get_empiric_profile))
-    rownames(empiric_signatures) <- ID_k
-
-    # Compute distance between empirical means and prior_means
-    # Inititalisation
-    final_mapping <- setNames(rep(NA, nb_cluster), ID_k)
-    remaining_priors <- names_k
-
-    # Compute distance matrix
-    dist_mat <- matrix(NA, nrow = nb_cluster, ncol = nb_cluster,
-                       dimnames = list(ID_k, names_k))
-
-    for(i in 1:nb_cluster) {
-      for(j in 1:nb_cluster) {
-        dist_mat[i, j] <- sum((empiric_signatures[i, ] - prior_signatures[j, ])^2)
-      }
-    }
-
-    # Identify best match
-    new_order_indices <- apply(dist_mat, 1, which.min)
-    best_match_names <- names_k[new_order_indices]
-
-    # Check for duplicates
-    if(any(duplicated(best_match_names))) {
-      warning("Ambiguous cluster matching detected. Keeping original K-means order.")
-    } else {
-      if(!all(best_match_names == ID_k)) {
-        cat("Label switching detected. Re-aligning based on Output profiles...\n")
-
-        # Rename mixture columns
-        old_cols <- colnames(mixture)
-        new_cols <- old_cols
-        indices_clust <- match(ID_k, old_cols)
-        new_cols[indices_clust] <- best_match_names
-        colnames(mixture) <- new_cols
-
-        # Arrange clusters names by alphabetical order
-        mixture <- mixture %>% dplyr::select(Task_ID, dplyr::all_of(names_k))
-      }
-    }
+    # Assign it to the correctly named element of the list
+    # Map values to the full grid based on prefixes
+    m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
+    names(m_k[[names_k[k]]]) <- all_inputs$Reference
   }
 
   # Compute mixture proporitions (named vector of length K)
   props <- mixture %>%
     dplyr::select(dplyr::all_of(ID_k)) %>%
     colMeans()
+
+
+  # Recompute prior mean parameters for each cluster with the updated mixture
+  # probabilities. Prior mean is equal to the empirical mean of each cluster
+  floop <- function(k) {
+    new_means_df <- data %>%
+      dplyr::left_join(mixture %>% dplyr::select(Task_ID,
+                                                 dplyr::all_of(k)),
+                       by = "Task_ID") %>%
+      dplyr::group_by(Output_ID) %>%
+      dplyr::filter(!is.na(Output) & !is.na(.data[[k]])) %>%
+      dplyr::mutate(
+        partial_m_k = (Output * .data[[k]]) / sum(.data[[k]])
+      ) %>%
+      dplyr::summarise(
+        new_m_k = sum(partial_m_k),
+        .groups = "drop"
+      )
+
+    # Create a mapping dictionnary: c("o1" = moy_1, "o2" = moy_2, "o3" = moy_3)
+    mean_map <- stats::setNames(new_means_df$new_m_k,
+                                paste0("o", new_means_df$Output_ID))
+    prefixes <- stringr::str_extract(names(m_k[[k]]), "^o[0-9]+")
+
+    new_m_k_vector <- mean_map[prefixes] %>% unname()
+    names(new_m_k_vector) <- names(m_k[[k]])
+
+    ## Cluster empty case
+    if (any(is.nan(new_m_k_vector))) {
+      warning(
+        "Cluster ", k, " appears to be empty (all membership probabilities ",
+        "are zero). Setting its prior mean to 0."
+      )
+      new_m_k_vector[is.nan(new_m_k_vector)] <- 0
+    }
+
+    return(new_m_k_vector)
+  }
+  m_k <- lapply(ID_k, floop) %>%
+    `names<-`(ID_k)
 
   # Assign correctly each mixture proportion to its associated cluster
   hp_k[["prop_mixture"]] <- as.numeric(props[as.character(hp_k$Cluster_ID)])
@@ -1466,6 +1401,7 @@ train_magmaclust <- function(data,
     ## Track the running time for each iteration of the EM algorithm
     t_i_1 <- Sys.time()
 
+    # browser()
     ## VE-Step of MagmaClust
     post <- ve_step(
       data,
@@ -1478,6 +1414,33 @@ train_magmaclust <- function(data,
       iter = i,
       pen_diag
     )
+
+    elbo_post_step_e <- elbo_monitoring_VEM(
+      hp_k,
+      hp_t,
+      data,
+      kern_t,
+      kern_k,
+      hyperpost = post,
+      m_k = m_k,
+      pen_diag = pen_diag
+    )
+
+    diff_moni <- elbo_post_step_e - elbo_monitoring
+    if (diff_moni %>% is.nan()) {
+      diff_moni <- -Inf
+    }
+
+    eps <- diff_moni / abs(elbo_monitoring)
+
+    paste0(
+      "Value of the elbo post e-step: ",
+      elbo_post_step_e %>% round(5),
+      " --- Convergence ratio = ",
+      eps %>% round(5),
+      "\n \n"
+    ) %>%
+      cat()
 
     # plot_training_step(current_post = post,
     #                    true_mean_df = data_mean,
@@ -1530,9 +1493,6 @@ train_magmaclust <- function(data,
     }
 
     ## Monitoring of the ELBO — uses the same base pen_diag as the VE-step.
-    ## The ELBO does its own inversions with go_one_more = TRUE, so it finds
-    ## its own optimal jitter independently (since HPs have changed after
-    ## the VM-step, the conditioning may differ from the VE-step).
     new_elbo_monitoring <- elbo_monitoring_VEM(
       new_hp_k,
       new_hp_t,
@@ -1579,7 +1539,7 @@ train_magmaclust <- function(data,
       cat()
 
     paste0(
-      "Value of the elbo: ",
+      "Value of the elbo post m-step: ",
       elbo_monitoring %>% round(5),
       " --- Convergence ratio = ",
       eps %>% round(5),

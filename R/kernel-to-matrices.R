@@ -662,15 +662,15 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
 #'
 #' Inverse a matrix from its Choleski decomposition. If (nearly-)singular,
 #' increase the order of magnitude of the jitter term added to the diagonal
-#' until the matrix becomes non-singular.
+#' until the matrix becomes non-singular and the inverse passes a quality
+#' check.
 #'
 #' @param mat A matrix, possibly singular.
 #' @param pen_diag A number, a jitter term to add on the diagonal.
-#' @param go_one_more Logical. If TRUE and Cholesky succeeds, recurse once
-#'   more with jitter multiplied by 10 (and go_one_more = FALSE) to add a
-#'   safety margin. Default FALSE preserves the standard behaviour.
 #' @param max_jitter A number, the maximum jitter allowed before falling
 #'   back to a pseudo-inverse.
+#' @param inv_tol A number, the maximum tolerated error on
+#'   diag(K * K^{-1}) - 1 for the quality check.
 #'
 #' @return A matrix, inverse of \code{mat} plus an adaptive jitter term
 #'    added on the diagonal. An attribute \code{"effective_jitter"} is
@@ -680,8 +680,7 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
 #'
 #' @examples
 #' TRUE
-chol_inv_jitter <- function(mat, pen_diag, go_one_more = FALSE,
-                            max_jitter = 1e-1, inv_tol = 0.01) {
+chol_inv_jitter <- function(mat, pen_diag, max_jitter = 1e-1, inv_tol = 0.01) {
 
   ## Sanity check: abort early if the matrix contains NaN or Inf
   if (any(is.nan(mat)) || any(is.infinite(mat))) {
@@ -695,61 +694,64 @@ chol_inv_jitter <- function(mat, pen_diag, go_one_more = FALSE,
     return(result)
   }
 
-  ## Add the jitter to the diagonal
-  mat_jittered <- mat
-  diag(mat_jittered) <- diag(mat_jittered) + pen_diag
+  current_jitter <- pen_diag
 
-  ## Attempt Cholesky decomposition and inversion
-  inv <- tryCatch(
-    chol(mat_jittered) %>% chol2inv(),
-    error = function(e) NULL
-  )
+  while (current_jitter <= max_jitter) {
+    ## Add the current jitter to the diagonal
+    mat_jittered <- mat
+    diag(mat_jittered) <- diag(mat_jittered) + current_jitter
 
-  if (!is.null(inv)) {
+    ## Attempt Cholesky decomposition and inversion
+    inv <- tryCatch(
+      chol(mat_jittered) %>% chol2inv(),
+      error = function(e) NULL
+    )
+
+    if (is.null(inv)) {
+      ## Cholesky failed — escalate jitter
+      # message(
+      #   "chol_inv_jitter: Cholesky failed with jitter = ",
+      #   format(current_jitter, scientific = TRUE),
+      #   ". Escalating to ", format(current_jitter * 10, scientific = TRUE), "."
+      # )
+      current_jitter <- current_jitter * 10
+      next
+    }
+
     ## Cholesky succeeded — verify the quality of the inverse.
-    ## diag(K * K^{-1}) should be ≈ 1.  rowSums(A * B) = diag(A %*% B)
+    ## diag(K * K^{-1}) should be ~1.  rowSums(A * B) = diag(A %*% B)
     ## for symmetric matrices, at O(n^2) cost instead of O(n^3).
     diag_product <- rowSums(mat_jittered * inv)
     max_err <- max(abs(diag_product - 1))
 
     if (max_err > inv_tol) {
-      ## Inverse is numerically unreliable despite Cholesky succeeding.
-      ## Treat as failure: escalate jitter.
-      inv <- NULL
-    } else if (go_one_more) {
-      ## Quality OK but caller asked for an extra safety margin:
-      ## redo with jitter * 10, go_one_more = FALSE.
-      return(chol_inv_jitter(mat, pen_diag * 10,
-                             go_one_more = FALSE,
-                             max_jitter = max_jitter,
-                             inv_tol = inv_tol))
-    } else {
-      ## Quality OK, return
-      attr(inv, "effective_jitter") <- pen_diag
-      return(inv)
+      ## Inverse is numerically unreliable: escalate jitter.
+      # message(
+      #   "chol_inv_jitter: quality check failed (max |diag(K*K^-1) - 1| = ",
+      #   signif(max_err, 3), " > ", inv_tol,
+      #   ") with jitter = ", format(current_jitter, scientific = TRUE),
+      #   ". Escalating to ", format(current_jitter * 10, scientific = TRUE), "."
+      # )
+      current_jitter <- current_jitter * 10
+      next
     }
+
+    ## Both Cholesky and quality check passed
+    attr(inv, "effective_jitter") <- current_jitter
+    return(inv)
   }
 
-  ## Cholesky failed or quality check failed — escalate jitter
-  new_jitter <- pen_diag * 10
-
-  if (new_jitter > max_jitter) {
-    ## Cap reached: fall back to pseudo-inverse
-    warning(
-      "chol_inv_jitter: Cholesky inversion failed (jitter reached ",
-      format(pen_diag, scientific = TRUE),
-      "). Falling back to a pseudo-inverse (MASS::ginv). ",
-      "Results may be less precise."
-    )
-    diag(mat) <- diag(mat) + max_jitter
-    result <- MASS::ginv(mat)
-    attr(result, "effective_jitter") <- max_jitter
-    return(result)
-  }
-
-  ## Recurse with increased jitter (keep go_one_more as-is)
-  chol_inv_jitter(mat, new_jitter, go_one_more = go_one_more,
-                  max_jitter = max_jitter, inv_tol = inv_tol)
+  ## max_jitter exceeded — fall back to pseudo-inverse
+  warning(
+    "chol_inv_jitter: inversion failed (jitter reached ",
+    format(current_jitter / 10, scientific = TRUE),
+    "). Falling back to a pseudo-inverse (MASS::ginv). ",
+    "Results may be less precise."
+  )
+  diag(mat) <- diag(mat) + max_jitter
+  result <- MASS::ginv(mat)
+  attr(result, "effective_jitter") <- max_jitter
+  return(result)
 }
 
 
