@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #===============================================================================
 # job_phase1_momt.sh — PHASE 1 : Entraînement MOMT (several_outputs)
 #
@@ -13,7 +13,7 @@
 
 #SBATCH --job-name=xp1_phase1
 #SBATCH --qos=large
-#SBATCH -c 16
+#SBATCH -c 12
 #SBATCH --output=/scratch/%u/logs/phase1_momt_%j.out
 #SBATCH --error=/scratch/%u/logs/phase1_momt_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -29,6 +29,7 @@ echo " 12 processus R en parallèle"
 echo "=============================================="
 
 # --- Environnement ---
+source ~/.bashrc
 load_spack
 spack load r@4.4.0 
 export R_LIBS=/scratch/${USER}/R

@@ -32,8 +32,9 @@ echo " 30 processus R en parallèle (15 MT + 15 MO)"
 echo "=============================================="
 
 # --- Environnement ---
+source ~/.bashrc
 load_spack
-spack load r@4.4.0 cmake
+spack load r@4.4.0 
 export R_LIBS=/scratch/${USER}/R
 
 export OMP_NUM_THREADS=1
