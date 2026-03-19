@@ -46,6 +46,16 @@ mkdir -p "${LOGDIR}"
 
 PIDS=()
 
+# Créer un dossier de bibliothèque propre pour ce run
+LIB_TEMP="/scratch/${USER}/R_temp_$(date +%Y%m%d)"
+mkdir -p "${LIB_TEMP}"
+
+# Installer le package cloné dans ce dossier spécifique
+Rscript -e "install.packages('/scratch/${USER}/MagmaClustR', repos = NULL, type = 'source', lib = '${LIB_TEMP}')"
+
+# Ajouter ce dossier AU DÉBUT du chemin de recherche de R
+export R_LIBS="${LIB_TEMP}:${R_LIBS}"
+
 for N_OUT in 2 3 4 6 8; do
   for N_TRAIN in 15 30 300; do
     LOGFILE="${LOGDIR}/momt_nout${N_OUT}_ntrain${N_TRAIN}.log"

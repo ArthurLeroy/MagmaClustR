@@ -75,6 +75,16 @@ mkdir -p "${LOGDIR}"
 
 PIDS=()
 
+# Créer un dossier de bibliothèque propre pour ce run
+LIB_TEMP="/scratch/${USER}/R_temp_$(date +%Y%m%d)"
+mkdir -p "${LIB_TEMP}"
+
+# Installer le package cloné dans ce dossier spécifique
+Rscript -e "install.packages('/scratch/${USER}/MagmaClustR', repos = NULL, type = 'source', lib = '${LIB_TEMP}')"
+
+# Ajouter ce dossier AU DÉBUT du chemin de recherche de R
+export R_LIBS="${LIB_TEMP}:${R_LIBS}"
+
 # --- Lancer les processus MT (5 n_out × 3 n_train = 15) ---
 # Note : n_out=2 est un cas "single output" qui ne dépend pas de MOMT.
 # Le script MT gère ce cas en créant ses propres données si nécessaire.
