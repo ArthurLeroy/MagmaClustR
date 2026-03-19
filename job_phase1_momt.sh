@@ -13,7 +13,7 @@
 
 #SBATCH --job-name=xp1_phase1
 #SBATCH --qos=large
-#SBATCH -c 12
+#SBATCH -c 15
 #SBATCH --output=/scratch/%u/logs/phase1_momt_%j.out
 #SBATCH --error=/scratch/%u/logs/phase1_momt_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
