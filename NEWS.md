@@ -1,7 +1,7 @@
 # MagmaClustR (development version)
 
 ## Major
-- Change the way prior means work in the MagmaClust framework. They are now optimised during Mstep by recomputing the dataset mean weighted by clusters' membership probabilities. 
+- Change the way prior means work in the MagmaClust framework. They are now optimised during Mstep using a closed-form optimum.  
 
 ## Minor
 
@@ -12,6 +12,7 @@
 * Simplify and improve visualisation with plot_db() and export it for users
 * Replace the deprecated `aes_string` function with modern syntax of `aes`
 * Fix the wrong definition of GPs mixtures by drawing a cluster instead of averaging
+* Fix a bug when using pred_magmaclust() with no data argument.
 
 # MagmaClustR 1.2.1
 

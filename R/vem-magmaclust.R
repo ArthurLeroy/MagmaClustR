@@ -230,15 +230,16 @@ vm_step <- function(
 
   # Recompute prior mean parameters for each cluster with the updated mixture probabilities
   floop <- function(k) {
+    mu <- list_mu_param$mean[[k]] %>% pull(Output)
+    inv <- list_mu_param$cov[[k]] %>% chol_inv_jitter(pen_diag = pen_diag)
+    dim <- length(mu)
+    ones <- rep(1, dim)
 
-    ## Mean of the Output values for each individual weighted by cluster membership probabilities
-    list_mu_param$mixture %>%
-      left_join(db, by = 'ID') %>%
-      mutate(new_m_k := (Output * .data[[k]]) / sum(.data[[k]])) %>%
-      pull(new_m_k)  %>%
-      sum() %>% 
-      rep(length(m_k[[k]])) %>%
-      return()
+    # Update the prior mean parameters for the k-th cluster
+    # update_m_k = (t(ones) %*% inv %*% mu) / (t(ones) %*% inv %*% ones)
+    
+    # rep(update_m_k[1,1], dim) %>%
+    return(rep(mean(mu), dim))
   }
   new_m_k <- lapply(list_ID_k, floop) %>%
     `names<-`(list_ID_k)

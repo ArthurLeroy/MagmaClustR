@@ -854,7 +854,7 @@ pred_magma <- function(
       if (get_full_cov) {
         pred <- list("pred" = pred, "cov" = hyperpost$cov)
       }
-
+      
       return(pred)
     }
   }
@@ -1894,12 +1894,16 @@ pred_magmaclust <- function(
         'mixture_pred' = mixture_pred
       )
 
+      if (get_hyperpost) {
+        pred[["hyperpost"]] <- hyperpost
+      }
+
+      ## Add 'cov' to display samples
+      pred[["cov"]] <- hyperpost$cov
+
       ## Display the graph of the prediction if expected
       if (plot) {
         data_train <- trained_model$ini_args$data
-
-        ## Add 'cov' to display samples
-        pred[["cov"]] <- hyperpost$cov
 
         ## Display samples only in 1D and Credible Interval otherwise
         if (ncol(mixture_pred) == 4) {
@@ -1921,14 +1925,14 @@ pred_magmaclust <- function(
           ) %>%
             print()
         }
-
-        ## Check whether posterior covariance should be returned
-        if (!get_full_cov) {
-          pred[["cov"]] <- NULL
-        }
-
-        return(pred)
       }
+
+      ## Check whether posterior covariance should be returned
+      if (!get_full_cov) {
+        pred[["cov"]] <- NULL
+      }
+
+      return(pred)
     }
   }
 
@@ -2360,6 +2364,8 @@ pred_magmaclust <- function(
 
   res <- list("pred" = pred, "mixture" = mixture, "mixture_pred" = mixture_pred)
 
+
+  
   ## Check whether hyper-posterior should be returned
   if (get_hyperpost) {
     res[["hyperpost"]] <- hyperpost
