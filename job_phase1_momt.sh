@@ -61,10 +61,10 @@ for N_OUT in 2 3 4 6 8; do
   for N_TRAIN in 15 30 300; do
     LOGFILE="${LOGDIR}/momt_nout${N_OUT}_ntrain${N_TRAIN}.log"
 
-    if [ -f "${LOGFILE}" ] && grep -q "n_pred=1000... OK" "${LOGFILE}"; then
-        echo "[SKIP] La combinaison n_out=${N_OUT} n_train=${N_TRAIN} est déjà terminée avec succès."
-        continue # On saute cette itération et on passe directement à la suivante
-    fi
+    # if [ -f "${LOGFILE}" ] && grep -q "n_pred=1000... OK" "${LOGFILE}"; then
+    #     echo "[SKIP] La combinaison n_out=${N_OUT} n_train=${N_TRAIN} est déjà terminée avec succès."
+    #     continue # On saute cette itération et on passe directement à la suivante
+    # fi
 
     echo "[$(date +%H:%M:%S)] Lancement MOMT n_out=${N_OUT} n_train=${N_TRAIN} → ${LOGFILE}"
 
