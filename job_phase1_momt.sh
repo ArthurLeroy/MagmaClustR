@@ -2,18 +2,18 @@
 #===============================================================================
 # job_phase1_momt.sh — PHASE 1 : Entraînement MOMT (several_outputs)
 #
-# Lance 12 processus R en parallèle (4 n_out × 3 n_train).
+# Lance 15 processus R en parallèle (5 n_out × 3 n_train).
 # Chaque processus exécute 100 itérations pour une combinaison (n_out, n_train).
 #
 # Queue "huge" : 16 threads, 7 jours max
-# 12 processus R ≈ 12 cœurs utilisés (R est single-threaded par processus)
 #
 # Soumission : sbatch job_phase1_momt.sh
 #===============================================================================
 
 #SBATCH --job-name=xp1_phase1
 #SBATCH --qos=large
-#SBATCH -c 15
+#SBATCH -c 16
+#SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/phase1_momt_%j.out
 #SBATCH --error=/scratch/%u/logs/phase1_momt_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -60,6 +60,12 @@ export R_LIBS="${LIB_TEMP}:${R_LIBS}"
 for N_OUT in 2 3 4 6 8; do
   for N_TRAIN in 15 30 300; do
     LOGFILE="${LOGDIR}/momt_nout${N_OUT}_ntrain${N_TRAIN}.log"
+
+    if [ -f "${LOGFILE}" ] && grep -q "n_pred=1000... OK" "${LOGFILE}"; then
+        echo "[SKIP] La combinaison n_out=${N_OUT} n_train=${N_TRAIN} est déjà terminée avec succès."
+        continue # On saute cette itération et on passe directement à la suivante
+    fi
+
     echo "[$(date +%H:%M:%S)] Lancement MOMT n_out=${N_OUT} n_train=${N_TRAIN} → ${LOGFILE}"
 
     /opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript --vanilla Benchmark_XP_1_MOMT_cluster.R \
