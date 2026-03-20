@@ -207,25 +207,25 @@ model <- train_magma(data = swimmers_train,
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 7.08 seconds 
+#> EM algorithm, step 1: 7.33 seconds 
 #>  
 #> Value of the likelihood: -1306.74731 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 4.31 seconds 
+#> EM algorithm, step 2: 4.45 seconds 
 #>  
 #> Value of the likelihood: -1240.53711 --- Convergence ratio = 0.05337
 #>  
-#> EM algorithm, step 3: 2.53 seconds 
+#> EM algorithm, step 3: 2.6 seconds 
 #>  
 #> Value of the likelihood: -1228.4203 --- Convergence ratio = 0.00986
 #>  
-#> EM algorithm, step 4: 3.43 seconds 
+#> EM algorithm, step 4: 3.59 seconds 
 #>  
 #> Value of the likelihood: -1225.61283 --- Convergence ratio = 0.00229
 #> 
 #> Warning in train_magma(data = swimmers_train, kern_0 = "SE", kern_i = "SE", :
 #> The likelihood descreased. Possible numerical issues.
-#> EM algorithm, step 5: 3.63 seconds 
+#> EM algorithm, step 5: 3.62 seconds 
 #>  
 #> Value of the likelihood: -1225.6443 --- Convergence ratio = -3e-05
 #>  
@@ -362,19 +362,19 @@ model_m <- train_magma(data = swimmers_train_m,
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 8.25 seconds 
+#> EM algorithm, step 1: 8.61 seconds 
 #>  
 #> Value of the likelihood: -1429.93441 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 2.66 seconds 
+#> EM algorithm, step 2: 2.83 seconds 
 #>  
 #> Value of the likelihood: -1411.28576 --- Convergence ratio = 0.01321
 #>  
-#> EM algorithm, step 3: 3.82 seconds 
+#> EM algorithm, step 3: 4.04 seconds 
 #>  
 #> Value of the likelihood: -1409.42677 --- Convergence ratio = 0.00132
 #>  
-#> EM algorithm, step 4: 3.93 seconds 
+#> EM algorithm, step 4: 4.16 seconds 
 #>  
 #> Value of the likelihood: -1409.17453 --- Convergence ratio = 0.00018
 #>  
