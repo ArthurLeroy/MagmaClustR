@@ -17,6 +17,7 @@
 #SBATCH --job-name=xp1_phase2
 #SBATCH --qos=huge
 #SBATCH -c 32
+#SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/phase2_mt_mo_%j.out
 #SBATCH --error=/scratch/%u/logs/phase2_mt_mo_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
