@@ -39,8 +39,9 @@ python -c "from tactis.model.tactis import TACTiS; print('TACTiS OK')"
 echo ""
 
 # --- Lancement du benchmark ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}"
+# SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# cd "${SCRIPT_DIR}"
+cd $SLURM_SUBMIT_DIR
 
 python run_benchmark.py
 
