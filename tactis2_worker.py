@@ -49,8 +49,13 @@ N_OUT = 4
 N_TRAIN = 30
 N_PRED_MAX = 100
 
+# DATASET_DIR = os.path.join(
+#     BASE_XP1, f"n_out_{N_OUT}", "Datasets",
+#     f"train_{N_TRAIN}_pred_{N_PRED_MAX}",
+# )
+
 DATASET_DIR = os.path.join(
-    BASE_XP1, f"n_out_{N_OUT}", "Datasets",
+    BASE_XP1, "Datasets", f"n_out_{N_OUT}",
     f"train_{N_TRAIN}_pred_{N_PRED_MAX}",
 )
 MODEL_DIR = os.path.join(BASE_XP2, "Models_TACTiS")
