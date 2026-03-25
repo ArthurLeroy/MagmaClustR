@@ -39,7 +39,7 @@ def run_single_iteration(iteration):
     try:
         with open(log_file, "w") as f_log:
             result = subprocess.run(
-                [sys.executable, WORKER_SCRIPT, f"--iteration={iteration}"],
+                [sys.executable, "-u", WORKER_SCRIPT, f"--iteration={iteration}"],
                 stdout=f_log,
                 stderr=subprocess.STDOUT,
                 timeout=7200,  # 2h max par itération
