@@ -30,9 +30,13 @@ import torch.nn as nn
 import torch.optim as optim
 import rdata
 import matplotlib
+import warnings # <-- AJOUTEZ CECI
 matplotlib.use("Agg")
 
 from tactis.model.tactis import TACTiS
+
+# On rend rdata et les transformers muets sur les avertissements inoffensifs
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # ============================================================
 # Configuration
