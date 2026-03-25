@@ -8,8 +8,8 @@
 
 #SBATCH --job-name=tactis2_bench
 #SBATCH --partition=fourier
-#SBATCH --qos=large
-#SBATCH --cpus-per-task=16
+#SBATCH --qos=huge
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=64G
 #SBATCH --time=48:00:00
 #SBATCH --output=/scratch/agrenoui/NeurIPS_experiments/Experience_2/logs_TACTiS/slurm_%j.out
@@ -42,6 +42,11 @@ echo ""
 # SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # cd "${SCRIPT_DIR}"
 cd $SLURM_SUBMIT_DIR
+
+# Empêcher la surcharge des CPU en forçant 1 thread par worker
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
 
 python run_benchmark.py
 

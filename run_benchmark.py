@@ -21,7 +21,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 # Configuration
 # ============================================================
 N_ITERATIONS = 100
-N_WORKERS = 16
+N_WORKERS = 32
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKER_SCRIPT = os.path.join(SCRIPT_DIR, "tactis2_worker.py")
