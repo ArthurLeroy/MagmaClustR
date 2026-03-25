@@ -29,7 +29,8 @@ echo ""
 # --- Chargement de l'environnement ---
 load_spack
 spack load miniconda3@24.7.1%gcc@13.2.0
-source activate tactis2
+# source activate tactis2
+source activate /scratch/agrenoui/NeurIPS_experiments/Experience_2/TACTiS2/env_tactis2
 
 # --- Vérification rapide ---
 echo "Python : $(which python)"
