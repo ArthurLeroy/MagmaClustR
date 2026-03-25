@@ -48,7 +48,7 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
-python run_benchmark.py
+python -u run_benchmark.py
 
 echo ""
 echo "=== Fin : $(date '+%Y-%m-%d %H:%M:%S') ==="

@@ -42,7 +42,7 @@ def run_single_iteration(iteration):
                 [sys.executable, "-u", WORKER_SCRIPT, f"--iteration={iteration}"],
                 stdout=f_log,
                 stderr=subprocess.STDOUT,
-                timeout=7200,  # 2h max par itération
+                timeout=18000,  # 5h max par itération
             )
         elapsed = time.time() - t_start
         status = "OK" if result.returncode == 0 else f"ERREUR (code {result.returncode})"
