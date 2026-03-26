@@ -23,7 +23,7 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 params  <- c("probleme", "hp_clusters", "hp_tasks", "inputs", "n_out", "n_train")
 configs <- c("default", "variation")
 models  <- c("MOMT", "MO", "MT")
-seeds   <- 1:10
+seeds   <- 1:5
 
 cat("=== Calcul des métriques Phase 1 ===\n")
 cat(paste0("  Date : ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n"))
