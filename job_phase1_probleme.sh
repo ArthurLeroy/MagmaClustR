@@ -63,7 +63,7 @@ echo ""
 PIDS=()
 
 for CONFIG in default variation; do
-  for SEED in $(seq 1 10); do
+  for SEED in $(seq 1 5); do
     LOGFILE="${LOGDIR}/momt_${CONFIG}_seed${SEED}.log"
     echo "[$(date +%H:%M:%S)] MOMT config=${CONFIG} seed=${SEED} → ${LOGFILE}"
 
