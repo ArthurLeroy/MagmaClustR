@@ -36,13 +36,13 @@ extract_task_metrics <- function(pred_entry) {
 
     # Extraire le data frame de prédiction
     if (is.data.frame(pred_res) || tibble::is_tibble(pred_res)) {
-      pred_df <- pred_res
-    } else if ("pred_mixture" %in% names(pred_res)) {
+      pred_df <- mixture_pred
+    } else if ("mixture_pred" %in% names(pred_res)) {
       pred_df <- pred_res$pred_mixture
     } else if ("mixture" %in% names(pred_res)) {
       pred_df <- pred_res$mixture
-    } else if ("pred" %in% names(pred_res)) {
-      pred_df <- pred_res$pred
+    } else if ("pred_gp" %in% names(pred_res)) {
+      pred_df <- pred_res$pred_gp_pred
     } else {
       # Dernier recours : prendre le premier élément data.frame
       for (nm in names(pred_res)) {
