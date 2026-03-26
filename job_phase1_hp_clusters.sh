@@ -67,8 +67,8 @@ for CONFIG in default variation; do
     LOGFILE="${LOGDIR}/momt_${CONFIG}_seed${SEED}.log"
     echo "[$(date +%H:%M:%S)] MOMT config=${CONFIG} seed=${SEED} → ${LOGFILE}"
 
-    ${RSCRIPT} --vanilla Benchmark_Phase1_MOMT.R \
-      --param=${PARAM} --config=${CONFIG} --seed=${SEED} \
+    ${RSCRIPT} --vanilla Benchmark_Phase1_MOMT_hp_clusters.R \
+      --config=${CONFIG} --seed=${SEED} \
       > "${LOGFILE}" 2>&1 &
 
     PIDS+=($!)
@@ -133,8 +133,8 @@ for CONFIG in default variation; do
     LOGFILE="${LOGDIR}/mt_${CONFIG}_seed${SEED}.log"
     echo "[$(date +%H:%M:%S)] MT config=${CONFIG} seed=${SEED} → ${LOGFILE}"
 
-    ${RSCRIPT} --vanilla Benchmark_Phase1_MT.R \
-      --param=${PARAM} --config=${CONFIG} --seed=${SEED} \
+    ${RSCRIPT} --vanilla Benchmark_Phase1_MT_hp_clusters.R \
+      --config=${CONFIG} --seed=${SEED} \
       > "${LOGFILE}" 2>&1 &
 
     PIDS+=($!)
