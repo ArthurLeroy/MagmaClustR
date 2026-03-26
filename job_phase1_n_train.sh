@@ -2,9 +2,9 @@
 #===============================================================================
 # job_phase1_n_train.sh — Phase 1 : Paramètre "n_train" (20 vs 100 tâches)
 #
-# Phase 1 : 20 MOMT (10 seeds × 2 configs)
-# Phase 2a: 20 MT   (10 seeds × 2 configs)
-# Phase 2b: 20 MO   (10 seeds × 2 configs)
+# Phase 1 : 20 MOMT (5 seeds × 2 configs)
+# Phase 2a: 20 MT   (5 seeds × 2 configs)
+# Phase 2b: 20 MO   (5 seeds × 2 configs)
 #
 # Soumission : sbatch job_phase1_n_train.sh
 #===============================================================================
@@ -26,7 +26,7 @@ echo " Date    : $(date)"
 echo " Noeud   : $(hostname)"
 echo " Job ID  : ${SLURM_JOB_ID}"
 echo " CPUs    : ${SLURM_CPUS_ON_NODE}"
-echo " 20 cœurs : 10 seeds × 2 configs"
+echo " 20 cœurs : 5 seeds × 2 configs"
 echo "=============================================="
 
 # --- Environnement ---
@@ -63,7 +63,7 @@ echo ""
 PIDS=()
 
 for CONFIG in default variation; do
-  for SEED in $(seq 1 10); do
+  for SEED in $(seq 1 5); do
     LOGFILE="${LOGDIR}/momt_${CONFIG}_seed${SEED}.log"
     echo "[$(date +%H:%M:%S)] MOMT config=${CONFIG} seed=${SEED} → ${LOGFILE}"
 
@@ -90,7 +90,7 @@ for i in "${!PIDS[@]}"; do
 done
 
 echo ""
-echo "--- PHASE 1 TERMINÉE (Échecs: ${FAILED_P1} / 20) ---"
+echo "--- PHASE 1 TERMINÉE (Échecs: ${FAILED_P1} / 10) ---"
 
 if [ ${FAILED_P1} -gt 0 ]; then
   echo "ATTENTION : ${FAILED_P1} processus MOMT ont échoué. Vérifiez ${LOGDIR}/"
@@ -103,7 +103,7 @@ RESULTS_DIR="/scratch/${USER}/Phase1_experiments/${PARAM}"
 MISSING=0
 
 for CONFIG in default variation; do
-  for SEED in $(seq 1 10); do
+  for SEED in $(seq 1 5); do
     DATASET_FILE="${RESULTS_DIR}/${CONFIG}/Datasets/datasets_seed_${SEED}.rds"
     if [ ! -f "${DATASET_FILE}" ]; then
       echo "[ATTENTION] Fichier manquant : ${DATASET_FILE}"
@@ -129,7 +129,7 @@ echo ""
 PIDS=()
 
 for CONFIG in default variation; do
-  for SEED in $(seq 1 10); do
+  for SEED in $(seq 1 5); do
     LOGFILE="${LOGDIR}/mt_${CONFIG}_seed${SEED}.log"
     echo "[$(date +%H:%M:%S)] MT config=${CONFIG} seed=${SEED} → ${LOGFILE}"
 
@@ -166,7 +166,7 @@ echo ""
 PIDS=()
 
 for CONFIG in default variation; do
-  for SEED in $(seq 1 10); do
+  for SEED in $(seq 1 5); do
     LOGFILE="${LOGDIR}/mo_${CONFIG}_seed${SEED}.log"
     echo "[$(date +%H:%M:%S)] MO config=${CONFIG} seed=${SEED} → ${LOGFILE}"
 
