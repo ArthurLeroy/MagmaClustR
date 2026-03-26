@@ -52,6 +52,10 @@ extract_task_metrics <- function(pred_entry) {
 
     if (!exists("pred_df")) return(tibble(rmse = NA, nll = NA, coverage_95 = NA))
 
+    if ("Input_1" %in% names(pred_df) && !"Input" %in% names(pred_df)) {
+      pred_df <- pred_df %>% dplyr::rename(Input = Input_1)
+    }
+
     # Identifier les colonnes de mean et variance
     mean_col <- intersect(names(pred_df), c("Mean", "mean", "Prediction", "prediction", "Mu"))
     var_col  <- intersect(names(pred_df), c("Var", "var", "Variance", "variance", "Sigma2"))
@@ -62,10 +66,10 @@ extract_task_metrics <- function(pred_entry) {
 
     # Jointure prédiction <-> vérité
     truth_df <- truth_data %>%
-      dplyr::mutate(Input = round(Input, 8), Output_ID = as.character(Output_ID))
+      dplyr::mutate(Input = round(Input, 5), Output_ID = as.character(Output_ID))
 
     pred_df_clean <- pred_df %>%
-      dplyr::mutate(Input = round(Input, 8))
+      dplyr::mutate(Input = round(Input, 5))
 
     if ("Output_ID" %in% names(pred_df_clean)) {
       pred_df_clean <- pred_df_clean %>% dplyr::mutate(Output_ID = as.character(Output_ID))
