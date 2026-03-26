@@ -34,7 +34,7 @@ stopifnot(CONFIG %in% c("default", "variation"))
 stopifnot(SEED >= 1 & SEED <= 10)
 
 # --- 1. CONFIGURATION PAR DÉFAUT ---
-SHARED_HP_CLUSTS <- TRUE
+SHARED_HP_CLUSTS <- FALSE
 SHARED_HP_TASKS  <- TRUE
 N_OUT            <- 2
 N_TRAIN          <- 20
