@@ -106,13 +106,17 @@ writeLines(jsonlite::toJSON(run_info, auto_unbox = TRUE, pretty = TRUE), run_inf
 t_global_start <- Sys.time()
 
 # --- 3. FONCTIONS UTILITAIRES ---
-generate_random_config <- function(n_out, n_clust = 3) {
+generate_random_config <- function(n_out, n_clust = 3, shared_hp_clusts = FALSE) {
   hp_mp_list <- list()
   jitter_leng <- 0.2
   jitter_var  <- 0.5
   global_l0_min  <- log(1/1000)
   global_l0_max  <- log(1/100)
   global_lu0_max <- log(1/100)
+
+  # When shared_hp_clusts=TRUE, only 1 set of HPs per output (n_out rows total)
+  # When FALSE, n_out * n_clust rows (one per output per cluster)
+  n_clust_loop <- if (shared_hp_clusts) 1 else n_clust
 
   for (o in 1:n_out) {
     safe_max_l0 <- global_l0_max - jitter_leng - 0.05
@@ -125,7 +129,7 @@ generate_random_config <- function(n_out, n_clust = 3) {
       if (center_lu0 > center_l0 + jitter_leng) valid_center_lu0 <- TRUE
     }
 
-    for (k in 1:n_clust) {
+    for (k in 1:n_clust_loop) {
       l0_val <- runif(1, center_l0 - jitter_leng, center_l0 + jitter_leng)
       l0_val <- max(min(l0_val, global_l0_max), global_l0_min)
 
@@ -180,9 +184,14 @@ generate_random_config <- function(n_out, n_clust = 3) {
   }
   base_task_df <- bind_rows(base_task_params)
 
-  hp_task_list_full <- list()
-  for (k in 1:n_clust) hp_task_list_full[[k]] <- base_task_df
-  hp_task_config <- bind_rows(hp_task_list_full)
+  # When shared_hp_clusts or shared_hp_tasks, only n_out rows needed
+  if (shared_hp_clusts) {
+    hp_task_config <- base_task_df
+  } else {
+    hp_task_list_full <- list()
+    for (k in 1:n_clust) hp_task_list_full[[k]] <- base_task_df
+    hp_task_config <- bind_rows(hp_task_list_full)
+  }
 
   return(list(mp = hp_mp_config, task = hp_task_config))
 }
@@ -212,7 +221,7 @@ logL_GP_outside_package <- function(hp, db, mean, kern, post_cov, pen_diag, hp_c
 tryCatch({
   set.seed(SEED)
 
-  configs   <- generate_random_config(N_OUT, n_clust = N_CLUSTERS)
+  configs   <- generate_random_config(N_OUT, n_clust = N_CLUSTERS, shared_hp_clusts = SHARED_HP_CLUSTS)
   my_priors <- rep(0, N_OUT * N_CLUSTERS)
 
   t_simu_start <- Sys.time()
