@@ -219,7 +219,7 @@ tryCatch({
   my_priors <- rep(0, N_OUT)
 
   t_simu_start <- Sys.time()
-  sim_results <- simulate_multi_output_data_convol(
+  sim_results <- MagmaClustR:::simulate_multi_output_data_convol(
     num_tasks              = n_tasks_total,
     points_per_output_grid = rep(200, N_OUT),
     grid_ranges            = rep(list(c(-1, 1)), N_OUT),
