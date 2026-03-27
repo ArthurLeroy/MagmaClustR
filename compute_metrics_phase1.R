@@ -35,8 +35,10 @@ compute_nll_mixture <- function(pred_by_cluster, weights, truth) {
   required_cols <- c("Input", "Output_ID", "Mean", "Var", "Cluster")
   if (!all(required_cols %in% names(pred_by_cluster))) return(NA)
   
+  # ATTENTION ICI : On inclut "Cluster" dans le distinct pour ne pas écraser la mixture !
   pred_by_cluster <- pred_by_cluster %>%
-    dplyr::mutate(Input = round(Input, 5), Output_ID = as.character(Output_ID))
+    dplyr::mutate(Input = round(Input, 5), Output_ID = as.character(Output_ID)) %>%
+    dplyr::distinct(Input, Output_ID, Cluster, .keep_all = TRUE)
     
   # 2. Gestion des poids
   clusters <- unique(pred_by_cluster$Cluster)
@@ -48,13 +50,19 @@ compute_nll_mixture <- function(pred_by_cluster, weights, truth) {
   if (is.null(names(weights))) names(weights) <- clusters
   weights <- weights / sum(weights)
   
-  # 3. Jointure avec la vérité
+  # 3. Nettoyage de la vérité (truth) : ici on veut une seule valeur par point !
+  truth_clean <- truth %>%
+    dplyr::mutate(Input = round(Input, 5), Output_ID = as.character(Output_ID)) %>%
+    dplyr::distinct(Input, Output_ID, .keep_all = TRUE)
+  
+  # 4. Jointure avec la vérité
+  # La relation devient "One-to-Many" proprement, sans avertissement.
   pred_with_truth <- pred_by_cluster %>%
-    dplyr::inner_join(truth, by = c("Input", "Output_ID"))
+    dplyr::inner_join(truth_clean, by = c("Input", "Output_ID"))
     
   if (nrow(pred_with_truth) == 0) return(NA)
 
-  # 4. Calcul de la NLL exacte
+  # 5. Calcul de la NLL exacte
   nll_per_point <- pred_with_truth %>%
     dplyr::mutate(
       Var_safe = pmax(Var, 1e-10),
@@ -122,10 +130,12 @@ extract_task_metrics <- function(pred_entry) {
 
     # 2. Jointure prédiction <-> vérité
     truth_df <- truth_data %>%
-      dplyr::mutate(Input = round(Input, 5), Output_ID = as.character(Output_ID))
+      dplyr::mutate(Input = round(Input, 5), Output_ID = as.character(Output_ID)) %>%
+      dplyr::distinct(Input, Output_ID, .keep_all = TRUE)
 
     pred_df_clean <- pred_df %>%
-      dplyr::mutate(Input = round(Input, 5))
+      dplyr::mutate(Input = round(Input, 5)) %>%
+      dplyr::distinct(Input, Output_ID, .keep_all = TRUE)
 
     if ("Output_ID" %in% names(pred_df_clean)) {
       pred_df_clean <- pred_df_clean %>% dplyr::mutate(Output_ID = as.character(Output_ID))
