@@ -327,6 +327,14 @@ metrics_display <- metrics_summary %>%
     `T_train (med[IQR])`  = paste0(round(t_train_median, 2), " [", round(t_train_iqr, 2), "]"),
     `T_pred (mean±std)`   = paste0(round(t_pred_mean, 2), " ± ", round(t_pred_std, 2)),
     `T_pred (med[IQR])`   = paste0(round(t_pred_median, 2), " [", round(t_pred_iqr, 2), "]")
+  ) %>%
+  # AJOUT ICI : On ne sélectionne QUE les colonnes finales
+  dplyr::select(
+    param, config, model,
+    `RMSE (mean±std)`, `RMSE (median[IQR])`,
+    `NLL (mean±std)`, `NLL (median[IQR])`,
+    `Cov95 (mean±std)`, `Cov95 (median[IQR])`,
+    `T_train (mean±std)`, `T_pred (mean±std)`
   )
 
 # --- Arrondir toutes les colonnes numériques du résumé à 2 décimales ---
@@ -336,11 +344,6 @@ metrics_summary <- metrics_summary %>%
 # --- Sauvegarde (avec le format excel évoqué précédemment) ---
 write_excel_csv2(metrics_summary, file.path(output_dir, "metrics_summary_phase1.csv"))
 write_excel_csv2(metrics_display, file.path(output_dir, "metrics_display_phase1.csv"))
-saveRDS(metrics_summary, file.path(output_dir, "metrics_summary_phase1.rds"))
-
-# Sauvegarde
-write_csv(metrics_summary, file.path(output_dir, "metrics_summary_phase1.csv"))
-write_csv(metrics_display, file.path(output_dir, "metrics_display_phase1.csv"))
 saveRDS(metrics_summary, file.path(output_dir, "metrics_summary_phase1.rds"))
 
 cat("\n--- Résumé par paramètre ---\n\n")
