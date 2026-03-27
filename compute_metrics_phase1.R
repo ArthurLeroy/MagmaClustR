@@ -216,7 +216,7 @@ for (param in params) {
         # if (model == "MO" && is.na(t_training) && !is.null(pred_data$t_train_total)) {
         #   t_training <- pred_data$t_train_total
         # }
-        
+
         # --- Ajustement logique selon le modèle ---
         if (model == "MO") {
           t_train_mo <- if (!is.null(pred_data$t_train_total)) pred_data$t_train_total else 0
@@ -314,19 +314,29 @@ metrics_summary <- metrics_raw %>%
   )
 
 # Colonnes formatées pour affichage
+# --- Colonnes formatées pour affichage (2 décimales partout) ---
 metrics_display <- metrics_summary %>%
   dplyr::mutate(
-    `RMSE (mean±std)`     = paste0(round(rmse_mean, 4), " ± ", round(rmse_std, 4)),
-    `RMSE (median[IQR])`  = paste0(round(rmse_median, 4), " [", round(rmse_q1, 4), ", ", round(rmse_q3, 4), "]"),
-    `NLL (mean±std)`      = paste0(round(nll_mean, 4), " ± ", round(nll_std, 4)),
-    `NLL (median[IQR])`   = paste0(round(nll_median, 4), " [", round(nll_q1, 4), ", ", round(nll_q3, 4), "]"),
-    `Cov95 (mean±std)`    = paste0(round(cov95_mean, 4), " ± ", round(cov95_std, 4)),
-    `Cov95 (median[IQR])` = paste0(round(cov95_median, 4), " [", round(cov95_q1, 4), ", ", round(cov95_q3, 4), "]"),
-    `T_train (mean±std)`  = paste0(round(t_train_mean, 1), " ± ", round(t_train_std, 1)),
-    `T_train (med[IQR])`  = paste0(round(t_train_median, 1), " [", round(t_train_iqr, 1), "]"),
-    `T_pred (mean±std)`   = paste0(round(t_pred_mean, 1), " ± ", round(t_pred_std, 1)),
-    `T_pred (med[IQR])`   = paste0(round(t_pred_median, 1), " [", round(t_pred_iqr, 1), "]")
+    `RMSE (mean±std)`     = paste0(round(rmse_mean, 2), " ± ", round(rmse_std, 2)),
+    `RMSE (median[IQR])`  = paste0(round(rmse_median, 2), " [", round(rmse_q1, 2), ", ", round(rmse_q3, 2), "]"),
+    `NLL (mean±std)`      = paste0(round(nll_mean, 2), " ± ", round(nll_std, 2)),
+    `NLL (median[IQR])`   = paste0(round(nll_median, 2), " [", round(nll_q1, 2), ", ", round(nll_q3, 2), "]"),
+    `Cov95 (mean±std)`    = paste0(round(cov95_mean, 2), " ± ", round(cov95_std, 2)),
+    `Cov95 (median[IQR])` = paste0(round(cov95_median, 2), " [", round(cov95_q1, 2), ", ", round(cov95_q3, 2), "]"),
+    `T_train (mean±std)`  = paste0(round(t_train_mean, 2), " ± ", round(t_train_std, 2)),
+    `T_train (med[IQR])`  = paste0(round(t_train_median, 2), " [", round(t_train_iqr, 2), "]"),
+    `T_pred (mean±std)`   = paste0(round(t_pred_mean, 2), " ± ", round(t_pred_std, 2)),
+    `T_pred (med[IQR])`   = paste0(round(t_pred_median, 2), " [", round(t_pred_iqr, 2), "]")
   )
+
+# --- Arrondir toutes les colonnes numériques du résumé à 2 décimales ---
+metrics_summary <- metrics_summary %>%
+  dplyr::mutate(dplyr::across(where(is.numeric), ~ round(.x, 2)))
+
+# --- Sauvegarde (avec le format excel évoqué précédemment) ---
+write_excel_csv2(metrics_summary, file.path(output_dir, "metrics_summary_phase1.csv"))
+write_excel_csv2(metrics_display, file.path(output_dir, "metrics_display_phase1.csv"))
+saveRDS(metrics_summary, file.path(output_dir, "metrics_summary_phase1.rds"))
 
 # Sauvegarde
 write_csv(metrics_summary, file.path(output_dir, "metrics_summary_phase1.csv"))
