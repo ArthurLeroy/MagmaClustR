@@ -212,9 +212,21 @@ for (param in params) {
         t_pred     <- if (!is.null(pred_data$t_pred_total)) pred_data$t_pred_total else NA
         t_hyperpost <- if (!is.null(pred_data$t_hyperpost_global)) pred_data$t_hyperpost_global else NA
 
-        # Pour MO, le temps d'entraînement est t_train_total
-        if (model == "MO" && is.na(t_training) && !is.null(pred_data$t_train_total)) {
-          t_training <- pred_data$t_train_total
+        # # Pour MO, le temps d'entraînement est t_train_total
+        # if (model == "MO" && is.na(t_training) && !is.null(pred_data$t_train_total)) {
+        #   t_training <- pred_data$t_train_total
+        # }
+        
+        # --- Ajustement logique selon le modèle ---
+        if (model == "MO") {
+          t_train_mo <- if (!is.null(pred_data$t_train_total)) pred_data$t_train_total else 0
+          # MO : Le temps de prédiction inclut l'entraînement sur la nouvelle tâche
+          t_pred <- t_pred + t_train_mo
+          # L'entraînement global en amont n'existe pas pour MO
+          t_training <- 0 
+        } else if (model %in% c("MOMT", "MT")) {
+          # MOMT / MT : Le temps de prédiction inclut le calcul de l'hyperpostérieur
+          t_pred <- t_pred + t_hyperpost
         }
 
         # Extraire métriques par tâche
