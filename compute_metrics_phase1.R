@@ -14,6 +14,62 @@
 # ==========================================================================
 
 library(tidyverse)
+library(matrixStats) # Requis pour logSumExp
+
+# ---- Couverture de l'intervalle de confiance (IC) ----
+compute_coverage <- function(pred_mean, pred_var, truth, level = 0.95) {
+  z <- qnorm(1 - (1 - level) / 2)
+  pred_sd <- sqrt(pmax(pred_var, 1e-10))
+  lower <- pred_mean - z * pred_sd
+  upper <- pred_mean + z * pred_sd
+  mean(truth >= lower & truth <= upper)
+}
+
+# ---- NLL pour mixture de gaussiennes (MOMT et MT) ----
+compute_nll_mixture <- function(pred_by_cluster, weights, truth) {
+  # 1. Nettoyage et préparation de pred_by_cluster
+  if ("Input_1" %in% names(pred_by_cluster) && !"Input" %in% names(pred_by_cluster)) {
+    pred_by_cluster <- pred_by_cluster %>% dplyr::rename(Input = Input_1)
+  }
+  
+  required_cols <- c("Input", "Output_ID", "Mean", "Var", "Cluster")
+  if (!all(required_cols %in% names(pred_by_cluster))) return(NA)
+  
+  pred_by_cluster <- pred_by_cluster %>%
+    dplyr::mutate(Input = round(Input, 5), Output_ID = as.character(Output_ID))
+    
+  # 2. Gestion des poids
+  clusters <- unique(pred_by_cluster$Cluster)
+  K <- length(clusters)
+  if (is.null(weights)) {
+    weights <- rep(1 / K, K)
+    names(weights) <- clusters
+  }
+  if (is.null(names(weights))) names(weights) <- clusters
+  weights <- weights / sum(weights)
+  
+  # 3. Jointure avec la vérité
+  pred_with_truth <- pred_by_cluster %>%
+    dplyr::inner_join(truth, by = c("Input", "Output_ID"))
+    
+  if (nrow(pred_with_truth) == 0) return(NA)
+
+  # 4. Calcul de la NLL exacte
+  nll_per_point <- pred_with_truth %>%
+    dplyr::mutate(
+      Var_safe = pmax(Var, 1e-10),
+      log_density = dnorm(Output, mean = Mean, sd = sqrt(Var_safe), log = TRUE),
+      w = weights[as.character(Cluster)]
+    ) %>%
+    dplyr::group_by(Input, Output_ID) %>%
+    dplyr::summarise(
+      log_mixture_density = matrixStats::logSumExp(log(w) + log_density),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(nll = -log_mixture_density)
+
+  return(mean(nll_per_point$nll))
+}
 
 username  <- Sys.getenv("USER")
 base_dir  <- file.path("/scratch", username, "Phase1_experiments")
@@ -34,17 +90,18 @@ extract_task_metrics <- function(pred_entry) {
     pred_res   <- pred_entry$prediction
     truth_data <- pred_entry$truth
 
-    # Extraire le data frame de prédiction
+    # 1. Extraire le data frame de prédiction agrégée (pour RMSE et IC)
     if (is.data.frame(pred_res) || tibble::is_tibble(pred_res)) {
-      pred_df <- mixture_pred
+      pred_df <- pred_res
     } else if ("mixture_pred" %in% names(pred_res)) {
-      pred_df <- pred_res$pred_mixture
-    } else if ("mixture" %in% names(pred_res)) {
+      pred_df <- pred_res$mixture_pred
+    } else if ("mixture" %in% names(pred_res) && is.data.frame(pred_res$mixture)) {
       pred_df <- pred_res$mixture
+    } else if ("pred" %in% names(pred_res)) {
+      pred_df <- pred_res$pred
     } else if ("pred_gp" %in% names(pred_res)) {
-      pred_df <- pred_res$pred_gp_pred
+      pred_df <- pred_res$pred_gp$pred
     } else {
-      # Dernier recours : prendre le premier élément data.frame
       for (nm in names(pred_res)) {
         if (is.data.frame(pred_res[[nm]])) { pred_df <- pred_res[[nm]]; break }
       }
@@ -56,7 +113,6 @@ extract_task_metrics <- function(pred_entry) {
       pred_df <- pred_df %>% dplyr::rename(Input = Input_1)
     }
 
-    # Identifier les colonnes de mean et variance
     mean_col <- intersect(names(pred_df), c("Mean", "mean", "Prediction", "prediction", "Mu"))
     var_col  <- intersect(names(pred_df), c("Var", "var", "Variance", "variance", "Sigma2"))
 
@@ -64,7 +120,7 @@ extract_task_metrics <- function(pred_entry) {
       return(tibble(rmse = NA, nll = NA, coverage_95 = NA))
     }
 
-    # Jointure prédiction <-> vérité
+    # 2. Jointure prédiction <-> vérité
     truth_df <- truth_data %>%
       dplyr::mutate(Input = round(Input, 5), Output_ID = as.character(Output_ID))
 
@@ -86,22 +142,40 @@ extract_task_metrics <- function(pred_entry) {
     pred_var  <- merged[[var_col[1]]]
     truth     <- merged$Output
 
-    # Protéger contre les variances nulles ou négatives
-    pred_var <- pmax(pred_var, 1e-12)
-
-    # RMSE
+    # 3. Calcul RMSE et Coverage 95% (via ta fonction)
     rmse <- sqrt(mean((pred_mean - truth)^2))
+    coverage_95 <- compute_coverage(pred_mean, pred_var, truth)
 
-    # NLL (par point, distribution gaussienne)
-    nll <- mean(0.5 * log(2 * pi * pred_var) + 0.5 * (truth - pred_mean)^2 / pred_var)
-
-    # Coverage 95%
-    lower <- pred_mean - 1.96 * sqrt(pred_var)
-    upper <- pred_mean + 1.96 * sqrt(pred_var)
-    coverage_95 <- mean(truth >= lower & truth <= upper)
+    # 4. Calcul NLL conditionnel (Mixture vs Simple GP)
+    nll <- NA
+    
+    # Si le modèle sort une mixture détaillée par cluster (MOMT / MT)
+    if ("pred_by_cluster" %in% names(pred_res)) {
+      pred_by_clus <- pred_res$pred_by_cluster
+      
+      # Extraction des probabilités d'appartenance aux clusters
+      # MagmaClustR stocke souvent ça dans "mixture" ou "weights"
+      weights <- if ("weights" %in% names(pred_res)) pred_res$weights else pred_res$mixture
+      
+      # Si les poids sont sous forme de data.frame d'une ligne, on les met en vecteur nommé
+      if (is.data.frame(weights) && nrow(weights) == 1) {
+        w_names <- names(weights)
+        weights <- as.numeric(weights[1, ])
+        names(weights) <- w_names
+      }
+      
+      nll <- compute_nll_mixture(pred_by_cluster = pred_by_clus, weights = weights, truth = truth_df)
+      
+    } else {
+      # Cas standard (MO) : Un seul GP, pas de clusters
+      pred_var_safe <- pmax(pred_var, 1e-12)
+      nll <- mean(0.5 * log(2 * pi * pred_var_safe) + 0.5 * (truth - pred_mean)^2 / pred_var_safe)
+    }
 
     tibble(rmse = rmse, nll = nll, coverage_95 = coverage_95)
+    
   }, error = function(e) {
+    # En cas d'échec d'une tâche, on renvoie des NA
     tibble(rmse = NA, nll = NA, coverage_95 = NA)
   })
 }
