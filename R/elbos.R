@@ -282,10 +282,14 @@ elbo_GP_mod_shared_hp_k <- function( hp,
 
   list_ID_k <- names(db)
 
-  if("Cluster_ID" %in% names(db)){
+  if("Cluster_ID" %in% names(db) && "Output" %in% names(db)){
     inputs <- db[[1]] %>% dplyr::select(-c(Output, Cluster_ID))
   } else{
     inputs <- db[[1]] %>% dplyr::select(-Output)
+  }
+
+  if(length(output_ids) == 1){
+    inputs <- inputs %>% dplyr::select(-Output_ID)
   }
 
   cov <- kern_to_cov(inputs, kern, hp_tibble, deriv = NULL)

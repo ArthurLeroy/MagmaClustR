@@ -2780,7 +2780,7 @@ pred_magmaclust <- function(data = NULL,
         ini_hp <- hp(kern,
                       noise = T,
                       list_task_ID = ID_task_pred,
-                      list_output_ID = data$Output_ID %>% unique(),
+                      list_output_ID = as.character(data$Output_ID) %>% unique(),
                       shared_hp_outputs = FALSE,
                       shared_hp_tasks = FALSE) %>%
           dplyr::filter(Task_ID == ID_task_pred)
