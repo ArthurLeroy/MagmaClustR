@@ -149,7 +149,7 @@ gr_GP_mod_shared_hp_k <- function(
   }
 
   list_ID_k <- names(db)
-  list_hp <- names(hp)
+  list_hp <- hp_col_names
 
   ## Extract the k-th specific reference Input
   input_k <- db[[1]] %>%
@@ -159,6 +159,11 @@ gr_GP_mod_shared_hp_k <- function(
     dplyr::select(-Output)
   if ("Cluster_ID" %in% names(db[[1]])) {
     inputs_k <- inputs_k %>% dplyr::select(-Cluster_ID)
+  }
+
+  # For single-output case, remove Output_ID from inputs
+  if(length(output_ids) == 1 && "Output_ID" %in% names(inputs_k)){
+    inputs_k <- inputs_k %>% dplyr::select(-Output_ID)
   }
 
   inv <- kern_to_inv(inputs_k, kern, hp_tibble, pen_diag)

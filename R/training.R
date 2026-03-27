@@ -1911,6 +1911,7 @@ train_gp_clust <- function(data,
       par_t <- hp %>%
         dplyr::select(-c(Task_ID, Output_ID))
       hp_col_names <- names(par_t)
+      par_t <- unlist(par_t)
     }
 
     ## We start with a M-step to take advantage of the initial 'prop_mixture'

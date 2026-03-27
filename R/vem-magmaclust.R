@@ -549,7 +549,7 @@ vm_step <- function(db,
     } else {
       # Prepare parameters for optim() in single output case
       par_k <- old_hp_k %>%
-        dplyr::select(-c(Cluster_ID, Output_ID)) %>%
+        dplyr::select(-c(Cluster_ID, Output_ID, prop_mixture)) %>%
         dplyr::slice(1)
       hp_col_names <- names(par_k)
     }
@@ -586,9 +586,9 @@ vm_step <- function(db,
       # Single output case
       new_hp_k$Output_ID <- "1"
       new_hp_k <- new_hp_k %>%
-        dplyr::mutate(Task_ID = list(list_ID_k)) %>%
-        tidyr::unnest(Task_ID) %>%
-        dplyr::mutate("prop_mixture" = prop_mixture)
+        dplyr::mutate(Cluster_ID = list(list_ID_k)) %>%
+        tidyr::unnest(Cluster_ID) %>%
+        dplyr::mutate(prop_mixture = unname(prop_mixture[Cluster_ID]))
   }} else {
     loop <- function(k) {
       ## Extract the hyper-parameters associated with the k-th cluster
@@ -668,7 +668,7 @@ vm_step <- function(db,
       # Single output case
       optim_results_by_clust$Output_ID = "1"
       new_hp_k <- optim_results_by_clust %>%
-        dplyr::mutate("prop_mixture" = prop_mixture)
+        dplyr::mutate(prop_mixture = unname(prop_mixture[Cluster_ID]))
     }
   }
 
