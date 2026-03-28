@@ -933,6 +933,10 @@ hyperposterior <- function(trained_model = NULL,
   # Compute the final posterior mean
   post_mean <- post_cov %*% weighted_0 %>% as.vector()
 
+  if(length(data$Output_ID %>% unique()) == 1){
+    all_inputs$Output_ID <- as.factor("1")
+  }
+
   ## Format the mean parameter of the hyper-posterior distribution
   mean <- tibble::tibble(all_inputs,
                          "Output" = post_mean
@@ -1055,7 +1059,6 @@ pred_magma <- function(data = NULL,
                        get_full_cov = FALSE,
                        plot = TRUE,
                        pen_diag = 1e-10) {
-
   ## Return the mean process if no data is provided
   if(data %>% is.null()){
     ## Check whether trained_model is provided
@@ -1588,6 +1591,11 @@ pred_magma <- function(data = NULL,
   }
 
   res <- pred_gp
+
+  if(length(data$Output_ID %>% unique()) == 1){
+    pred_gp$Output_ID <- as.factor("1")
+  }
+
   ## Check whether posterior covariance or hyper-posterior should be returned
   if (get_full_cov | get_hyperpost) {
     res <- list("pred" = pred_gp)
