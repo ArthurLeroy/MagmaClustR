@@ -26,8 +26,7 @@ elbo_clust_multi_GP <- function(hp,
                                 kern,
                                 pen_diag,
                                 hp_col_names,
-                                output_ids
-) {
+                                output_ids) {
   names_k <- hyperpost$mean %>% names()
   t_t <- db$Reference
   y_t <- db$Output
@@ -282,17 +281,21 @@ elbo_GP_mod_shared_hp_k <- function( hp,
 
   list_ID_k <- names(db)
 
-  if("Cluster_ID" %in% names(db) && "Output" %in% names(db)){
+  if("Cluster_ID" %in% names(db)){
     inputs <- db[[1]] %>% dplyr::select(-c(Output, Cluster_ID))
   } else{
     inputs <- db[[1]] %>% dplyr::select(-Output)
   }
 
-  if(length(output_ids) == 1){
-    inputs <- inputs %>% dplyr::select(-Output_ID)
+  # In MO case, mean process uses block-diagonal (independent SE per output)
+  if("Output_ID" %in% names(inputs) && length(unique(inputs$Output_ID)) > 1){
+    cov <- kern_to_cov_blockdiag(inputs, kern, hp_tibble, deriv = NULL)
+  } else {
+    if("Output_ID" %in% names(inputs)){
+      inputs <- inputs %>% dplyr::select(-Output_ID)
+    }
+    cov <- kern_to_cov(inputs, kern, hp_tibble, deriv = NULL)
   }
-
-  cov <- kern_to_cov(inputs, kern, hp_tibble, deriv = NULL)
   references <- rownames(cov)
   inv <- cov %>% chol_inv_jitter(pen_diag)
   dimnames(inv) <- list(references, references)
@@ -356,58 +359,56 @@ elbo_monitoring_VEM <- function(hp_k,
                                 output_ids) {
   # Loop over clusters
   floop <- function(k) {
-    # browser()
-    logL_GP_mod(
-      hp_k[hp_k$Cluster_ID == k, ],
-      db = hyperpost$mean[[k]],
-      mean = m_k[[k]],
-      kern_k,
-      hyperpost$cov[[k]],
-      pen_diag
-    ) %>%
-      return()
-    # all_inputs <- hyperpost$mean[[k]] %>%
-    #   dplyr::select(-c(Output)) %>%
-    #   unique() %>%
-    #   tidyr::separate(Reference,
-    #                   into = c("Output_ID_temp", "Input_temp"),
-    #                   sep = ";",
-    #                   remove = FALSE) %>%
-    #   dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
-    #   dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
-    #   dplyr::select(c(Input_1, Reference, Output_ID))
-    #
-    # all_input <- all_inputs %>%
-    #   dplyr::pull(Reference)
-    #
-    # if(length(all_inputs$Output_ID %>% unique()) == 1){
-    #   all_inputs <- all_inputs %>%
-    #     dplyr::select(-Output_ID)
-    # }
-    #
-    # hp_k_subset <- hp_k %>%
-    #   dplyr::filter(Cluster_ID == k)
-    #
-    # # Compute the convolutional covariance matrix of the mean process
-    # cov_k <- kern_to_cov(input = all_inputs,
-    #                      kern = kern_k,
-    #                      hp = hp_k_subset %>%
-    #                        dplyr::select(-c(Cluster_ID, prop_mixture)))
-    #
-    # references <- rownames(cov_k)
-    # # Invert cov_k (with jitter for numerical stability + safety margin)
-    # inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
-    #
-    # # Re-apply the stored names to the inverted matrix
-    # dimnames(inv_k) <- list(references, references)
-    #
-    # # Compute the log-likelihood components
-    # # Classical Gaussian log-likelihood
-    # LL_norm <- -dmnorm(hyperpost$mean[[k]]$Output, m_k[[k]], inv_k, log = TRUE)
-    # # Correction trace term (-0.5 * Tr(inv %*% post_cov))
-    # cor_term <- 0.5 * sum(diag(inv_k %*% hyperpost$cov[[k]]))
-    #
-    # ll_k = LL_norm + cor_term
+    all_inputs <- hyperpost$mean[[k]] %>%
+      dplyr::select(-c(Output)) %>%
+      unique() %>%
+      tidyr::separate(Reference,
+                      into = c("Output_ID_temp", "Input_temp"),
+                      sep = ";",
+                      remove = FALSE) %>%
+      dplyr::mutate(Input_temp_numeric = as.numeric(Input_temp)) %>%
+      dplyr::arrange(Output_ID_temp, Input_temp_numeric) %>%
+      dplyr::select(c(Input_1, Reference, Output_ID))
+
+    all_input <- all_inputs %>%
+      dplyr::pull(Reference)
+
+    if(length(all_inputs$Output_ID %>% unique()) == 1){
+      all_inputs <- all_inputs %>%
+        dplyr::select(-Output_ID)
+    }
+
+    hp_k_subset <- hp_k %>%
+      dplyr::filter(Cluster_ID == k)
+
+    # Compute the covariance matrix of the mean process
+    # In MO case, use block-diagonal (independent SE per output)
+    if(length(all_inputs$Output_ID %>% unique()) > 1){
+      cov_k <- kern_to_cov_blockdiag(input = all_inputs,
+                                     kern = kern_k,
+                                     hp = hp_k_subset %>%
+                                       dplyr::select(-c(Cluster_ID, prop_mixture)))
+    } else {
+      cov_k <- kern_to_cov(input = all_inputs,
+                           kern = kern_k,
+                           hp = hp_k_subset %>%
+                             dplyr::select(-c(Cluster_ID, prop_mixture)))
+    }
+
+    references <- rownames(cov_k)
+    # Invert cov_k (with jitter for numerical stability)
+    inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
+
+    # Re-apply the stored names to the inverted matrix
+    dimnames(inv_k) <- list(references, references)
+
+    # Compute the log-likelihood components
+    # Classical Gaussian log-likelihood
+    LL_norm <- -dmnorm(hyperpost$mean[[k]]$Output, m_k[[k]], inv_k, log = TRUE)
+    # Correction trace term (-0.5 * Tr(inv %*% post_cov))
+    cor_term <- 0.5 * sum(diag(inv_k %*% hyperpost$cov[[k]]))
+
+    ll_k = LL_norm + cor_term
   }
   sum_ll_k <- sapply(names(m_k), floop) %>% sum()
 
@@ -461,7 +462,7 @@ elbo_monitoring_VEM <- function(hp_k,
       sum()
 
     # Debug: show components for each cluster
-    # cat(sprintf("  Cluster %s: sum_tau=%.4f, det_term=%.4f\n", k, sum_tau, det_term))
+    cat(sprintf("  Cluster %s: sum_tau=%.4f, det_term=%.4f\n", k, sum_tau, det_term))
 
     return(sum_tau + det_term)
   }
@@ -469,8 +470,8 @@ elbo_monitoring_VEM <- function(hp_k,
   sum_corr_k <- sapply(names(m_k), floop3) %>% sum()
 
   # Debug: print components to identify which one causes non-monotonicity
-  # cat(sprintf("ELBO components: sum_ll_k=%.4f, sum_ll_t=%.4f, sum_corr_k=%.4f, ELBO=%.4f\n",
-  #             sum_ll_k, sum_ll_t, sum_corr_k, -sum_ll_k - sum_ll_t + sum_corr_k))
+  cat(sprintf("ELBO components: sum_ll_k=%.4f, sum_ll_t=%.4f, sum_corr_k=%.4f, ELBO=%.4f\n",
+              sum_ll_k, sum_ll_t, sum_corr_k, -sum_ll_k - sum_ll_t + sum_corr_k))
 
   return(-sum_ll_k - sum_ll_t + sum_corr_k)
 }

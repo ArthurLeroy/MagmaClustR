@@ -814,14 +814,14 @@ hyperposterior <- function(trained_model = NULL,
   }
 
   if(length(data$Output_ID %>% unique()) > 1){
-    # Compute the convolutional covariance matrix of the mean process
-    cov_0 <- kern_to_cov(input = all_inputs,
-                         kern = kern_0,
-                         hp = hp_0)
+    # Compute the block-diagonal covariance matrix of the mean process
+    # (independent SE kernel per output, NOT convolution)
+    cov_0 <- kern_to_cov_blockdiag(input = all_inputs,
+                                   kern = kern_0,
+                                   hp = hp_0)
 
     all_references <- rownames(cov_0)
     inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
-    # matrixcalc::is.positive.semi.definite(inv_0)
     # Re-apply the stored names to the inverted matrix
     dimnames(inv_0) <- list(all_references, all_references)
   } else {
@@ -932,10 +932,6 @@ hyperposterior <- function(trained_model = NULL,
 
   # Compute the final posterior mean
   post_mean <- post_cov %*% weighted_0 %>% as.vector()
-
-  if(length(data$Output_ID %>% unique()) == 1){
-    all_inputs$Output_ID <- as.factor("1")
-  }
 
   ## Format the mean parameter of the hyper-posterior distribution
   mean <- tibble::tibble(all_inputs,
@@ -1059,6 +1055,7 @@ pred_magma <- function(data = NULL,
                        get_full_cov = FALSE,
                        plot = TRUE,
                        pen_diag = 1e-10) {
+
   ## Return the mean process if no data is provided
   if(data %>% is.null()){
     ## Check whether trained_model is provided
@@ -1502,7 +1499,8 @@ pred_magma <- function(data = NULL,
   }
 
   ## Sum the covariance matrices on observed inputs and compute the inverse
-  cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
+  cov_obs <- kern_to_cov(inputs_obs, kern, hp)
+  + post_cov_obs
 
   inv_obs <- cov_obs %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
@@ -1519,11 +1517,12 @@ pred_magma <- function(data = NULL,
   }
 
   ## Compute the required sub-matrix for prediction
-  cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi) + post_cov_pred
+  cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi)
+  + post_cov_pred
   cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi,
                              input_2 = inputs_pred
-  ) +
-    post_cov_crossed
+  )
+    + post_cov_crossed
 
   ## Compute the posterior mean of a GP
   pred_mean <- (mean_pred +
@@ -1591,11 +1590,6 @@ pred_magma <- function(data = NULL,
   }
 
   res <- pred_gp
-
-  if(length(data$Output_ID %>% unique()) == 1){
-    pred_gp$Output_ID <- as.factor("1")
-  }
-
   ## Check whether posterior covariance or hyper-posterior should be returned
   if (get_full_cov | get_hyperpost) {
     res <- list("pred" = pred_gp)
@@ -1904,7 +1898,7 @@ hyperposterior_clust <- function(trained_model = NULL,
     if(kern_k %>% is.null()){kern_k = trained_model$ini_args$kern_k}
     if(kern_t %>% is.null()){kern_t = trained_model$ini_args$kern_t}
     if(prior_mean_k %>% is.null()){
-      prior_mean_k = trained_model$m_k
+      prior_mean_k = trained_model$ini_args$prior_mean_k
     }
   }
 
@@ -2044,19 +2038,226 @@ hyperposterior_clust <- function(trained_model = NULL,
     }
   }
 
-  ## Initialise m_k according to the value provided by the trained model
+  ## Initialise m_k according to the value provided by the user
   m_k <- list()
 
   # Define clusters' names
   names_k <- paste0("K", 1:nb_cluster)
 
+  # if (prior_mean_k %>% is.null()) {
+  #   for (k in 1:nb_cluster) {
+  #     m_k[[names_k[k]]] <- rep(0, length(all_input))
+  #   }
+  #   cat(
+  #     "The 'prior_mean' argument has not been specified. The hyper_prior mean",
+  #     "function is thus set to be 0 everywhere.\n \n"
+  #   )
+  # } else if (prior_mean_k[[1]] %>% is.function()) {
+  #   for (k in 1:nb_cluster) {
+  #     all_inputs %>% dplyr::select(- c(Output_ID, Reference))
+  #     m_k[[names_k[k]]] <- prior_mean_k[[k]](all_inputs)
+  #   }
+  # } else if (prior_mean_k %>% is.vector()) {
+  #
+  #   # Récupération des Outputs triés
+  #   unique_outputs_sorted <- list_ID_output %>% unlist() %>% unique() %>% sort()
+  #   num_outputs <- length(unique_outputs_sorted) # Nombre d'outputs
+  #
+  #   if (length(prior_mean_k) == nb_cluster * num_outputs) {
+  #
+  #     # Extract the prefix of each point of the grid all_input (ex: "o1", "o2")
+  #     all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
+  #
+  #     ## Create a list named by cluster
+  #     for (k in 1:nb_cluster) {
+  #
+  #       all_inputs_k <- all_inputs
+  #       start_index <- (k - 1) * num_outputs + 1
+  #       end_index   <- k * num_outputs
+  #       vals_cluster_k <- prior_mean_k[start_index:end_index]
+  #
+  #       # Create a corresponding table mapping:
+  #       # "o1" -> mean_val_1, "o2" -> mean_val_2
+  #       prior_mean_map <- setNames(vals_cluster_k,
+  #                                  paste0("o", unique_outputs_sorted))
+  #
+  #       # Assign it to the correctly named element of the list
+  #       # Map values to the full grid based on prefixes
+  #       m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
+  #       names(m_k[[names_k[k]]]) <- all_inputs$Reference
+  #     }
+  #
+  #   } else if (length(prior_mean_k) == num_outputs) {
+  #     # One mean per Output (all clusters share the same)
+  #     prior_mean_map <- setNames(prior_mean_k,
+  #                                paste0("o", unique_outputs_sorted))
+  #     all_input_prefixes <- stringr::str_extract(all_input, "o[0-9]+")
+  #
+  #     for (k in 1:nb_cluster) {
+  #       m_k[[names_k[k]]] <- prior_mean_map[all_input_prefixes] %>% unname()
+  #     }
+  #   } else {
+  #     stop(sprintf("Incorrect length for prior_mean_k. Expected %d or %d, got %d.",
+  #                  nb_cluster * num_outputs, num_outputs, length(prior_mean_k)))
+  #   }
+  # }
+
+  # Label switching check
+  if (!is.null(prior_mean_k) && !is.null(mixture)) {
+    # cat("Checking for label switching across multiple outputs (Hyperposterior step)...\n")
+
+    # Helper: Get profile from Prior (m_k)
+    get_prior_profile <- function(cluster_name) {
+      vals <- m_k[[cluster_name]]
+      # We rely on all_input vector for names implicitly if not named,
+      # but m_k lists are usually just vectors.
+      # Let's use all_input to map back to Output_IDs
+      if(is.null(names(vals))) refs <- all_input else refs <- names(vals)
+
+      oids <- stringr::str_extract(refs, "^o[0-9]+")
+
+      tibble::tibble(Output_ID = oids, value = vals) %>%
+        dplyr::group_by(Output_ID) %>%
+        dplyr::summarise(mean_val = mean(value), .groups = "drop") %>%
+        dplyr::arrange(Output_ID) %>%
+        dplyr::pull(mean_val)
+    }
+
+    prior_signatures <- do.call(rbind, lapply(names_k, get_prior_profile))
+    rownames(prior_signatures) <- names_k
+
+    # Helper: Get profile from Data + Mixture
+    # Note: 'data' has columns: Task_ID, Output_ID, Output, Reference...
+    df_check <- data %>%
+      dplyr::mutate(OID_label = paste0("o", Output_ID)) %>%
+      dplyr::select(Task_ID, OID_label, Output) %>%
+      dplyr::left_join(mixture, by = "Task_ID")
+
+    get_empiric_profile <- function(cluster_col) {
+      # browser() # À retirer une fois le debug fini
+      col_name_str <- as.character(cluster_col)
+      # Calcul de la somme des poids pour ce cluster
+      sum_weights <- sum(df_check[[col_name_str]], na.rm = TRUE)
+      # Si le cluster est vide (poids quasi nuls), on retourne NA directement
+      if (sum_weights < 1e-9) {
+        # On retourne un vecteur de NA de la taille du nombre d'outputs uniques
+        # (Supposons que OID_label est trié et complet)
+        n_outputs <- dplyr::n_distinct(df_check$OID_label)
+        return(rep(NA_real_, n_outputs))
+      }
+
+      df_check %>%
+        dplyr::group_by(OID_label) %>%
+        dplyr::summarise(
+          w_mean = stats::weighted.mean(Output, w = .data[[col_name_str]], na.rm = TRUE),
+          .groups = "drop"
+        ) %>%
+        dplyr::arrange(OID_label) %>%
+        dplyr::pull(w_mean)
+    }
+
+    # Ensure we look at the clusters present in the mixture
+    # The mixture columns usually match ID_k
+    empiric_signatures <- do.call(rbind, lapply(ID_k, get_empiric_profile))
+    rownames(empiric_signatures) <- ID_k
+
+    # Compute distance matrix between Prior (rows) and Empiric (cols of loop, rows of matrix)
+    dist_mat <- matrix(NA, nrow = nb_cluster, ncol = nb_cluster,
+                       dimnames = list(ID_k, names_k))
+
+    for(i in 1:nb_cluster) { # Loop over Empiric (ID_k)
+      for(j in 1:nb_cluster) { # Loop over Prior (names_k)
+        # Check dimensions to avoid crash if priors and data don't span same outputs
+        if(length(empiric_signatures[i, ]) == length(prior_signatures[j, ])) {
+          dist_mat[i, j] <- sum((empiric_signatures[i, ] - prior_signatures[j, ])^2)
+        } else {
+          dist_mat[i, j] <- Inf # Safety
+        }
+      }
+    }
+
+    # 1. On cherche pour CHAQUE PRIOR (colonne) quel est son cluster empirique le plus proche
+    # Cela nous donne un vecteur de taille nb_cluster (ex: c(1, 1, 2) -> Priors 1 et 2 vont vers Empiric 1)
+    # Note : which.min ignore les Inf, donc les clusters empiriques vides ne seront pas choisis ici.
+    assigned_empiric_indices <- apply(dist_mat, 2, which.min)
+
+    # Création de la matrice pour stocker les nouvelles moyennes de priors réordonnées
+    # Elle doit avoir la même structure que prior_signatures
+    new_prior_means <- matrix(NA, nrow = nrow(prior_signatures), ncol = ncol(prior_signatures))
+    rownames(new_prior_means) <- ID_k # On garde les IDs des clusters empiriques (K1, K2...)
+
+    # Liste pour suivre les priors qui ont été utilisés
+    used_priors <- numeric()
+
+    # 2. Boucle sur les clusters EMPIRIQUES (i) pour construire leur nouveau prior
+    for(i in 1:nb_cluster) {
+
+      # Quels priors ont "choisi" ce cluster empirique i ?
+      priors_merged_here <- which(assigned_empiric_indices == i)
+
+      if(length(priors_merged_here) > 1) {
+        # --- CAS DE FUSION ---
+        # Plusieurs priors pointent vers ce cluster empirique.
+        # On prend la moyenne arithmétique de leurs signatures (Moyenne des vecteurs de moyennes)
+
+        # colMeans gère correctement la moyenne par colonne (par Output)
+        new_prior_means[i, ] <- colMeans(prior_signatures[priors_merged_here, , drop = FALSE])
+
+        # On note ces priors comme utilisés
+        used_priors <- c(used_priors, priors_merged_here)
+
+      } else if(length(priors_merged_here) == 1) {
+        # --- CAS 1-pour-1 ---
+        # Un seul prior pointe ici, on le copie simplement
+        new_prior_means[i, ] <- prior_signatures[priors_merged_here, ]
+        used_priors <- c(used_priors, priors_merged_here)
+
+      } else {
+        # --- CAS CLUSTER EMPIRIQUE VIDE ---
+        # Aucun prior n'a choisi ce cluster (souvent car sa ligne est Inf ou très loin)
+        # On laisse NA pour l'instant, on remplira avec les priors orphelins juste après
+      }
+    }
+
+    # 3. Gestion des Orphelins (Priors non assignés) et des Trous (Clusters vides)
+    # Si des priors ont fusionné ailleurs, cela laisse des clusters empiriques vides.
+    # Il faut réassigner les priors "perdus" (ceux qui n'ont pas été choisis du tout)
+    # aux clusters vides pour ne pas perdre de diversité (mécanisme de sauvetage).
+
+    all_priors <- 1:nb_cluster
+    orphan_priors <- setdiff(all_priors, used_priors)
+    empty_empiric_slots <- which(is.na(new_prior_means[, 1])) # On regarde la 1ère colonne pour voir les NA
+
+    # Si on a des trous et des orphelins, on remplit
+    if(length(empty_empiric_slots) > 0 && length(orphan_priors) > 0) {
+
+      # On peut faire un matching simple ou aléatoire ici.
+      # Prenons les dans l'ordre pour simplifier.
+      n_fill <- min(length(empty_empiric_slots), length(orphan_priors))
+
+      for(k in 1:n_fill) {
+        slot_idx <- empty_empiric_slots[k]
+        prior_idx <- orphan_priors[k]
+        new_prior_means[slot_idx, ] <- prior_signatures[prior_idx, ]
+      }
+    }
+
+    # S'il reste encore des NA (ex: plus de clusters vides que de priors dispo - rare),
+    # on peut réinitialiser ou dupliquer un existant.
+    # Ici, sécurité simple : remplacer les NA restants par 0 ou la moyenne globale.
+    new_prior_means[is.na(new_prior_means)] <- 0
+
+    # Mise à jour des noms pour la suite du code (si besoin)
+    # Note : new_prior_means contient maintenant les valeurs numériques directement
+    # Si votre code attend une liste de noms de clusters, la logique change légèrement,
+    # mais pour mettre à jour les hyper-paramètres, c'est cette matrice `new_prior_means` qu'il faut utiliser.
+  }
+
+
+  browser()
   ## Create a list named by cluster with evaluation of the prior mean (m_k) at all Input locations
   for (k in 1:nb_cluster) {
-    # Extrait le numéro après le 'o' (ex: "o1" -> 1, "o2" -> 2)
-    out_indices <- as.numeric(gsub("^o([0-9]+);.*", "\\1", all_input))
-
-    # Assigne directement en utilisant ces indices pour piocher dans prior_mean_k
-    m_k[[ID_k[k]]] <- prior_mean_k[[ID_k[k]]][out_indices]
+    m_k[[ID_k[k]]] <- rep(prior_mean_k[[ID_k[k]]], length(all_input))
   }
 
   ## Format a sequence of inputs for all clusters
@@ -2077,10 +2278,15 @@ hyperposterior_clust <- function(trained_model = NULL,
       dplyr::filter(Cluster_ID == k) %>%
       dplyr::select(-prop_mixture)
 
-    if(length(list_ID_output) > 1 && !(kern_t %>% is.character())){
+    if(length(list_ID_output) > 1 && kern_k %>% is.function()){
       cov_k <- kern_to_cov(input = t_clust_k,
                            kern = kern_k,
                            hp = hp_k_subset %>% dplyr::select(-Cluster_ID))
+    } else if(length(list_ID_output) > 1 && kern_k %>% is.character()){
+      cov_k <- kern_to_cov_blockdiag(input = t_clust_k,
+                                     kern = kern_k,
+                                     hp = hp_k_subset %>%
+                                       dplyr::select(-Cluster_ID))
     } else {
       cov_k <- kern_to_cov(input = t_clust_k,
                            kern = kern_k,
@@ -2682,6 +2888,7 @@ pred_magmaclust <- function(data = NULL,
           kern_k = trained_model$ini_args$kern_k,
           kern_t = trained_model$ini_args$kern_t,
           prior_mean_k = trained_model$m_k,
+          # prior_mean_k = trained_model$ini_args$prior_mean_k,
           grid_inputs = all_inputs,
           pen_diag = pen_diag
         )
@@ -2788,7 +2995,7 @@ pred_magmaclust <- function(data = NULL,
         ini_hp <- hp(kern,
                       noise = T,
                       list_task_ID = ID_task_pred,
-                      list_output_ID = as.character(data$Output_ID) %>% unique(),
+                      list_output_ID = data$Output_ID %>% unique(),
                       shared_hp_outputs = FALSE,
                       shared_hp_tasks = FALSE) %>%
           dplyr::filter(Task_ID == ID_task_pred)

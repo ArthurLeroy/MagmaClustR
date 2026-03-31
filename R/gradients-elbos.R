@@ -149,7 +149,7 @@ gr_GP_mod_shared_hp_k <- function(
   }
 
   list_ID_k <- names(db)
-  list_hp <- hp_col_names
+  list_hp <- names(hp)
 
   ## Extract the k-th specific reference Input
   input_k <- db[[1]] %>%
@@ -161,12 +161,18 @@ gr_GP_mod_shared_hp_k <- function(
     inputs_k <- inputs_k %>% dplyr::select(-Cluster_ID)
   }
 
-  # For single-output case, remove Output_ID from inputs
-  if(length(output_ids) == 1 && "Output_ID" %in% names(inputs_k)){
-    inputs_k <- inputs_k %>% dplyr::select(-Output_ID)
+  # In MO case, mean process uses block-diagonal (independent SE per output)
+  if("Output_ID" %in% names(inputs_k) && length(unique(inputs_k$Output_ID)) > 1){
+    cov_mean <- kern_to_cov_blockdiag(inputs_k, kern, hp_tibble, deriv = NULL)
+    references <- rownames(cov_mean)
+    inv <- cov_mean %>% chol_inv_jitter(pen_diag)
+    dimnames(inv) <- list(references, references)
+  } else {
+    if("Output_ID" %in% names(inputs_k)){
+      inputs_k <- inputs_k %>% dplyr::select(-Output_ID)
+    }
+    inv <- kern_to_inv(inputs_k, kern, hp_tibble, pen_diag)
   }
-
-  inv <- kern_to_inv(inputs_k, kern, hp_tibble, pen_diag)
 
   ## Loop over clusters to compute the sum of elbos
   funloop <- function(k) {
@@ -183,7 +189,13 @@ gr_GP_mod_shared_hp_k <- function(
       inv %*% (post_cov_k %*% inv - diag(1, length(input_k)))
 
     floop <- function(deriv) {
-      (-1 / 2 * (common_term %*% kern_to_cov(inputs_k, kern, hp_tibble, deriv))) %>%
+      # In MO case, use block-diagonal for mean process derivative
+      if("Output_ID" %in% names(inputs_k) && length(unique(inputs_k$Output_ID)) > 1){
+        dcov <- kern_to_cov_blockdiag(inputs_k, kern, hp_tibble, deriv)
+      } else {
+        dcov <- kern_to_cov(inputs_k, kern, hp_tibble, deriv)
+      }
+      (-1 / 2 * (common_term %*% dcov)) %>%
         diag() %>%
         sum() %>%
         return()

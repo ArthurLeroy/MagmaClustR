@@ -56,9 +56,17 @@ e_step <- function(db,
   }
 
   # Compute the covariance matrix of the mean process
-  cov_0 <- kern_to_cov(input = all_inputs,
-                       kern = kern_0,
-                       hp = hp_0)
+  # In MO case, the mean process uses independent SE kernels per output
+  # (block-diagonal covariance), NOT a convolution kernel.
+  if(length(list_output_ID) > 1){
+    cov_0 <- kern_to_cov_blockdiag(input = all_inputs,
+                                   kern = kern_0,
+                                   hp = hp_0)
+  } else {
+    cov_0 <- kern_to_cov(input = all_inputs,
+                         kern = kern_0,
+                         hp = hp_0)
+  }
 
   references <- rownames(cov_0)
   inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
@@ -205,72 +213,8 @@ m_step <- function(db,
   list_ID_task <- unique(db$Task_ID)
   output_ids_vector <- unique(db$Output_ID)
 
-  # # Do NOT optimise HPs of the mean process
-  # new_hp_0 <- old_hp_0
-
-  ## Detect whether the kernel_0 provides derivatives for its hyper-parameters
-  if (kern_0 %>% is.function()) {
-    if (!("deriv" %in% methods::formalArgs(kern_0))) {
-      gr_GP_mod <- NULL
-    }
-  }
-
-  if (length(db$Output_ID %>% unique()) > 1){
-    # Prepare parameters for optim() in MO case
-    hp_per_output <- old_hp_0 %>%
-      dplyr::group_by(Output_ID) %>%
-      dplyr::ungroup() %>%
-      dplyr::select(-l_u_t) %>%
-      tidyr::pivot_longer(cols = -Output_ID,
-                          names_to = "hp_name",
-                          values_to = "value") %>%
-      dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
-      dplyr::select(specific_name, value) %>%
-      tibble::deframe()
-
-    shared_hp_l_u_t <- old_hp_0$l_u_t[1]
-    names(shared_hp_l_u_t) <- "l_u_t"
-    par_0 <- c(hp_per_output, shared_hp_l_u_t)
-    hp_col_names <- names(par_0)
-  } else {
-    # Prepare parameters for optim() in single output case
-    par_0 <- old_hp_0 %>%
-      dplyr::select(-c(Output_ID))
-    hp_col_names <- names(par_0)
-  }
-
-  ## Optimise hyper-parameters of the mean process
-  result_optim_0 <- stats::optim(
-    par = par_0,
-    fn = logL_GP_mod,
-    gr = gr_GP_mod,
-    db = post_mean,
-    mean = m_0,
-    kern = kern_0,
-    post_cov = post_cov,
-    pen_diag = pen_diag,
-    hp_col_names      = hp_col_names,
-    output_ids        = output_ids_vector,
-    method = "L-BFGS-B",
-    control = list(factr = 1e13, maxit = 25)
-  )$par %>%
-    tibble::as_tibble_row()
-
-  # Reshape results
-  if (length(output_ids_vector) > 1){
-    # MO case
-    new_hp_0 <- result_optim_0 %>%
-      tidyr::pivot_longer(
-        cols = -dplyr::any_of("l_u_t"),
-        names_to = c(".value", "Output_ID"),
-        names_pattern = "(.+)_(\\d+)$"
-      )
-  } else {
-    # Single output case
-    result_optim_0$Output_ID <- "1"
-    new_hp_0 <- result_optim_0
-  }
-
+  # Do NOT optimise HPs of the mean process
+  new_hp_0 <- old_hp_0
 
   # Case 1: HPs are shared across tasks -> one optimisation over all data
   if (shared_hp_tasks) {
