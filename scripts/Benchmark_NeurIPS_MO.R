@@ -252,7 +252,7 @@ tryCatch({
     mo_output_id <- paste0("T", test_task_id, "_O1")
 
     # Extraire la prédiction pour cette tâche
-    task_pred <- pred_df %>%
+    task_pred <- pred_df$pred_gp %>%
       dplyr::filter(Output_ID == mo_output_id)
 
     # Récupérer le cluster de la tâche pour le dé-scaling
