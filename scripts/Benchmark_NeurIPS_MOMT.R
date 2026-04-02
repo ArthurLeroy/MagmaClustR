@@ -235,7 +235,7 @@ tryCatch({
         dplyr::filter(Cluster_ID == k_id, Output_ID == as.character(o_id)) %>%
         dplyr::group_by(Input) %>%
         dplyr::summarise(Output = mean(Output, na.rm = TRUE), .groups = "drop") %>%
-        dplyr::mutate(Output_ID = as.factor("1"), Input_ID = "1")
+        dplyr::mutate(Output_ID = as.factor("1"))
 
       mean_emp <- mean(sub_data_agg$Output)
       mean_vec <- rep(mean_emp, nrow(sub_data_agg))
