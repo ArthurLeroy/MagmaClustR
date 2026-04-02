@@ -38,7 +38,6 @@ ve_step <- function(db,
                     old_mixture,
                     iter,
                     pen_diag) {
-
   ## Extract the list of Tasks'ID and Outputs ID
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
@@ -69,7 +68,6 @@ ve_step <- function(db,
   list_inv_k <- list()
   list_inv_t <- list()
 
-  # browser()
   # Loop over clusters
   for(k in t_clust$Cluster_ID %>% unique){
     # Subset t_clust and hp_k on k cluster
@@ -79,14 +77,18 @@ ve_step <- function(db,
     hp_k_subset <- hp_k %>%
       dplyr::filter(Cluster_ID == k)
 
-    # Compute the covariance matrix of the mean process of the k cluster
-    # In MO case, use block-diagonal (independent SE per output)
-    if(length(list_output_ID) > 1){
-      cov_k <- suppressWarnings(kern_to_cov_blockdiag(
-        input = t_clust_k %>% dplyr::select(-Cluster_ID),
-        kern = kern_k,
-        hp = hp_k_subset %>% dplyr::select(-c(Cluster_ID, prop_mixture))
-      ))
+    # Compute the covariance matrix of the mean process of the
+    # k cluster
+    if(length(list_output_ID) > 1 && !(kern_t %>% is.character())){
+      cov_k <- suppressWarnings(kern_to_cov(input = t_clust_k %>%
+                                              dplyr::select(-Cluster_ID),
+                                            kern = kern_k,
+                                            hp = hp_k_subset %>%
+                                              dplyr::select(-c(Cluster_ID,
+                                                               prop_mixture)
+                                                            )
+        )
+      )
     } else{
       cov_k <- suppressWarnings(kern_to_cov(input = t_clust_k %>%
                                               dplyr::select(-Cluster_ID,
@@ -218,20 +220,16 @@ ve_step <- function(db,
   }
   mean_k <- sapply(names(m_k), floop2, simplify = FALSE, USE.NAMES = TRUE)
 
-  ## Update mixture (skip first iteration to avoid bad HP initialisation issues)
-  if(iter == 1){
-    mixture <- old_mixture
-  } else{
-    mixture <- update_mixture(
-      db = db,
-      mean_k,
-      cov_k,
-      hp = hp_t,
-      kern = kern_t,
-      prop_mixture_k,
-      pen_diag
-    )
-  }
+  ## Update mixture
+  mixture <- update_mixture(
+    db = db,
+    mean_k,
+    cov_k,
+    hp = hp_t,
+    kern = kern_t,
+    prop_mixture_k,
+    pen_diag
+  )
 
   list(
     "mean" = mean_k,
@@ -293,7 +291,6 @@ vm_step <- function(db,
                     pen_diag
                     ) {
 
-  # browser()
   ## Extract Cluster's IDs, Task's IDs and Output's IDs
   list_ID_k <- names(m_k)
   list_ID_t <- unique(db$Task_ID)
@@ -324,32 +321,58 @@ vm_step <- function(db,
     }
   }
 
-  # Recompute prior mean parameters for each cluster with the updated mixture
-  # probabilities
+  # M-step update for the prior mean: GLS mean (constrained maximiser of the
+  # ELBO w.r.t. m_k constant per output). Uses K_k^{-1} at the OLD HPs so
+  # the update is guaranteed to not decrease the ELBO.
+  #
+  #   c* = (B' K_k^{-1} B)^{-1} B' K_k^{-1} mu_k_hat
+  #
+  # where B is the indicator matrix mapping outputs to input points.
   floop <- function(k) {
-    # browser()
-    ## Mean of the Output values for each individual weighted by cluster
-    ## membership probabilities
+    post_mean_k <- list_mu_param$mean[[k]]
+    mu_hat <- post_mean_k$Output
+    refs   <- post_mean_k$Reference
 
-    # Compute one mean for each Output_ID of cluser k
-    new_means_df <- db %>%
-      dplyr::left_join(list_mu_param$mixture %>% dplyr::select(Task_ID,
-                                                               dplyr::all_of(k)),
-                       by = "Task_ID") %>%
-      dplyr::group_by(Output_ID) %>%
-      dplyr::summarise(
-        # Output mean weighted by the probability to belong to cluster k
-        new_m_k = sum(Output * .data[[k]], na.rm = TRUE) / sum(.data[[k]], na.rm = TRUE),
-        .groups = "drop"
+    ## --- build K_k^{-1} at the old HPs ---
+    inputs_k <- post_mean_k %>% dplyr::select(-Output)
+
+    hp_k_subset <- old_hp_k %>%
+      dplyr::filter(Cluster_ID == k) %>%
+      dplyr::select(-c(Cluster_ID, prop_mixture))
+
+    if (length(output_ids_vector) > 1 && !(kern_k %>% is.character())) {
+      cov_k <- kern_to_cov(input = inputs_k, kern = kern_k, hp = hp_k_subset)
+    } else {
+      cov_k <- kern_to_cov(
+        input = inputs_k %>% dplyr::select(-Output_ID),
+        kern  = kern_k,
+        hp    = hp_k_subset %>% dplyr::select(-Output_ID)
       )
+    }
+    inv_k <- cov_k %>% chol_inv_jitter(pen_diag = pen_diag)
 
-    # Create a mapping dictionnary: c("o1" = moy_1, "o2" = moy_2, "o3" = moy_3)
-    mean_map <- stats::setNames(new_means_df$new_m_k,
-                                paste0("o", new_means_df$Output_ID))
-    prefixes <- stringr::str_extract(names(m_k[[k]]), "^o[0-9]+")
+    ## --- build indicator matrix B (n x J) ---
+    output_prefixes <- stringr::str_extract(refs, "^o[0-9]+")
+    unique_outputs  <- unique(output_prefixes)
+    n <- length(refs)
+    J <- length(unique_outputs)
 
-    new_m_k_vector <- mean_map[prefixes] %>% unname()
-    names(new_m_k_vector) <- names(m_k[[k]])
+    B <- matrix(0, nrow = n, ncol = J)
+    for (j in seq_along(unique_outputs)) {
+      B[output_prefixes == unique_outputs[j], j] <- 1
+    }
+
+    ## --- GLS constant per output ---
+    BtInv  <- crossprod(B, inv_k)          # J x n
+    c_star <- solve(BtInv %*% B, BtInv %*% mu_hat)  # J x 1
+
+    ## Expand back to the full named vector
+    target_names    <- names(m_k[[k]])
+    target_prefixes <- stringr::str_extract(target_names, "^o[0-9]+")
+    c_map <- stats::setNames(as.numeric(c_star), unique_outputs)
+
+    new_m_k_vector <- c_map[target_prefixes] %>% unname()
+    names(new_m_k_vector) <- target_names
 
     return(new_m_k_vector)
   }
@@ -507,14 +530,11 @@ vm_step <- function(db,
   if(shared_hp_clusts){
     if (length(db$Output_ID %>% unique()) > 1){
       # Prepare parameters for optim() in MO case
-      # Remove Cluster_ID, prop_mixture, and l_u_t if present
-      cols_to_remove <- intersect(c("Cluster_ID", "prop_mixture", "l_u_t"),
-                                  names(old_hp_k))
       hp_per_output <- old_hp_k %>%
         dplyr::group_by(Output_ID) %>%
         dplyr::slice(1) %>%
         dplyr::ungroup() %>%
-        dplyr::select(-dplyr::all_of(cols_to_remove)) %>%
+        dplyr::select(-Cluster_ID, -l_u_t, -prop_mixture) %>%
         tidyr::pivot_longer(cols = -Output_ID,
                             names_to = "hp_name",
                             values_to = "value") %>%
@@ -522,19 +542,14 @@ vm_step <- function(db,
         dplyr::select(specific_name, value) %>%
         tibble::deframe()
 
-      # Add l_u_t only if it exists (convolution kernel)
-      if ("l_u_t" %in% names(old_hp_k)) {
-        shared_hp_l_u_t <- old_hp_k$l_u_t[1]
-        names(shared_hp_l_u_t) <- "l_u_t"
-        par_k <- c(hp_per_output, shared_hp_l_u_t)
-      } else {
-        par_k <- hp_per_output
-      }
+      shared_hp_l_u_t <- old_hp_k$l_u_t[1]
+      names(shared_hp_l_u_t) <- "l_u_t"
+      par_k <- c(hp_per_output, shared_hp_l_u_t)
       hp_col_names <- names(par_k)
     } else {
       # Prepare parameters for optim() in single output case
       par_k <- old_hp_k %>%
-        dplyr::select(-c(Cluster_ID, Output_ID)) %>%
+        dplyr::select(-c(Cluster_ID, Output_ID, prop_mixture)) %>%
         dplyr::slice(1)
       hp_col_names <- names(par_k)
     }
@@ -561,7 +576,7 @@ vm_step <- function(db,
       # MO case
       new_hp_k <- new_hp_k %>%
         tidyr::pivot_longer(
-          cols = -dplyr::any_of(c("l_u_t")),
+          cols = -dplyr::any_of("l_u_t"),
           names_to = c(".value", "Output_ID"),
           names_pattern = "(.+)_(\\d+)$"
         ) %>%
@@ -571,19 +586,17 @@ vm_step <- function(db,
       # Single output case
       new_hp_k$Output_ID <- "1"
       new_hp_k <- new_hp_k %>%
-        dplyr::mutate(Task_ID = list(list_ID_k)) %>%
-        tidyr::unnest(Task_ID) %>%
-        dplyr::mutate("prop_mixture" = prop_mixture)
+        dplyr::mutate(Cluster_ID = list(list_ID_k)) %>%
+        tidyr::unnest(Cluster_ID) %>%
+        dplyr::mutate(prop_mixture = unname(prop_mixture[Cluster_ID]))
   }} else {
     loop <- function(k) {
       ## Extract the hyper-parameters associated with the k-th cluster
       # Prepare parameters for optim() for this specific cluster
       if (length(db$Output_ID %>% unique()) > 1){
-        cols_to_remove <- intersect(c("Cluster_ID", "prop_mixture", "l_u_t"),
-                                    names(old_hp_k))
         hp_per_output <- old_hp_k %>%
           dplyr::filter(Cluster_ID == k) %>%
-          dplyr::select(-dplyr::all_of(cols_to_remove)) %>%
+          dplyr::select(-Cluster_ID, -l_u_t, -prop_mixture) %>%
           tidyr::pivot_longer(cols = -Output_ID,
                               names_to = "hp_name",
                               values_to = "value") %>%
@@ -591,14 +604,10 @@ vm_step <- function(db,
           dplyr::select(specific_name, value) %>%
           tibble::deframe()
 
-        # Add l_u_t only if it exists (convolution kernel)
-        if ("l_u_t" %in% names(old_hp_k)) {
-          shared_hp <- (old_hp_k %>% filter(Cluster_ID == k))$l_u_t[1]
-          names(shared_hp) <- "l_u_t"
-          par_k <- c(hp_per_output, shared_hp)
-        } else {
-          par_k <- hp_per_output
-        }
+        shared_hp <- (old_hp_k %>% filter(Cluster_ID == k))$l_u_t[1]
+        names(shared_hp) <- "l_u_t"
+
+        par_k <- c(hp_per_output, shared_hp)
         hp_col_names <- names(par_k)
       } else {
         ## Extract the hyper-parameters associated with the t-th task
@@ -659,7 +668,7 @@ vm_step <- function(db,
       # Single output case
       optim_results_by_clust$Output_ID = "1"
       new_hp_k <- optim_results_by_clust %>%
-        dplyr::mutate("prop_mixture" = prop_mixture)
+        dplyr::mutate(prop_mixture = unname(prop_mixture[Cluster_ID]))
     }
   }
 

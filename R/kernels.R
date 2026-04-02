@@ -38,7 +38,7 @@ convolution_kernel <- function(x,
     # Vectorized case, which allows to build an entire covariance matrix
     if (!"Output_ID" %in% names(x) || !"Output_ID" %in% names(hp)) {
       stop("'input' and 'hp' must contain an 'Output_ID' column for vectorized ",
-      "mode.")
+           "mode.")
     }
 
     # Important: all HPs ID must be numeric (otherwise it raises an error

@@ -1305,7 +1305,6 @@ plot_magmaclust <- function(pred_clust,
     ## 2. Itérer sur chaque output pour ajouter les points (Data & Train) et le titre
     # plot_samples retourne une liste nommée par Output_ID
     final_plot_list <- purrr::map(names(gg_list), function(oid) {
-
       gg <- gg_list[[oid]]
 
       # --- Filtrage des données pour l'Output courant ---

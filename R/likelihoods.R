@@ -162,7 +162,6 @@ logL_GP_mod <- function(hp,
                         pen_diag,
                         hp_col_names,
                         output_ids) {
-  # browser()
   if(!(hp %>% tibble::is_tibble()) && length(output_ids) > 1){
     # Reconstruct the structured HP tibble from the flat vector
     hp_tibble <- reconstruct_hp(
@@ -185,7 +184,9 @@ logL_GP_mod <- function(hp,
 
   # Build and invert the full multi-outputs covariance matrix
   if(length(list_output_ID) > 1 && !(kern %>% is.character())){
-    # MO inversion of the covariance (convolution kernel for tasks)
+    # MO inversion of the covariance
+    # It will handle the multi-outputs structure and the noise addition internally.
+    # 'kern' is expected to be the 'convolution_kernel' function.
     K <- kern_to_cov(
       input = db %>% dplyr::select(-Output),
       kern = kern,
@@ -193,19 +194,6 @@ logL_GP_mod <- function(hp,
     )
 
     # Inverse K
-    inv <- K %>%
-      chol_inv_jitter(pen_diag = pen_diag) %>%
-      `rownames<-`(row.names(K)) %>%
-      `colnames<-`(colnames(K))
-
-  } else if(length(list_output_ID) > 1 && kern %>% is.character()){
-    # MO case with independent outputs (block-diagonal SE mean process)
-    K <- kern_to_cov_blockdiag(
-      input = db %>% dplyr::select(-Output),
-      kern = kern,
-      hp = hp_tibble
-    )
-
     inv <- K %>%
       chol_inv_jitter(pen_diag = pen_diag) %>%
       `rownames<-`(row.names(K)) %>%
@@ -374,20 +362,14 @@ logL_monitoring <- function(hp_0,
       dplyr::select(-Output_ID)
   }
 
-  # Compute the covariance matrix of the mean process
-  # In MO case, use block-diagonal (independent SE per output)
-  if(length(all_inputs$Output_ID %>% unique()) > 1){
-    cov_0 <- kern_to_cov_blockdiag(input = all_inputs,
-                                   kern = kern_0,
-                                   hp = hp_0)
-  } else {
-    cov_0 <- kern_to_cov(input = all_inputs,
-                         kern = kern_0,
-                         hp = hp_0)
-  }
+  # Compute the convolutional covariance matrix of the mean process
+  cov_0 <- kern_to_cov(input = all_inputs,
+                       kern = kern_0,
+                       hp = hp_0)
 
   references <- rownames(cov_0)
   inv_0 <- cov_0 %>% chol_inv_jitter(pen_diag = pen_diag)
+  inv_0 <- 1e-5 * inv_0
 
   # Re-apply the stored names to the inverted matrix
   dimnames(inv_0) <- list(references, references)

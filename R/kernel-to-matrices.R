@@ -1,73 +1,3 @@
-#' Build a block-diagonal covariance matrix for independent multi-output GPs
-#'
-#' For each unique Output_ID in the input data, this function computes an
-#' independent SE covariance block using the hyper-parameters specific to that
-#' output. The resulting matrix is block-diagonal: blocks (i,i) correspond to
-#' the covariance of Output i, and off-diagonal blocks are zero.
-#'
-#' @param input A data frame or tibble containing columns starting with
-#'   "Input_", a "Reference" column, and an "Output_ID" column.
-#' @param kern A character string kernel (e.g. "SE").
-#' @param hp A tibble of hyper-parameters with an "Output_ID" column.
-#'   Each row provides the HPs for one output.
-#' @param deriv Optional: the name of the HP to differentiate w.r.t.
-#' @param input_2 Optional second set of inputs (same format as input).
-#'
-#' @return A named covariance matrix (block-diagonal across outputs).
-#' @keywords internal
-kern_to_cov_blockdiag <- function(input,
-                                  kern = "SE",
-                                  hp,
-                                  deriv = NULL,
-                                  input_2 = NULL) {
-  if (input_2 %>% is.null()) {
-    input_2 <- input
-  }
-
-  output_ids <- unique(input$Output_ID)
-
-  list_of_blocks <- list()
-  row_refs <- c()
-  col_refs <- c()
-
-  for (oid in output_ids) {
-    sub_input <- input %>% dplyr::filter(Output_ID == oid)
-    sub_input_2 <- input_2 %>% dplyr::filter(Output_ID == oid)
-
-    ## Extract HP for this output
-    hp_oid <- hp %>% dplyr::filter(Output_ID == oid) %>%
-      dplyr::select(-Output_ID)
-    ## If Cluster_ID is present (MagmaClust), remove it
-    if ("Cluster_ID" %in% names(hp_oid)) {
-      hp_oid <- hp_oid %>% dplyr::select(-Cluster_ID)
-    }
-    if ("prop_mixture" %in% names(hp_oid)) {
-      hp_oid <- hp_oid %>% dplyr::select(-prop_mixture)
-    }
-
-    ## Build the block using the standard kern_to_cov (single output path)
-    block <- kern_to_cov(
-      input = sub_input %>% dplyr::select(-Output_ID),
-      kern = kern,
-      hp = hp_oid,
-      deriv = deriv,
-      input_2 = sub_input_2 %>% dplyr::select(-Output_ID)
-    )
-
-    list_of_blocks[[as.character(oid)]] <- block
-    row_refs <- c(row_refs, rownames(block))
-    col_refs <- c(col_refs, colnames(block))
-  }
-
-  ## Assemble the block-diagonal matrix
-  mat <- as.matrix(Matrix::bdiag(unname(list_of_blocks)))
-  rownames(mat) <- row_refs
-  colnames(mat) <- col_refs
-
-  return(mat)
-}
-
-
 #' Create covariance matrix from a kernel
 #'
 #' \code{kern_to_cov()} creates a covariance matrix between input values (that
@@ -553,6 +483,16 @@ kern_to_cov <- function(input,
     }
   }
 
+  ## Sanity check: detect NaN/Inf in the resulting covariance matrix
+  if (any(is.nan(mat)) || any(is.infinite(mat))) {
+    warning(
+      "kern_to_cov: the computed covariance matrix contains NaN or Inf. ",
+      "This often indicates that hyper-parameters have diverged ",
+      "(e.g. extremely large variance or very small lengthscale). ",
+      "Current hp: ", paste(names(hp), "=", hp, collapse = ", ")
+    )
+  }
+
   mat %>%
     `rownames<-`(reference) %>%
     `colnames<-`(reference_2) %>%
@@ -611,6 +551,14 @@ kern_to_inv <- function(input, kern, hp, pen_diag = 1e-10, deriv = NULL) {
 
   mat_cov <- kern_to_cov(input = input, kern = kern, hp = hp, deriv = deriv)
   reference <- row.names(mat_cov)
+
+  ## Sanity check: warn early if the covariance matrix is degenerate
+  if (any(is.nan(mat_cov)) || any(is.infinite(mat_cov))) {
+    warning(
+      "kern_to_inv: the covariance matrix contains NaN/Inf. ",
+      "This likely indicates divergent hyper-parameters."
+    )
+  }
 
   inv <- mat_cov %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
@@ -694,7 +642,7 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
       dplyr::filter(Task_ID == t) %>%
       dplyr::select(-Task_ID)
     ## To avoid throwing an error if 'Output' has already been removed
-    if ("Output" %in% names(db_i)) {
+    if ("Output" %in% names(db_t)) {
       db_t <- db_t %>% dplyr::select(-Output)
     }
 
@@ -714,28 +662,96 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
 #'
 #' Inverse a matrix from its Choleski decomposition. If (nearly-)singular,
 #' increase the order of magnitude of the jitter term added to the diagonal
-#' until the matrix becomes non-singular.
+#' until the matrix becomes non-singular and the inverse passes a quality
+#' check.
 #'
 #' @param mat A matrix, possibly singular.
 #' @param pen_diag A number, a jitter term to add on the diagonal.
+#' @param max_jitter A number, the maximum jitter allowed before falling
+#'   back to a pseudo-inverse.
+#' @param inv_tol A number, the maximum tolerated error on
+#'   diag(K * K^{-1}) - 1 for the quality check.
 #'
 #' @return A matrix, inverse of \code{mat} plus an adaptive jitter term
-#'    added on the diagonal.
+#'    added on the diagonal. An attribute \code{"effective_jitter"} is
+#'    attached, recording the actual jitter value that was used.
 #'
 #' @keywords internal
 #'
 #' @examples
 #' TRUE
-chol_inv_jitter <- function(mat, pen_diag){
-  ## Add a jitter term to the diagonal
-  diag(mat) <- diag(mat) + pen_diag
-  ## Recursive pattern for the adaptive jitter (if error, increase jitter)
-  tryCatch(
-    mat %>% chol() %>% chol2inv(),
-    error = function(e) {
-      chol_inv_jitter(mat, 10*pen_diag)
-      }
+chol_inv_jitter <- function(mat, pen_diag, max_jitter = 1e-1, inv_tol = 0.01) {
+
+  ## Sanity check: abort early if the matrix contains NaN or Inf
+  if (any(is.nan(mat)) || any(is.infinite(mat))) {
+    warning(
+      "The covariance matrix contains NaN or Inf values. ",
+      "Returning a matrix of NaN instead of attempting inversion."
     )
+    result <- matrix(NaN, nrow = nrow(mat), ncol = ncol(mat),
+                     dimnames = dimnames(mat))
+    attr(result, "effective_jitter") <- pen_diag
+    return(result)
+  }
+
+  current_jitter <- pen_diag
+
+  while (current_jitter <= max_jitter) {
+    ## Add the current jitter to the diagonal
+    mat_jittered <- mat
+    diag(mat_jittered) <- diag(mat_jittered) + current_jitter
+
+    ## Attempt Cholesky decomposition and inversion
+    inv <- tryCatch(
+      chol(mat_jittered) %>% chol2inv(),
+      error = function(e) NULL
+    )
+
+    if (is.null(inv)) {
+      ## Cholesky failed — escalate jitter
+      # message(
+      #   "chol_inv_jitter: Cholesky failed with jitter = ",
+      #   format(current_jitter, scientific = TRUE),
+      #   ". Escalating to ", format(current_jitter * 10, scientific = TRUE), "."
+      # )
+      current_jitter <- current_jitter * 10
+      next
+    }
+
+    ## Cholesky succeeded — verify the quality of the inverse.
+    ## diag(K * K^{-1}) should be ~1.  rowSums(A * B) = diag(A %*% B)
+    ## for symmetric matrices, at O(n^2) cost instead of O(n^3).
+    diag_product <- rowSums(mat_jittered * inv)
+    max_err <- max(abs(diag_product - 1))
+
+    if (max_err > inv_tol) {
+      ## Inverse is numerically unreliable: escalate jitter.
+      # message(
+      #   "chol_inv_jitter: quality check failed (max |diag(K*K^-1) - 1| = ",
+      #   signif(max_err, 3), " > ", inv_tol,
+      #   ") with jitter = ", format(current_jitter, scientific = TRUE),
+      #   ". Escalating to ", format(current_jitter * 10, scientific = TRUE), "."
+      # )
+      current_jitter <- current_jitter * 10
+      next
+    }
+
+    ## Both Cholesky and quality check passed
+    attr(inv, "effective_jitter") <- current_jitter
+    return(inv)
+  }
+
+  ## max_jitter exceeded — fall back to pseudo-inverse
+  warning(
+    "chol_inv_jitter: inversion failed (jitter reached ",
+    format(current_jitter / 10, scientific = TRUE),
+    "). Falling back to a pseudo-inverse (MASS::ginv). ",
+    "Results may be less precise."
+  )
+  diag(mat) <- diag(mat) + max_jitter
+  result <- MASS::ginv(mat)
+  attr(result, "effective_jitter") <- max_jitter
+  return(result)
 }
 
 

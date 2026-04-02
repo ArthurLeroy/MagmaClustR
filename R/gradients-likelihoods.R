@@ -165,8 +165,12 @@ gr_GP_mod <- function(hp,
 
   list_ID_outputs <- db$Output_ID %>% unique()
   # Build and invert the full multi-output covariance matrix
+  # 'inputs' must contain the 'Output_ID' column for the kernel to work
   if(length(list_ID_outputs) > 1 && !(kern %>% is.character())){
-    # MO inversion of the covariance (convolution kernel for tasks)
+    # MO inversion of the covariance
+    # Call kern_to_cov directly.
+    # It will handle the multi-output structure and the noise addition internally.
+    # 'kern_t' is expected to be the 'convolution_kernel' function.
     K <- kern_to_cov(
       input = db %>%
                 dplyr::select(Output_ID, dplyr::starts_with("Input")),
@@ -175,16 +179,6 @@ gr_GP_mod <- function(hp,
     )
 
     # Inverse K
-    inv <- K %>% chol_inv_jitter(pen_diag = pen_diag)
-
-  } else if(length(list_ID_outputs) > 1 && kern %>% is.character()){
-    # MO case with independent outputs (block-diagonal SE mean process)
-    K <- kern_to_cov_blockdiag(
-      input = db %>% dplyr::select(-Output),
-      kern = kern,
-      hp = hp_tibble
-    )
-
     inv <- K %>% chol_inv_jitter(pen_diag = pen_diag)
 
   } else{
@@ -225,21 +219,13 @@ gr_GP_mod <- function(hp,
   ## argument
   floop <- function(deriv_name) {
     # Get the derivative of the covariance matrix w.r.t. the current HP
-    if(length(list_ID_outputs) > 1 && !(kern %>% is.character())){
-      # MO case with convolution kernel (tasks)
+    if(length(list_ID_outputs) > 1){
       dK_dhp <- kern_to_cov(db %>%
                               dplyr::select(Output_ID,
                                             dplyr::starts_with("Input")),
                             kern = kern,
                             hp = hp_tibble,
                             deriv = deriv_name)
-    } else if(length(list_ID_outputs) > 1 && kern %>% is.character()){
-      # MO case with block-diagonal SE (mean process)
-      dK_dhp <- kern_to_cov_blockdiag(
-        input = db %>% dplyr::select(-Output),
-        kern = kern,
-        hp = hp_tibble,
-        deriv = deriv_name)
     } else{
       # Extract all_inputs to call kern_to_cov() on the single output case
       all_inputs <- db %>%
