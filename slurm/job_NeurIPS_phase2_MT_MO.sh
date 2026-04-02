@@ -5,15 +5,14 @@
 #
 # Pré-requis : les données MOMT doivent être présentes (Phase 1 terminée).
 #
-# 14 MT + 14 MO = 28 processus en parallèle.
-# Comme on a max 32 cœurs, on lance d'abord MT (14 cœurs), puis MO (14 cœurs).
+# 14 MT + 14 MO = 28 processus lancés en parallèle (28 cœurs).
 #
 # Soumission : sbatch job_NeurIPS_phase2_MT_MO.sh
 #===============================================================================
 
 #SBATCH --job-name=neurips_mt_mo
 #SBATCH --qos=huge
-#SBATCH -c 14
+#SBATCH -c 28
 #SBATCH --time=3-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_mt_mo_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_mt_mo_%j.err
@@ -64,108 +63,87 @@ declare -a CONFIGS=(
 )
 
 # ==========================================
-# PHASE 2a : MT (14 processus)
+# LANCEMENT MT + MO EN PARALLÈLE (28 processus)
 # ==========================================
 echo ""
-echo "--- Phase 2a : MT (14 processus = 7 configs × 2 problèmes) ---"
+echo "--- Lancement simultané : 14 MT + 14 MO = 28 processus ---"
 echo ""
 
-PIDS=()
+PIDS_MT=()
+PIDS_MO=()
 
 for PROBLEM in interpolation forecasting; do
   for CONFIG_STR in "${CONFIGS[@]}"; do
     read -r N_OUT N_TRAIN N_PRED <<< "${CONFIG_STR}"
     LABEL="out${N_OUT}_train${N_TRAIN}_pred${N_PRED}_${PROBLEM}"
-    LOGFILE="${LOGDIR}/mt_${LABEL}.log"
 
-    echo "[$(date +%H:%M:%S)] MT ${LABEL} → ${LOGFILE}"
+    # --- MT ---
+    LOGFILE_MT="${LOGDIR}/mt_${LABEL}.log"
+    echo "[$(date +%H:%M:%S)] MT ${LABEL} → ${LOGFILE_MT}"
 
     (
       for SEED in $(seq 1 5); do
-        echo "[$(date +%H:%M:%S)] MT ${LABEL} seed=${SEED}" >> "${LOGFILE}"
+        echo "[$(date +%H:%M:%S)] MT ${LABEL} seed=${SEED}" >> "${LOGFILE_MT}"
         ${RSCRIPT} --vanilla "${SCRIPT_DIR}/Benchmark_NeurIPS_MT.R" \
           --n_out=${N_OUT} --n_train=${N_TRAIN} --n_pred=${N_PRED} \
           --problem=${PROBLEM} --seed=${SEED} \
-          >> "${LOGFILE}" 2>&1
+          >> "${LOGFILE_MT}" 2>&1
 
         EXIT_CODE=$?
         if [ ${EXIT_CODE} -ne 0 ]; then
-          echo "[ERREUR] MT ${LABEL} seed=${SEED} code=${EXIT_CODE}" >> "${LOGFILE}"
+          echo "[ERREUR] MT ${LABEL} seed=${SEED} code=${EXIT_CODE}" >> "${LOGFILE_MT}"
         fi
       done
     ) &
+    PIDS_MT+=($!)
 
-    PIDS+=($!)
+    # --- MO ---
+    LOGFILE_MO="${LOGDIR}/mo_${LABEL}.log"
+    echo "[$(date +%H:%M:%S)] MO ${LABEL} → ${LOGFILE_MO}"
+
+    (
+      for SEED in $(seq 1 5); do
+        echo "[$(date +%H:%M:%S)] MO ${LABEL} seed=${SEED}" >> "${LOGFILE_MO}"
+        ${RSCRIPT} --vanilla "${SCRIPT_DIR}/Benchmark_NeurIPS_MO.R" \
+          --n_out=${N_OUT} --n_train=${N_TRAIN} --n_pred=${N_PRED} \
+          --problem=${PROBLEM} --seed=${SEED} \
+          >> "${LOGFILE_MO}" 2>&1
+
+        EXIT_CODE=$?
+        if [ ${EXIT_CODE} -ne 0 ]; then
+          echo "[ERREUR] MO ${LABEL} seed=${SEED} code=${EXIT_CODE}" >> "${LOGFILE_MO}"
+        fi
+      done
+    ) &
+    PIDS_MO+=($!)
+
   done
 done
 
 echo ""
-echo "${#PIDS[@]} processus MT lancés. En attente..."
+echo "${#PIDS_MT[@]} processus MT + ${#PIDS_MO[@]} processus MO lancés. En attente..."
 
+# --- Attente MT ---
 FAILED_MT=0
-for i in "${!PIDS[@]}"; do
-  wait ${PIDS[$i]}
+for i in "${!PIDS_MT[@]}"; do
+  wait ${PIDS_MT[$i]}
   EXIT_CODE=$?
   if [ ${EXIT_CODE} -ne 0 ]; then
-    echo "[ERREUR] MT PID=${PIDS[$i]} terminé avec code ${EXIT_CODE}"
+    echo "[ERREUR] MT PID=${PIDS_MT[$i]} terminé avec code ${EXIT_CODE}"
     FAILED_MT=$((FAILED_MT + 1))
   fi
 done
 
-echo ""
-echo "--- Phase 2a MT TERMINÉE (Échecs: ${FAILED_MT} / ${#PIDS[@]}) ---"
-
-# ==========================================
-# PHASE 2b : MO (14 processus)
-# ==========================================
-echo ""
-echo "--- Phase 2b : MO (14 processus = 7 configs × 2 problèmes) ---"
-echo ""
-
-PIDS=()
-
-for PROBLEM in interpolation forecasting; do
-  for CONFIG_STR in "${CONFIGS[@]}"; do
-    read -r N_OUT N_TRAIN N_PRED <<< "${CONFIG_STR}"
-    LABEL="out${N_OUT}_train${N_TRAIN}_pred${N_PRED}_${PROBLEM}"
-    LOGFILE="${LOGDIR}/mo_${LABEL}.log"
-
-    echo "[$(date +%H:%M:%S)] MO ${LABEL} → ${LOGFILE}"
-
-    (
-      for SEED in $(seq 1 5); do
-        echo "[$(date +%H:%M:%S)] MO ${LABEL} seed=${SEED}" >> "${LOGFILE}"
-        ${RSCRIPT} --vanilla "${SCRIPT_DIR}/Benchmark_NeurIPS_MO.R" \
-          --n_out=${N_OUT} --n_train=${N_TRAIN} --n_pred=${N_PRED} \
-          --problem=${PROBLEM} --seed=${SEED} \
-          >> "${LOGFILE}" 2>&1
-
-        EXIT_CODE=$?
-        if [ ${EXIT_CODE} -ne 0 ]; then
-          echo "[ERREUR] MO ${LABEL} seed=${SEED} code=${EXIT_CODE}" >> "${LOGFILE}"
-        fi
-      done
-    ) &
-
-    PIDS+=($!)
-  done
-done
-
-echo ""
-echo "${#PIDS[@]} processus MO lancés. En attente..."
-
+# --- Attente MO ---
 FAILED_MO=0
-for i in "${!PIDS[@]}"; do
-  wait ${PIDS[$i]}
+for i in "${!PIDS_MO[@]}"; do
+  wait ${PIDS_MO[$i]}
   EXIT_CODE=$?
   if [ ${EXIT_CODE} -ne 0 ]; then
-    echo "[ERREUR] MO PID=${PIDS[$i]} terminé avec code ${EXIT_CODE}"
+    echo "[ERREUR] MO PID=${PIDS_MO[$i]} terminé avec code ${EXIT_CODE}"
     FAILED_MO=$((FAILED_MO + 1))
   fi
 done
-
-echo ""
-echo "--- Phase 2b MO TERMINÉE (Échecs: ${FAILED_MO} / ${#PIDS[@]}) ---"
 
 # ==========================================
 # RÉSUMÉ
