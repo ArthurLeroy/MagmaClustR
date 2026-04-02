@@ -246,8 +246,10 @@ tryCatch({
       for (seed_retry in 1:10) {
         tryCatch({
           set.seed(seed_retry * 1000 + as.numeric(o_id))
-          hp_tmp <- train_gp(data = sub_data_agg, kern = "SE",
-                             prior_mean = mean_emp, ini_hp = NULL) %>% quiet()
+          hp_tmp <- suppressWarnings(suppressMessages(
+            train_gp(data = sub_data_agg, kern = "SE",
+                     prior_mean = mean_emp, ini_hp = NULL)
+          ))
 
           sub_data_agg_format_logL <- data.frame(
             Input_1   = as.numeric(sub_data_agg$Input),
