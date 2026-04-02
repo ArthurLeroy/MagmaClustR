@@ -7,7 +7,7 @@
 #     --problem=interpolation --seed=1
 #
 # Charge les données scalées générées par MOMT.
-# En MO, chaque (Task_ID, Output_ID) → un Output_ID unique dans le GP.
+# En MO, chaque (Task_ID, Output_ID) → un Output_ID numérique séquentiel ("1", "2", ...).
 # Pas de Task_ID. Pas de clustering. Un seul train_gp() + pred_gp().
 #
 # Nb Output_IDs MO = N_OUT × (N_TRAIN + N_PRED)
@@ -122,8 +122,21 @@ tryCatch({
   test_tasks_data_all <- datasets$test_tasks_data  # scalées
 
   # --- 3. REFORMATAGE POUR MO ---
-  # Chaque (Task_ID, Output_ID) → Output_ID unique = "T{tid}_O{oid}"
+  # Chaque (Task_ID, Output_ID) → Output_ID numérique séquentiel "1", "2", ...
   # Pas de Task_ID dans le data frame final
+
+  # Table de correspondance (Task_ID, Output_ID orig) → Output_ID numérique
+  all_task_ids_ordered <- c(train_task_ids, test_task_ids)
+  output_ids_orig <- as.character(1:N_OUT)
+
+  mo_id_mapping <- tidyr::expand_grid(
+    Task_ID = all_task_ids_ordered,
+    orig_Output_ID = output_ids_orig
+  ) %>%
+    dplyr::mutate(mo_Output_ID = as.character(dplyr::row_number()))
+
+  cat("  Mapping MO Output_IDs (premières lignes) :\n")
+  print(head(mo_id_mapping, 10))
 
   # 3a. Données d'entraînement (toutes les tâches train, toutes les Output)
   train_data_mo_parts <- list()
@@ -141,9 +154,14 @@ tryCatch({
     }
     # Forecasting : pas de filtre sur les tâches train
 
-    # Remapper Output_ID
+    # Remapper Output_ID vers ID numérique séquentiel
+    task_mapping <- mo_id_mapping %>%
+      dplyr::filter(Task_ID == tid) %>%
+      dplyr::select(orig_Output_ID, mo_Output_ID)
     task_data <- task_data %>%
-      dplyr::mutate(Output_ID = paste0("T", tid, "_O", Output_ID))
+      dplyr::left_join(task_mapping, by = c("Output_ID" = "orig_Output_ID")) %>%
+      dplyr::mutate(Output_ID = mo_Output_ID) %>%
+      dplyr::select(-mo_Output_ID)
 
     train_data_mo_parts[[tid]] <- task_data
   }
@@ -151,9 +169,14 @@ tryCatch({
   # 3b. Données de contexte des tâches pred
   pred_context_mo_parts <- list()
   for (tid in test_task_ids) {
+    task_mapping <- mo_id_mapping %>%
+      dplyr::filter(Task_ID == tid) %>%
+      dplyr::select(orig_Output_ID, mo_Output_ID)
     pred_data <- pred_tasks_data_all[[tid]] %>%
       dplyr::select(-any_of(c("Task_ID", "Cluster_ID"))) %>%
-      dplyr::mutate(Output_ID = paste0("T", tid, "_O", Output_ID))
+      dplyr::left_join(task_mapping, by = c("Output_ID" = "orig_Output_ID")) %>%
+      dplyr::mutate(Output_ID = mo_Output_ID) %>%
+      dplyr::select(-mo_Output_ID)
 
     pred_context_mo_parts[[tid]] <- pred_data
   }
@@ -170,8 +193,11 @@ tryCatch({
   # 3d. Grid inputs pour la prédiction (points tests sur Output 1 des tâches pred)
   test_grid_parts <- list()
   for (tid in test_task_ids) {
+    mo_oid <- mo_id_mapping %>%
+      dplyr::filter(Task_ID == tid, orig_Output_ID == "1") %>%
+      dplyr::pull(mo_Output_ID)
     test_data <- test_tasks_data_all[[tid]] %>%
-      dplyr::mutate(Output_ID = paste0("T", tid, "_O1")) %>%
+      dplyr::mutate(Output_ID = mo_oid) %>%
       dplyr::select(Input, Input_ID, Output_ID) %>%
       dplyr::distinct()
 
@@ -187,8 +213,8 @@ tryCatch({
 
   # Créer des HP initiaux pour tous les Output_IDs MO
   # IMPORTANT : l'ordre des Output_ID doit être cohérent entre hp, data et prior_means
-  all_output_ids_mo <- sort(unique(c(all_mo_data$Output_ID,
-                                      test_grid_inputs$Output_ID)))
+  all_output_ids_mo <- as.character(sort(as.numeric(unique(c(
+    all_mo_data$Output_ID, test_grid_inputs$Output_ID)))))
 
   # Utiliser hp() pour générer les HP initiaux avec convolution_kernel
   # IMPORTANT : hp_config$output_id doit correspondre aux Output_ID réels
@@ -211,10 +237,7 @@ tryCatch({
     )
   ) %>% dplyr::select(-Task_ID)
 
-  # Prior means : NULL → 0 partout
-  # On ne peut pas utiliser le short-vector (un par Output_ID) car train_gp()
-  # utilise un regex o[0-9]+ pour mapper, et nos Output_IDs contiennent des
-  # lettres (ex: "T5_O1"). La prior mean à 0 est le choix le plus neutre.
+  # Prior means : NULL → 0 partout (choix neutre, pas de clustering en MO)
   prior_means_mo <- NULL
 
   # --- 5. ENTRAÎNEMENT (train_gp) ---
@@ -249,10 +272,12 @@ tryCatch({
   pred_df <- pred_res$pred_gp
 
   for (test_task_id in test_task_ids) {
-    mo_output_id <- paste0("T", test_task_id, "_O1")
+    mo_output_id <- mo_id_mapping %>%
+      dplyr::filter(Task_ID == test_task_id, orig_Output_ID == "1") %>%
+      dplyr::pull(mo_Output_ID)
 
     # Extraire la prédiction pour cette tâche
-    task_pred <- pred_df$pred_gp %>%
+    task_pred <- pred_df %>%
       dplyr::filter(Output_ID == mo_output_id)
 
     # Récupérer le cluster de la tâche pour le dé-scaling
@@ -270,23 +295,25 @@ tryCatch({
 
   # --- 8. SAUVEGARDE ---
   models_to_save <- list(
-    hp_optim      = hp_optim,
-    prior_means   = prior_means_mo,
-    t_training    = duration_train,
-    seed          = SEED,
-    n_train       = N_TRAIN,
-    n_pred        = N_PRED
+    hp_optim       = hp_optim,
+    prior_means    = prior_means_mo,
+    mo_id_mapping  = mo_id_mapping,
+    t_training     = duration_train,
+    seed           = SEED,
+    n_train        = N_TRAIN,
+    n_pred         = N_PRED
   )
 
   predictions_to_save <- list(
-    predictions   = all_predictions,
-    pred_gp_full  = pred_res,
-    t_train_total = duration_train,
-    t_pred_total  = duration_pred,
-    seed          = SEED,
-    test_task_ids = test_task_ids,
-    n_train       = N_TRAIN,
-    n_pred        = N_PRED
+    predictions    = all_predictions,
+    pred_gp_full   = pred_res,
+    mo_id_mapping  = mo_id_mapping,
+    t_train_total  = duration_train,
+    t_pred_total   = duration_pred,
+    seed           = SEED,
+    test_task_ids  = test_task_ids,
+    n_train        = N_TRAIN,
+    n_pred         = N_PRED
   )
 
   saveRDS(models_to_save,
