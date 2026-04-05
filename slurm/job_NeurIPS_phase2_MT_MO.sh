@@ -17,14 +17,14 @@
 
 #SBATCH --job-name=neurips_mt_mo
 #SBATCH --qos=huge
-#SBATCH -c 32
+#SBATCH -c 16
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_mt_mo_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_mt_mo_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=32
+N_WORKERS=16
 
 echo "=============================================="
 echo " NeurIPS Phase 2 : MT + MO"
