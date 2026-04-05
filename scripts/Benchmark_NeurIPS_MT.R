@@ -40,10 +40,9 @@ stopifnot(N_OUT %in% c(2, 4, 8))
 stopifnot(N_TRAIN %in% c(15, 30, 100))
 stopifnot(N_PRED %in% c(1, 10, 100))
 stopifnot(PROBLEM %in% c("interpolation", "forecasting"))
-stopifnot(SEED >= 1 & SEED <= 5)
+stopifnot(SEED >= 1 & SEED <= 50)
 
 N_CLUSTERS <- 3
-N_CLUSTERS_MT <- N_OUT * N_CLUSTERS
 
 # --- 1. SETUP & LIBRARIES ---
 username  <- Sys.getenv("USER")
@@ -85,7 +84,6 @@ run_info <- list(
   n_out = N_OUT, n_train = N_TRAIN, n_pred = N_PRED,
   problem = PROBLEM, seed = SEED,
   n_clusters = N_CLUSTERS,
-  n_clusters_mt = N_CLUSTERS_MT,
   started_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
   hostname = as.character(Sys.info()["nodename"]),
   slurm_job_id = Sys.getenv("SLURM_JOB_ID", "N/A"),
@@ -170,64 +168,12 @@ tryCatch({
 
   cat(paste0("  MT train tasks: ", length(unique(train_data_mt$Task_ID)), "\n"))
 
-  # 3b. ini_mixture fraîche pour MT (N_CLUSTERS_MT = N_OUT × N_CLUSTERS)
-  # En MT, outputs et tâches ont le même statut → plus de sens de réutiliser
-  # l'ini_mixture MOMT. On en calcule une nouvelle sur les données MT.
-  ini_mixture_mt <- ini_mixture(data = train_data_mt, k = N_CLUSTERS_MT)
-
-  cat(paste0("  ini_mixture MT : ", nrow(ini_mixture_mt), " tâches × ",
-             N_CLUSTERS_MT, " clusters\n"))
-
-  # Assignation dure : dans quel cluster MT chaque tâche tombe-t-elle ?
-  mt_cluster_assignment <- ini_mixture_mt %>%
-    tidyr::pivot_longer(cols = starts_with("K"), names_to = "MT_Cluster",
-                        values_to = "Probability") %>%
-    dplyr::group_by(Task_ID) %>%
-    dplyr::slice_max(Probability, n = 1, with_ties = FALSE) %>%
-    dplyr::ungroup() %>%
-    dplyr::select(Task_ID, MT_Cluster)
-
-  # 3c. Mapping MT cluster → (MOMT Cluster, Output_ID original)
-  # Pour chaque tâche MT "T{tid}_O{oid}", on connaît le cluster MOMT de tid
-  cluster_mapping_momt <- datasets$cluster_mapping %>%
-    dplyr::mutate(Task_ID = as.character(Task_ID))
-
-  mt_task_origins <- mt_cluster_assignment %>%
-    dplyr::mutate(
-      Task_ID_orig = sub("^T(.+)_O.*$", "\\1", Task_ID),
-      orig_Output_ID = sub("^T.+_O(.+)$", "\\1", Task_ID)
-    ) %>%
-    dplyr::left_join(cluster_mapping_momt, by = c("Task_ID_orig" = "Task_ID"))
-
-  # Cluster MT dominant → (MOMT_Cluster, Output_ID) le plus fréquent
-  mt_to_momt_mapping <- mt_task_origins %>%
-    dplyr::count(MT_Cluster, Cluster_ID, orig_Output_ID) %>%
-    dplyr::group_by(MT_Cluster) %>%
-    dplyr::slice_max(n, n = 1, with_ties = FALSE) %>%
-    dplyr::ungroup() %>%
-    dplyr::select(MT_Cluster, Cluster_ID, orig_Output_ID)
-
-  cat("  Mapping MT cluster → MOMT (Cluster, Output) :\n")
-  print(mt_to_momt_mapping)
-
-  # 3d. Extraction HP initiaux depuis le modèle MOMT via le mapping
-  momt_hp_k <- trained_model_momt$hp_k %>%
-    dplyr::mutate(Output_ID = as.character(Output_ID),
-                  Cluster_ID = as.character(Cluster_ID))
-
-  ini_hp_k <- mt_to_momt_mapping %>%
-    dplyr::left_join(momt_hp_k,
-                     by = c("Cluster_ID" = "Cluster_ID",
-                            "orig_Output_ID" = "Output_ID")) %>%
-    dplyr::transmute(
-      Cluster_ID = MT_Cluster,
-      Output_ID = "1",
-      se_lengthscale = l_t,
-      se_variance = S_t,
-      noise = -3
-    )
-
-  cat("  ini_hp_k MT :\n"); print(ini_hp_k)
+  # 3b. Extraction HP initiaux depuis le modèle MOMT (output 1 uniquement pour SE)
+  ini_hp_k <- trained_model_momt$hp_k %>%
+    dplyr::filter(Output_ID == "1") %>%
+    dplyr::select(-any_of("l_u_t")) %>%
+    dplyr::mutate(se_lengthscale = l_t, se_variance = S_t) %>%
+    dplyr::select(-c(l_t, S_t))
 
   ini_hp_t <- trained_model_momt$hp_t %>%
     dplyr::filter(Output_ID == "1") %>%
@@ -237,18 +183,38 @@ tryCatch({
     dplyr::select(-c(l_t, S_t)) %>%
     dplyr::slice(1)
 
-  # 3e. Prior means MT : moyenne empirique par cluster MT (sur données brutes)
+  # Prior means pour MT : moyenne empirique par cluster (sur données brutes)
+  # Chaque tâche MT a Output_ID="1". On reconstruit le cluster via le mapping MOMT.
+  # Extraire le Task_ID MOMT original depuis le nom MT "T{tid}_O{oid}"
+  cluster_mapping_momt <- datasets$cluster_mapping %>%
+    dplyr::mutate(Task_ID = as.character(Task_ID))
+
   train_data_mt_with_cluster <- train_data_mt %>%
-    dplyr::left_join(mt_cluster_assignment, by = "Task_ID")
+    dplyr::mutate(Task_ID_orig = sub("^T(.+)_O.*$", "\\1", Task_ID)) %>%
+    dplyr::left_join(cluster_mapping_momt, by = c("Task_ID_orig" = "Task_ID"))
 
   prior_means_mt <- train_data_mt_with_cluster %>%
-    dplyr::group_by(MT_Cluster) %>%
+    dplyr::group_by(Cluster_ID) %>%
     dplyr::summarise(prior_mean = mean(Output, na.rm = TRUE), .groups = "drop") %>%
-    dplyr::arrange(MT_Cluster) %>%
+    dplyr::arrange(Cluster_ID) %>%
     dplyr::pull(prior_mean)
 
-  cat(paste0("  Prior means MT (", length(prior_means_mt), " clusters): ",
-             paste(round(prior_means_mt, 4), collapse = ", "), "\n"))
+  # ini_mixture : étendre de N_TRAIN lignes à N_TRAIN × N_OUT lignes
+  # Chaque tâche MOMT originale donne N_OUT tâches MT, qui héritent des mêmes
+  # probabilités de cluster
+  ini_mixture_momt <- trained_model_momt$ini_args$ini_mixture
+  output_ids <- unique(data_raw$Output_ID)
+
+  ini_mixture_mt_rows <- list()
+  for (r in 1:nrow(ini_mixture_momt)) {
+    orig_tid <- as.character(ini_mixture_momt$Task_ID[r])
+    for (oid in output_ids) {
+      new_row <- ini_mixture_momt[r, ]
+      new_row$Task_ID <- paste0("T", orig_tid, "_O", oid)
+      ini_mixture_mt_rows[[length(ini_mixture_mt_rows) + 1]] <- new_row
+    }
+  }
+  ini_mixture_mt <- dplyr::bind_rows(ini_mixture_mt_rows)
 
   # --- 4. ENTRAÎNEMENT MAGMACLUST SINGLE-OUTPUT ---
   t_train_start <- Sys.time()
@@ -256,7 +222,7 @@ tryCatch({
     data             = train_data_mt,
     ini_mixture      = ini_mixture_mt,
     ini_hp_k         = ini_hp_k,
-    nb_cluster       = N_CLUSTERS_MT,
+    nb_cluster       = N_CLUSTERS,
     kern_k           = "SE",
     ini_hp_t         = ini_hp_t,
     kern_t           = "SE",

@@ -9,7 +9,7 @@
 #SBATCH --job-name=neurips_metrics
 #SBATCH --qos=huge
 #SBATCH -c 1
-#SBATCH --time=01:00:00
+#SBATCH --time=04:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_metrics_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_metrics_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL

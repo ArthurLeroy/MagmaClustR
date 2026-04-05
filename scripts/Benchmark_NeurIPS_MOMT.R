@@ -41,7 +41,7 @@ stopifnot(N_OUT %in% c(2, 4, 8))
 stopifnot(N_TRAIN %in% c(15, 30, 100))
 stopifnot(N_PRED %in% c(1, 10, 100))
 stopifnot(PROBLEM %in% c("interpolation", "forecasting"))
-stopifnot(SEED >= 1 & SEED <= 5)
+stopifnot(SEED >= 1 & SEED <= 50)
 
 # --- Paramètres fixes ---
 N_CLUSTERS     <- 3

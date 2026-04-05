@@ -256,7 +256,7 @@ extract_metrics_mt <- function(pred_entry) {
 # ---- Extraction des métriques pour MO ----
 extract_metrics_mo <- function(pred_entry, scale_factors) {
   tryCatch({
-    pred_df    <- pred_entry$prediction  # déjà filtré sur Output_ID = "T{tid}_O1"
+    pred_df    <- pred_entry$prediction  # déjà filtré sur l'Output_ID MO de la tâche
     truth_data <- pred_entry$truth  # données scalées, Output_ID = "1"
     cluster_id <- pred_entry$cluster_id
 
@@ -345,13 +345,31 @@ configs <- expand.grid(
   )
 
 models <- c("MOMT", "MO", "MT")
-seeds  <- 1:5
+
+# Seeds par modèle et configuration :
+#   MOMT : 50 seeds pour toutes les configs
+#   MT   : 50 seeds pour toutes les configs
+#   MO   : variable selon la config (8/30/1, 2/100/1 et 2/30/100 retirées;
+#          4/30/1 à 10 seeds)
+get_seeds <- function(model, n_out, n_train, n_pred) {
+  if (model %in% c("MOMT", "MT")) {
+    return(1:50)
+  }
+  # MO : configs retirées
+  if (n_out == 8 & n_train == 30 & n_pred == 1) return(integer(0))
+  if (n_out == 2 & n_train == 100 & n_pred == 1) return(integer(0))
+  if (n_out == 2 & n_train == 30 & n_pred == 100) return(integer(0))
+  # MO : config à 10 seeds
+  if (n_out == 4 & n_train == 30 & n_pred == 1) return(1:10)
+  # MO : les autres configs → 50 seeds
+  return(1:50)
+}
 
 cat("=== Calcul des métriques NeurIPS ===\n")
 cat(paste0("  Date      : ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n"))
 cat(paste0("  Configs   : ", nrow(configs), "\n"))
 cat(paste0("  Modèles   : ", paste(models, collapse = ", "), "\n"))
-cat(paste0("  Seeds     : ", paste(seeds, collapse = ", "), "\n\n"))
+cat(paste0("  Seeds     : variables (MOMT/MT=50, MO=0/10/50 selon config)\n\n"))
 
 all_metrics <- list()
 
@@ -361,6 +379,8 @@ for (i in 1:nrow(configs)) {
   config_path  <- file.path(base_dir, config_label, cfg$problem)
 
   for (model in models) {
+    seeds <- get_seeds(model, cfg$n_out, cfg$n_train, cfg$n_pred)
+    if (length(seeds) == 0) next
     for (seed in seeds) {
       pred_dir  <- file.path(config_path, paste0("Predictions_", model))
       pred_file <- file.path(pred_dir, paste0("predictions_seed_", seed, ".rds"))
