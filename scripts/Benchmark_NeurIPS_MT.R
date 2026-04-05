@@ -221,7 +221,7 @@ tryCatch({
   trained_model_mt <- train_magmaclust(
     data             = train_data_mt,
     ini_mixture      = ini_mixture_mt,
-    ini_hp_k         = ini_hp_k,
+    ini_hp_k         = ini_hp_k %>% dplyr::select(-noise),
     nb_cluster       = N_CLUSTERS,
     kern_k           = "SE",
     ini_hp_t         = ini_hp_t,
