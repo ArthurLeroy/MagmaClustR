@@ -128,14 +128,16 @@ echo ""
 # --- Fonction worker ---
 worker() {
   local WORKER_ID=$1
+  local JOB_NUM
+  local LINE
+
+  exec 200>"${COUNTERFILE}.lock"
   while true; do
     # Lecture atomique du prochain numéro de job
-    JOB_NUM=$(
-      flock 200
-      N=$(cat "${COUNTERFILE}")
-      echo $((N + 1)) > "${COUNTERFILE}"
-      echo "${N}"
-    ) 200>"${COUNTERFILE}.lock"
+    flock -x 200
+    JOB_NUM=$(cat "${COUNTERFILE}")
+    echo $((JOB_NUM + 1)) > "${COUNTERFILE}"
+    flock -u 200
 
     if [ "${JOB_NUM}" -ge "${TOTAL_JOBS}" ]; then
       break
@@ -165,6 +167,7 @@ worker() {
       echo "[ERREUR] Worker ${WORKER_ID} : ${LABEL} code=${EXIT_CODE}"
     fi
   done
+  exec 200>&-
 }
 
 # --- Lancement des workers ---
