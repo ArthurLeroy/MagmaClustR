@@ -67,9 +67,7 @@ mkdir -p "${SCRIPT_DIR}" "${UTILS_DIR}"
 
 RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript"
 
-# Valeurs de n_clust à tester.
-# Dans cette experience, n_out=2, n_train=30 et n_pred=1 sont fixes,
-# donc la priorite se reporte entierement sur n_clust decroissant.
+# Valeurs de n_clust à tester (du plus lourd au plus léger)
 declare -a NCLUST_VALUES=(4 3 2 1)
 
 # --- Génération de la file de jobs ---
