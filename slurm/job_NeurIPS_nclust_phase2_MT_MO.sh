@@ -66,7 +66,7 @@ Rscript -e "install.packages('/scratch/${USER}/NeurIPS_experiments_v2', repos = 
 export R_LIBS="${LIB_TEMP_V2}:${R_LIBS}"
 
 RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript"
-SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments/scripts"
+SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments_v2/scripts"
 
 # Valeurs de n_clust (du plus lourd au plus léger)
 declare -a NCLUST_VALUES=(4 3 2 1)

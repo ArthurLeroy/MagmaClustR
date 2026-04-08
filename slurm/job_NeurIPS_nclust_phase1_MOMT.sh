@@ -61,8 +61,8 @@ Rscript -e "install.packages('/scratch/${USER}/NeurIPS_experiments_v2', repos = 
 # On force R à chercher d'abord dans cette librairie
 export R_LIBS="${LIB_TEMP_V2}:${R_LIBS}"
 
-SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments/scripts"
-UTILS_DIR="/scratch/${USER}/NeurIPS_experiments/utils"
+SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments_v2/scripts"
+UTILS_DIR="/scratch/${USER}/NeurIPS_experiments_v2/utils"
 mkdir -p "${SCRIPT_DIR}" "${UTILS_DIR}"
 
 RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript"
