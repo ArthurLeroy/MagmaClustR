@@ -2,23 +2,14 @@
 #===============================================================================
 # job_NeurIPS_nclust_phase2_MT_MO.sh
 # NeurIPS : Phase 2 n_clust — MT et MO pour n_clust=1,2,3,4
-#
-# Pré-requis : les données MOMT n_clust doivent être présentes (Phase 1 terminée).
-#
-# Configuration fixe : n_out=2, n_train=30, n_pred=1
-# MT : 4 n_clust × 2 problèmes × 50 seeds = 400 jobs
-# MO : 4 n_clust × 2 problèmes × 50 seeds = 400 jobs
-# Total : 800 jobs
-#
-# Soumission : sbatch job_NeurIPS_nclust_phase2_MT_MO.sh
 #===============================================================================
 
-#SBATCH --job-name=neurips_nclust_mt_mo
+#SBATCH --job-name=neurips_nclust_mt_mo_v2
 #SBATCH --qos=huge
 #SBATCH -c 16
 #SBATCH --time=7-00:00:00
-#SBATCH --output=/scratch/%u/logs/neurips_nclust_mt_mo_%j.out
-#SBATCH --error=/scratch/%u/logs/neurips_nclust_mt_mo_%j.err
+#SBATCH --output=/scratch/%u/logs/neurips_nclust_mt_mo_v2_%j.out
+#SBATCH --error=/scratch/%u/logs/neurips_nclust_mt_mo_v2_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
@@ -37,7 +28,6 @@ echo " Config fixe : out=${N_OUT}, train=${N_TRAIN}, pred=${N_PRED}"
 echo " Date    : $(date)"
 echo " Noeud   : $(hostname)"
 echo " Job ID  : ${SLURM_JOB_ID}"
-echo " CPUs    : ${SLURM_CPUS_ON_NODE}"
 echo " Workers : ${N_WORKERS}"
 echo "=============================================="
 
@@ -54,15 +44,13 @@ export MKL_NUM_THREADS=1
 cd /scratch/${USER}/NeurIPS_experiments_v2
 
 # --- Logs ---
-LOGDIR="/scratch/${USER}/logs/neurips_nclust_mt_mo"
+LOGDIR="/scratch/${USER}/logs/neurips_nclust_mt_mo_v2"
 mkdir -p "${LOGDIR}"
 
 # --- Installer le package (Version 2) ---
 LIB_TEMP_V2="/scratch/${USER}/R_temp_v2_$(date +%Y%m%d)"
 mkdir -p "${LIB_TEMP_V2}"
-# Pointez vers le nouveau dossier source que vous avez cloné
 Rscript -e "install.packages('/scratch/${USER}/NeurIPS_experiments_v2', repos = NULL, type = 'source', lib = '${LIB_TEMP_V2}')"
-# On force R à chercher d'abord dans cette librairie
 export R_LIBS="${LIB_TEMP_V2}:${R_LIBS}"
 
 RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript"
@@ -72,8 +60,7 @@ SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments_v2/scripts"
 declare -a NCLUST_VALUES=(4 3 2 1)
 
 # --- Génération de la file de jobs ---
-JOBFILE="/scratch/${USER}/logs/neurips_nclust_mt_mo/jobqueue_${SLURM_JOB_ID}.txt"
-COUNTERFILE="/scratch/${USER}/logs/neurips_nclust_mt_mo/counter_${SLURM_JOB_ID}"
+JOBFILE="/scratch/${USER}/logs/neurips_nclust_mt_mo_v2/jobqueue_${SLURM_JOB_ID}.txt"
 
 > "${JOBFILE}"
 
@@ -96,83 +83,51 @@ for PROBLEM in interpolation forecasting; do
 done
 
 TOTAL_JOBS=$(wc -l < "${JOBFILE}")
-echo "0" > "${COUNTERFILE}"
 
 echo ""
 echo "--- File de jobs : ${TOTAL_JOBS} jobs (MT + MO) pour ${N_WORKERS} workers ---"
 echo ""
 
-# --- Fonction worker ---
-worker() {
-  local WORKER_ID=$1
-  while true; do
-    JOB_NUM=$(
-      flock 200
-      N=$(cat "${COUNTERFILE}")
-      echo $((N + 1)) > "${COUNTERFILE}"
-      echo "${N}"
-    ) 200>"${COUNTERFILE}.lock"
+# On exporte les variables fixes pour que le sous-processus xargs puisse les lire
+export RSCRIPT SCRIPT_DIR LOGDIR N_OUT N_TRAIN N_PRED
 
-    if [ "${JOB_NUM}" -ge "${TOTAL_JOBS}" ]; then
-      break
-    fi
-
-    LINE=$(sed -n "$((JOB_NUM + 1))p" "${JOBFILE}")
-    read -r MODEL N_CLUST PROBLEM SEED <<< "${LINE}"
-    LABEL="${MODEL}_clust${N_CLUST}_${PROBLEM}_seed${SEED}"
-    LOGFILE="${LOGDIR}/${LABEL}.log"
-
-    echo "[$(date +%H:%M:%S)] Worker ${WORKER_ID} → ${LABEL}"
-
-    if [ "${MODEL}" = "MT" ]; then
-      ${RSCRIPT} --vanilla "${SCRIPT_DIR}/Benchmark_NeurIPS_MT_nclust.R" \
-        --n_out=${N_OUT} --n_train=${N_TRAIN} --n_pred=${N_PRED} \
-        --n_clust=${N_CLUST} --problem=${PROBLEM} --seed=${SEED} \
-        > "${LOGFILE}" 2>&1
-    else
-      ${RSCRIPT} --vanilla "${SCRIPT_DIR}/Benchmark_NeurIPS_MO_nclust.R" \
-        --n_out=${N_OUT} --n_train=${N_TRAIN} --n_pred=${N_PRED} \
-        --n_clust=${N_CLUST} --problem=${PROBLEM} --seed=${SEED} \
-        > "${LOGFILE}" 2>&1
-    fi
-
-    EXIT_CODE=$?
-    if [ ${EXIT_CODE} -ne 0 ]; then
-      echo "[ERREUR] Worker ${WORKER_ID} : ${LABEL} code=${EXIT_CODE}"
-    fi
-  done
-}
-
-# --- Lancement des workers ---
-PIDS=()
-for W in $(seq 1 ${N_WORKERS}); do
-  worker ${W} &
-  PIDS+=($!)
-done
-
-echo "${#PIDS[@]} workers lancés. PIDs : ${PIDS[*]}"
-echo "En attente de la fin de tous les jobs..."
-
-FAILED=0
-for PID in "${PIDS[@]}"; do
-  wait ${PID}
+# --- Lancement via xargs (Robuste, sans collisions) ---
+cat "${JOBFILE}" | xargs -n 4 -P ${N_WORKERS} bash -c '
+  MODEL=$1
+  N_CLUST=$2
+  PROBLEM=$3
+  SEED=$4
+  
+  LABEL="${MODEL}_clust${N_CLUST}_${PROBLEM}_seed${SEED}"
+  LOGFILE="${LOGDIR}/${LABEL}.log"
+  
+  echo "[$(date +%H:%M:%S)] Démarrage → ${LABEL}"
+  
+  if [ "${MODEL}" = "MT" ]; then
+    ${RSCRIPT} --vanilla "${SCRIPT_DIR}/Benchmark_NeurIPS_MT_nclust.R" \
+      --n_out=${N_OUT} --n_train=${N_TRAIN} --n_pred=${N_PRED} \
+      --n_clust=${N_CLUST} --problem=${PROBLEM} --seed=${SEED} \
+      > "${LOGFILE}" 2>&1
+  else
+    ${RSCRIPT} --vanilla "${SCRIPT_DIR}/Benchmark_NeurIPS_MO_nclust.R" \
+      --n_out=${N_OUT} --n_train=${N_TRAIN} --n_pred=${N_PRED} \
+      --n_clust=${N_CLUST} --problem=${PROBLEM} --seed=${SEED} \
+      > "${LOGFILE}" 2>&1
+  fi
+    
   EXIT_CODE=$?
   if [ ${EXIT_CODE} -ne 0 ]; then
-    echo "[ERREUR] Worker PID=${PID} terminé avec code ${EXIT_CODE}"
-    FAILED=$((FAILED + 1))
+    echo "[ERREUR] ${LABEL} a échoué (code=${EXIT_CODE})"
   fi
-done
+' _
 
-# ==========================================
-# RÉSUMÉ ET VÉRIFICATION
-# ==========================================
 echo ""
 echo "=============================================="
 echo " NeurIPS Phase 2 n_clust TERMINÉE"
 echo " Date       : $(date)"
-echo " Échecs workers : ${FAILED} / ${N_WORKERS}"
 echo "=============================================="
 
+# --- Vérification des fichiers ---
 RESULTS_DIR="/scratch/${USER}/NeurIPS_experiments_v2"
 MISSING=0
 
