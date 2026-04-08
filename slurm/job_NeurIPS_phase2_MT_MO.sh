@@ -61,19 +61,19 @@ RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6
 SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments/scripts"
 
 # --- Configurations MT (7 configs × 50 seeds) ---
-# Ordre choisi : les configurations MT les plus lourdes en premier.
+# Ordre choisi : priorite aux gros n_out, puis gros n_train, puis gros n_pred.
 declare -a MT_CONFIGS=(
+  "8 30 1"
   "4 30 1"
   "2 100 1"
-  "8 30 1"
+  "2 30 100"
+  "2 30 10"
   "2 30 1"
   "2 15 1"
-  "2 30 10"
-  "2 30 100"
 )
 
 # --- Configurations MO (4 configs, seeds variables) ---
-# Ordre choisi : les configurations MO les plus lourdes en premier.
+# Ordre choisi : priorite aux gros n_out, puis gros n_train, puis gros n_pred.
 #   Format : "n_out n_train n_pred n_seeds"
 declare -a MO_CONFIGS=(
   "4 30 1 10"

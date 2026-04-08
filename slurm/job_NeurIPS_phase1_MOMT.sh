@@ -58,16 +58,16 @@ mkdir -p "${SCRIPT_DIR}" "${UTILS_DIR}"
 
 RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript"
 
-# Les 7 configurations uniques (n_out, n_train, n_pred)
+# Les 7 configurations originales (n_out, n_train, n_pred)
 # Ordre choisi : les configurations MOMT les plus lourdes en premier.
 declare -a CONFIGS=(
-  "4 30 1"
   "8 30 1"
+  "4 30 1"
+  "2 100 1"
+  "2 30 100"
+  "2 30 10"
   "2 30 1"
   "2 15 1"
-  "2 100 1"
-  "2 30 10"
-  "2 30 100"
 )
 
 # --- Génération de la file de jobs ---
