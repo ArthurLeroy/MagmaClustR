@@ -162,8 +162,14 @@ e_step <- function(db,
 
   ## Format and return the results
   # Format the posterior mean into a tibble
-  tib_mean <- tibble::tibble(all_inputs,
-                             "Output" = post_mean)
+  if(length(list_output_ID) == 1){
+    tib_mean <- tibble::tibble(all_inputs,
+                               "Output" = post_mean,
+                               "Output_ID" = "1")
+  } else {
+    tib_mean <- tibble::tibble(all_inputs,
+                               "Output" = post_mean)
+  }
 
   return(list(
     "mean" = tib_mean,

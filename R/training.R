@@ -680,6 +680,7 @@ train_gp <- function(data,
   # --- REMPLACEMENT DU BLOC DÉFECTUEUX DANS train_gp() ---
 
   data <- data %>%
+    dplyr::mutate(row_id = dplyr::row_number()) %>%
     tidyr::pivot_wider(
       names_from = Input_ID,
       values_from = Input,

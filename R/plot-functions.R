@@ -1224,8 +1224,6 @@ plot_magmaclust <- function(pred_clust,
                             size_data_train = 1,
                             alpha_data_train = 0.5
 ) {
-
-  # browser()
   ## Check prob_CI format
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
@@ -1317,35 +1315,7 @@ plot_magmaclust <- function(pred_clust,
         }
       }
 
-      # --- Ajout des points OBSERVÉS (Data) ---
-      if (!is.null(data_sub) && nrow(data_sub) > 0) {
-        if (length(input_cols) == 2) {
-          # 2D Labels
-          gg <- gg + ggplot2::geom_label(
-            data = data_sub,
-            ggplot2::aes_string(x = input_cols[1], y = input_cols[2],
-                                label = "Output", fill = "Output"),
-            size = 3
-          )
-        } else if (length(input_cols) == 1){
-          # browser()
-          # 1D Points
-
-          data_wide <- data_sub %>%
-            tidyr::pivot_wider(
-              names_from = Input_ID,
-              values_from = Input,
-              names_prefix = "Input_"
-            )
-          gg <- gg + ggplot2::geom_point(
-            data = data_wide,
-            ggplot2::aes_string(x = input_cols[1], y = "Output"),
-            size = size_data, shape = 20
-          )
-        }
-      }
-
-      # --- Ajout des points D'ENTRAÎNEMENT (Train) ---
+      # --- Ajout des points D'ENTRAÎNEMENT (Train) --- EN PREMIER (pour être en dessous)
       # Note: Cette logique était dans le bloc global avant, on l'applique ici par plot
       if (!is.null(data_train)) {
         data_train_sub <- if ("Output_ID" %in% names(data_train)) {
@@ -1390,6 +1360,35 @@ plot_magmaclust <- function(pred_clust,
             ) +
               ggplot2::guides(fill = "none")
           }
+        }
+      }
+
+      # --- Ajout des points OBSERVÉS (Data) --- EN SECOND (pour être au-dessus)
+      if (!is.null(data_sub) && nrow(data_sub) > 0) {
+        if (length(input_cols) == 2) {
+          # 2D Labels
+          gg <- gg + ggplot2::geom_label(
+            data = data_sub,
+            ggplot2::aes_string(x = input_cols[1], y = input_cols[2],
+                                label = "Output", fill = "Output"),
+            size = 3
+          )
+        } else if (length(input_cols) == 1){
+          # browser()
+          # 1D Points
+
+          data_wide <- data_sub %>%
+            dplyr::mutate(row_id = dplyr::row_number()) %>%
+            tidyr::pivot_wider(
+              names_from = Input_ID,
+              values_from = Input,
+              names_prefix = "Input_"
+            )
+          gg <- gg + ggplot2::geom_point(
+            data = data_wide,
+            ggplot2::aes_string(x = input_cols[1], y = "Output"),
+            size = size_data, shape = 20
+          )
         }
       }
 
