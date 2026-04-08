@@ -21,7 +21,7 @@
 N_WORKERS=16
 N_SEEDS=50
 
-# Configuration fixe pour l'étude n_clust
+# Configuration fixe pour l'etude n_clust
 N_OUT=2
 N_TRAIN=30
 N_PRED=1
@@ -67,8 +67,13 @@ mkdir -p "${SCRIPT_DIR}" "${UTILS_DIR}"
 
 RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript"
 
-# Valeurs de n_clust à tester (du plus lourd au plus léger)
+# Priorite explicite de la file : n_out > n_train > n_clust > n_pred.
+# Dans cette experience, seuls les clusters varient effectivement,
+# mais on garde les 4 dimensions pour que l'ordre soit explicite et robuste.
+declare -a NOUT_VALUES=(${N_OUT})
+declare -a NTRAIN_VALUES=(${N_TRAIN})
 declare -a NCLUST_VALUES=(4 3 2 1)
+declare -a NPRED_VALUES=(${N_PRED})
 
 # --- Génération de la file de jobs ---
 JOBFILE="/scratch/${USER}/logs/neurips_nclust_momt/jobqueue_${SLURM_JOB_ID}.txt"
@@ -76,9 +81,15 @@ COUNTERFILE="/scratch/${USER}/logs/neurips_nclust_momt/counter_${SLURM_JOB_ID}"
 
 > "${JOBFILE}"
 for PROBLEM in interpolation forecasting; do
-  for N_CLUST in "${NCLUST_VALUES[@]}"; do
-    for SEED in $(seq 1 ${N_SEEDS}); do
-      echo "${N_CLUST} ${PROBLEM} ${SEED}" >> "${JOBFILE}"
+  for N_OUT_VAL in "${NOUT_VALUES[@]}"; do
+    for N_TRAIN_VAL in "${NTRAIN_VALUES[@]}"; do
+      for N_CLUST in "${NCLUST_VALUES[@]}"; do
+        for N_PRED_VAL in "${NPRED_VALUES[@]}"; do
+          for SEED in $(seq 1 ${N_SEEDS}); do
+            echo "${N_OUT_VAL} ${N_TRAIN_VAL} ${N_CLUST} ${N_PRED_VAL} ${PROBLEM} ${SEED}" >> "${JOBFILE}"
+          done
+        done
+      done
     done
   done
 done
@@ -106,14 +117,14 @@ worker() {
     fi
 
     LINE=$(sed -n "$((JOB_NUM + 1))p" "${JOBFILE}")
-    read -r N_CLUST PROBLEM SEED <<< "${LINE}"
-    LABEL="clust${N_CLUST}_${PROBLEM}_seed${SEED}"
+    read -r N_OUT_VAL N_TRAIN_VAL N_CLUST N_PRED_VAL PROBLEM SEED <<< "${LINE}"
+    LABEL="out${N_OUT_VAL}_train${N_TRAIN_VAL}_clust${N_CLUST}_pred${N_PRED_VAL}_${PROBLEM}_seed${SEED}"
     LOGFILE="${LOGDIR}/momt_${LABEL}.log"
 
     echo "[$(date +%H:%M:%S)] Worker ${WORKER_ID} → MOMT ${LABEL}"
 
     ${RSCRIPT} --vanilla "${SCRIPT_DIR}/Benchmark_NeurIPS_MOMT_nclust.R" \
-      --n_out=${N_OUT} --n_train=${N_TRAIN} --n_pred=${N_PRED} \
+      --n_out=${N_OUT_VAL} --n_train=${N_TRAIN_VAL} --n_pred=${N_PRED_VAL} \
       --n_clust=${N_CLUST} --problem=${PROBLEM} --seed=${SEED} \
       > "${LOGFILE}" 2>&1
 
@@ -156,13 +167,19 @@ RESULTS_DIR="/scratch/${USER}/NeurIPS_experiments_v2"
 MISSING=0
 
 for PROBLEM in interpolation forecasting; do
-  for N_CLUST in "${NCLUST_VALUES[@]}"; do
-    for SEED in $(seq 1 ${N_SEEDS}); do
-      DATASET_FILE="${RESULTS_DIR}/out${N_OUT}_train${N_TRAIN}_pred${N_PRED}_clust${N_CLUST}/${PROBLEM}/Datasets/datasets_seed_${SEED}.rds"
-      if [ ! -f "${DATASET_FILE}" ]; then
-        echo "[MANQUANT] ${DATASET_FILE}"
-        MISSING=$((MISSING + 1))
-      fi
+  for N_OUT_VAL in "${NOUT_VALUES[@]}"; do
+    for N_TRAIN_VAL in "${NTRAIN_VALUES[@]}"; do
+      for N_CLUST in "${NCLUST_VALUES[@]}"; do
+        for N_PRED_VAL in "${NPRED_VALUES[@]}"; do
+          for SEED in $(seq 1 ${N_SEEDS}); do
+            DATASET_FILE="${RESULTS_DIR}/out${N_OUT_VAL}_train${N_TRAIN_VAL}_pred${N_PRED_VAL}_clust${N_CLUST}/${PROBLEM}/Datasets/datasets_seed_${SEED}.rds"
+            if [ ! -f "${DATASET_FILE}" ]; then
+              echo "[MANQUANT] ${DATASET_FILE}"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+        done
+      done
     done
   done
 done
