@@ -14,14 +14,14 @@
 
 #SBATCH --job-name=neurips_nclust_mo
 #SBATCH --qos=huge
-#SBATCH -c 16
+#SBATCH -c 32
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_nclust_mo_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_nclust_mo_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=16
+N_WORKERS=32
 
 echo "=============================================="
 echo " NeurIPS Phase 2 : MO"
@@ -78,7 +78,8 @@ JOBFILE="/scratch/${USER}/logs/neurips_nclust_mo/jobqueue_${SLURM_JOB_ID}.txt"
 COUNTERFILE="/scratch/${USER}/logs/neurips_nclust_mo/counter_${SLURM_JOB_ID}"
 
 > "${JOBFILE}"
-for PROBLEM in interpolation forecasting; do
+# for PROBLEM in interpolation forecasting; do
+for PROBLEM in forecasting; do
   for CONFIG_STR in "${MO_CONFIGS[@]}"; do
     read -r N_OUT N_TRAIN N_PRED N_CLUST N_SEEDS <<< "${CONFIG_STR}"
     for SEED in $(seq 1 ${N_SEEDS}); do
@@ -161,7 +162,8 @@ echo "=============================================="
 RESULTS_DIR="/scratch/${USER}/NeurIPS_experiments"
 MISSING=0
 
-for PROBLEM in interpolation forecasting; do
+# for PROBLEM in interpolation forecasting; do
+for PROBLEM in forecasting; do
   for CONFIG_STR in "${MO_CONFIGS[@]}"; do
     read -r N_OUT N_TRAIN N_PRED N_CLUST N_SEEDS <<< "${CONFIG_STR}"
     for SEED in $(seq 1 ${N_SEEDS}); do
