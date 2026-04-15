@@ -157,17 +157,76 @@ tryCatch({
     # N_CLUST = 1 : Magma (sans clustering) pour MT
     # ================================================================
 
-    # --- HP initiaux extraits du modèle MOMT (convolution → SE) ---
-    ini_hp_0_mt <- trained_model_momt$hp_t %>%
-      dplyr::filter(Output_ID == "1") %>%
-      dplyr::filter(dplyr::row_number() == 1) %>%
-      dplyr::select(-any_of(c("l_u_t", "Task_ID"))) %>%
-      dplyr::mutate(se_lengthscale = l_t, se_variance = S_t) %>%
-      dplyr::select(-c(l_t, S_t))
+    # --- HP initialisation via GP vanille (SE) ---
+    data_for_init <- train_data_mt %>%
+      dplyr::mutate(Input = round(Input, 6))
+
+    best_task_id_init <- data_for_init %>%
+      dplyr::count(Task_ID) %>%
+      dplyr::arrange(dplyr::desc(n)) %>%
+      dplyr::slice(1) %>%
+      dplyr::pull(Task_ID)
+
+    sub_data_agg <- data_for_init %>%
+      dplyr::filter(Task_ID == best_task_id_init)
+
+    mean_emp <- mean(sub_data_agg$Output, na.rm = TRUE)
+    mean_vec <- rep(mean_emp, nrow(sub_data_agg))
+
+    best_ll    <- +Inf
+    best_hp_gp <- NULL
+
+    for (seed_retry in 1:10) {
+      tryCatch({
+        set.seed(seed_retry * 1000)
+        hp_tmp <- suppressWarnings(suppressMessages(
+          train_gp(data = sub_data_agg, kern = "SE",
+                   prior_mean = mean_emp, ini_hp = NULL)
+        ))
+
+        sub_data_agg_format_logL <- data.frame(
+          Input_1   = as.numeric(sub_data_agg$Input),
+          Output_ID = as.character(sub_data_agg$Output_ID),
+          Output    = as.numeric(sub_data_agg$Output),
+          stringsAsFactors = FALSE
+        )
+        sub_data_agg_format_logL$Reference <- paste0(
+          "o", sub_data_agg_format_logL$Output_ID, ";",
+          sub_data_agg_format_logL$Input_1
+        )
+
+        ll_val <- tryCatch({
+          logL_GP_outside_package(
+            hp = hp_tmp, db = sub_data_agg_format_logL,
+            mean = mean_vec, kern = "SE", post_cov = 0,
+            pen_diag = 1e-10,
+            hp_col_names = c("se_variance", "se_lengthscale")
+          )
+        }, error = function(e) return(+Inf))
+
+        if (ll_val < best_ll) {
+          best_ll    <- ll_val
+          best_hp_gp <- hp_tmp
+        }
+      }, error = function(e) {
+        cat(paste0("  [train_gp ERR] retry=", seed_retry, ": ", e$message, "\n"))
+      })
+    }
+
+    if (is.null(best_hp_gp)) {
+      best_hp_gp <- list(se_lengthscale = 0, se_variance = 0, noise = -3)
+    }
+
+    ini_hp_0_mt <- tibble(
+      Output_ID      = as.factor("1"),
+      se_lengthscale = best_hp_gp$se_lengthscale,
+      se_variance    = best_hp_gp$se_variance,
+      noise          = -3
+    )
 
     ini_hp_t_mt <- ini_hp_0_mt
 
-    prior_means_mt <- mean(train_data_mt$Output, na.rm = TRUE)
+    prior_means_mt <- mean_emp
 
     # --- Entraînement train_magma ---
     t_train_start <- Sys.time()
@@ -293,28 +352,94 @@ tryCatch({
     # N_CLUST >= 2 : MagmaClust pour MT
     # ================================================================
 
-    # --- HP initiaux extraits du modèle MOMT ---
-    ini_hp_k <- trained_model_momt$hp_k %>%
-      dplyr::filter(Output_ID == "1") %>%
-      dplyr::select(-any_of("l_u_t")) %>%
-      dplyr::mutate(se_lengthscale = l_t, se_variance = S_t) %>%
-      dplyr::select(-c(l_t, S_t))
-
-    ini_hp_t <- trained_model_momt$hp_t %>%
-      dplyr::filter(Output_ID == "1") %>%
-      dplyr::filter(Task_ID %in% unique(datasets$train_data$Task_ID)) %>%
-      dplyr::select(-any_of(c("l_u_t", "Task_ID"))) %>%
-      dplyr::mutate(se_lengthscale = l_t, se_variance = S_t) %>%
-      dplyr::select(-c(l_t, S_t)) %>%
-      dplyr::slice(1)
-
-    # Prior means par cluster
+    # --- HP initialisation via GP vanille (SE) par cluster ---
     cluster_mapping_momt <- datasets$cluster_mapping %>%
       dplyr::mutate(Task_ID = as.character(Task_ID))
 
     train_data_mt_with_cluster <- train_data_mt %>%
       dplyr::mutate(Task_ID_orig = sub("^T(.+)_O.*$", "\\1", Task_ID)) %>%
       dplyr::left_join(cluster_mapping_momt, by = c("Task_ID_orig" = "Task_ID"))
+
+    clusters_ids <- sort(unique(cluster_mapping_momt$Cluster_ID))
+    hp_k_extracted_list <- list()
+
+    for (k_id in clusters_ids) {
+      data_for_init_k <- train_data_mt_with_cluster %>%
+        dplyr::filter(Cluster_ID == k_id) %>%
+        dplyr::mutate(Input = round(Input, 6))
+
+      best_task_id_k <- data_for_init_k %>%
+        dplyr::count(Task_ID) %>%
+        dplyr::arrange(dplyr::desc(n)) %>%
+        dplyr::slice(1) %>%
+        dplyr::pull(Task_ID)
+
+      sub_data_agg <- data_for_init_k %>%
+        dplyr::filter(Task_ID == best_task_id_k)
+
+      mean_emp_k <- mean(sub_data_agg$Output, na.rm = TRUE)
+      mean_vec_k <- rep(mean_emp_k, nrow(sub_data_agg))
+
+      best_ll    <- +Inf
+      best_hp_gp <- NULL
+
+      for (seed_retry in 1:10) {
+        tryCatch({
+          set.seed(seed_retry * 1000 + which(clusters_ids == k_id))
+          hp_tmp <- suppressWarnings(suppressMessages(
+            train_gp(data = sub_data_agg, kern = "SE",
+                     prior_mean = mean_emp_k, ini_hp = NULL)
+          ))
+
+          sub_data_agg_format_logL <- data.frame(
+            Input_1   = as.numeric(sub_data_agg$Input),
+            Output_ID = as.character(sub_data_agg$Output_ID),
+            Output    = as.numeric(sub_data_agg$Output),
+            stringsAsFactors = FALSE
+          )
+          sub_data_agg_format_logL$Reference <- paste0(
+            "o", sub_data_agg_format_logL$Output_ID, ";",
+            sub_data_agg_format_logL$Input_1
+          )
+
+          ll_val <- tryCatch({
+            logL_GP_outside_package(
+              hp = hp_tmp, db = sub_data_agg_format_logL,
+              mean = mean_vec_k, kern = "SE", post_cov = 0,
+              pen_diag = 1e-10,
+              hp_col_names = c("se_variance", "se_lengthscale")
+            )
+          }, error = function(e) return(+Inf))
+
+          if (ll_val < best_ll) {
+            best_ll    <- ll_val
+            best_hp_gp <- hp_tmp
+          }
+        }, error = function(e) {
+          cat(paste0("  [train_gp ERR] k=", k_id,
+                     " retry=", seed_retry, ": ", e$message, "\n"))
+        })
+      }
+
+      if (is.null(best_hp_gp)) {
+        cat(paste0("  [WARN] Aucun train_gp OK pour k=", k_id, "\n"))
+        best_hp_gp <- list(se_lengthscale = 0, se_variance = 0, noise = -3)
+      }
+
+      hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- tibble(
+        Cluster_ID     = k_id,
+        Output_ID      = as.factor("1"),
+        se_lengthscale = best_hp_gp$se_lengthscale,
+        se_variance    = best_hp_gp$se_variance,
+        noise          = -3
+      )
+    }
+
+    ini_hp_k <- bind_rows(hp_k_extracted_list)
+
+    ini_hp_t <- ini_hp_k %>%
+      dplyr::filter(Cluster_ID == clusters_ids[[1]]) %>%
+      dplyr::select(-Cluster_ID)
 
     prior_means_mt <- train_data_mt_with_cluster %>%
       dplyr::group_by(Cluster_ID) %>%
