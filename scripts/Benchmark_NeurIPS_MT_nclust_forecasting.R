@@ -45,7 +45,7 @@ stopifnot(N_TRAIN %in% c(15, 30, 100))
 stopifnot(N_PRED %in% c(1, 10, 100))
 stopifnot(N_CLUST %in% c(1, 2, 3, 4))
 stopifnot(PROBLEM == "forecasting")
-stopifnot(SEED >= 1 & SEED <= 50)
+stopifnot(SEED >= 1 & SEED <= 5)
 
 # --- 1. SETUP & LIBRARIES ---
 username  <- Sys.getenv("USER")
