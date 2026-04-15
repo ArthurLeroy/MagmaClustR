@@ -178,8 +178,8 @@ tryCatch({
       tryCatch({
         set.seed(seed_retry * 1000)
         hp_tmp <- suppressWarnings(suppressMessages(
-          train_gp(data = sub_data_agg, kern = "SE",
-                   prior_mean = mean_emp, ini_hp = NULL)
+          train_gp(data = sub_data_agg %>% dplyr::select(-Task_ID), kern = "SE",
+                   prior_mean = mean_vec, ini_hp = NULL)
         ))
 
         sub_data_agg_format_logL <- data.frame(
@@ -386,8 +386,8 @@ tryCatch({
         tryCatch({
           set.seed(seed_retry * 1000 + which(clusters_ids == k_id))
           hp_tmp <- suppressWarnings(suppressMessages(
-            train_gp(data = sub_data_agg, kern = "SE",
-                     prior_mean = mean_emp_k, ini_hp = NULL)
+            train_gp(data = sub_data_agg %>% dplyr::select(-c(Cluster_ID,Task_ID)), kern = "SE",
+                     prior_mean = mean_vec_k, ini_hp = NULL)
           ))
 
           sub_data_agg_format_logL <- data.frame(
