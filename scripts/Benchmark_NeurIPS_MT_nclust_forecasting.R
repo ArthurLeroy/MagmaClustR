@@ -194,7 +194,7 @@ tryCatch({
         )
 
         ll_val <- tryCatch({
-          logL_GP_outside_package(
+          MagmaClustR:::logL_GP(
             hp = hp_tmp, db = sub_data_agg_format_logL,
             mean = mean_vec, kern = "SE", post_cov = 0,
             pen_diag = 1e-10,
