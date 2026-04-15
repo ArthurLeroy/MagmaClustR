@@ -3,7 +3,7 @@
 # job_NeurIPS_nclust_phase2_MO_forecasting.sh
 # NeurIPS : Phase 2 — MO FORECASTING ONLY (corrigé : tous outputs enlevés)
 #
-# 7 configs × 1 problème (forecasting) × seeds variables = 310 jobs
+# 7 configs × 1 problème (forecasting) × 5 seeds = 35 jobs
 #
 # Soumission : sbatch job_NeurIPS_nclust_phase2_MO_forecasting.sh
 #===============================================================================
@@ -18,6 +18,7 @@
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
 N_WORKERS=16
+N_SEEDS=5
 
 echo "=============================================="
 echo " NeurIPS Phase 2 : MO FORECASTING"
@@ -55,13 +56,13 @@ SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments_forecasting/scripts"
 
 # Format : "n_out n_train n_pred n_clust n_seeds"
 declare -a MO_CONFIGS=(
-  "4 30 1 1 10"
-  "2 30 10 1 50"
-  "2 30 1 1 50"
-  "2 15 1 1 50"
-  "2 30 1 2 50"
-  "2 30 1 3 50"
-  "2 30 1 4 50"
+  "4 30 1 1 ${N_SEEDS}"
+  "2 30 10 1 ${N_SEEDS}"
+  "2 30 1 1 ${N_SEEDS}"
+  "2 15 1 1 ${N_SEEDS}"
+  "2 30 1 2 ${N_SEEDS}"
+  "2 30 1 3 ${N_SEEDS}"
+  "2 30 1 4 ${N_SEEDS}"
 )
 
 # --- Génération de la file de jobs ---

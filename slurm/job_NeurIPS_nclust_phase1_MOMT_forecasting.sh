@@ -3,7 +3,7 @@
 # job_NeurIPS_nclust_phase1_MOMT_forecasting.sh
 # NeurIPS : Phase 1 — MOMT FORECASTING ONLY (corrigé : tous outputs enlevés)
 #
-# 10 configs × 1 problème (forecasting) × 50 seeds = 500 jobs
+# 10 configs × 1 problème (forecasting) × 5 seeds = 50 jobs
 #
 # Soumission : sbatch job_NeurIPS_nclust_phase1_MOMT_forecasting.sh
 #===============================================================================
@@ -18,7 +18,7 @@
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
 N_WORKERS=16
-N_SEEDS=50
+N_SEEDS=5
 
 echo "=============================================="
 echo " NeurIPS Phase 1 : MOMT FORECASTING (10 configs × ${N_SEEDS} seeds)"

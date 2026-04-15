@@ -3,7 +3,7 @@
 # job_NeurIPS_nclust_phase2_MT_forecasting.sh
 # NeurIPS : Phase 2 — MT FORECASTING ONLY (corrigé : tous outputs enlevés)
 #
-# 10 configs × 1 problème (forecasting) × 50 seeds = 500 jobs
+# 10 configs × 1 problème (forecasting) × 5 seeds = 50 jobs
 #
 # Soumission : sbatch job_NeurIPS_nclust_phase2_MT_forecasting.sh
 #===============================================================================
@@ -18,6 +18,7 @@
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
 N_WORKERS=16
+N_SEEDS=5
 
 echo "=============================================="
 echo " NeurIPS Phase 2 : MT FORECASTING (10 configs)"
@@ -73,7 +74,7 @@ COUNTERFILE="/scratch/${USER}/logs/neurips_nclust_mt_fc/counter_${SLURM_JOB_ID}"
 > "${JOBFILE}"
 for CONFIG_STR in "${MT_CONFIGS[@]}"; do
   read -r N_OUT N_TRAIN N_PRED N_CLUST <<< "${CONFIG_STR}"
-  for SEED in $(seq 1 50); do
+  for SEED in $(seq 1 ${N_SEEDS}); do
     echo "${N_OUT} ${N_TRAIN} ${N_PRED} ${N_CLUST} forecasting ${SEED}" >> "${JOBFILE}"
   done
 done
@@ -154,7 +155,7 @@ MISSING=0
 
 for CONFIG_STR in "${MT_CONFIGS[@]}"; do
   read -r N_OUT N_TRAIN N_PRED N_CLUST <<< "${CONFIG_STR}"
-  for SEED in $(seq 1 50); do
+  for SEED in $(seq 1 ${N_SEEDS}); do
     PRED_FILE="${RESULTS_DIR}/Predictions_MT/out${N_OUT}_train${N_TRAIN}_pred${N_PRED}_clust${N_CLUST}/predictions_seed_${SEED}.rds"
     if [ ! -f "${PRED_FILE}" ]; then
       echo "[MANQUANT MT] ${PRED_FILE}"
