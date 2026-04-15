@@ -165,7 +165,8 @@ tryCatch({
       dplyr::pull(Task_ID)
 
     sub_data_agg <- data_for_init %>%
-      dplyr::filter(Task_ID == best_task_id_init)
+      dplyr::filter(Task_ID == best_task_id_init) %>%
+      dplyr::mutate(Output_ID = as.factor(Output_ID))
 
     mean_emp <- mean(sub_data_agg$Output, na.rm = TRUE)
     mean_vec <- rep(mean_emp, nrow(sub_data_agg))
@@ -372,7 +373,8 @@ tryCatch({
         dplyr::pull(Task_ID)
 
       sub_data_agg <- data_for_init_k %>%
-        dplyr::filter(Task_ID == best_task_id_k)
+        dplyr::filter(Task_ID == best_task_id_k) %>%
+        dplyr::mutate(Output_ID = as.factor(Output_ID))
 
       mean_emp_k <- mean(sub_data_agg$Output, na.rm = TRUE)
       mean_vec_k <- rep(mean_emp_k, nrow(sub_data_agg))
