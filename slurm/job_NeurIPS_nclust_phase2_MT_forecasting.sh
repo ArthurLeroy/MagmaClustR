@@ -155,7 +155,7 @@ MISSING=0
 for CONFIG_STR in "${MT_CONFIGS[@]}"; do
   read -r N_OUT N_TRAIN N_PRED N_CLUST <<< "${CONFIG_STR}"
   for SEED in $(seq 1 50); do
-    PRED_FILE="${RESULTS_DIR}/out${N_OUT}_train${N_TRAIN}_pred${N_PRED}_clust${N_CLUST}/forecasting/Predictions_MT/predictions_seed_${SEED}.rds"
+    PRED_FILE="${RESULTS_DIR}/Predictions_MT/out${N_OUT}_train${N_TRAIN}_pred${N_PRED}_clust${N_CLUST}/predictions_seed_${SEED}.rds"
     if [ ! -f "${PRED_FILE}" ]; then
       echo "[MANQUANT MT] ${PRED_FILE}"
       MISSING=$((MISSING + 1))

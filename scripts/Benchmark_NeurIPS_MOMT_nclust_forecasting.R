@@ -57,10 +57,7 @@ n_tasks_total  <- N_TRAIN + N_PRED
 # --- 1. SETUP & LIBRARIES ---
 username  <- Sys.getenv("USER")
 pkg_dir   <- file.path("/scratch", username, "MagmaClustR")
-base_path <- file.path("/scratch", username, "NeurIPS_experiments",
-                        paste0("out", N_OUT, "_train", N_TRAIN, "_pred", N_PRED,
-                               "_clust", N_CLUST),
-                        PROBLEM)
+base_root <- file.path("/scratch", username, "NeurIPS_experiments_forecasting")
 
 setwd(pkg_dir)
 
@@ -88,10 +85,10 @@ cat(paste0("  Host     : ", Sys.info()["nodename"], "\n"))
 cat(paste0("  PID      : ", Sys.getpid(), "\n\n"))
 
 # Création des répertoires
-dir_datasets         <- file.path(base_path, "Datasets")
-dir_models_momt      <- file.path(base_path, "Models_MOMT")
-dir_predictions_momt <- file.path(base_path, "Predictions_MOMT")
-dir_run_info         <- file.path(base_path, "run_info")
+dir_datasets         <- file.path(base_root, "Datasets", config_label)
+dir_models_momt      <- file.path(base_root, "Models_MOMT", config_label)
+dir_predictions_momt <- file.path(base_root, "Predictions_MOMT", config_label)
+dir_run_info         <- file.path(base_root, "run_info", config_label)
 
 for (d in c(dir_datasets, dir_models_momt, dir_predictions_momt, dir_run_info)) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE)

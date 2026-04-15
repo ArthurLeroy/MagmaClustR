@@ -10,14 +10,14 @@
 
 #SBATCH --job-name=neurips_nclust_mo_fc
 #SBATCH --qos=huge
-#SBATCH -c 32
+#SBATCH -c 16
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_nclust_mo_fc_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_nclust_mo_fc_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=32
+N_WORKERS=16
 
 echo "=============================================="
 echo " NeurIPS Phase 2 : MO FORECASTING"
@@ -153,7 +153,7 @@ MISSING=0
 for CONFIG_STR in "${MO_CONFIGS[@]}"; do
   read -r N_OUT N_TRAIN N_PRED N_CLUST N_SEEDS <<< "${CONFIG_STR}"
   for SEED in $(seq 1 ${N_SEEDS}); do
-    PRED_FILE="${RESULTS_DIR}/out${N_OUT}_train${N_TRAIN}_pred${N_PRED}_clust${N_CLUST}/forecasting/Predictions_MO/predictions_seed_${SEED}.rds"
+    PRED_FILE="${RESULTS_DIR}/Predictions_MO/out${N_OUT}_train${N_TRAIN}_pred${N_PRED}_clust${N_CLUST}/predictions_seed_${SEED}.rds"
     if [ ! -f "${PRED_FILE}" ]; then
       echo "[MANQUANT MO] ${PRED_FILE}"
       MISSING=$((MISSING + 1))
