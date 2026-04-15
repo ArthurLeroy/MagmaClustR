@@ -401,7 +401,7 @@ tryCatch({
       seed               = SEED,
       n_train            = N_TRAIN,
       n_clust            = N_CLUST,
-      ini_hp_0_raw       = ini_hp_0_raw,
+      ini_hp_0           = ini_hp_0,
       ini_hp_t           = ini_hp_t
     )
     saveRDS(model_to_save, file.path(dir_models_momt, paste0("model_seed_", SEED, ".rds")))
@@ -669,7 +669,7 @@ tryCatch({
       seed               = SEED,
       n_train            = N_TRAIN,
       n_clust            = N_CLUST,
-      ini_hp_k_raw       = ini_hp_k_raw,
+      ini_hp_k           = ini_hp_k,
       ini_hp_t           = ini_hp_t
     )
     saveRDS(model_to_save, file.path(dir_models_momt, paste0("model_seed_", SEED, ".rds")))
