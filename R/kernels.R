@@ -405,17 +405,20 @@ hp <- function(kern = "SE",
                noise = FALSE,
                hp_config = NULL) {
   ## Initiate interval boundaries
-  min_val <- -7
-  max_val <- 3
+  min_val_l <- -6
+  max_val_l <- -3
+  min_val_S <- log(0.5)
+  max_val_S <- log(10)
   min_noise <- -5
-  max_noise <- -1
+  max_noise <- -2
 
   # Convolution case
   if (is.function(kern)) {
-    kern_name <- deparse(substitute(kern))
-    if (kern_name != "convolution_kernel") {
-      stop("Currently, only 'convolution_kernel' is supported as a function input.")
-    }
+    # browser()
+    # kern_name <- deparse(substitute(kern))
+    # if (kern_name != "convolution_kernel") {
+    #   stop("Currently, only 'convolution_kernel' is supported as a function input.")
+    # }
     if (is.null(list_task_ID) || is.null(list_output_ID)) {
       stop("For the convolution_kernel, both 'list_task_ID' and 'list_output_ID' must be provided.")
     }
@@ -424,9 +427,9 @@ hp <- function(kern = "SE",
       message("hp_config not provided for convolution_kernel, using default HP bounds.")
       hp_config <- tibble::tibble(
         output_id   = as.factor(list_output_ID),
-        lt_min      = -2, lt_max      = 2,
-        St_min      = -2, St_max      = 2,
-        lu_min      = -2, lu_max      = 0,
+        lt_min      = log(1/1000), lt_max      = log(1/100),
+        St_min      = log(0.4), St_max      = log(20),
+        lu_min      = log(1/1000), lu_max      = log(1/100),
         noise_min   = -5, noise_max   = -2
       )
     }
@@ -544,8 +547,8 @@ hp <- function(kern = "SE",
     for (i in str_kern) {
       temp_hp <- switch(i,
                         "SE" = tibble::tibble(
-                          se_variance = stats::runif(n_draws, min_val, max_val),
-                          se_lengthscale = stats::runif(n_draws, min_val, max_val)
+                          se_variance = stats::runif(n_draws, min_val_S, max_val_S),
+                          se_lengthscale = stats::runif(n_draws, min_val_l, max_val_l)
                         ),
                         "PERIO" = tibble::tibble(
                           perio_variance = stats::runif(n_draws, min_val, max_val),

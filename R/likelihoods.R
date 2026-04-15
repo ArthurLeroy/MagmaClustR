@@ -41,7 +41,6 @@ dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
   )
   attributes(logdetS) <- NULL
 
-  # browser()
   ssq <- t(z) %*% inv_Sigma %*% z
   loglik <- (-(n * (log(2 * pi)) + logdetS + ssq) / 2) %>% as.vector()
   if (log) {
@@ -82,49 +81,36 @@ logL_GP <- function(hp,
                     pen_diag,
                     hp_col_names) {
 
-  if(!(hp %>% tibble::is_tibble()) && length(db$Output_ID %>% unique()) > 1){
-    # Reconstruct the structured HP tibble from the flat vector
+  # 1. Gestion du formatage des hyperparamètres
+  if(!(hp %>% tibble::is_tibble()) && length(db$Output_ID %>% unique()) > 1) {
     hp_tibble <- reconstruct_hp(
       par_vector = hp,
       hp_names = hp_col_names,
       output_ids = db$Output_ID %>% unique()
     )
-  } else if (!(hp %>% tibble::is_tibble()) && length(db$Output_ID %>% unique()) == 1){
+  } else if (!(hp %>% tibble::is_tibble()) && length(db$Output_ID %>% unique()) == 1) {
     hp_tibble <- hp %>%
       t() %>%
       tibble::as_tibble() %>%
       stats::setNames(hp_col_names)
-
   } else {
     hp_tibble <- hp
   }
 
-  ## Extract the input variables (reference Input + Covariates)
-  inputs <- db %>% dplyr::select(-Output)
-
-  if(length(db$Output_ID %>% unique()) > 1){
-    ## MO case
-    ## Sum the two covariance matrices and inverse the result
-    cov <- kern_to_cov(inputs, kern, hp_tibble) + post_cov
-
-    inv <- cov %>% chol_inv_jitter(pen_diag = pen_diag)
+  # 2. Préparation des inputs
+  if (length(db$Output_ID %>% unique()) > 1) {
+    # Cas Multi-Output : on garde Output_ID
+    inputs <- db %>% dplyr::select(-Output)
   } else {
-    # Single output case
-    # Extract all_inputs to call kern_to_inv() on the single output case
-    all_inputs <- db %>%
-      dplyr::select(-c(Output, Output_ID)) %>%
-      unique() %>%
-      dplyr::arrange(Reference)
-
-    # Compute the inverse covariance matrix
-    inv <- kern_to_inv(
-      input = all_inputs,
-      kern = kern,
-      hp = hp_tibble,
-      pen_diag = pen_diag
-    )
+    # Cas Single Output : on retire Output_ID
+    inputs <- db %>% dplyr::select(-c(Output, Output_ID))
   }
 
+  # 3. Calcul unique de la covariance et de son inverse (plus besoin de répéter)
+  cov <- kern_to_cov(inputs, kern, hp_tibble) + post_cov
+  inv <- cov %>% chol_inv_jitter(pen_diag = pen_diag)
+
+  # 4. Calcul de la log-vraisemblance
   (-dmnorm(db$Output, mean, inv, log = T)) %>%
     return()
 }

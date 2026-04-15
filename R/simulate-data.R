@@ -623,34 +623,8 @@ generate_single_task_data <- function(
 #' @param shared_grid_outputs If TRUE, outputs share the same grid.
 #'
 #' @return A list with simulated data, mean process, and HPs.
-#'
-#' @examples
 #' @export
-#'
-#' simulation_results <- simulate_multi_output_data_convol(
-#' num_tasks = 30,
-#' points_per_output_grid = c(200, 200),
-#' grid_ranges = list(c(-1, 1), c(-1, 1)),
-#' prior_means = c(0, 0),
-#' hp_config_mean_process = tibble::tibble(
-#'   output_id = 1:2,
-#'   l0_min = c(log(1/600), log(1/200)), l0_max = c(log(1/600), log(1/200)),
-#'   S0_min = c(log(1), log(5)), S0_max = c(log(1), log(5)),
-#'   lu0_min = c(log(1/200), log(1/200)), lu0_max = c(log(1/200), log(1/200)),
-#' ),
-#'
-#' hp_config_tasks = tibble::tibble(
-#'   output_id = 1:2,
-#'   lt_min = c(log(1/600), log(1/200)), lt_max = c(log(1/600), log(1/200)),
-#'   St_min = c(log(1), log(5)), St_max = c(log(1), log(5)),
-#'   noise_min = c(-3, -3), noise_max = c(-3, -3),
-#'   lu_min = c(log(1/200), log(1/200)), lu_max = c(log(1/200), log(1/200))
-#' ),
-#' n_points_per_task_range = c(20, 20),
-#' shared_hp_tasks = TRUE,
-#' shared_hp_outputs = FALSE,
-#' shared_grid_outputs = FALSE,
-#' )
+
 
 
 simulate_multi_output_data_convol <- function(

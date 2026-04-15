@@ -32,6 +32,7 @@ e_step <- function(db,
                    hp_t,
                    pen_diag) {
 
+  # browser()
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
 
@@ -207,6 +208,7 @@ m_step <- function(db,
                    shared_hp_tasks,
                    pen_diag) {
 
+  # browser()
   list_hp_0 <- old_hp_0 %>% names()
   list_ID_task <- unique(db$Task_ID)
   output_ids_vector <- unique(db$Output_ID)

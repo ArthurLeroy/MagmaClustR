@@ -38,6 +38,7 @@ ve_step <- function(db,
                     old_mixture,
                     iter,
                     pen_diag) {
+  browser()
   ## Extract the list of Tasks'ID and Outputs ID
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
@@ -290,7 +291,6 @@ vm_step <- function(db,
                     shared_hp_clusts,
                     pen_diag
                     ) {
-
   ## Extract Cluster's IDs, Task's IDs and Output's IDs
   list_ID_k <- names(m_k)
   list_ID_t <- unique(db$Task_ID)
@@ -526,6 +526,7 @@ vm_step <- function(db,
     dplyr::select(-Task_ID) %>%
     colMeans()
 
+  # new_hp_k <- old_hp_k
   ## Check whether hyper-parameters are shared across clusters
   if(shared_hp_clusts){
     if (length(db$Output_ID %>% unique()) > 1){
@@ -672,7 +673,6 @@ vm_step <- function(db,
     }
   }
 
-  # browser()
   list(
     "m_k" = new_m_k,
     "hp_k" = new_hp_k,

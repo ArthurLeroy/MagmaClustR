@@ -777,12 +777,18 @@ train_gp <- function(data,
   ## Initialise the mean process' HPs according to user's values
   if (kern %>% is.function()) {
     if (ini_hp %>% is.null()) {
-      stop(
-        "When using a custom kernel function the 'ini_hp_0' argument is ",
-        "mandatory, in order to provide the name of the hyper-parameters. ",
-        "You can use the function 'hp()' to easily generate a tibble of random",
-        " hyper-parameters with the desired format for initialisation."
-      )
+      # stop(
+      #   "When using a custom kernel function the 'ini_hp_0' argument is ",
+      #   "mandatory, in order to provide the name of the hyper-parameters. ",
+      #   "You can use the function 'hp()' to easily generate a tibble of random",
+      #   " hyper-parameters with the desired format for initialisation."
+      # )
+      hp <- hp(kern = kern,
+               list_task_ID = 1,
+               list_output_ID = list_ID_output,
+               noise = TRUE)
+      hp <- hp %>%
+        dplyr::select(-Task_ID)
     } else {
       if('Task_ID' %in% colnames(ini_hp)){
         ini_hp <- ini_hp %>%
@@ -1350,14 +1356,15 @@ train_magmaclust <- function(data,
   # Recompute prior mean parameters for each cluster with the updated mixture
   # probabilities. Prior mean is equal to the empirical mean of each cluster
   floop <- function(k) {
+    k_str <- as.character(k)
     new_means_df <- data %>%
       dplyr::left_join(mixture %>% dplyr::select(Task_ID,
                                                  dplyr::all_of(k)),
                        by = "Task_ID") %>%
       dplyr::group_by(Output_ID) %>%
-      dplyr::filter(!is.na(Output) & !is.na(.data[[k]])) %>%
+      dplyr::filter(!is.na(Output) & !is.na(.data[[k_str]])) %>%
       dplyr::mutate(
-        partial_m_k = (Output * .data[[k]]) / sum(.data[[k]])
+        partial_m_k = (Output * .data[[k_str]]) / sum(.data[[k_str]])
       ) %>%
       dplyr::summarise(
         new_m_k = sum(partial_m_k),

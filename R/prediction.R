@@ -82,7 +82,6 @@ pred_gp <- function(data = NULL,
                     get_full_cov = FALSE,
                     plot = TRUE,
                     pen_diag = 1e-10) {
-
   ## Create a dummy dataset if no data is provided
   if(data %>% is.null()){
     data = tibble::tibble(
@@ -2949,7 +2948,6 @@ pred_magmaclust <- function(data = NULL,
       full_noise_vector <- noise
     }
 
-    # browser()
 
     ## Keep track of the full predicted covariances
     full_cov[[k]] <<- pred_cov + full_noise_vector

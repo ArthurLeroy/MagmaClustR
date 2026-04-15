@@ -147,6 +147,7 @@ plot_gp <- function(pred_gp,
                     size_data = 3,
                     size_data_train = 1,
                     alpha_data_train = 0.5) {
+
   if (prob_CI < 0 | prob_CI > 1) {
     stop("The 'prob_CI' argument should be a number between 0 and 1.")
   }
@@ -482,6 +483,7 @@ plot_gp <- function(pred_gp,
       ## Add training data points
       if (!is.null(data_train_subset)) {
         data_train_subset <- data_train_subset %>%
+          dplyr::mutate(row_id = dplyr::row_number()) %>%
           tidyr::pivot_wider(
             names_from = Input_ID,
             values_from = Input,
@@ -514,6 +516,7 @@ plot_gp <- function(pred_gp,
       }
       if (!is.null(data_subset)) {
         data_subset <- data_subset %>%
+          dplyr::mutate(row_id = dplyr::row_number()) %>%
           tidyr::pivot_wider(
             names_from = Input_ID,
             values_from = Input,
@@ -1325,7 +1328,6 @@ plot_magmaclust <- function(pred_clust,
         }
 
         if(nrow(data_train_sub) > 0) {
-          # browser()
           if (col_clust) {
             # Couleur par Cluster
             if (!("Cluster_ID" %in% names(data_train_sub))) {
@@ -1374,7 +1376,6 @@ plot_magmaclust <- function(pred_clust,
             size = 3
           )
         } else if (length(input_cols) == 1){
-          # browser()
           # 1D Points
 
           data_wide <- data_sub %>%
