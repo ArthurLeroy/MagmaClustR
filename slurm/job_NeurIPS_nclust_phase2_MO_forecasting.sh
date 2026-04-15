@@ -38,7 +38,7 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
-cd /scratch/${USER}/NeurIPS_experiments_v2
+cd /scratch/${USER}/NeurIPS_experiments_forecasting
 
 # --- Logs ---
 LOGDIR="/scratch/${USER}/logs/neurips_nclust_mo_fc"
@@ -47,11 +47,11 @@ mkdir -p "${LOGDIR}"
 # --- Installer le package ---
 LIB_TEMP_V2="/scratch/${USER}/R_temp_v2_$(date +%Y%m%d)"
 mkdir -p "${LIB_TEMP_V2}"
-Rscript -e "install.packages('/scratch/${USER}/NeurIPS_experiments_v2', repos = NULL, type = 'source', lib = '${LIB_TEMP_V2}')"
+Rscript -e "install.packages('/scratch/${USER}/NeurIPS_experiments_forecasting', repos = NULL, type = 'source', lib = '${LIB_TEMP_V2}')"
 export R_LIBS="${LIB_TEMP_V2}:${R_LIBS}"
 
 RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript"
-SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments_v2/scripts"
+SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments_forecasting/scripts"
 
 # Format : "n_out n_train n_pred n_clust n_seeds"
 declare -a MO_CONFIGS=(
@@ -147,7 +147,7 @@ echo " Date       : $(date)"
 echo " Échecs workers : ${FAILED} / ${N_WORKERS}"
 echo "=============================================="
 
-RESULTS_DIR="/scratch/${USER}/NeurIPS_experiments"
+RESULTS_DIR="/scratch/${USER}/NeurIPS_experiments_forecasting"
 MISSING=0
 
 for CONFIG_STR in "${MO_CONFIGS[@]}"; do
