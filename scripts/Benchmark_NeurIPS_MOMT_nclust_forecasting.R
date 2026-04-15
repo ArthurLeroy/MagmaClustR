@@ -565,6 +565,8 @@ tryCatch({
           cat(paste0("  [HP init] k=", k_id, " : logL non calculable, fallback sur train_gp\n"))
         }
         hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- tibble(
+          Cluster_ID = k_id,
+          Output_ID = as.factor(1:N_OUT),
           l_t   = best_hp_gp$l_t,
           S_t   = best_hp_gp$S_t,
           l_u_t = best_hp_gp$l_u_t,

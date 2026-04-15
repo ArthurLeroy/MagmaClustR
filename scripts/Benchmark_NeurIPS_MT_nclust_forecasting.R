@@ -436,6 +436,15 @@ tryCatch({
 
     ini_hp_k <- bind_rows(hp_k_extracted_list)
 
+    required_ini_hp_k_cols <- c("Cluster_ID", "Output_ID", "se_lengthscale", "se_variance", "noise")
+    missing_ini_hp_k_cols <- setdiff(required_ini_hp_k_cols, names(ini_hp_k))
+    if (length(missing_ini_hp_k_cols) > 0) {
+      stop(paste0(
+        "ini_hp_k incomplet dans la branche MT clusterisee. Colonnes manquantes : ",
+        paste(missing_ini_hp_k_cols, collapse = ", ")
+      ))
+    }
+
     ini_hp_t <- ini_hp_k %>%
       dplyr::filter(Cluster_ID == clusters_ids[[1]]) %>%
       dplyr::select(-Cluster_ID)
