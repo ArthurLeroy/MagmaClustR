@@ -38,7 +38,6 @@ ve_step <- function(db,
                     old_mixture,
                     iter,
                     pen_diag) {
-  browser()
   ## Extract the list of Tasks'ID and Outputs ID
   list_ID_task <- unique(db$Task_ID)
   list_output_ID <-  db$Output_ID %>% unique()
@@ -625,7 +624,6 @@ vm_step <- function(db,
       ## Extract the covariance values associated with the k-th specific inputs
       post_cov_k <- list_mu_param$cov[[k]]
 
-      # browser()
       ## Optimise hyper-parameters of the processes of each cluster
       stats::optim(
         par = par_k,
