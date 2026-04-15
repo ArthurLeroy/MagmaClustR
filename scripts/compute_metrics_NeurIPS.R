@@ -7,6 +7,7 @@
 #
 # Lit toutes les prédictions (MOMT, MO, MT) pour chaque configuration,
 # calcule RMSE, NLL, coverage 95%, temps, et produit les tableaux récapitulatifs.
+# Les seeds sont détectées automatiquement à partir des fichiers présents.
 #
 # IMPORTANT : Les métriques sont calculées sur OUTPUT 1 uniquement,
 # en espace original (dé-scalé pour MOMT et MO).
@@ -316,73 +317,91 @@ extract_metrics_mo <- function(pred_entry, scale_factors) {
 # BOUCLE PRINCIPALE
 # ==========================================================================
 
-username   <- Sys.getenv("USER")
-base_dir   <- file.path("/scratch", username, "NeurIPS_experiments")
-output_dir <- file.path(base_dir, "Metrics")
+username          <- Sys.getenv("USER")
+base_dir_interp   <- file.path("/scratch", username, "NeurIPS_experiments")
+base_dir_forecast <- file.path("/scratch", username, "NeurIPS_experiments_forecasting")
+output_dir        <- file.path(base_dir_interp, "Metrics")
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-# Toutes les configurations
-configs <- expand.grid(
-  n_out   = c(2, 4, 8),
-  n_train = c(15, 30, 100),
-  n_pred  = c(1, 10, 100),
-  problem = c("interpolation", "forecasting"),
-  stringsAsFactors = FALSE
-) %>%
-  # Filtrer les 7 configs uniques
-  dplyr::filter(
-    # Défaut : (2, 30, 1)
-    (n_out == 2 & n_train == 30 & n_pred == 1) |
-    # Variations nb outputs
-    (n_out == 4 & n_train == 30 & n_pred == 1) |
-    (n_out == 8 & n_train == 30 & n_pred == 1) |
-    # Variations nb train
-    (n_out == 2 & n_train == 15 & n_pred == 1) |
-    (n_out == 2 & n_train == 100 & n_pred == 1) |
-    # Variations nb pred
-    (n_out == 2 & n_train == 30 & n_pred == 10) |
-    (n_out == 2 & n_train == 30 & n_pred == 100)
-  )
+# Toutes les configurations étudiées
+base_configs <- tibble::tribble(
+  ~n_out, ~n_train, ~n_pred, ~n_clust,
+  4, 30, 1, 1,
+  8, 30, 1, 1,
+  2, 30, 1, 1,
+  2, 15, 1, 1,
+  2, 100, 1, 1,
+  2, 30, 10, 1,
+  2, 30, 100, 1,
+  2, 30, 1, 2,
+  2, 30, 1, 3,
+  2, 30, 1, 4
+)
+
+configs <- tidyr::crossing(
+  base_configs,
+  problem = c("interpolation", "forecasting")
+)
 
 models <- c("MOMT", "MO", "MT")
 
-# Seeds par modèle et configuration :
-#   MOMT : 50 seeds pour toutes les configs
-#   MT   : 50 seeds pour toutes les configs
-#   MO   : variable selon la config (8/30/1, 2/100/1 et 2/30/100 retirées;
-#          4/30/1 à 10 seeds)
-get_seeds <- function(model, n_out, n_train, n_pred) {
-  if (model %in% c("MOMT", "MT")) {
-    return(1:50)
+get_config_label <- function(n_out, n_train, n_pred, n_clust) {
+  paste0("out", n_out, "_train", n_train, "_pred", n_pred, "_clust", n_clust)
+}
+
+get_prediction_dir <- function(problem, model, config_label) {
+  if (problem == "forecasting") {
+    return(file.path(base_dir_forecast, paste0("Predictions_", model), config_label))
   }
-  # MO : configs retirées
-  if (n_out == 8 & n_train == 30 & n_pred == 1) return(integer(0))
-  if (n_out == 2 & n_train == 100 & n_pred == 1) return(integer(0))
-  if (n_out == 2 & n_train == 30 & n_pred == 100) return(integer(0))
-  # MO : config à 10 seeds
-  if (n_out == 4 & n_train == 30 & n_pred == 1) return(1:10)
-  # MO : les autres configs → 50 seeds
-  return(1:50)
+  file.path(base_dir_interp, config_label, problem, paste0("Predictions_", model))
+}
+
+get_dataset_file <- function(problem, config_label, seed) {
+  if (problem == "forecasting") {
+    return(file.path(base_dir_forecast, "Datasets", config_label,
+                     paste0("datasets_seed_", seed, ".rds")))
+  }
+  file.path(base_dir_interp, config_label, problem, "Datasets",
+            paste0("datasets_seed_", seed, ".rds"))
+}
+
+get_available_seeds <- function(pred_dir) {
+  if (!dir.exists(pred_dir)) return(integer(0))
+
+  pred_files <- list.files(
+    pred_dir,
+    pattern = "^predictions_seed_[0-9]+\\.rds$",
+    full.names = FALSE
+  )
+  if (length(pred_files) == 0) return(integer(0))
+
+  pred_files %>%
+    stringr::str_match("^predictions_seed_([0-9]+)\\.rds$") %>%
+    .[, 2] %>%
+    as.integer() %>%
+    sort()
 }
 
 cat("=== Calcul des métriques NeurIPS ===\n")
 cat(paste0("  Date      : ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n"))
 cat(paste0("  Configs   : ", nrow(configs), "\n"))
 cat(paste0("  Modèles   : ", paste(models, collapse = ", "), "\n"))
-cat(paste0("  Seeds     : variables (MOMT/MT=50, MO=0/10/50 selon config)\n\n"))
+cat("  Seeds     : détectées automatiquement depuis les fichiers de prédiction\n")
+cat(paste0("  Résultats interpolation : ", base_dir_interp, "\n"))
+cat(paste0("  Résultats forecasting   : ", base_dir_forecast, "\n\n"))
 
 all_metrics <- list()
 
 for (i in 1:nrow(configs)) {
   cfg <- configs[i, ]
-  config_label <- paste0("out", cfg$n_out, "_train", cfg$n_train, "_pred", cfg$n_pred)
-  config_path  <- file.path(base_dir, config_label, cfg$problem)
+  config_label <- get_config_label(cfg$n_out, cfg$n_train, cfg$n_pred, cfg$n_clust)
 
   for (model in models) {
-    seeds <- get_seeds(model, cfg$n_out, cfg$n_train, cfg$n_pred)
+    pred_dir <- get_prediction_dir(cfg$problem, model, config_label)
+    seeds <- get_available_seeds(pred_dir)
     if (length(seeds) == 0) next
+
     for (seed in seeds) {
-      pred_dir  <- file.path(config_path, paste0("Predictions_", model))
       pred_file <- file.path(pred_dir, paste0("predictions_seed_", seed, ".rds"))
 
       if (!file.exists(pred_file)) {
@@ -396,8 +415,7 @@ for (i in 1:nrow(configs)) {
       # Charger les scale_factors si nécessaire (MOMT et MO)
       scale_factors <- NULL
       if (model %in% c("MOMT", "MO")) {
-        ds_file <- file.path(config_path, "Datasets",
-                             paste0("datasets_seed_", seed, ".rds"))
+        ds_file <- get_dataset_file(cfg$problem, config_label, seed)
         if (file.exists(ds_file)) {
           ds <- readRDS(ds_file)
           scale_factors <- ds$scale_factors
@@ -445,6 +463,7 @@ for (i in 1:nrow(configs)) {
         n_out       = cfg$n_out,
         n_train     = cfg$n_train,
         n_pred      = cfg$n_pred,
+        n_clust     = cfg$n_clust,
         problem     = cfg$problem,
         model       = model,
         seed        = seed,
@@ -464,6 +483,10 @@ for (i in 1:nrow(configs)) {
 
 metrics_raw <- bind_rows(all_metrics)
 
+if (nrow(metrics_raw) == 0) {
+  stop("Aucune prédiction exploitable trouvée dans les répertoires interpolation/forecasting configurés.")
+}
+
 # --- Sauvegarde des métriques brutes ---
 write_csv(metrics_raw, file.path(output_dir, "metrics_raw_NeurIPS.csv"))
 saveRDS(metrics_raw, file.path(output_dir, "metrics_raw_NeurIPS.rds"))
@@ -471,7 +494,7 @@ cat(paste0("\nMétriques brutes : ", nrow(metrics_raw), " lignes\n"))
 
 # --- Résumé statistique ---
 metrics_summary <- metrics_raw %>%
-  dplyr::group_by(n_out, n_train, n_pred, problem, model) %>%
+  dplyr::group_by(n_out, n_train, n_pred, n_clust, problem, model) %>%
   dplyr::summarise(
     rmse_mean   = mean(rmse, na.rm = TRUE),
     rmse_std    = sd(rmse, na.rm = TRUE),
@@ -521,7 +544,7 @@ metrics_display <- metrics_summary %>%
     `T_pred (mean±std)`   = paste0(round(t_pred_mean, 2), " ± ", round(t_pred_std, 2))
   ) %>%
   dplyr::select(
-    n_out, n_train, n_pred, problem, model,
+    n_out, n_train, n_pred, n_clust, problem, model,
     `RMSE (mean±std)`, `RMSE (median[IQR])`,
     `NLL (mean±std)`, `NLL (median[IQR])`,
     `Cov95 (mean±std)`, `Cov95 (median[IQR])`,
@@ -541,7 +564,7 @@ cat("\n--- Résumé par paramètre d'intérêt ---\n\n")
 # Nb outputs (n_train=30, n_pred=1)
 cat("=== Paramètre : nb_outputs ===\n")
 sub <- metrics_display %>%
-  dplyr::filter(n_train == 30, n_pred == 1) %>%
+  dplyr::filter(n_train == 30, n_pred == 1, n_clust == 1) %>%
   dplyr::arrange(problem, n_out, model)
 print(as.data.frame(sub), row.names = FALSE)
 cat("\n")
@@ -549,7 +572,7 @@ cat("\n")
 # Nb train (n_out=2, n_pred=1)
 cat("=== Paramètre : nb_tasks_train ===\n")
 sub <- metrics_display %>%
-  dplyr::filter(n_out == 2, n_pred == 1) %>%
+  dplyr::filter(n_out == 2, n_pred == 1, n_clust == 1) %>%
   dplyr::arrange(problem, n_train, model)
 print(as.data.frame(sub), row.names = FALSE)
 cat("\n")
@@ -557,8 +580,16 @@ cat("\n")
 # Nb pred (n_out=2, n_train=30)
 cat("=== Paramètre : nb_tasks_pred ===\n")
 sub <- metrics_display %>%
-  dplyr::filter(n_out == 2, n_train == 30) %>%
+  dplyr::filter(n_out == 2, n_train == 30, n_clust == 1) %>%
   dplyr::arrange(problem, n_pred, model)
+print(as.data.frame(sub), row.names = FALSE)
+cat("\n")
+
+# Nb clusters (config par défaut : 2/30/1)
+cat("=== Paramètre : nb_clusters ===\n")
+sub <- metrics_display %>%
+  dplyr::filter(n_out == 2, n_train == 30, n_pred == 1) %>%
+  dplyr::arrange(problem, n_clust, model)
 print(as.data.frame(sub), row.names = FALSE)
 cat("\n")
 
