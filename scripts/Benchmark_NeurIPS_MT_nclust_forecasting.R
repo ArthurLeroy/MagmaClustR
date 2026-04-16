@@ -350,15 +350,27 @@ tryCatch({
     # N_CLUST >= 2 : MagmaClust pour MT
     # ================================================================
 
-    # --- HP initialisation via GP vanille (SE) par cluster ---
+    # --- HP initialisation via GP vanille (SE) par cluster MT ---
+    # En MT, on crée N_CLUST * N_OUT clusters (un par (cluster MOMT, output d'origine))
+    N_CLUST_MT <- N_CLUST * N_OUT
+    output_ids_sorted <- sort(output_ids)
+    cat(paste0("  N_CLUST_MT = ", N_CLUST_MT, " (", N_CLUST, " × ", N_OUT, ")\n"))
+
     cluster_mapping_momt <- datasets$cluster_mapping %>%
       dplyr::mutate(Task_ID = as.character(Task_ID))
 
     train_data_mt_with_cluster <- train_data_mt %>%
-      dplyr::mutate(Task_ID_orig = sub("^T(.+)_O.*$", "\\1", Task_ID)) %>%
-      dplyr::left_join(cluster_mapping_momt, by = c("Task_ID_orig" = "Task_ID"))
+      dplyr::mutate(
+        Task_ID_orig   = sub("^T(.+)_O.*$", "\\1", Task_ID),
+        Output_ID_orig = sub("^T.+_O(.+)$", "\\1", Task_ID)
+      ) %>%
+      dplyr::left_join(cluster_mapping_momt, by = c("Task_ID_orig" = "Task_ID")) %>%
+      dplyr::mutate(
+        Cluster_ID = (Cluster_ID - 1) * length(output_ids_sorted) +
+                     match(Output_ID_orig, output_ids_sorted)
+      )
 
-    clusters_ids <- sort(unique(cluster_mapping_momt$Cluster_ID))
+    clusters_ids <- sort(unique(train_data_mt_with_cluster$Cluster_ID))
     hp_k_extracted_list <- list()
 
     for (k_id in clusters_ids) {
@@ -455,15 +467,22 @@ tryCatch({
       dplyr::arrange(Cluster_ID) %>%
       dplyr::pull(prior_mean)
 
-    # ini_mixture : étendre de N_TRAIN à N_TRAIN × N_OUT
+    # ini_mixture : étendre de N_TRAIN (k clusters) à N_TRAIN × N_OUT (k*n_out clusters)
     ini_mixture_momt <- trained_model_momt$ini_args$ini_mixture
 
     ini_mixture_mt_rows <- list()
     for (r in 1:nrow(ini_mixture_momt)) {
       orig_tid <- as.character(ini_mixture_momt$Task_ID[r])
       for (oid in output_ids) {
-        new_row <- ini_mixture_momt[r, ]
-        new_row$Task_ID <- paste0("T", orig_tid, "_O", oid)
+        oid_idx <- match(oid, output_ids_sorted)
+        new_row <- tibble(Task_ID = paste0("T", orig_tid, "_O", oid))
+        for (c_momt in 1:N_CLUST) {
+          p_momt <- ini_mixture_momt[[paste0("Cluster_", c_momt)]][r]
+          for (o_idx in seq_along(output_ids_sorted)) {
+            c_mt <- (c_momt - 1) * length(output_ids_sorted) + o_idx
+            new_row[[paste0("Cluster_", c_mt)]] <- if (o_idx == oid_idx) p_momt else 0
+          }
+        }
         ini_mixture_mt_rows[[length(ini_mixture_mt_rows) + 1]] <- new_row
       }
     }
@@ -475,7 +494,7 @@ tryCatch({
       data             = train_data_mt,
       ini_mixture      = ini_mixture_mt,
       ini_hp_k         = ini_hp_k %>% dplyr::select(-noise),
-      nb_cluster       = N_CLUST,
+      nb_cluster       = N_CLUST_MT,
       kern_k           = "SE",
       ini_hp_t         = ini_hp_t,
       kern_t           = "SE",
