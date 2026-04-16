@@ -55,6 +55,9 @@ RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6
 SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments_forecasting/scripts"
 
 declare -a MT_CONFIGS=(
+  "2 30 1 2"
+  "2 30 1 3"
+  "2 30 1 4"
   "4 30 1 1"
   "8 30 1 1"
   "2 30 1 1"
@@ -62,9 +65,6 @@ declare -a MT_CONFIGS=(
   "2 100 1 1"
   "2 30 10 1"
   "2 30 100 1"
-  "2 30 1 2"
-  "2 30 1 3"
-  "2 30 1 4"
 )
 
 # --- Génération de la file de jobs ---

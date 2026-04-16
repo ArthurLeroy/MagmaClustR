@@ -386,7 +386,7 @@ tryCatch({
         tryCatch({
           set.seed(seed_retry * 1000 + which(clusters_ids == k_id))
           hp_tmp <- suppressWarnings(suppressMessages(
-            train_gp(data = sub_data_agg %>% dplyr::select(-c(Cluster_ID,Task_ID)), kern = "SE",
+            train_gp(data = sub_data_agg %>% dplyr::select(Input, Output, Output_ID), kern = "SE",
                      prior_mean = mean_vec_k, ini_hp = NULL)
           ))
 
