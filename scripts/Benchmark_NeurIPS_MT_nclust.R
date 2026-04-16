@@ -323,7 +323,7 @@ tryCatch({
       dplyr::mutate(
         se_lengthscale = l_t,
         se_variance    = S_t,
-        Cluster_ID = (Cluster_ID - 1) * length(output_ids_sorted) +
+          Cluster_ID = (as.integer(as.character(Cluster_ID)) - 1) * length(output_ids_sorted) +
                      match(as.character(Output_ID), output_ids_sorted),
         Output_ID  = as.factor("1")
       ) %>%
@@ -340,7 +340,10 @@ tryCatch({
 
     # Prior means par cluster MT
     cluster_mapping_momt <- datasets$cluster_mapping %>%
-      dplyr::mutate(Task_ID = as.character(Task_ID))
+        dplyr::mutate(
+          Task_ID = as.character(Task_ID),
+          Cluster_ID = as.integer(as.character(Cluster_ID))
+        )
 
     train_data_mt_with_cluster <- train_data_mt %>%
       dplyr::mutate(
@@ -349,7 +352,7 @@ tryCatch({
       ) %>%
       dplyr::left_join(cluster_mapping_momt, by = c("Task_ID_orig" = "Task_ID")) %>%
       dplyr::mutate(
-        Cluster_ID = (Cluster_ID - 1) * length(output_ids_sorted) +
+          Cluster_ID = (as.integer(as.character(Cluster_ID)) - 1) * length(output_ids_sorted) +
                      match(Output_ID_orig, output_ids_sorted)
       )
 

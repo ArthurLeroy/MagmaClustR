@@ -357,7 +357,10 @@ tryCatch({
     cat(paste0("  N_CLUST_MT = ", N_CLUST_MT, " (", N_CLUST, " × ", N_OUT, ")\n"))
 
     cluster_mapping_momt <- datasets$cluster_mapping %>%
-      dplyr::mutate(Task_ID = as.character(Task_ID))
+      dplyr::mutate(
+        Task_ID = as.character(Task_ID),
+        Cluster_ID = as.integer(as.character(Cluster_ID))
+      )
 
     train_data_mt_with_cluster <- train_data_mt %>%
       dplyr::mutate(
@@ -366,7 +369,7 @@ tryCatch({
       ) %>%
       dplyr::left_join(cluster_mapping_momt, by = c("Task_ID_orig" = "Task_ID")) %>%
       dplyr::mutate(
-        Cluster_ID = (Cluster_ID - 1) * length(output_ids_sorted) +
+        Cluster_ID = (as.integer(as.character(Cluster_ID)) - 1) * length(output_ids_sorted) +
                      match(Output_ID_orig, output_ids_sorted)
       )
 
