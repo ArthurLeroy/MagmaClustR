@@ -323,16 +323,16 @@ for (i in 1:nrow(base_configs)) {
   cfg <- base_configs[i, ]
   config_label <- paste0("out", cfg$n_out, "_train", cfg$n_train,
                           "_pred", cfg$n_pred, "_clust", cfg$n_clust)
-  config_path  <- file.path(base_dir, config_label, "forecasting")
+  dataset_dir  <- file.path(base_dir, "Datasets", config_label)
 
   for (model in models) {
 
     for (seed in seeds) {
-      pred_dir  <- file.path(config_path, paste0("Predictions_", model))
+      pred_dir  <- file.path(base_dir, paste0("Predictions_", model), config_label)
       pred_file <- file.path(pred_dir, paste0("predictions_seed_", seed, ".rds"))
 
       if (!file.exists(pred_file)) {
-        cat(paste0("  [SKIP] ", config_label, "/forecasting/", model,
+        cat(paste0("  [SKIP] ", config_label, "/", model,
                    " seed=", seed, "\n"))
         next
       }
@@ -342,8 +342,7 @@ for (i in 1:nrow(base_configs)) {
       # Charger les scale_factors si nécessaire (MOMT)
       scale_factors <- NULL
       if (model == "MOMT") {
-        ds_file <- file.path(config_path, "Datasets",
-                             paste0("datasets_seed_", seed, ".rds"))
+        ds_file <- file.path(dataset_dir, paste0("datasets_seed_", seed, ".rds"))
         if (file.exists(ds_file)) {
           ds <- readRDS(ds_file)
           scale_factors <- ds$scale_factors
@@ -395,7 +394,7 @@ for (i in 1:nrow(base_configs)) {
         t_hyperpost = t_hyperpost
       )
 
-      cat(paste0("  [OK] ", config_label, "/forecasting/", model,
+      cat(paste0("  [OK] ", config_label, "/", model,
                  " seed=", seed, " RMSE=", round(rmse_all, 4), "\n"))
     }
   }
