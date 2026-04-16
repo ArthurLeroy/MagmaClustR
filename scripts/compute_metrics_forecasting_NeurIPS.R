@@ -289,7 +289,7 @@ extract_metrics_mt <- function(pred_entry) {
 # ==========================================================================
 
 username   <- Sys.getenv("USER")
-base_dir   <- file.path("/scratch", username, "NeurIPS_experiments")
+base_dir   <- file.path("/scratch", username, "NeurIPS_experiments_forecasting")
 output_dir <- file.path(base_dir, "Metrics")
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
