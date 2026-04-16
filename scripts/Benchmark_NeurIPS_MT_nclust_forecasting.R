@@ -354,12 +354,13 @@ tryCatch({
     # En MT, on crée N_CLUST * N_OUT clusters (un par (cluster MOMT, output d'origine))
     N_CLUST_MT <- N_CLUST * N_OUT
     output_ids_sorted <- sort(output_ids)
+    cluster_index_from_id <- function(x) readr::parse_number(as.character(x))
     cat(paste0("  N_CLUST_MT = ", N_CLUST_MT, " (", N_CLUST, " × ", N_OUT, ")\n"))
 
     cluster_mapping_momt <- datasets$cluster_mapping %>%
       dplyr::mutate(
         Task_ID = as.character(Task_ID),
-        Cluster_ID = as.integer(as.character(Cluster_ID))
+        Cluster_ID = as.character(Cluster_ID)
       )
 
     train_data_mt_with_cluster <- train_data_mt %>%
@@ -369,11 +370,18 @@ tryCatch({
       ) %>%
       dplyr::left_join(cluster_mapping_momt, by = c("Task_ID_orig" = "Task_ID")) %>%
       dplyr::mutate(
-        Cluster_ID = (as.integer(as.character(Cluster_ID)) - 1) * length(output_ids_sorted) +
-                     match(Output_ID_orig, output_ids_sorted)
+        Cluster_ID = paste0(
+          "K",
+          (cluster_index_from_id(Cluster_ID) - 1) * length(output_ids_sorted) +
+          match(Output_ID_orig, output_ids_sorted)
+        )
       )
 
-    clusters_ids <- sort(unique(train_data_mt_with_cluster$Cluster_ID))
+    clusters_ids <- train_data_mt_with_cluster %>%
+      dplyr::distinct(Cluster_ID) %>%
+      dplyr::mutate(cluster_idx = cluster_index_from_id(Cluster_ID)) %>%
+      dplyr::arrange(cluster_idx) %>%
+      dplyr::pull(Cluster_ID)
     hp_k_extracted_list <- list()
 
     for (k_id in clusters_ids) {
@@ -480,10 +488,10 @@ tryCatch({
         oid_idx <- match(oid, output_ids_sorted)
         new_row <- tibble(Task_ID = paste0("T", orig_tid, "_O", oid))
         for (c_momt in 1:N_CLUST) {
-          p_momt <- ini_mixture_momt[[paste0("Cluster_", c_momt)]][r]
+          p_momt <- ini_mixture_momt[[paste0("K", c_momt)]][r]
           for (o_idx in seq_along(output_ids_sorted)) {
             c_mt <- (c_momt - 1) * length(output_ids_sorted) + o_idx
-            new_row[[paste0("Cluster_", c_mt)]] <- if (o_idx == oid_idx) p_momt else 0
+            new_row[[paste0("K", c_mt)]] <- if (o_idx == oid_idx) p_momt else 0
           }
         }
         ini_mixture_mt_rows[[length(ini_mixture_mt_rows) + 1]] <- new_row
