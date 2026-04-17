@@ -18,7 +18,7 @@
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
 N_WORKERS=32
-N_SEEDS=50
+N_SEEDS=5
 
 echo "=============================================="
 echo " NeurIPS Phase 1 : MOMT INTERPOLATION (10 configs × ${N_SEEDS} seeds)"
