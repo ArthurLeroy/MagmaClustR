@@ -1,8 +1,8 @@
 # ==========================================================================
-# Benchmark_NeurIPS_MT_nclust_interpolation.R
-# NeurIPS : Benchmark MT (INTERPOLATION ONLY) avec paramètre n_clust variable
-# Interpolation : on enlève les observations sur l'intervalle [-0.5, 0.5]
-# pour Output_ID="1" uniquement. Les autres outputs restent complets.
+# Benchmark_NeurIPS_MT_nclust_forecasting.R
+# NeurIPS : Benchmark MT (FORECASTING ONLY) avec paramètre n_clust variable
+# Corrige le bug de la version originale : on enlève les observations sur
+# l'intervalle de forecasting [0,1] pour TOUS les outputs (pas seulement Output 1).
 #
 # Usage :
 #   Rscript Benchmark_NeurIPS_MT_nclust.R --n_out=2 --n_train=30 --n_pred=1 \
@@ -44,13 +44,13 @@ stopifnot(N_OUT %in% c(2, 4, 8))
 stopifnot(N_TRAIN %in% c(15, 30, 100))
 stopifnot(N_PRED %in% c(1, 10, 100))
 stopifnot(N_CLUST %in% c(1, 2, 3, 4))
-stopifnot(PROBLEM == "interpolation")
+stopifnot(PROBLEM == "forecasting")
 stopifnot(SEED >= 1 & SEED <= 5)
 
 # --- 1. SETUP & LIBRARIES ---
 username  <- Sys.getenv("USER")
 pkg_dir   <- file.path("/scratch", username, "MagmaClustR")
-base_root <- file.path("/scratch", username, "NeurIPS_experiments_interpolation")
+base_root <- file.path("/scratch", username, "NeurIPS_experiments_forecasting")
 
 setwd(pkg_dir)
 
@@ -83,7 +83,7 @@ for (d in c(dir_models_mt, dir_predictions_mt, dir_run_info)) {
 }
 
 run_info <- list(
-  script = "Benchmark_NeurIPS_MT_nclust_interpolation.R",
+  script = "Benchmark_NeurIPS_MT_nclust_forecasting.R",
   n_out = N_OUT, n_train = N_TRAIN, n_pred = N_PRED, n_clust = N_CLUST,
   problem = PROBLEM, seed = SEED,
   started_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
@@ -120,24 +120,17 @@ tryCatch({
   pred_tasks_data_raw <- list()
   test_tasks_data_raw <- list()
 
-  # --- Interpolation : gap [-0.5, 0.5] sur Output_ID="1" uniquement ---
-  gap_start <- -0.5
-  gap_end   <-  0.5
-
-  train_data_raw <- data_raw %>%
-    dplyr::filter(Task_ID %in% train_task_ids) %>%
-    dplyr::filter(Output_ID != "1" |
-                  (Output_ID == "1" & !(Input >= gap_start & Input <= gap_end)))
+  # --- Forecasting : on enlève [0,1] pour TOUS les outputs des tâches test ---
+  train_data_raw <- data_raw %>% dplyr::filter(Task_ID %in% train_task_ids)
 
   for (tid in test_task_ids) {
     task_full <- data_raw %>% dplyr::filter(Task_ID == tid)
-    task_O1   <- task_full %>% dplyr::filter(Output_ID == "1") %>% dplyr::arrange(Input)
-    test_tasks_data_raw[[tid]] <- task_O1 %>%
-      dplyr::filter(Input >= gap_start & Input <= gap_end)
-    pred_tasks_data_raw[[tid]] <- dplyr::bind_rows(
-      task_full %>% dplyr::filter(Output_ID != "1"),
-      task_O1 %>% dplyr::filter(!(Input >= gap_start & Input <= gap_end))
-    ) %>% dplyr::arrange(Output_ID, Input)
+    test_tasks_data_raw[[tid]] <- task_full %>%
+      dplyr::filter(Input >= 0 & Input <= 1) %>%
+      dplyr::arrange(Output_ID, Input)
+    pred_tasks_data_raw[[tid]] <- task_full %>%
+      dplyr::filter(!(Input >= 0 & Input <= 1)) %>%
+      dplyr::arrange(Output_ID, Input)
   }
 
   # --- 3. REFORMATAGE POUR MT ---
@@ -161,33 +154,74 @@ tryCatch({
     # N_CLUST = 1 : Magma (sans clustering) pour MT
     # ================================================================
 
-    # --- HP initialisation via train_sum_GP (SE) ---
-    data_for_preprocess <- train_data_mt %>%
+    # --- HP initialisation via GP vanille (SE) ---
+    data_for_init <- train_data_mt %>%
       dplyr::mutate(Input = round(Input, 6))
 
-    prior_mean_mt <- data_for_preprocess %>%
-      group_by(Output_ID) %>%
-      summarise(Prior_mean = mean(Output, na.rm = TRUE))
+    best_task_id_init <- data_for_init %>%
+      dplyr::count(Task_ID) %>%
+      dplyr::arrange(dplyr::desc(n)) %>%
+      dplyr::slice(1) %>%
+      dplyr::pull(Task_ID)
 
-    set.seed(1)
-    hp_init <- hp(kern = "SE",
-                  list_task_ID = 1,
-                  list_output_ID = "1",
-                  noise = TRUE) %>%
-      dplyr::select(-Task_ID)
+    sub_data_agg <- data_for_init %>%
+      dplyr::filter(Task_ID == best_task_id_init) %>%
+      dplyr::mutate(Output_ID = as.factor(Output_ID))
 
-    ini_hp_opt <- train_sum_GP(
-      data = data_for_preprocess %>%
-        dplyr::mutate(Input_1 = Input) %>%
-        dplyr::select(-Input),
-      ini_hp_0 = hp_init,
-      prior_mean = prior_mean_mt,
-      kern = "SE",
-      pen_diag = 1e-10,
-      nb_task_optim = 10
+    mean_emp <- mean(sub_data_agg$Output, na.rm = TRUE)
+    mean_vec <- rep(mean_emp, nrow(sub_data_agg))
+
+    best_ll    <- +Inf
+    best_hp_gp <- NULL
+
+    for (seed_retry in 1:10) {
+      tryCatch({
+        set.seed(seed_retry * 1000)
+        hp_tmp <- suppressWarnings(suppressMessages(
+          train_gp(data = sub_data_agg %>% dplyr::select(-Task_ID), kern = "SE",
+                   prior_mean = mean_vec, ini_hp = NULL)
+        ))
+
+        sub_data_agg_format_logL <- data.frame(
+          Input_1   = as.numeric(sub_data_agg$Input),
+          Output_ID = as.character(sub_data_agg$Output_ID),
+          Output    = as.numeric(sub_data_agg$Output),
+          stringsAsFactors = FALSE
+        )
+        sub_data_agg_format_logL$Reference <- paste0(
+          "o", sub_data_agg_format_logL$Output_ID, ";",
+          sub_data_agg_format_logL$Input_1
+        )
+
+        ll_val <- tryCatch({
+          MagmaClustR:::logL_GP(
+            hp = hp_tmp, db = sub_data_agg_format_logL,
+            mean = mean_vec, kern = "SE", post_cov = 0,
+            pen_diag = 1e-10,
+            hp_col_names = c("se_variance", "se_lengthscale")
+          )
+        }, error = function(e) return(+Inf))
+
+        if (ll_val < best_ll) {
+          best_ll    <- ll_val
+          best_hp_gp <- hp_tmp
+        }
+      }, error = function(e) {
+        cat(paste0("  [train_gp ERR] retry=", seed_retry, ": ", e$message, "\n"))
+      })
+    }
+
+    if (is.null(best_hp_gp)) {
+      best_hp_gp <- list(se_lengthscale = 0, se_variance = 0, noise = -3)
+    }
+
+    ini_hp_0_mt <- tibble(
+      Output_ID      = as.factor("1"),
+      se_lengthscale = best_hp_gp$se_lengthscale,
+      se_variance    = best_hp_gp$se_variance,
+      noise          = -3
     )
 
-    ini_hp_0_mt <- ini_hp_opt
     ini_hp_t_mt <- ini_hp_0_mt
 
     # prior_means_mt <- mean_emp
@@ -352,45 +386,76 @@ tryCatch({
     hp_k_extracted_list <- list()
 
     for (k_id in clusters_ids) {
-      data_for_preprocess_k <- train_data_mt_with_cluster %>%
+      data_for_init_k <- train_data_mt_with_cluster %>%
         dplyr::filter(Cluster_ID == k_id) %>%
         dplyr::mutate(Input = round(Input, 6))
 
-      if (nrow(data_for_preprocess_k) < 3) {
-        hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- tibble(
-          Cluster_ID     = k_id,
-          Output_ID      = as.factor("1"),
-          se_lengthscale = 0,
-          se_variance    = 0,
-          noise          = -3
-        )
-        next
+      best_task_id_k <- data_for_init_k %>%
+        dplyr::count(Task_ID) %>%
+        dplyr::arrange(dplyr::desc(n)) %>%
+        dplyr::slice(1) %>%
+        dplyr::pull(Task_ID)
+
+      sub_data_agg <- data_for_init_k %>%
+        dplyr::filter(Task_ID == best_task_id_k) %>%
+        dplyr::mutate(Output_ID = as.factor(Output_ID))
+
+      mean_emp_k <- mean(sub_data_agg$Output, na.rm = TRUE)
+      mean_vec_k <- rep(mean_emp_k, nrow(sub_data_agg))
+
+      best_ll    <- +Inf
+      best_hp_gp <- NULL
+
+      for (seed_retry in 1:10) {
+        tryCatch({
+          set.seed(seed_retry * 1000 + which(clusters_ids == k_id))
+          hp_tmp <- suppressWarnings(suppressMessages(
+            train_gp(data = sub_data_agg %>% dplyr::select(Input_ID, Input, Output, Output_ID), kern = "SE",
+                     prior_mean = mean_vec_k, ini_hp = NULL)
+          ))
+
+          sub_data_agg_format_logL <- data.frame(
+            Input_1   = as.numeric(sub_data_agg$Input),
+            Output_ID = as.character(sub_data_agg$Output_ID),
+            Output    = as.numeric(sub_data_agg$Output),
+            stringsAsFactors = FALSE
+          )
+          sub_data_agg_format_logL$Reference <- paste0(
+            "o", sub_data_agg_format_logL$Output_ID, ";",
+            sub_data_agg_format_logL$Input_1
+          )
+
+          ll_val <- tryCatch({
+            MagmaClustR:::logL_GP(
+              hp = hp_tmp, db = sub_data_agg_format_logL,
+              mean = mean_vec_k, kern = "SE", post_cov = 0,
+              pen_diag = 1e-10,
+              hp_col_names = c("se_variance", "se_lengthscale")
+            )
+          }, error = function(e) return(+Inf))
+
+          if (ll_val < best_ll) {
+            best_ll    <- ll_val
+            best_hp_gp <- hp_tmp
+          }
+        }, error = function(e) {
+          cat(paste0("  [train_gp ERR] k=", k_id,
+                     " retry=", seed_retry, ": ", e$message, "\n"))
+        })
       }
 
-      prior_mean_k <- data_for_preprocess_k %>%
-        group_by(Output_ID) %>%
-        summarise(Prior_mean = mean(Output, na.rm = TRUE))
+      if (is.null(best_hp_gp)) {
+        cat(paste0("  [WARN] Aucun train_gp OK pour k=", k_id, "\n"))
+        best_hp_gp <- list(se_lengthscale = 0, se_variance = 0, noise = -3)
+      }
 
-      set.seed(which(clusters_ids == k_id))
-      hp_init_k <- hp(kern = "SE",
-                      list_task_ID = 1,
-                      list_output_ID = "1",
-                      noise = TRUE) %>%
-        dplyr::select(-Task_ID)
-
-      ini_hp_opt_k <- train_sum_GP(
-        data = data_for_preprocess_k %>%
-          dplyr::mutate(Input_1 = Input) %>%
-          dplyr::select(-Input),
-        ini_hp_0 = hp_init_k,
-        prior_mean = prior_mean_k,
-        kern = "SE",
-        pen_diag = 1e-10,
-        nb_task_optim = 4
+      hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- tibble(
+        Cluster_ID     = k_id,
+        Output_ID      = as.factor("1"),
+        se_lengthscale = best_hp_gp$se_lengthscale,
+        se_variance    = best_hp_gp$se_variance,
+        noise          = -3
       )
-
-      hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- ini_hp_opt_k %>%
-        dplyr::mutate(Cluster_ID = k_id)
     }
 
     ini_hp_k <- bind_rows(hp_k_extracted_list)
