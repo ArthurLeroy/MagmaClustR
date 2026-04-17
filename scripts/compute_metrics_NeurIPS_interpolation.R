@@ -291,7 +291,7 @@ base_configs <- tibble::tribble(
 )
 
 models <- c("MOMT", "MT")
-seeds  <- 1:5
+seeds  <- 1:50
 
 cat("=== Calcul des metriques NeurIPS (interpolation uniquement) ===\n")
 cat(paste0("  Date      : ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n"))
