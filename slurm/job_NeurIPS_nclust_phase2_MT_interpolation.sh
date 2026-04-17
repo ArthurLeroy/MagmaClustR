@@ -17,8 +17,8 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=16
-N_SEEDS=5
+N_WORKERS=32
+N_SEEDS=50
 
 echo "=============================================="
 echo " NeurIPS Phase 2 : MT INTERPOLATION (10 configs)"

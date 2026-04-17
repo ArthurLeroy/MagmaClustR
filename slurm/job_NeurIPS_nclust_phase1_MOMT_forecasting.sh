@@ -17,8 +17,8 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=16
-N_SEEDS=5
+N_WORKERS=32
+N_SEEDS=50
 
 echo "=============================================="
 echo " NeurIPS Phase 1 : MOMT FORECASTING (10 configs × ${N_SEEDS} seeds)"
@@ -58,16 +58,16 @@ mkdir -p "${SCRIPT_DIR}" "${UTILS_DIR}"
 RSCRIPT="/opt/spack/opt/spack/linux-debian11-zen2/gcc-13.2.0/r-4.4.0-tohpugilej6myswwe73dlbkypu7qqn4p/bin/Rscript"
 
 declare -a CONFIGS=(
-  "2 30 1 1"
-  "2 30 1 2"
-  "2 30 1 3"
-  "2 30 1 4"
   "4 30 1 1"
   "8 30 1 1"
+  "2 30 1 1"
   "2 15 1 1"
   "2 100 1 1"
   "2 30 10 1"
   "2 30 100 1"
+  "2 30 1 2"
+  "2 30 1 3"
+  "2 30 1 4"
 )
 
 # --- Génération de la file de jobs ---
