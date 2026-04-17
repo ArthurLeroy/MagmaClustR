@@ -201,106 +201,155 @@ tryCatch({
     # N_CLUST = 1 : Magma (sans clustering)
     # ================================================================
 
-    # --- HP initialisation via GP multi-output ---
-    data_for_init <- train_data_model %>%
+    data_for_preprocess <- train_data_model %>%
       dplyr::mutate(Input = round(Input, 6))
 
-    best_task_id_init <- data_for_init %>%
-      dplyr::count(Task_ID) %>%
-      dplyr::arrange(dplyr::desc(n)) %>%
-      dplyr::slice(1) %>%
-      dplyr::pull(Task_ID)
+    mean_emp <- data_for_preprocess %>%
+      group_by(Output_ID) %>%
+      summarise(moyenne = mean(Output, na.rm = TRUE)) %>%
+      deframe()
 
-    sub_data_agg <- data_for_init %>%
-      dplyr::filter(Task_ID == best_task_id_init)
+    sub_data_agg_mean <- data_for_preprocess %>%
+      group_by(Output_ID) %>%
+      mutate(mean_emp = mean(Output, na.rm = TRUE)) %>%
+      ungroup()
 
-    if (nrow(sub_data_agg) < 3) {
-      ini_hp_0 <- tibble(
-        Output_ID = as.factor(1:N_OUT),
-        l_t = rep(0, N_OUT), S_t = rep(0, N_OUT),
-        l_u_t = rep(0, N_OUT), noise = rep(-3, N_OUT)
+    mean_vec <- sub_data_agg_mean$mean_emp
+
+    data_for_preprocess <- sub_data_agg_mean %>%
+      dplyr::select(-mean_emp)
+
+    prior_mean = data_for_preprocess %>%
+      group_by(Output_ID) %>%
+      summarise(Prior_mean = mean(Output, na.rm = TRUE))
+
+    set.seed(1)
+    list_ID_output <- as.character(c(1:N_OUT))
+    hp <- hp(kern = convolution_kernel,
+             list_task_ID = 1,
+             list_output_ID = list_ID_output,
+             noise = TRUE) %>%
+      dplyr::select(-Task_ID)
+
+
+    ini_hp_opt = train_sum_GP(
+      data = data_for_preprocess %>%
+        dplyr::mutate(Input_1 = Input) %>%
+        dplyr::select(-Input),
+      ini_hp_0 = hp,
+      prior_mean = prior_mean,
+      kern = convolution_kernel,
+      pen_diag = 1e-8,
+      nb_task_optim = 10
       )
-    } else {
-      mean_emp <- sub_data_agg %>%
-        dplyr::group_by(Output_ID) %>%
-        dplyr::summarise(moyenne = mean(Output, na.rm = TRUE)) %>%
-        tibble::deframe()
 
-      sub_data_agg <- sub_data_agg %>%
-        dplyr::group_by(Output_ID) %>%
-        dplyr::mutate(mean_emp_val = mean(Output, na.rm = TRUE)) %>%
-        dplyr::ungroup()
-      mean_vec <- sub_data_agg$mean_emp_val
-      sub_data_agg <- sub_data_agg %>% dplyr::select(-mean_emp_val)
+    ini_hp_0 <- ini_hp_opt  
 
-      best_ll    <- +Inf
-      best_hp_gp <- NULL
+    # # --- HP initialisation via GP multi-output ---
+    # data_for_init <- train_data_model %>%
+    #   dplyr::mutate(Input = round(Input, 6))
 
-      sub_data_for_gp <- sub_data_agg %>%
-        dplyr::select(-any_of("Cluster_ID")) %>%
-        dplyr::mutate(Output_ID = as.factor(Output_ID))
+    # best_task_id_init <- data_for_init %>%
+    #   dplyr::count(Task_ID) %>%
+    #   dplyr::arrange(dplyr::desc(n)) %>%
+    #   dplyr::slice(1) %>%
+    #   dplyr::pull(Task_ID)
 
-      for (seed_retry in 1:10) {
-        tryCatch({
-          set.seed(seed_retry * 1000)
-          hp_tmp <- suppressWarnings(suppressMessages(
-            train_gp(data = sub_data_for_gp, kern = convolution_kernel,
-                     prior_mean = mean_vec, ini_hp = NULL)
-          ))
+    # sub_data_agg <- data_for_init %>%
+    #   dplyr::filter(Task_ID == best_task_id_init)
 
-          # Fallback : garder le premier train_gp réussi
-          if (is.null(best_hp_gp)) best_hp_gp <- hp_tmp
+    # if (nrow(sub_data_agg) < 3) {
+    #   ini_hp_0 <- tibble(
+    #     Output_ID = as.factor(1:N_OUT),
+    #     l_t = rep(0, N_OUT), S_t = rep(0, N_OUT),
+    #     l_u_t = rep(0, N_OUT), noise = rep(-3, N_OUT)
+    #   )
+    # } else {
+    #   mean_emp <- sub_data_agg %>%
+    #     dplyr::group_by(Output_ID) %>%
+    #     dplyr::summarise(moyenne = mean(Output, na.rm = TRUE)) %>%
+    #     tibble::deframe()
 
-          sub_data_agg_format_logL <- data.frame(
-            Input_1   = as.numeric(sub_data_agg$Input),
-            Output_ID = as.character(sub_data_agg$Output_ID),
-            Output    = as.numeric(sub_data_agg$Output),
-            stringsAsFactors = FALSE
-          )
-          sub_data_agg_format_logL$Reference <- paste0(
-            "o", sub_data_agg_format_logL$Output_ID, ";",
-            sub_data_agg_format_logL$Input_1
-          )
+    #   sub_data_agg <- sub_data_agg %>%
+    #     dplyr::group_by(Output_ID) %>%
+    #     dplyr::mutate(mean_emp_val = mean(Output, na.rm = TRUE)) %>%
+    #     dplyr::ungroup()
+    #   mean_vec <- sub_data_agg$mean_emp_val
+    #   sub_data_agg <- sub_data_agg %>% dplyr::select(-mean_emp_val)
 
-          ll_val <- tryCatch({
-            MagmaClustR:::logL_GP(
-              hp = hp_tmp, db = sub_data_agg_format_logL,
-              mean = mean_vec, kern = convolution_kernel, post_cov = 0,
-              pen_diag = 1e-10,
-              hp_col_names = c("l_u_t", "S_t", "l_t", "noise")
-            )
-          }, error = function(e) {
-            cat(paste0("  [logL ERR] retry=", seed_retry, ": ", e$message, "\n"))
-            return(+Inf)
-          })
+    #   best_ll    <- +Inf
+    #   best_hp_gp <- NULL
 
-          cat(paste0("  [HP init] retry=", seed_retry, " NLL=", round(ll_val, 4), "\n"))
+    #   sub_data_for_gp <- sub_data_agg %>%
+    #     dplyr::select(-any_of("Cluster_ID")) %>%
+    #     dplyr::mutate(Output_ID = as.factor(Output_ID))
 
-          if (ll_val < best_ll) {
-            best_ll    <- ll_val
-            best_hp_gp <- hp_tmp
-          }
-        }, error = function(e) {
-          cat(paste0("  [train_gp ERR] retry=", seed_retry, ": ", e$message, "\n"))
-        })
-      }
+    #   for (seed_retry in 1:10) {
+    #     tryCatch({
+    #       set.seed(seed_retry * 1000)
+    #       hp_tmp <- suppressWarnings(suppressMessages(
+    #         train_gp(data = sub_data_for_gp, kern = convolution_kernel,
+    #                  prior_mean = mean_vec, ini_hp = NULL)
+    #       ))
 
-      if (is.null(best_hp_gp)) {
-        cat("  [ERREUR] Aucun train_gp réussi — fallback sur HP nuls\n")
-        ini_hp_0 <- tibble(
-          Output_ID = as.factor(1:N_OUT),
-          l_t = rep(0, N_OUT), S_t = rep(0, N_OUT),
-          l_u_t = rep(0, N_OUT), noise = rep(-3, N_OUT)
-        )
-      } else {
-        if (is.finite(best_ll)) {
-          cat(paste0("  [HP init] BEST NLL=", round(best_ll, 4), "\n"))
-        } else {
-          cat("  [HP init] logL non calculable, fallback sur train_gp\n")
-        }
-        ini_hp_0 <- best_hp_gp
-      }
-    }
+
+    #     print(hp_tmp)
+
+    #       # Fallback : garder le premier train_gp réussi
+    #       if (is.null(best_hp_gp)) best_hp_gp <- hp_tmp
+
+    #       sub_data_agg_format_logL <- data.frame(
+    #         Input_1   = as.numeric(sub_data_agg$Input),
+    #         Output_ID = as.character(sub_data_agg$Output_ID),
+    #         Output    = as.numeric(sub_data_agg$Output),
+    #         stringsAsFactors = FALSE
+    #       )
+    #       sub_data_agg_format_logL$Reference <- paste0(
+    #         "o", sub_data_agg_format_logL$Output_ID, ";",
+    #         sub_data_agg_format_logL$Input_1
+    #       )
+
+    #       ll_val <- tryCatch({
+    #         MagmaClustR:::logL_GP(
+    #           hp = hp_tmp, db = sub_data_agg_format_logL,
+    #           mean = mean_vec, kern = convolution_kernel, post_cov = 0,
+    #           pen_diag = 1e-10,
+    #           hp_col_names = c("l_u_t", "S_t", "l_t", "noise")
+    #         )
+    #       }, error = function(e) {
+    #         cat(paste0("  [logL ERR] retry=", seed_retry, ": ", e$message, "\n"))
+    #         return(+Inf)
+    #       })
+
+    #       cat(paste0("  [HP init] retry=", seed_retry, " NLL=", round(ll_val, 4), "\n"))
+
+    #       if (ll_val < best_ll) {
+    #         best_ll    <- ll_val
+    #         best_hp_gp <- hp_tmp
+    #       }
+    #     }, error = function(e) {
+    #       cat(paste0("  [train_gp ERR] retry=", seed_retry, ": ", e$message, "\n"))
+    #     })
+    #   }
+
+    #   if (is.null(best_hp_gp)) {
+    #     cat("  [ERREUR] Aucun train_gp réussi — fallback sur HP nuls\n")
+    #     ini_hp_0 <- tibble(
+    #       Output_ID = as.factor(1:N_OUT),
+    #       l_t = rep(0, N_OUT), S_t = rep(0, N_OUT),
+    #       l_u_t = rep(0, N_OUT), noise = rep(-3, N_OUT)
+    #     )
+    #   } else {
+    #     if (is.finite(best_ll)) {
+    #       cat(paste0("  [HP init] BEST NLL=", round(best_ll, 4), "\n"))
+    #     } else {
+    #       cat("  [HP init] logL non calculable, fallback sur train_gp\n")
+    #     }
+    #     ini_hp_0 <- best_hp_gp
+
+    #     print(ini_hp_0)
+    #   }
+    # }
 
     ini_hp_t <- hp(
       kern = convolution_kernel,
@@ -457,24 +506,15 @@ tryCatch({
       dplyr::select(-any_of("Cluster_ID")) %>%
       dplyr::left_join(cluster_mapping, by = "Task_ID")
 
-    # --- HP initialisation via GP multi-output (par cluster) ---
+    # --- HP initialisation via train_sum_GP (par cluster) ---
     hp_k_extracted_list <- list()
 
     for (k_id in clusters_ids) {
-      data_for_init_k <- train_data_model %>%
+      data_for_preprocess_k <- train_data_model %>%
         dplyr::filter(Cluster_ID == k_id) %>%
         dplyr::mutate(Input = round(Input, 6))
 
-      best_task_id_k <- data_for_init_k %>%
-        dplyr::count(Task_ID) %>%
-        dplyr::arrange(dplyr::desc(n)) %>%
-        dplyr::slice(1) %>%
-        dplyr::pull(Task_ID)
-
-      sub_data_agg <- data_for_init_k %>%
-        dplyr::filter(Task_ID == best_task_id_k)
-
-      if (nrow(sub_data_agg) < 3) {
+      if (nrow(data_for_preprocess_k) < 3) {
         hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- tibble(
           Cluster_ID = k_id,
           Output_ID = as.factor(1:N_OUT),
@@ -484,95 +524,31 @@ tryCatch({
         next
       }
 
-      mean_emp_k <- sub_data_agg %>%
-        dplyr::group_by(Output_ID) %>%
-        dplyr::summarise(moyenne = mean(Output, na.rm = TRUE)) %>%
-        tibble::deframe()
+      prior_mean_k <- data_for_preprocess_k %>%
+        group_by(Output_ID) %>%
+        summarise(Prior_mean = mean(Output, na.rm = TRUE))
 
-      sub_data_agg <- sub_data_agg %>%
-        dplyr::group_by(Output_ID) %>%
-        dplyr::mutate(mean_emp_val = mean(Output, na.rm = TRUE)) %>%
-        dplyr::ungroup()
-      mean_vec_k <- sub_data_agg$mean_emp_val
-      sub_data_agg <- sub_data_agg %>% dplyr::select(-mean_emp_val)
+      set.seed(which(clusters_ids == k_id))
+      list_ID_output <- as.character(c(1:N_OUT))
+      hp_init_k <- hp(kern = convolution_kernel,
+                      list_task_ID = 1,
+                      list_output_ID = list_ID_output,
+                      noise = TRUE) %>%
+        dplyr::select(-Task_ID)
 
-      best_ll    <- +Inf
-      best_hp_gp <- NULL
+      ini_hp_opt_k <- train_sum_GP(
+        data = data_for_preprocess_k %>%
+          dplyr::mutate(Input_1 = Input) %>%
+          dplyr::select(-Input),
+        ini_hp_0 = hp_init_k,
+        prior_mean = prior_mean_k,
+        kern = convolution_kernel,
+        pen_diag = 1e-8,
+        nb_task_optim = 4
+      )
 
-      sub_data_for_gp <- sub_data_agg %>%
-        dplyr::select(-any_of("Cluster_ID")) %>%
-        dplyr::mutate(Output_ID = as.factor(Output_ID))
-
-      for (seed_retry in 1:10) {
-        tryCatch({
-          set.seed(seed_retry * 1000 + which(clusters_ids == k_id))
-          hp_tmp <- suppressWarnings(suppressMessages(
-            train_gp(data = sub_data_for_gp, kern = convolution_kernel,
-                     prior_mean = mean_vec_k, ini_hp = NULL)
-          ))
-
-          # Fallback : garder le premier train_gp réussi
-          if (is.null(best_hp_gp)) best_hp_gp <- hp_tmp
-
-          sub_data_agg_format_logL <- data.frame(
-            Input_1   = as.numeric(sub_data_agg$Input),
-            Output_ID = as.character(sub_data_agg$Output_ID),
-            Output    = as.numeric(sub_data_agg$Output),
-            stringsAsFactors = FALSE
-          )
-          sub_data_agg_format_logL$Reference <- paste0(
-            "o", sub_data_agg_format_logL$Output_ID, ";",
-            sub_data_agg_format_logL$Input_1
-          )
-
-          ll_val <- tryCatch({
-            MagmaClustR:::logL_GP(
-              hp = hp_tmp, db = sub_data_agg_format_logL,
-              mean = mean_vec_k, kern = convolution_kernel, post_cov = 0,
-              pen_diag = 1e-10,
-              hp_col_names = c("l_u_t", "S_t", "l_t", "noise")
-            )
-          }, error = function(e) {
-            cat(paste0("  [logL ERR] k=", k_id, " retry=", seed_retry, ": ", e$message, "\n"))
-            return(+Inf)
-          })
-
-          cat(paste0("  [HP init] k=", k_id, " retry=", seed_retry, " NLL=", round(ll_val, 4), "\n"))
-
-          if (ll_val < best_ll) {
-            best_ll    <- ll_val
-            best_hp_gp <- hp_tmp
-          }
-        }, error = function(e) {
-          cat(paste0("  [train_gp ERR] k=", k_id,
-                     " retry=", seed_retry, ": ", e$message, "\n"))
-        })
-      }
-
-      if (is.null(best_hp_gp)) {
-        cat(paste0("  [ERREUR] Aucun train_gp réussi pour k=", k_id,
-                   " — fallback sur HP nuls\n"))
-        hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- tibble(
-          Cluster_ID = k_id,
-          Output_ID = as.factor(1:N_OUT),
-          l_t = rep(0, N_OUT), S_t = rep(0, N_OUT),
-          l_u_t = rep(0, N_OUT), noise = rep(-3, N_OUT)
-        )
-      } else {
-        if (is.finite(best_ll)) {
-          cat(paste0("  [HP init] k=", k_id, " BEST NLL=", round(best_ll, 4), "\n"))
-        } else {
-          cat(paste0("  [HP init] k=", k_id, " : logL non calculable, fallback sur train_gp\n"))
-        }
-        hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- tibble(
-          Cluster_ID = k_id,
-          Output_ID = as.factor(1:N_OUT),
-          l_t   = best_hp_gp$l_t,
-          S_t   = best_hp_gp$S_t,
-          l_u_t = best_hp_gp$l_u_t,
-          noise = best_hp_gp$noise
-        )
-      }
+      hp_k_extracted_list[[length(hp_k_extracted_list) + 1]] <- ini_hp_opt_k %>%
+        dplyr::mutate(Cluster_ID = k_id)
     }
 
     ini_hp_k <- bind_rows(hp_k_extracted_list)
