@@ -499,7 +499,7 @@ tryCatch({
       data             = train_data_mt,
       ini_mixture      = ini_mixture_mt,
       ini_hp_k         = ini_hp_k %>% dplyr::select(-noise),
-      nb_cluster       = N_CLUST,
+      nb_cluster       = N_CLUST_MT,
       kern_k           = "SE",
       ini_hp_t         = ini_hp_t,
       kern_t           = "SE",
