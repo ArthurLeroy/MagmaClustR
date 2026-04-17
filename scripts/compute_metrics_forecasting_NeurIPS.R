@@ -137,6 +137,15 @@ extract_pred_cov <- function(pred_res) {
   return(NULL)
 }
 
+add_noise_to_cov <- function(cov_matrix, marginal_var) {
+  if (is.null(cov_matrix) || length(marginal_var) == 0) return(cov_matrix)
+  if (nrow(cov_matrix) != length(marginal_var) || ncol(cov_matrix) != length(marginal_var)) {
+    return(NULL)
+  }
+  noise_diag <- pmax(marginal_var - diag(cov_matrix), 0)
+  cov_matrix + diag(noise_diag, nrow(cov_matrix))
+}
+
 # ---- Extraction du dataframe de prédiction ----
 # Gère les formats de sortie de pred_magmaclust() ET pred_magma()
 #   pred_magmaclust() → list(mixture_pred = tibble, pred = ..., mixture = ...)
@@ -288,14 +297,17 @@ extract_metrics_momt <- function(pred_entry, scale_factors) {
             dplyr::distinct(Input, .keep_all = TRUE)
         }
         cl_mc <- intersect(names(cl_df_o1), c("Mean", "mean", "Prediction", "Mu"))
-        if (length(cl_mc) == 0) next
+        cl_vc <- intersect(names(cl_df_o1), c("Var", "var", "Variance", "Sigma2"))
+        if (length(cl_mc) == 0 || length(cl_vc) == 0) next
         cl_aligned <- cl_df_o1 %>%
           dplyr::inner_join(truth_o1_unscaled, by = "Input", suffix = c("_pred", ""))
         if (nrow(cl_aligned) == 0) next
         ci <- cl_aligned$row_idx
+        cl_cov_sub <- cl_cov[ci, ci, drop = FALSE] * s^2
+        cl_var_sub <- cl_aligned[[cl_vc[1]]] * s^2
         cluster_preds_multi[[cl_name]] <- list(
           mean = cl_aligned[[cl_mc[1]]] * s,
-          cov  = cl_cov[ci, ci, drop = FALSE] * s^2
+          cov  = add_noise_to_cov(cl_cov_sub, cl_var_sub)
         )
         if (is.null(truth_vec_multi)) truth_vec_multi <- cl_aligned$Output
       }
@@ -312,6 +324,7 @@ extract_metrics_momt <- function(pred_entry, scale_factors) {
       if (!is.null(cov_matrix) && nrow(merged) > 0 && "row_idx" %in% names(merged)) {
         ci <- merged$row_idx
         cov_sub <- cov_matrix[ci, ci, drop = FALSE] * s^2
+        cov_sub <- add_noise_to_cov(cov_sub, pred_var)
         nll_multi <- compute_nll_multivariate_gaussian(pred_mean, cov_sub, truth)
       }
     }
@@ -406,14 +419,17 @@ extract_metrics_mt <- function(pred_entry) {
           dplyr::mutate(Input = round(Input, 5)) %>%
           dplyr::distinct(Input, .keep_all = TRUE)
         cl_mc <- intersect(names(cl_df), c("Mean", "mean", "Prediction", "Mu"))
-        if (length(cl_mc) == 0) next
+        cl_vc <- intersect(names(cl_df), c("Var", "var", "Variance", "Sigma2"))
+        if (length(cl_mc) == 0 || length(cl_vc) == 0) next
         cl_aligned <- cl_df %>%
           dplyr::inner_join(truth_o1_clean, by = "Input", suffix = c("_pred", ""))
         if (nrow(cl_aligned) == 0) next
         ci <- cl_aligned$row_idx
+        cl_cov_sub <- cl_cov[ci, ci, drop = FALSE]
+        cl_var_sub <- cl_aligned[[cl_vc[1]]]
         cluster_preds_multi[[cl_name]] <- list(
           mean = cl_aligned[[cl_mc[1]]],
-          cov  = cl_cov[ci, ci, drop = FALSE]
+          cov  = add_noise_to_cov(cl_cov_sub, cl_var_sub)
         )
         if (is.null(truth_vec_multi)) truth_vec_multi <- cl_aligned$Output
       }
@@ -430,6 +446,7 @@ extract_metrics_mt <- function(pred_entry) {
       if (!is.null(cov_matrix) && nrow(merged) > 0 && "row_idx" %in% names(merged)) {
         ci <- merged$row_idx
         cov_sub <- cov_matrix[ci, ci, drop = FALSE]
+        cov_sub <- add_noise_to_cov(cov_sub, pred_var)
         nll_multi <- compute_nll_multivariate_gaussian(pred_mean, cov_sub, truth)
       }
     }
