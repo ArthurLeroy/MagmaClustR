@@ -118,3 +118,136 @@ unscale_predictions <- function(pred_df, scale_factors, task_cluster_id) {
     ) %>%
     dplyr::select(-scale_factor)
 }
+
+##################### Ajout Arthur #########################
+
+logL_GP_shared_tasks <- function(hp,
+                                 db,
+                                 prior_mean,
+                                 kern,
+                                 pen_diag,
+                                 hp_col_names) {
+
+  # Loop over each task ID to compute and sum its log-likelihood
+  funloop <- function(t) {
+    # Extract data specific to task 't'
+    db_t <- db %>%
+    dplyr::filter(Task_ID == t) %>%
+    dplyr::select(-Task_ID)
+
+    ## Create the prior mean vector for task 't'
+    mean <- prior_mean %>%
+      right_join(db_t, by = 'Output_ID') %>%
+      pull(Prior_mean)
+
+    # Call the single-task function, passing all HP-related arguments through
+    logL_GP(
+    hp = hp,
+    db = db_t,
+    mean = mean,
+    kern = kern,
+    post_cov = 0,
+    pen_diag = pen_diag,
+    hp_col_names = hp_col_names
+    )
+  }
+
+  sapply(unique(db$Task_ID), funloop) %>%
+  sum() %>%
+  return()
+}
+
+gr_GP_shared_tasks <- function(hp,
+                               db,
+                               prior_mean,
+                               kern,
+                               pen_diag,
+                               hp_col_names) {
+
+  # Loop over each task ID to compute and sum its log-likelihood
+  funloop <- function(t) {
+    # Extract data specific to task 't'
+    db_t <- db %>%
+    dplyr::filter(Task_ID == t) %>%
+    dplyr::select(-Task_ID)
+
+    ## Create the prior mean vector for task 't'
+    mean <- prior_mean %>%
+      right_join(db_t, by = 'Output_ID') %>%
+      pull(Prior_mean)
+
+    # Call the single-task function, passing all HP-related arguments through
+    gr_GP(
+    hp = hp,
+    db = db_t,
+    mean = mean,
+    kern = kern,
+    post_cov = 0,
+    pen_diag = pen_diag,
+    hp_col_names = hp_col_names
+    )
+  }
+
+
+  # Sum the gradient vectors from all tasks element-wise
+  sapply(unique(db$Task_ID), funloop) %>%
+    rowSums() %>%
+    return()
+}
+
+train_sum_GP = function(
+  data,
+  ini_hp_0,
+  prior_mean,
+  kern,
+  pen_diag,
+  nb_task_optim = 10
+  ) {
+
+    ## Take a random subset of task IDs for optimization
+    list_ID_task <- unique(data$Task_ID) %>%
+       sample(size = min(nb_task_optim, length(unique(data$Task_ID))), replace = FALSE)
+
+    sub_db = data %>%
+      dplyr::filter(Task_ID %in% list_ID_task)
+
+      # Prepare parameters for optim() in MO case
+      hp_per_output <- ini_hp_0 %>%
+        dplyr::select(-l_u_t) %>%
+        tidyr::pivot_longer(cols = -c(Output_ID),
+                            names_to = "hp_name",
+                            values_to = "value") %>%
+        dplyr::mutate(specific_name = paste(hp_name, Output_ID, sep = "_")) %>%
+        dplyr::select(specific_name, value) %>%
+        tibble::deframe()
+
+      shared_hp_l_u_t <- ini_hp_0$l_u_t[1]
+      names(shared_hp_l_u_t) <- "l_u_t"
+      par <- c(hp_per_output, shared_hp_l_u_t)
+      hp_col_names <- names(par)
+
+    # Optimise hyper-parameters of the task process
+    result_optim <- stats::optim(
+      par               = par,
+      fn                = logL_GP_shared_tasks,
+      gr                = gr_GP_shared_tasks,
+      db                = sub_db,
+      prior_mean        = prior_mean,
+      kern              = kern,
+      pen_diag          = pen_diag,
+      hp_col_names      = hp_col_names,
+      method            = "L-BFGS-B",
+      control           = list(factr = 1e13, maxit = 25)
+    )$par %>%
+      tibble::as_tibble_row()
+
+    # Reshape results
+    result_optim %>%
+        tidyr::pivot_longer(
+          cols = -dplyr::any_of("l_u_t"),
+          names_to = c(".value", "Output_ID"),
+          names_pattern = "(.+)_(\\d+)$"
+        ) %>%
+        return()
+}
+
