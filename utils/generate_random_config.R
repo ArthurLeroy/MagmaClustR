@@ -141,7 +141,7 @@ logL_GP_shared_tasks <- function(hp,
       pull(Prior_mean)
 
     # Call the single-task function, passing all HP-related arguments through
-    logL_GP(
+    MagmaClustR:::logL_GP(
     hp = hp,
     db = db_t,
     mean = mean,
