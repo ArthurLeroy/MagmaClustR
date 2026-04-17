@@ -82,6 +82,61 @@ compute_nll_gaussian <- function(pred_mean, pred_var, truth) {
   mean(0.5 * log(2 * pi * pred_var_safe) + 0.5 * (truth - pred_mean)^2 / pred_var_safe)
 }
 
+# ---- NLL multivariée gaussienne (matrice de covariance complète) ----
+compute_nll_multivariate_gaussian <- function(pred_mean, cov_matrix, truth) {
+  n <- length(truth)
+  if (n == 0 || is.null(cov_matrix)) return(NA)
+  if (nrow(cov_matrix) != n || ncol(cov_matrix) != n) return(NA)
+  diff <- truth - pred_mean
+  cov_safe <- cov_matrix + diag(1e-8, n)
+  L <- tryCatch(chol(cov_safe), error = function(e) NULL)
+  if (is.null(L)) return(NA)
+  log_det <- 2 * sum(log(diag(L)))
+  alpha <- backsolve(L, diff, transpose = TRUE)
+  quad_form <- sum(alpha^2)
+  0.5 * (n * log(2 * pi) + log_det + quad_form)
+}
+
+# ---- NLL multivariée pour mixture de gaussiennes ----
+compute_nll_multivariate_mixture <- function(cluster_preds, weights, truth) {
+  K <- length(cluster_preds)
+  n <- length(truth)
+  if (K == 0 || n == 0) return(NA)
+  clusters <- names(cluster_preds)
+  if (is.null(names(weights))) names(weights) <- clusters
+  w <- weights[clusters]
+  w <- w / sum(w)
+  log_densities <- numeric(K)
+  for (i in seq_along(clusters)) {
+    k <- clusters[i]
+    mu <- cluster_preds[[k]]$mean
+    Sigma <- cluster_preds[[k]]$cov
+    if (is.null(Sigma) || length(mu) != n) return(NA)
+    if (nrow(Sigma) != n || ncol(Sigma) != n) return(NA)
+    Sigma_safe <- Sigma + diag(1e-8, n)
+    L <- tryCatch(chol(Sigma_safe), error = function(e) NULL)
+    if (is.null(L)) return(NA)
+    log_det <- 2 * sum(log(diag(L)))
+    diff <- truth - mu
+    alpha <- backsolve(L, diff, transpose = TRUE)
+    quad_form <- sum(alpha^2)
+    log_densities[i] <- -0.5 * (n * log(2 * pi) + log_det + quad_form)
+  }
+  log_mixture <- matrixStats::logSumExp(log(w) + log_densities)
+  return(-log_mixture)
+}
+
+# ---- Extraction de la matrice de covariance ----
+extract_pred_cov <- function(pred_res) {
+  if ("pred_gp" %in% names(pred_res)) {
+    pg <- pred_res$pred_gp
+    if (is.list(pg) && !is.data.frame(pg) && "cov" %in% names(pg)) {
+      return(pg$cov)
+    }
+  }
+  return(NULL)
+}
+
 # ---- Extraction du dataframe de prédiction ----
 # Gère les formats de sortie de pred_magmaclust() ET pred_magma()
 #   pred_magmaclust() → list(mixture_pred = tibble, pred = ..., mixture = ...)
@@ -131,7 +186,8 @@ extract_metrics_momt <- function(pred_entry, scale_factors) {
 
     # Extraire la prédiction agrégée (gère pred_magmaclust ET pred_magma)
     pred_df <- extract_pred_df(pred_res)
-    if (is.null(pred_df)) return(tibble(rmse = NA, nll = NA, coverage_95 = NA))
+    if (is.null(pred_df)) return(tibble(rmse = NA, nll = NA, nll_multi = NA, coverage_95 = NA))
+    pred_df$row_idx <- seq_len(nrow(pred_df))
 
     if ("Input_1" %in% names(pred_df) && !"Input" %in% names(pred_df)) {
       pred_df <- pred_df %>% dplyr::rename(Input = Input_1)
@@ -206,10 +262,64 @@ extract_metrics_momt <- function(pred_entry, scale_factors) {
       nll <- compute_nll_gaussian(pred_mean, pred_var, truth)
     }
 
-    tibble(rmse = rmse, nll = nll, coverage_95 = coverage_95)
+    # NLL multivariée (matrice de covariance complète)
+    nll_multi <- NA
+    if ("pred_by_cluster" %in% names(pred_res) && "pred" %in% names(pred_res) && is.list(pred_res$pred)) {
+      # Cas pred_magmaclust : NLL mixture multivariée
+      cluster_preds_multi <- list()
+      truth_vec_multi <- NULL
+      for (cl_name in names(pred_res$pred)) {
+        cl_obj <- pred_res$pred[[cl_name]]
+        cl_cov <- extract_pred_cov(cl_obj)
+        cl_df  <- extract_pred_df(cl_obj)
+        if (is.null(cl_cov) || is.null(cl_df)) next
+        cl_df$row_idx <- seq_len(nrow(cl_df))
+        if ("Input_1" %in% names(cl_df) && !"Input" %in% names(cl_df))
+          cl_df <- cl_df %>% dplyr::rename(Input = Input_1)
+        if ("Output_ID" %in% names(cl_df)) {
+          cl_df_o1 <- cl_df %>%
+            dplyr::mutate(Output_ID = as.character(Output_ID)) %>%
+            dplyr::filter(Output_ID == "1") %>%
+            dplyr::mutate(Input = round(Input, 5)) %>%
+            dplyr::distinct(Input, .keep_all = TRUE)
+        } else {
+          cl_df_o1 <- cl_df %>%
+            dplyr::mutate(Input = round(Input, 5)) %>%
+            dplyr::distinct(Input, .keep_all = TRUE)
+        }
+        cl_mc <- intersect(names(cl_df_o1), c("Mean", "mean", "Prediction", "Mu"))
+        if (length(cl_mc) == 0) next
+        cl_aligned <- cl_df_o1 %>%
+          dplyr::inner_join(truth_o1_unscaled, by = "Input", suffix = c("_pred", ""))
+        if (nrow(cl_aligned) == 0) next
+        ci <- cl_aligned$row_idx
+        cluster_preds_multi[[cl_name]] <- list(
+          mean = cl_aligned[[cl_mc[1]]] * s,
+          cov  = cl_cov[ci, ci, drop = FALSE] * s^2
+        )
+        if (is.null(truth_vec_multi)) truth_vec_multi <- cl_aligned$Output
+      }
+      if (length(cluster_preds_multi) > 0 && !is.null(truth_vec_multi)) {
+        w_m <- if ("weights" %in% names(pred_res)) pred_res$weights else pred_res$mixture
+        if (is.data.frame(w_m) && nrow(w_m) == 1) {
+          w_m <- as.numeric(w_m); names(w_m) <- names(pred_res$pred)
+        }
+        nll_multi <- compute_nll_multivariate_mixture(cluster_preds_multi, w_m, truth_vec_multi)
+      }
+    } else {
+      # Cas pred_magma : NLL gaussienne multivariée
+      cov_matrix <- extract_pred_cov(pred_res)
+      if (!is.null(cov_matrix) && nrow(merged) > 0 && "row_idx" %in% names(merged)) {
+        ci <- merged$row_idx
+        cov_sub <- cov_matrix[ci, ci, drop = FALSE] * s^2
+        nll_multi <- compute_nll_multivariate_gaussian(pred_mean, cov_sub, truth)
+      }
+    }
+
+    tibble(rmse = rmse, nll = nll, nll_multi = nll_multi, coverage_95 = coverage_95)
   }, error = function(e) {
     cat(paste0("    [ERREUR MOMT] ", conditionMessage(e), "\n"))
-    tibble(rmse = NA, nll = NA, coverage_95 = NA)
+    tibble(rmse = NA, nll = NA, nll_multi = NA, coverage_95 = NA)
   })
 }
 
@@ -230,7 +340,8 @@ extract_metrics_mt <- function(pred_entry) {
 
     # Extraire la prédiction (gère pred_magmaclust ET pred_magma)
     pred_df <- extract_pred_df(pred_res)
-    if (is.null(pred_df)) return(tibble(rmse = NA, nll = NA, coverage_95 = NA))
+    if (is.null(pred_df)) return(tibble(rmse = NA, nll = NA, nll_multi = NA, coverage_95 = NA))
+    pred_df$row_idx <- seq_len(nrow(pred_df))
 
     if ("Input_1" %in% names(pred_df) && !"Input" %in% names(pred_df)) {
       pred_df <- pred_df %>% dplyr::rename(Input = Input_1)
@@ -277,10 +388,56 @@ extract_metrics_mt <- function(pred_entry) {
       nll <- compute_nll_gaussian(pred_mean, pred_var, truth)
     }
 
-    tibble(rmse = rmse, nll = nll, coverage_95 = coverage_95)
+    # NLL multivariée (matrice de covariance complète)
+    nll_multi <- NA
+    if ("pred_by_cluster" %in% names(pred_res) && "pred" %in% names(pred_res) && is.list(pred_res$pred)) {
+      # Cas pred_magmaclust : NLL mixture multivariée
+      cluster_preds_multi <- list()
+      truth_vec_multi <- NULL
+      for (cl_name in names(pred_res$pred)) {
+        cl_obj <- pred_res$pred[[cl_name]]
+        cl_cov <- extract_pred_cov(cl_obj)
+        cl_df  <- extract_pred_df(cl_obj)
+        if (is.null(cl_cov) || is.null(cl_df)) next
+        cl_df$row_idx <- seq_len(nrow(cl_df))
+        if ("Input_1" %in% names(cl_df) && !"Input" %in% names(cl_df))
+          cl_df <- cl_df %>% dplyr::rename(Input = Input_1)
+        cl_df <- cl_df %>%
+          dplyr::mutate(Input = round(Input, 5)) %>%
+          dplyr::distinct(Input, .keep_all = TRUE)
+        cl_mc <- intersect(names(cl_df), c("Mean", "mean", "Prediction", "Mu"))
+        if (length(cl_mc) == 0) next
+        cl_aligned <- cl_df %>%
+          dplyr::inner_join(truth_o1_clean, by = "Input", suffix = c("_pred", ""))
+        if (nrow(cl_aligned) == 0) next
+        ci <- cl_aligned$row_idx
+        cluster_preds_multi[[cl_name]] <- list(
+          mean = cl_aligned[[cl_mc[1]]],
+          cov  = cl_cov[ci, ci, drop = FALSE]
+        )
+        if (is.null(truth_vec_multi)) truth_vec_multi <- cl_aligned$Output
+      }
+      if (length(cluster_preds_multi) > 0 && !is.null(truth_vec_multi)) {
+        w_m <- if ("weights" %in% names(pred_res)) pred_res$weights else pred_res$mixture
+        if (is.data.frame(w_m) && nrow(w_m) == 1) {
+          w_m <- as.numeric(w_m); names(w_m) <- names(pred_res$pred)
+        }
+        nll_multi <- compute_nll_multivariate_mixture(cluster_preds_multi, w_m, truth_vec_multi)
+      }
+    } else {
+      # Cas pred_magma : NLL gaussienne multivariée
+      cov_matrix <- extract_pred_cov(pred_res)
+      if (!is.null(cov_matrix) && nrow(merged) > 0 && "row_idx" %in% names(merged)) {
+        ci <- merged$row_idx
+        cov_sub <- cov_matrix[ci, ci, drop = FALSE]
+        nll_multi <- compute_nll_multivariate_gaussian(pred_mean, cov_sub, truth)
+      }
+    }
+
+    tibble(rmse = rmse, nll = nll, nll_multi = nll_multi, coverage_95 = coverage_95)
   }, error = function(e) {
     cat(paste0("    [ERREUR MT] ", conditionMessage(e), "\n"))
-    tibble(rmse = NA, nll = NA, coverage_95 = NA)
+    tibble(rmse = NA, nll = NA, nll_multi = NA, coverage_95 = NA)
   })
 }
 
@@ -376,6 +533,7 @@ for (i in 1:nrow(base_configs)) {
 
       rmse_all     <- mean(task_metrics_df$rmse, na.rm = TRUE)
       nll_all      <- mean(task_metrics_df$nll, na.rm = TRUE)
+      nll_multi_all <- mean(task_metrics_df$nll_multi, na.rm = TRUE)
       coverage_all <- mean(task_metrics_df$coverage_95, na.rm = TRUE)
 
       all_metrics[[length(all_metrics) + 1]] <- tibble(
@@ -388,6 +546,7 @@ for (i in 1:nrow(base_configs)) {
         seed        = seed,
         rmse        = rmse_all,
         nll         = nll_all,
+        nll_multi   = nll_multi_all,
         coverage_95 = coverage_all,
         t_training  = t_training,
         t_pred      = t_pred,
@@ -429,6 +588,13 @@ metrics_summary <- metrics_raw %>%
     nll_q3     = quantile(nll, 0.75, na.rm = TRUE),
     nll_iqr    = IQR(nll, na.rm = TRUE),
 
+    nll_multi_mean   = mean(nll_multi, na.rm = TRUE),
+    nll_multi_std    = sd(nll_multi, na.rm = TRUE),
+    nll_multi_median = median(nll_multi, na.rm = TRUE),
+    nll_multi_q1     = quantile(nll_multi, 0.25, na.rm = TRUE),
+    nll_multi_q3     = quantile(nll_multi, 0.75, na.rm = TRUE),
+    nll_multi_iqr    = IQR(nll_multi, na.rm = TRUE),
+
     cov95_mean   = mean(coverage_95, na.rm = TRUE),
     cov95_std    = sd(coverage_95, na.rm = TRUE),
     cov95_median = median(coverage_95, na.rm = TRUE),
@@ -457,6 +623,8 @@ metrics_display <- metrics_summary %>%
     `RMSE (median[IQR])`  = paste0(round(rmse_median, 4), " [", round(rmse_q1, 4), ", ", round(rmse_q3, 4), "]"),
     `NLL (mean+-std)`      = paste0(round(nll_mean, 4), " +- ", round(nll_std, 4)),
     `NLL (median[IQR])`   = paste0(round(nll_median, 4), " [", round(nll_q1, 4), ", ", round(nll_q3, 4), "]"),
+    `NLL_Multi (mean+-std)`      = paste0(round(nll_multi_mean, 4), " +- ", round(nll_multi_std, 4)),
+    `NLL_Multi (median[IQR])`   = paste0(round(nll_multi_median, 4), " [", round(nll_multi_q1, 4), ", ", round(nll_multi_q3, 4), "]"),
     `Cov95 (mean+-std)`    = paste0(round(cov95_mean, 4), " +- ", round(cov95_std, 4)),
     `Cov95 (median[IQR])` = paste0(round(cov95_median, 4), " [", round(cov95_q1, 4), ", ", round(cov95_q3, 4), "]"),
     `T_train (mean+-std)`  = paste0(round(t_train_mean, 2), " +- ", round(t_train_std, 2)),
@@ -466,6 +634,7 @@ metrics_display <- metrics_summary %>%
     n_out, n_train, n_pred, n_clust, problem, model,
     `RMSE (mean+-std)`, `RMSE (median[IQR])`,
     `NLL (mean+-std)`, `NLL (median[IQR])`,
+    `NLL_Multi (mean+-std)`, `NLL_Multi (median[IQR])`,
     `Cov95 (mean+-std)`, `Cov95 (median[IQR])`,
     `T_train (mean+-std)`, `T_pred (mean+-std)`
   )
