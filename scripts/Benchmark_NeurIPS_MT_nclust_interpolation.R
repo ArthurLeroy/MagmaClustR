@@ -44,13 +44,13 @@ stopifnot(N_OUT %in% c(2, 4, 8))
 stopifnot(N_TRAIN %in% c(15, 30, 100))
 stopifnot(N_PRED %in% c(1, 10, 100))
 stopifnot(N_CLUST %in% c(1, 2, 3, 4))
-stopifnot(PROBLEM == "forecasting")
+stopifnot(PROBLEM == "interpolation")
 stopifnot(SEED >= 1 & SEED <= 5)
 
 # --- 1. SETUP & LIBRARIES ---
 username  <- Sys.getenv("USER")
 pkg_dir   <- file.path("/scratch", username, "MagmaClustR")
-base_root <- file.path("/scratch", username, "NeurIPS_experiments_forecasting")
+base_root <- file.path("/scratch", username, "NeurIPS_experiments_interpolation")
 
 setwd(pkg_dir)
 
