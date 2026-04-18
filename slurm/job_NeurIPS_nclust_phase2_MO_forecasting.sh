@@ -10,15 +10,15 @@
 
 #SBATCH --job-name=neurips_nclust_mo_fc
 #SBATCH --qos=huge
-#SBATCH -c 16
+#SBATCH -c 32
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_nclust_mo_fc_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_nclust_mo_fc_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=16
-N_SEEDS=5
+N_WORKERS=32
+N_SEEDS=50
 
 echo "=============================================="
 echo " NeurIPS Phase 2 : MO FORECASTING"
@@ -56,7 +56,7 @@ SCRIPT_DIR="/scratch/${USER}/NeurIPS_experiments_forecasting/scripts"
 
 # Format : "n_out n_train n_pred n_clust n_seeds"
 declare -a MO_CONFIGS=(
-  "4 30 1 1 ${N_SEEDS}"
+  "4 30 1 1 ${5}"
   "2 30 10 1 ${N_SEEDS}"
   "2 30 1 1 ${N_SEEDS}"
   "2 15 1 1 ${N_SEEDS}"
