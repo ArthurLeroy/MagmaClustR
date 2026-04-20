@@ -486,8 +486,15 @@ tryCatch({
     for (r in 1:nrow(ini_mixture_momt)) {
       orig_tid <- as.character(ini_mixture_momt$Task_ID[r])
       for (oid in output_ids) {
-        new_row <- ini_mixture_momt[r, ]
-        new_row$Task_ID <- paste0("T", orig_tid, "_O", oid)
+        oid_idx <- match(oid, output_ids_sorted)
+        new_row <- tibble(Task_ID = paste0("T", orig_tid, "_O", oid))
+        for (c_momt in 1:N_CLUST) {
+          p_momt <- ini_mixture_momt[[paste0("K", c_momt)]][r]
+          for (o_idx in seq_along(output_ids_sorted)) {
+            c_mt <- (c_momt - 1) * length(output_ids_sorted) + o_idx
+            new_row[[paste0("K", c_mt)]] <- if (o_idx == oid_idx) p_momt else 0
+          }
+        }
         ini_mixture_mt_rows[[length(ini_mixture_mt_rows) + 1]] <- new_row
       }
     }
