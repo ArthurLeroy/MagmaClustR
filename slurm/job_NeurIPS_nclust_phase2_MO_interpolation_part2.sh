@@ -11,14 +11,14 @@
 
 #SBATCH --job-name=neurips_mo_itp_p2
 #SBATCH --qos=huge
-#SBATCH -c 16
+#SBATCH -c 12
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_mo_itp_p2_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_mo_itp_p2_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=16
+N_WORKERS=12
 DEFAULT_SEEDS_PART=$(seq 26 50)
 
 echo "=============================================="
