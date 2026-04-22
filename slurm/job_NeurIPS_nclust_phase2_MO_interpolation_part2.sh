@@ -11,7 +11,7 @@
 
 #SBATCH --job-name=neurips_mo_itp_p2
 #SBATCH --qos=huge
-#SBATCH -c 25
+#SBATCH -c 16
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_mo_itp_p2_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_mo_itp_p2_%j.err
