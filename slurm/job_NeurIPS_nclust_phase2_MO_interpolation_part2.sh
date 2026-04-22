@@ -18,7 +18,7 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=20
+N_WORKERS=16
 DEFAULT_SEEDS_PART=$(seq 26 50)
 
 echo "=============================================="
