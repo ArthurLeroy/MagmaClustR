@@ -383,7 +383,7 @@ tryCatch({
     trained_model <- train_magma(
       data             = train_data_model %>% dplyr::select(-Cluster_ID),
       prior_mean       = prior_means_vec,
-      ini_hp_0         = ini_hp_0 %>% dplyr::select(-noise),
+      ini_hp_0         = ini_hp_0,
       ini_hp_t         = ini_hp_t,
       kern_0           = convolution_kernel,
       kern_t           = convolution_kernel,
@@ -700,7 +700,7 @@ tryCatch({
       nb_cluster       = N_CLUST,
       prior_mean_k     = prior_means_vec,
       ini_mixture      = ini_mix,
-      ini_hp_k         = ini_hp_k %>% dplyr::select(-noise),
+      ini_hp_k         = ini_hp_k,
       ini_hp_t         = ini_hp_t,
       kern_k           = convolution_kernel,
       kern_t           = convolution_kernel,
