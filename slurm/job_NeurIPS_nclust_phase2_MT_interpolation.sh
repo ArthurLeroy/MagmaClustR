@@ -10,14 +10,14 @@
 
 #SBATCH --job-name=neurips_nclust_mt_itp
 #SBATCH --qos=huge
-#SBATCH -c 16
+#SBATCH -c 32
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_nclust_mt_itp_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_nclust_mt_itp_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=32
+N_WORKERS=20
 N_SEEDS=50
 
 echo "=============================================="
