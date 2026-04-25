@@ -120,16 +120,26 @@ tryCatch({
   pred_tasks_data_raw <- list()
   test_tasks_data_raw <- list()
 
-  # --- Forecasting : on enlève [0,1] pour TOUS les outputs des tâches test ---
-  train_data_raw <- data_raw %>% dplyr::filter(Task_ID %in% train_task_ids)
+    # --- Interpolation : gap [-0.5, 0.5] sur Output_ID="1" uniquement ---
+    gap_start <- -0.5
+    gap_end   <-  0.5
+
+    train_data_raw <- data_raw %>%
+      dplyr::filter(Task_ID %in% train_task_ids) %>%
+      dplyr::filter(Output_ID != "1" |
+                    (Output_ID == "1" & !(Input >= gap_start & Input <= gap_end)))
 
   for (tid in test_task_ids) {
     task_full <- data_raw %>% dplyr::filter(Task_ID == tid)
-    test_tasks_data_raw[[tid]] <- task_full %>%
-      dplyr::filter(Input >= 0 & Input <= 1) %>%
-      dplyr::arrange(Output_ID, Input)
-    pred_tasks_data_raw[[tid]] <- task_full %>%
-      dplyr::filter(!(Input >= 0 & Input <= 1)) %>%
+      task_O1 <- task_full %>% dplyr::filter(Output_ID == "1") %>% dplyr::arrange(Input)
+
+      test_tasks_data_raw[[tid]] <- task_O1 %>%
+        dplyr::filter(Input >= gap_start & Input <= gap_end)
+
+      pred_tasks_data_raw[[tid]] <- dplyr::bind_rows(
+        task_full %>% dplyr::filter(Output_ID != "1"),
+        task_O1 %>% dplyr::filter(!(Input >= gap_start & Input <= gap_end))
+      ) %>%
       dplyr::arrange(Output_ID, Input)
   }
 
