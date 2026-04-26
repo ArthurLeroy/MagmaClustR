@@ -10,7 +10,7 @@
 
 #SBATCH --job-name=neurips_nclust_mt_itp
 #SBATCH --qos=huge
-#SBATCH -c 32
+#SBATCH -c 25
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/neurips_nclust_mt_itp_%j.out
 #SBATCH --error=/scratch/%u/logs/neurips_nclust_mt_itp_%j.err
