@@ -1501,8 +1501,7 @@ pred_magma <- function(data = NULL,
   }
 
   ## Sum the covariance matrices on observed inputs and compute the inverse
-  cov_obs <- kern_to_cov(inputs_obs, kern, hp)
-  + post_cov_obs
+  cov_obs <- kern_to_cov(inputs_obs, kern, hp) + post_cov_obs
 
   inv_obs <- cov_obs %>%
     chol_inv_jitter(pen_diag = pen_diag) %>%
@@ -1519,12 +1518,10 @@ pred_magma <- function(data = NULL,
   }
 
   ## Compute the required sub-matrix for prediction
-  cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi)
-  + post_cov_pred
+  cov_pred <- kern_to_cov(inputs_pred, kern, hp_rm_noi) + post_cov_pred
   cov_crossed <- kern_to_cov(inputs_obs, kern, hp_rm_noi,
                              input_2 = inputs_pred
-  )
-  + post_cov_crossed
+  ) + post_cov_crossed
 
   ## Compute the posterior mean of a GP
   pred_mean <- (mean_pred +
