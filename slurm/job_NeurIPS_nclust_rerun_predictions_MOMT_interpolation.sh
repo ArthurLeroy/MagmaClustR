@@ -10,14 +10,14 @@
 
 #SBATCH --job-name=rerun_momt_itp
 #SBATCH --qos=huge
-#SBATCH -c 32
+#SBATCH -c 25
 #SBATCH --time=7-00:00:00
 #SBATCH --output=/scratch/%u/logs/rerun_momt_itp_%j.out
 #SBATCH --error=/scratch/%u/logs/rerun_momt_itp_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=alexia.grenouillat@math.univ-toulouse.fr
 
-N_WORKERS=32
+N_WORKERS=25
 N_SEEDS=50
 PROJECT_ROOT="/scratch/${USER}/NeurIPS_experiments_interpolation"
 SCRIPT_DIR="${PROJECT_ROOT}/scripts"
