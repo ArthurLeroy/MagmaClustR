@@ -1,4 +1,4 @@
-laplace_matching = function(data, likelihood, eps = 1e-1) {
+laplace_matching = function(data, likelihood, eps = 1e-2) {
 
   if (likelihood == 'Bernoulli') {
     ## Compute alpha et beta parameters of the Beta pseudo-likelihood
@@ -20,7 +20,7 @@ laplace_matching = function(data, likelihood, eps = 1e-1) {
 }
 
 revert_laplace_matching = function(sample, likelihood = 'Bernoulli') {
-  if (likelihood == 'Beta') {
+  if (likelihood == 'Bernoulli') {
     ## Apply the logistic transform to revert back to [0,1]
     revert_pred = sample %>%
       dplyr::mutate(Output = 1 / (1 + exp(-.data$Output)))
