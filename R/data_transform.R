@@ -1,41 +1,25 @@
-# sparse_batch_data(data) = function(data,
-#                                    size_grid,
-#                                    grid_inputs = NULL){
-#   data %>%
-#     dplyr::mutate(Batch_input = grid_inputs[match_closest(db$Input, grid_inputs)]) %>%
-#     return()
-# }
+laplace_matching = function(data, likelihood, eps = 1e-1) {
 
-laplace_matching = function(data, likelihood = 'Beta', eps = 1e-1) {
-  ## Initialise a dummy Batch column if inputs are not batched
-  if (!('Batch_input' %in% names(data))) {
-    data = data %>% dplyr::mutate(Batch_input = .data$Input)
-  }
-
-  if (likelihood == 'Beta') {
+  if (likelihood == 'Bernoulli') {
     ## Compute alpha et beta parameters of the Beta pseudo-likelihood
     ## Then transform into Gaussian observations via Laplace-Matching
     pseudo_data = data %>%
-      dplyr::group_by(.data$ID, .data$Batch_input) %>%
       dplyr::mutate(
-        alpha = sum(.data$Output == T),
-        beta = sum(.data$Output == F)
+        alpha = .data$Output == 1,
+        beta = .data$Output == 0
       ) %>%
       dplyr::mutate(Output = log((.data$alpha + eps) / (.data$beta + eps))) %>%
       dplyr::mutate(
         Var_output = (.data$alpha + .data$beta + 2 * eps) /
           ((.data$alpha + eps) * (.data$beta + eps))
       ) %>%
-      dplyr::select(c(.data$ID, .data$Batch_input, .data$Output)) %>%
-      dplyr::rename(Input = .data$Batch_input) %>%
-      dplyr::distinct() %>%
-      dplyr::ungroup()
+      dplyr::select(c(.data$ID, .data$Input, .data$Output, .data$Var_output))
   }
 
   return(pseudo_data)
 }
 
-revert_laplace_matching = function(sample, likelihood = 'Beta') {
+revert_laplace_matching = function(sample, likelihood = 'Bernoulli') {
   if (likelihood == 'Beta') {
     ## Apply the logistic transform to revert back to [0,1]
     revert_pred = sample %>%
