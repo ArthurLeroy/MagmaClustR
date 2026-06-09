@@ -1,4 +1,4 @@
-pandoc: 3.1.11
+pandoc: 3.8.3
 pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
@@ -6,7 +6,7 @@ articles:
   articles/how-to-use-magma: how-to-use-magma.html
   articles/how-to-use-magmaclust: how-to-use-magmaclust.html
   articles/standard-GP: standard-GP.html
-last_built: 2026-03-20T16:25Z
+last_built: 2026-06-09T15:46Z
 urls:
   reference: https://arthurleroy.github.io/MagmaClustR/reference
   article: https://arthurleroy.github.io/MagmaClustR/articles

@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Gaussian Process regression">
 </head>
@@ -66,7 +66,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>Gaussian Process regression</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/ArthurLeroy/MagmaClustR/blob/master/vignettes/articles/standard-GP.Rmd" class="external-link"><code>vignettes/articles/standard-GP.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/ArthurLeroy/MagmaClustR/blob/v1.2.1/vignettes/articles/standard-GP.Rmd" class="external-link"><code>vignettes/articles/standard-GP.Rmd</code></a></small>
       <div class="d-none name"><code>standard-GP.Rmd</code></div>
     </div>
 
@@ -225,7 +225,7 @@ grids).</p>
 <span>        data <span class="op">=</span> <span class="va">Michaela</span><span class="op">)</span></span></code></pre></div>
 <p><img src="standard-GP_files/figure-html/unnamed-chunk-7-1.png" class="r-plt" alt="" width="80%" style="display: block; margin: auto;"></p>
 <p>Close to Michaela’s observed data
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>10</mn><mo>,</mo><mn>14</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">t \in [ 10, 14 ]</annotation></semantics></math>),
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>∈</mo><mo stretchy="false" form="prefix">[</mo><mn>10</mn><mo>,</mo><mn>14</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">t \in [ 10, 14 ]</annotation></semantics></math>),
 the standard GP prediction behaves as expected: it accurately fits data
 points and the confidence interval is narrow. However, as soon as we
 move away from observed points, the GP drifts to the <strong>prior

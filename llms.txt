@@ -29,12 +29,14 @@ You can install the released version of MagmaClustR from
 [CRAN](https://CRAN.R-project.org) with:
 
 ``` r
+
 install.packages("MagmaClustR")
 ```
 
 And the development version from [GitHub](https://github.com/) with:
 
 ``` r
+
 # install.packages("devtools")
 devtools::install_github("ArthurLeroy/MagmaClustR")
 ```
@@ -47,6 +49,7 @@ format, then train a Magma model and use it to perform predictions.
 ### Data generation
 
 ``` r
+
 library(MagmaClustR)
 ## Simulate a dataset with 11 individuals, each observed at 10 input locations
 set.seed(17)
@@ -80,6 +83,7 @@ be treated as a covariate (and thus define multi-dimensional inputs).
 ### Training and prediction with Magma
 
 ``` r
+
 model <- train_magma(data = magma_train, common_hp = F)
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
@@ -135,6 +139,7 @@ offer extended options in the display of results. For instance, the GP
 predictions can be represented as a heatmap of probabilities:
 
 ``` r
+
 plot_gp(pred_gp = pred,
         data = magma_pred,
         data_train = magma_train,
@@ -151,6 +156,7 @@ the prediction evolves as we add more data points to our prediction
 dataset.
 
 ``` r
+
 
 pred_gif  <- pred_gif(data = magma_pred,
                       trained_model = model,
@@ -177,6 +183,7 @@ clustering and predictions.
 ### Data generation
 
 ``` r
+
 ## Simulate a dataset containing 3 clusters of 4 individuals, each observed at 10 input locations
 set.seed(4) 
 data_magmaclust <- simu_db(M = 4, N = 10, K = 3, common_input = FALSE) 
@@ -206,6 +213,7 @@ data_magmaclust
 ### Training and prediction with MagmaClust
 
 ``` r
+
 model_clust <- train_magmaclust(data = magmaclust_train)
 #> The number of cluster argument has not been specified. There will be 3 cluster by default. 
 #>  
@@ -262,6 +270,7 @@ GPs may not be unimodal in general (and thus prevents the definition of
 Credible Interval).
 
 ``` r
+
 ## Allocate individuals to their most probable cluster to colour them by clusters afterwards
 data_train_with_clust = data_allocate_cluster(model_clust)
 
@@ -287,6 +296,7 @@ desired in the model.
 ### Data generation
 
 ``` r
+
 ## Dataset with 11 individuals, 10 reference input locations and a covariate
 set.seed(5) 
 data_dim2 <- simu_db(M = 11, N = 10, covariate = TRUE) 
@@ -314,6 +324,7 @@ data_dim2
 ### Training and prediction with Magma
 
 ``` r
+
 model_dim2 <- train_magma(data = dim2_train)
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  

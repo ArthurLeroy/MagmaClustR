@@ -16,7 +16,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/ArthurLeroy/MagmaClustR/blob/master/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/ArthurLeroy/MagmaClustR/blob/v1.2.1/DESCRIPTION)
 
 Leroy A, Latouche P (2026). *MagmaClustR: Clustering and Prediction
 using Multi-Task Gaussian Processes with Common Mean*. R package version

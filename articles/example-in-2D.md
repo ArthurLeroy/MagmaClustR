@@ -1,6 +1,7 @@
 # Multi-dimensional inputs in Magma
 
 ``` r
+
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
@@ -60,6 +61,7 @@ Many additional arguments are available, see
 for details.
 
 ``` r
+
 set.seed(3)
 data_dim2 <- simu_db(M = 31, 
                      N = 10, 
@@ -84,6 +86,7 @@ we can display raw data (using the signature gradient colour of
 `MagmaClustR` ;) ) with the following code:
 
 ``` r
+
 ggplot(data_dim2) +
   geom_tile(aes(x = Input, y = Covariate, fill = Output)) +
   theme_classic() +
@@ -124,10 +127,11 @@ project our data. This function takes the arguments:
   similar inputs are associated with different outputs.
 
 For instance, if we would want to evaluate our synthetic dataset on a
-$5 \times 5$ grid of inputs summarise the projected outputs according
+$`5 \times 5`$ grid of inputs summarise the projected outputs according
 through their mean, we could call:
 
 ``` r
+
 data_dim2_reg <- regularize_data(data = data_dim2,
                              size_grid = 5,
                              grid_inputs = NULL,
@@ -148,6 +152,7 @@ knitr::kable(head(data_dim2_reg))
 Finally, we split our individuals into training and prediction sets.
 
 ``` r
+
 dim2_train <- data_dim2 %>% filter(ID %in% 1:30)
 dim2_pred <- data_dim2 %>% filter(ID == 31) 
 ```
@@ -163,6 +168,7 @@ for the complete description of the classical pipeline: - we call the
 function to train our model:
 
 ``` r
+
 set.seed(3)
 model_dim2 <- train_magma(data = dim2_train, 
                           kern_0 = "SE",
@@ -174,15 +180,15 @@ model_dim2 <- train_magma(data = dim2_train,
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 3.76 seconds 
+#> EM algorithm, step 1: 3.45 seconds 
 #>  
 #> Value of the likelihood: -1113.46118 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 2.89 seconds 
+#> EM algorithm, step 2: 2.63 seconds 
 #>  
 #> Value of the likelihood: -1079.22628 --- Convergence ratio = 0.03172
 #>  
-#> EM algorithm, step 3: 2.96 seconds 
+#> EM algorithm, step 3: 2.64 seconds 
 #>  
 #> Value of the likelihood: -1078.65383 --- Convergence ratio = 0.00053
 #>  
@@ -201,6 +207,7 @@ model_dim2 <- train_magma(data = dim2_train,
   prettier graphics** section for details.
 
 ``` r
+
 pred_dim2  <- pred_magma(data = dim2_pred,
                          trained_model = model_dim2,
                          plot = FALSE)
@@ -243,6 +250,7 @@ nor the training data, as we were not able to find appropriate
 representations (that would also not surcharge the graph).
 
 ``` r
+
 plot_gp(pred_gp = pred_dim2,
         data = dim2_pred) 
 ```
@@ -276,6 +284,7 @@ prediction. Moreover, each Input must have the same name as in the data
 base to avoid errors during the prediction step.
 
 ``` r
+
 grid_inputs_dim2 <- expand_grid_inputs(Input = seq(0,10,0.5), Covariate = seq(0,10,0.5))
 
 pred_dim2  <- pred_magma(data = dim2_pred,

@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="How to use Magma">
 </head>
@@ -66,7 +66,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>How to use Magma</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/ArthurLeroy/MagmaClustR/blob/master/vignettes/articles/how-to-use-magma.Rmd" class="external-link"><code>vignettes/articles/how-to-use-magma.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/ArthurLeroy/MagmaClustR/blob/v1.2.1/vignettes/articles/how-to-use-magma.Rmd" class="external-link"><code>vignettes/articles/how-to-use-magma.Rmd</code></a></small>
       <div class="d-none name"><code>how-to-use-magma.Rmd</code></div>
     </div>
 
@@ -301,25 +301,25 @@ for details.</p>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 7.33 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 6.32 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1306.74731 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 4.45 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 3.74 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1240.53711 --- Convergence ratio = 0.05337</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 2.6 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 2.25 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1228.4203 --- Convergence ratio = 0.00986</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 3.59 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 2.97 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1225.61283 --- Convergence ratio = 0.00229</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Warning in train_magma(data = swimmers_train, kern_0 = "SE", kern_i = "SE", :</span></span>
 <span><span class="co">#&gt; The likelihood descreased. Possible numerical issues.</span></span>
-<span><span class="co">#&gt; EM algorithm, step 5: 3.62 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 5: 3.38 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1225.6443 --- Convergence ratio = -3e-05</span></span>
 <span><span class="co">#&gt;  </span></span>
@@ -395,13 +395,13 @@ GP (right).</p>
 <p>On this visual comparison, 3 distinct phases can be highlighted:</p>
 <ul>
 <li><p><strong>first phase</strong>: close to Michaela’s observed data
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>11</mn><mo>,</mo><mn>14</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">t \in [ 11, 14 ]</annotation></semantics></math>),
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>∈</mo><mo stretchy="false" form="prefix">[</mo><mn>11</mn><mo>,</mo><mn>14</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">t \in [ 11, 14 ]</annotation></semantics></math>),
 the two processes behave similarly. We note a slight increase in the
 variance for Magma, which is logical since the prediction also takes
 uncertainty over the <strong>mean GP</strong> into account;</p></li>
 <li><p><strong>second phase</strong>: on intervals of unobserved
 timestamps containing data points from the training dataset
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>∈</mo><mrow><mo stretchy="true" form="prefix">[</mo><mn>14</mn><mo>,</mo><mn>20</mn><mo stretchy="true" form="postfix">]</mo></mrow></mrow><annotation encoding="application/x-tex">t \in [ 14, 20 ]</annotation></semantics></math>),
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>∈</mo><mo stretchy="false" form="prefix">[</mo><mn>14</mn><mo>,</mo><mn>20</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">t \in [ 14, 20 ]</annotation></semantics></math>),
 Magma prediction is guided by the information coming from other
 individuals through the <strong>mean GP</strong>. Thus, the mean
 trajectory remains coherent and the uncertainty increases only slightly.
@@ -448,19 +448,19 @@ swimmer, called Michael (right) and randomly selected within
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 1: 8.61 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 1: 7.38 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1429.93441 --- Convergence ratio = Inf</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 2: 2.83 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 2: 2.28 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1411.28576 --- Convergence ratio = 0.01321</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 3: 4.04 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 3: 3.52 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1409.42677 --- Convergence ratio = 0.00132</span></span>
 <span><span class="co">#&gt;  </span></span>
-<span><span class="co">#&gt; EM algorithm, step 4: 4.16 seconds </span></span>
+<span><span class="co">#&gt; EM algorithm, step 4: 3.81 seconds </span></span>
 <span><span class="co">#&gt;  </span></span>
 <span><span class="co">#&gt; Value of the likelihood: -1409.17453 --- Convergence ratio = 0.00018</span></span>
 <span><span class="co">#&gt;  </span></span>

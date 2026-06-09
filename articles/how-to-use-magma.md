@@ -1,6 +1,7 @@
 # How to use Magma
 
 ``` r
+
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
@@ -38,6 +39,7 @@ young swimmers remain the best when they get older? Those are the kind
 of questions we aim to tackle in the following.
 
 ``` r
+
 ggplot2::ggplot(data=swimmers %>% filter(ID %in% 1:5),
        mapping = ggplot2::aes(x=Age,y=Performance,colour=factor(ID)))+
   ggplot2::geom_point(size=3) +
@@ -69,6 +71,7 @@ a given age. More specifically, each column contains:
   corresponds to men and 2 to women).
 
 ``` r
+
 knitr::kable(swimmers[1:5,])
 ```
 
@@ -112,6 +115,7 @@ In addition, we need to change the name of the input and output columns
 as indicated before, and remove the `Gender` one.
 
 ``` r
+
 swimmers_m <- swimmers %>% filter(Gender == 1) %>%
   select(-Gender) %>% 
   rename(Input = Age, Output = Performance)
@@ -134,6 +138,7 @@ increase with the number of training individuals, 20 are more than
 enough to get a clear idea of how the algorithm works.
 
 ``` r
+
 set.seed(3)
 list_ID <- swimmers_f %>% pull(ID) %>% sample()
 swimmers_train <- swimmers_f %>% filter(ID %in% list_ID[1:20])
@@ -141,6 +146,7 @@ swimmers_pred <- swimmers_f %>% filter(ID == 1718)
 ```
 
 ``` r
+
 ggplot2::ggplot(data=swimmers_train,
        mapping = ggplot2::aes(x=Input,y=Output,colour=factor(ID)))+
   ggplot2::geom_point(size=1.5,alpha=0.3)+
@@ -196,6 +202,7 @@ Other parameters can also be specified; see
 for details.
 
 ``` r
+
 set.seed(3)
 model <- train_magma(data = swimmers_train,
                      kern_0 = "SE",
@@ -207,25 +214,25 @@ model <- train_magma(data = swimmers_train,
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 7.33 seconds 
+#> EM algorithm, step 1: 6.32 seconds 
 #>  
 #> Value of the likelihood: -1306.74731 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 4.45 seconds 
+#> EM algorithm, step 2: 3.74 seconds 
 #>  
 #> Value of the likelihood: -1240.53711 --- Convergence ratio = 0.05337
 #>  
-#> EM algorithm, step 3: 2.6 seconds 
+#> EM algorithm, step 3: 2.25 seconds 
 #>  
 #> Value of the likelihood: -1228.4203 --- Convergence ratio = 0.00986
 #>  
-#> EM algorithm, step 4: 3.59 seconds 
+#> EM algorithm, step 4: 2.97 seconds 
 #>  
 #> Value of the likelihood: -1225.61283 --- Convergence ratio = 0.00229
 #> 
 #> Warning in train_magma(data = swimmers_train, kern_0 = "SE", kern_i = "SE", :
 #> The likelihood descreased. Possible numerical issues.
-#> EM algorithm, step 5: 3.62 seconds 
+#> EM algorithm, step 5: 3.38 seconds 
 #>  
 #> Value of the likelihood: -1225.6443 --- Convergence ratio = -3e-05
 #>  
@@ -253,6 +260,7 @@ performances between 10 and 20 years. Therefore, the argument
 interest.
 
 ``` r
+
 pred <- pred_magma(data = swimmers_pred,
   trained_model = model,
   grid_inputs = seq(10,20,0.1),
@@ -275,6 +283,7 @@ function can be used to depict the evolution of Michaela’s predicted
 performances.
 
 ``` r
+
 plot_magma(pred_gp = pred,
            data = swimmers_pred,
            prior_mean = model$hyperpost$mean,
@@ -309,21 +318,20 @@ between 10 and 23 years, according to *Magma* (left) and standard GP
 On this visual comparison, 3 distinct phases can be highlighted:
 
 - **first phase**: close to Michaela’s observed data
-  ($t \in \lbrack 11,14\rbrack$), the two processes behave similarly. We
-  note a slight increase in the variance for Magma, which is logical
-  since the prediction also takes uncertainty over the **mean GP** into
-  account;
+  ($`t \in [ 11, 14 ]`$), the two processes behave similarly. We note a
+  slight increase in the variance for Magma, which is logical since the
+  prediction also takes uncertainty over the **mean GP** into account;
 
 - **second phase**: on intervals of unobserved timestamps containing
-  data points from the training dataset ($t \in \lbrack 14,20\rbrack$),
-  Magma prediction is guided by the information coming from other
-  individuals through the **mean GP**. Thus, the mean trajectory remains
-  coherent and the uncertainty increases only slightly. On the contrary,
-  the simple GP quickly drifts to the prior zero mean as soon as data
-  lack, and uncertainty increases significantly.
+  data points from the training dataset ($`t \in [ 14, 20 ]`$), Magma
+  prediction is guided by the information coming from other individuals
+  through the **mean GP**. Thus, the mean trajectory remains coherent
+  and the uncertainty increases only slightly. On the contrary, the
+  simple GP quickly drifts to the prior zero mean as soon as data lack,
+  and uncertainty increases significantly.
 
 - **third phase**: where no observations are available, neither from the
-  new individual nor the training dataset ($t > 20$), Magma behaves as
+  new individual nor the training dataset ($`t > 20`$), Magma behaves as
   expected, with a slow drift to the prior mean, with highly increasing
   variance.
 
@@ -345,6 +353,7 @@ with the one for Michaela (left).
 
 ``` r
 
+
 ## Draw a random subset for training and an individual for prediction
 set.seed(9)
 list_ID_m <- swimmers_m %>% pull(ID) %>% unique() %>% sample()
@@ -362,19 +371,19 @@ model_m <- train_magma(data = swimmers_train_m,
 #>  
 #> The 'ini_hp_i' argument has not been specified. Random values of hyper-parameters for the individal processes are used as initialisation.
 #>  
-#> EM algorithm, step 1: 8.61 seconds 
+#> EM algorithm, step 1: 7.38 seconds 
 #>  
 #> Value of the likelihood: -1429.93441 --- Convergence ratio = Inf
 #>  
-#> EM algorithm, step 2: 2.83 seconds 
+#> EM algorithm, step 2: 2.28 seconds 
 #>  
 #> Value of the likelihood: -1411.28576 --- Convergence ratio = 0.01321
 #>  
-#> EM algorithm, step 3: 4.04 seconds 
+#> EM algorithm, step 3: 3.52 seconds 
 #>  
 #> Value of the likelihood: -1409.42677 --- Convergence ratio = 0.00132
 #>  
-#> EM algorithm, step 4: 4.16 seconds 
+#> EM algorithm, step 4: 3.81 seconds 
 #>  
 #> Value of the likelihood: -1409.17453 --- Convergence ratio = 0.00018
 #>  
@@ -424,6 +433,7 @@ dispersion of the predicted values and the confidence we may grant to
 each of them.
 
 ``` r
+
 plot_magma(pred_gp = pred_f,
         data = swimmers_pred,
         data_train = swimmers_train,
@@ -441,6 +451,7 @@ calling
 [`pred_magma()`](https://arthurleroy.github.io/MagmaClustR/reference/pred_magma.md).
 
 ``` r
+
 pred_with_cov <- pred_magma(data = swimmers_pred,
                             trained_model = model,
                             get_full_cov = TRUE,
@@ -462,6 +473,7 @@ we can now draw and display sample curves, representing a set of
 probable functions considering the observed data that we provided.
 
 ``` r
+
 plot_magma(pred_gp = pred_with_cov,
            data = swimmers_pred,
            data_train = swimmers_train,
@@ -500,6 +512,7 @@ like adjusting the GIF speed, saving the plotted GIF (see `?gganimate`
 for details)
 
 ``` r
+
 pred_gif  <- pred_gif(data = swimmers_pred,
                       trained_model = model,
                       grid_inputs = seq(10,20,0.1))
@@ -507,6 +520,7 @@ pred_gif  <- pred_gif(data = swimmers_pred,
 ```
 
 ``` r
+
 plot_gif(pred_gp = pred_gif,
          data = swimmers_pred,
          data_train = swimmers_train,

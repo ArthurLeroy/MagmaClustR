@@ -1,6 +1,7 @@
 # Gaussian Process regression
 
 ``` r
+
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
@@ -57,6 +58,7 @@ the columns, and remove `Gender` before using
 [`train_gp()`](https://arthurleroy.github.io/MagmaClustR/reference/train_gp.md).
 
 ``` r
+
 Michaela <- swimmers %>% filter(ID == 1718) %>% 
   select(-Gender) %>% 
   rename(Input = Age, Output = Performance)
@@ -66,6 +68,7 @@ We display Michaela’s performances according to her age to visualise her
 progression from raw data.
 
 ``` r
+
 ggplot() +
   geom_point(data = Michaela,
        mapping = aes(x=Input,y=Output),
@@ -100,6 +103,7 @@ are available in
 [`help(train_gp)`](https://arthurleroy.github.io/MagmaClustR/reference/train_gp.html).
 
 ``` r
+
 set.seed(2)
 model_gp <- train_gp(data = Michaela,
                      kern = "SE",
@@ -132,6 +136,7 @@ See
 to get information about the other optional arguments.
 
 ``` r
+
 pred_gp <- pred_gp(data = Michaela,
                    kern = "SE",
                    hp = model_gp,
@@ -160,14 +165,15 @@ function. If we want to get a prettier graphic, we could specify
 it could be longer to display when evaluating on fine grids).
 
 ``` r
+
 plot_gp(pred_gp = pred_gp,
         data = Michaela)
 ```
 
 ![](standard-GP_files/figure-html/unnamed-chunk-7-1.png)
 
-Close to Michaela’s observed data ($t \in \lbrack 10,14\rbrack$), the
-standard GP prediction behaves as expected: it accurately fits data
-points and the confidence interval is narrow. However, as soon as we
-move away from observed points, the GP drifts to the **prior mean** and
-uncertainty increases significantly.
+Close to Michaela’s observed data ($`t \in [ 10, 14 ]`$), the standard
+GP prediction behaves as expected: it accurately fits data points and
+the confidence interval is narrow. However, as soon as we move away from
+observed points, the GP drifts to the **prior mean** and uncertainty
+increases significantly.

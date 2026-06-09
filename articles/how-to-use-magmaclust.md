@@ -1,6 +1,7 @@
 # How to use MagmaClust
 
 ``` r
+
 library(MagmaClustR)
 library(dplyr)
 library(ggplot2)
@@ -38,6 +39,7 @@ group structures in the data, and define appropriate clusters? Those are
 the kind of questions we aim to tackle in the following.
 
 ``` r
+
 set.seed(10)
 list_ID <- weight %>% pull(ID) %>%  sample()
 
@@ -73,6 +75,7 @@ indicating the biological gender of the child (`Male` or `Female`); -
 child (in kilograms).
 
 ``` r
+
 knitr::kable(head(weight)) 
 ```
 
@@ -99,6 +102,7 @@ Since the children weight is not particularly affected by gender between
 dataset. Therefore, the `sex` column is below removed for simplicity.
 
 ``` r
+
 weight <- weight %>% select(-sex)
 ```
 
@@ -129,12 +133,14 @@ select 20 children for training. Even if the performances of
 more than enough to get a clear idea of how the algorithm works.
 
 ``` r
+
 weight_train <- weight %>% filter(ID %in% list_ID[1:20])
 weight_pred <- weight %>% filter(ID == list_ID[261]) %>% filter(Input<20)
 weight_test <- weight %>% filter(ID == list_ID[261]) %>% filter(Input>20)
 ```
 
 ``` r
+
 ggplot2::ggplot(data = weight_train,
        mapping = ggplot2::aes(x=Input,y=Output,colour=factor(ID)))+
   ggplot2::geom_point(size=1.5,alpha=0.3)+
@@ -159,7 +165,7 @@ for which several arguments can be specified:
 
 - `nb_cluster`: as for any clustering method, we have to provide a
   number *K* of clusters as an hypothesis of the model. For illustration
-  purposes, we arbitrarily set $K = 3$ in the following example.
+  purposes, we arbitrarily set $`K = 3`$ in the following example.
   However, a dedicated model selection method based on maximising a VBIC
   criterion is provided in the package as
   [`select_nb_cluster()`](https://arthurleroy.github.io/MagmaClustR/reference/select_nb_cluster.html).
@@ -198,6 +204,7 @@ Other parameters can also be specified; see
 for details.
 
 ``` r
+
 set.seed(10)
 model_clust <- train_magmaclust(data = weight_train,
                         nb_cluster = 3,
@@ -211,75 +218,75 @@ model_clust <- train_magmaclust(data = weight_train,
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 7.49 seconds 
+#> VEM algorithm, step 1: 6.72 seconds 
 #>  
 #> Value of the elbo: -588.44662 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 3.98 seconds 
+#> VEM algorithm, step 2: 3.69 seconds 
 #>  
 #> Value of the elbo: -476.83441 --- Convergence ratio = 0.23407
 #>  
-#> VEM algorithm, step 3: 6.28 seconds 
+#> VEM algorithm, step 3: 5.78 seconds 
 #>  
 #> Value of the elbo: -417.64055 --- Convergence ratio = 0.14173
 #>  
-#> VEM algorithm, step 4: 4.36 seconds 
+#> VEM algorithm, step 4: 3.96 seconds 
 #>  
 #> Value of the elbo: -387.40281 --- Convergence ratio = 0.07805
 #>  
-#> VEM algorithm, step 5: 3.66 seconds 
+#> VEM algorithm, step 5: 3.36 seconds 
 #>  
 #> Value of the elbo: -382.57575 --- Convergence ratio = 0.01262
 #>  
-#> VEM algorithm, step 6: 4.58 seconds 
+#> VEM algorithm, step 6: 4.11 seconds 
 #>  
 #> Value of the elbo: -380.80081 --- Convergence ratio = 0.00466
 #>  
-#> VEM algorithm, step 7: 3.05 seconds 
+#> VEM algorithm, step 7: 2.8 seconds 
 #>  
 #> Value of the elbo: -379.39134 --- Convergence ratio = 0.00372
 #>  
-#> VEM algorithm, step 8: 3.06 seconds 
+#> VEM algorithm, step 8: 2.82 seconds 
 #>  
 #> Value of the elbo: -378.41461 --- Convergence ratio = 0.00258
 #>  
-#> VEM algorithm, step 9: 3.06 seconds 
+#> VEM algorithm, step 9: 2.82 seconds 
 #>  
 #> Value of the elbo: -377.39036 --- Convergence ratio = 0.00271
 #>  
-#> VEM algorithm, step 10: 3.08 seconds 
+#> VEM algorithm, step 10: 2.81 seconds 
 #>  
 #> Value of the elbo: -376.41644 --- Convergence ratio = 0.00259
 #>  
-#> VEM algorithm, step 11: 2.97 seconds 
+#> VEM algorithm, step 11: 2.81 seconds 
 #>  
 #> Value of the elbo: -375.60006 --- Convergence ratio = 0.00217
 #>  
-#> VEM algorithm, step 12: 3.05 seconds 
+#> VEM algorithm, step 12: 2.96 seconds 
 #>  
 #> Value of the elbo: -374.95889 --- Convergence ratio = 0.00171
 #>  
-#> VEM algorithm, step 13: 3.03 seconds 
+#> VEM algorithm, step 13: 2.8 seconds 
 #>  
 #> Value of the elbo: -374.37301 --- Convergence ratio = 0.00156
 #>  
-#> VEM algorithm, step 14: 3.04 seconds 
+#> VEM algorithm, step 14: 2.83 seconds 
 #>  
 #> Value of the elbo: -373.87343 --- Convergence ratio = 0.00134
 #>  
-#> VEM algorithm, step 15: 3.02 seconds 
+#> VEM algorithm, step 15: 2.8 seconds 
 #>  
 #> Value of the elbo: -373.39528 --- Convergence ratio = 0.00128
 #>  
-#> VEM algorithm, step 16: 3.06 seconds 
+#> VEM algorithm, step 16: 2.8 seconds 
 #>  
 #> Value of the elbo: -372.92681 --- Convergence ratio = 0.00126
 #>  
-#> VEM algorithm, step 17: 3.2 seconds 
+#> VEM algorithm, step 17: 2.81 seconds 
 #>  
 #> Value of the elbo: -372.48574 --- Convergence ratio = 0.00118
 #>  
-#> VEM algorithm, step 18: 3.33 seconds 
+#> VEM algorithm, step 18: 2.77 seconds 
 #>  
 #> Value of the elbo: -372.14595 --- Convergence ratio = 0.00091
 #>  
@@ -306,6 +313,7 @@ between 0 and 6 years (72 months), using only the his weight data from 0
 to 20 months. Therefore, the argument `grid_inputs = seq(0,72,0.1)`.
 
 ``` r
+
 pred_clust <- pred_magmaclust(data = weight_pred,
                               trained_model = model_clust,
                               grid_inputs = seq(0,72,0.1),
@@ -332,6 +340,7 @@ function, we can display the prediction for the evolution of James’
 weight over time.
 
 ``` r
+
 plot_magmaclust(pred = pred_clust,
                 data = weight_pred,
                 prior_mean = pred_clust$hyperpost$mean,
@@ -379,6 +388,7 @@ the algorithm and kept in the `weight_test` variable for testing
 purposes.
 
 ``` r
+
 data_train_with_clust = data_allocate_cluster(model_clust)
 
 plot_magmaclust(pred = pred_clust,
@@ -410,15 +420,15 @@ The graphs below correspond to James’ weight prediction with MagmaClust
 ![](how-to-use-magmaclust_files/figure-html/unnamed-chunk-13-1.png)
 
 On intervals of unobserved timestamps containing data points from the
-training dataset ($t \in \rbrack 20,72\rbrack$), Magma takes advantage
-of its multi-task component to share knowledge across individuals by
-estimating a unique mean process. However, this unique mean process
-appears unable to recover accurately the evolution trend. In this
-example, *MagmaClust* offers a significant improvement in this long term
-(more than 4 years ahead) forecasting task. By leveraging group
-structures among children, the algorithm shares more knowledge across
-individual that are similar, resulting in more precise and specific
-predictions based on a mixture of GPs.
+training dataset ($`t \in ]20, 72]`$), Magma takes advantage of its
+multi-task component to share knowledge across individuals by estimating
+a unique mean process. However, this unique mean process appears unable
+to recover accurately the evolution trend. In this example, *MagmaClust*
+offers a significant improvement in this long term (more than 4 years
+ahead) forecasting task. By leveraging group structures among children,
+the algorithm shares more knowledge across individual that are similar,
+resulting in more precise and specific predictions based on a mixture of
+GPs.
 
 ## Reference
 
