@@ -218,75 +218,75 @@ model_clust <- train_magmaclust(data = weight_train,
 #>  
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
-#> VEM algorithm, step 1: 6.67 seconds 
+#> VEM algorithm, step 1: 7.19 seconds 
 #>  
 #> Value of the elbo: -588.44662 --- Convergence ratio = Inf
 #>  
-#> VEM algorithm, step 2: 3.61 seconds 
+#> VEM algorithm, step 2: 3.87 seconds 
 #>  
 #> Value of the elbo: -476.83441 --- Convergence ratio = 0.23407
 #>  
-#> VEM algorithm, step 3: 5.67 seconds 
+#> VEM algorithm, step 3: 6.15 seconds 
 #>  
 #> Value of the elbo: -417.64055 --- Convergence ratio = 0.14173
 #>  
-#> VEM algorithm, step 4: 3.97 seconds 
+#> VEM algorithm, step 4: 4.24 seconds 
 #>  
 #> Value of the elbo: -387.40281 --- Convergence ratio = 0.07805
 #>  
-#> VEM algorithm, step 5: 3.29 seconds 
+#> VEM algorithm, step 5: 3.59 seconds 
 #>  
 #> Value of the elbo: -382.57575 --- Convergence ratio = 0.01262
 #>  
-#> VEM algorithm, step 6: 4.02 seconds 
+#> VEM algorithm, step 6: 4.34 seconds 
 #>  
 #> Value of the elbo: -380.80081 --- Convergence ratio = 0.00466
 #>  
-#> VEM algorithm, step 7: 2.73 seconds 
+#> VEM algorithm, step 7: 2.95 seconds 
 #>  
 #> Value of the elbo: -379.39134 --- Convergence ratio = 0.00372
 #>  
-#> VEM algorithm, step 8: 2.74 seconds 
+#> VEM algorithm, step 8: 2.97 seconds 
 #>  
 #> Value of the elbo: -378.41461 --- Convergence ratio = 0.00258
 #>  
-#> VEM algorithm, step 9: 2.74 seconds 
+#> VEM algorithm, step 9: 2.94 seconds 
 #>  
 #> Value of the elbo: -377.39036 --- Convergence ratio = 0.00271
 #>  
-#> VEM algorithm, step 10: 2.74 seconds 
+#> VEM algorithm, step 10: 2.96 seconds 
 #>  
 #> Value of the elbo: -376.41644 --- Convergence ratio = 0.00259
 #>  
-#> VEM algorithm, step 11: 2.72 seconds 
+#> VEM algorithm, step 11: 2.96 seconds 
 #>  
 #> Value of the elbo: -375.60006 --- Convergence ratio = 0.00217
 #>  
-#> VEM algorithm, step 12: 2.85 seconds 
+#> VEM algorithm, step 12: 3.08 seconds 
 #>  
 #> Value of the elbo: -374.95889 --- Convergence ratio = 0.00171
 #>  
-#> VEM algorithm, step 13: 2.68 seconds 
+#> VEM algorithm, step 13: 2.94 seconds 
 #>  
 #> Value of the elbo: -374.37301 --- Convergence ratio = 0.00156
 #>  
-#> VEM algorithm, step 14: 2.68 seconds 
+#> VEM algorithm, step 14: 2.95 seconds 
 #>  
 #> Value of the elbo: -373.87343 --- Convergence ratio = 0.00134
 #>  
-#> VEM algorithm, step 15: 2.69 seconds 
+#> VEM algorithm, step 15: 2.94 seconds 
 #>  
 #> Value of the elbo: -373.39528 --- Convergence ratio = 0.00128
 #>  
-#> VEM algorithm, step 16: 2.78 seconds 
+#> VEM algorithm, step 16: 2.97 seconds 
 #>  
 #> Value of the elbo: -372.92681 --- Convergence ratio = 0.00126
 #>  
-#> VEM algorithm, step 17: 2.72 seconds 
+#> VEM algorithm, step 17: 2.98 seconds 
 #>  
 #> Value of the elbo: -372.48574 --- Convergence ratio = 0.00118
 #>  
-#> VEM algorithm, step 18: 2.85 seconds 
+#> VEM algorithm, step 18: 2.96 seconds 
 #>  
 #> Value of the elbo: -372.14595 --- Convergence ratio = 0.00091
 #>  
