@@ -1,3 +1,150 @@
+#' Compute the Covariance Matrix for a Multi-Output GP via Convolution
+#'
+#' @param x The input data. For the vectorized multi-output case, this must be
+#'   a tibble/data.frame containing the coordinates and an 'Output_ID' column.
+#' @param y The second input data (must have the same format as x).
+#' @param hp For the vectorized multi-output case, this must be a tibble
+#'   containing the hyperparameters 'l_t', 'S_t', 'l_u_t' and an 'Output_ID'
+#'   column.
+#' @param vectorized If TRUE, enables the calculation of the full MO covariance
+#'   matrix.
+#' @param deriv A character string specifying the partial derivative to compute.
+#'   Can be one of "l_t_1", "l_t_2", "S_t_1", "S_t_2", "l_u_t".
+#' @return The covariance matrix or its partial derivative.
+#'
+convolution_kernel_KD <- function(x,
+                                  y,
+                                  hp,
+                                  vectorized = FALSE,
+                                  deriv = NULL) {
+
+  # 1. Identification of the Input Dimension (I)
+  if (is.data.frame(x)) {
+    coord_cols <- names(x)[sapply(x, is.numeric) & names(x) != "Output_ID"]
+    input_dim <- length(coord_cols)
+  } else {
+    # Fallback for non-vectorized pure numeric vectors
+    input_dim <- length(x)
+  }
+
+  # Non vectorized case
+  if (!vectorized) {
+    l_i <- exp(hp[["lengthscale_output1"]])
+    l_j <- exp(hp[["lengthscale_output2"]])
+    l_u <- exp(hp[["lengthscale_u"]])
+    S_i <- exp(hp[["variance_output1"]])
+    S_j <- exp(hp[["variance_output2"]])
+
+    # sum((x - y)^2) automatically aggregates across all input dimensions
+    distance_sq     <- sum((x - y)^2)
+    denominator_sum <- l_i + l_j + l_u
+    S_prod          <- S_i * S_j
+
+    # Generalization: The square root becomes a power of (input_dim / 2)
+    pre_factor <- S_prod / ((2 * pi * denominator_sum)^(input_dim / 2))
+    exp_term <- exp(-0.5 * distance_sq / denominator_sum)
+    K <- pre_factor * exp_term
+
+  } else {
+    # Vectorized case, which allows to build an entire covariance matrix
+    if (!"Output_ID" %in% names(x) || !"Output_ID" %in% names(hp)) {
+      stop("'input' and 'hp' must contain an 'Output_ID' column for vectorized ",
+           "mode.")
+    }
+
+    # Important: all HPs ID must be numeric (otherwise it raises an error
+    # further in the code of the kernel)
+    x_ids_numeric <- as.numeric(as.character(x$Output_ID))
+    y_ids_numeric <- as.numeric(as.character(y$Output_ID))
+    hp_ids_numeric <- as.numeric(as.character(hp$Output_ID))
+
+    x_coords <- as.matrix(x[, coord_cols, drop = FALSE])
+    y_coords <- as.matrix(y[, coord_cols, drop = FALSE])
+
+    # Match inputs indices with HPs indices, to get each input observed
+    # associated to the right Output_ID HPs.
+    indices_x <- match(x_ids_numeric, hp_ids_numeric)
+    indices_y <- match(y_ids_numeric, hp_ids_numeric)
+
+    # Exponentialisation of HPs to avoid numerical problems during optimisation
+    l_vec_1 <- exp(hp$l_t[indices_x])
+    l_vec_2 <- exp(hp$l_t[indices_y])
+    S_vec_1 <- exp(hp$S_t[indices_x])
+    S_vec_2 <- exp(hp$S_t[indices_y])
+    l_u_val <- exp(unique(hp$l_u_t))
+
+    # Compute each term of the convolution kernel
+    distance_sq <- cpp_dist(x_coords, y_coords)
+    denominator_sum <- outer(l_vec_1, l_vec_2, FUN = "+") + l_u_val
+    S_prod          <- outer(S_vec_1, S_vec_2, FUN = "*")
+
+    # Generalization: The square root becomes a power of (input_dim / 2)
+    pre_factor <- S_prod / ((2 * pi * denominator_sum)^(input_dim / 2))
+    exp_term   <- exp(-0.5 * distance_sq / denominator_sum)
+    K          <- pre_factor * exp_term
+  }
+
+  if (is.null(deriv)) {
+    return(K)
+  }
+
+  # Partial derivative computation
+  hp_id_str <- stringr::str_extract(deriv, "\\d+$")
+  if (is.na(hp_id_str) && deriv != "l_u_t") {
+    stop("The name of the derivative should end with a number, ex: 'l_t_1'.")
+  }
+  hp_id <- as.integer(hp_id_str)
+
+  if (startsWith(deriv, "l_t_")) {
+    # UPDATED: Chain rule adjusted for the new determinant exponent (input_dim)
+    common_deriv_denom <- K * ((-0.5 * input_dim / denominator_sum) +
+                                 (0.5 * distance_sq / (denominator_sum^2)))
+
+    # We need l_i and l_j, which corresponds for now to l_vec_1 and l_vec_2
+    N <- nrow(x)
+    M <- nrow(y)
+
+    # Create a matrix in which each (i, j) contains l_i
+    l_i_mat <- matrix(l_vec_1, nrow = N, ncol = M)
+
+    # Create a matrix in which each (i, j) contains l_j
+    l_j_mat <- matrix(l_vec_2, nrow = N, ncol = M, byrow = TRUE)
+
+    # Create a "switch", which turns on (= 1) for rows where Output i is equal to k
+    mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
+
+    # Create a "switch", which turns on (= 1) for rows where Output j is equal to k
+    mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
+
+    # l_i * I(i=k) + l_j * I(j=k)
+    chain_rule_matrix <- l_i_mat * mask_i_is_k + l_j_mat * mask_j_is_k
+
+    return(common_deriv_denom * chain_rule_matrix)
+
+  } else if (startsWith(deriv, "S_t_")) {
+    N <- nrow(x)
+    M <- nrow(y)
+    mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
+    mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
+
+    pd <- K * (mask_i_is_k + mask_j_is_k)
+    return(pd)
+
+  } else if (deriv == "l_u_t") {
+    # UPDATED: Chain rule adjusted for the new determinant exponent (input_dim)
+    common_deriv_denom <- K * ((-0.5 * input_dim / denominator_sum) +
+                                 (0.5 * distance_sq / (denominator_sum^2)))
+
+    chain_rule_factor <- exp(unique(hp$l_u_t))
+
+    return(common_deriv_denom * chain_rule_factor)
+
+  } else {
+    stop("Invalid 'deriv' argument.")
+  }
+}
+
+
 #' Squared Exponential Kernel
 #'
 #' @param x A vector (or matrix if vectorized = T) of inputs.
@@ -255,10 +402,8 @@ lin_kernel <- function(
   }
 }
 
-#' Generate random hyper-parameters
-#'
-#' Generate a set of random hyper-parameters, specific to the chosen type of
-#' kernel, under the format that is used in Magma.
+
+#' Generate Initial Hyperparameters for GP Kernels
 #'
 #' @param kern A function, or a character string indicating the chosen type of
 #'    kernel among:
@@ -276,155 +421,221 @@ lin_kernel <- function(
 #'    In case of a custom kernel function, the argument \code{list_hp} has to be
 #'    provided as well, for designing a tibble with the correct names of
 #'    hyper-parameters.
-#' @param list_ID A vector, associating an \code{ID} value with each individual
-#'    for whom hyper-parameters are generated. If NULL (default) only one set of
-#'    hyper-parameters is return without the \code{ID} column.
-#' @param list_hp A vector of characters, providing the name of each
-#'    hyper-parameter, in case where \code{kern} is a custom kernel function.
-#' @param noise A logical value, indicating whether a 'noise' hyper-parameter
-#'    should be included.
-#' @param common_hp A logical value, indicating whether the set of
-#'    hyper-parameters is assumed to be common to all individuals.
+#' @param list_task_ID A vector of task IDs.
+#' @param list_output_ID A vector of output IDs.
+#' @param shared_hp_tasks If TRUE, HPs are shared across tasks.
+#' @param shared_hp_outputs If TRUE, HPs are shared across outputs.
+#' @param noise If TRUE, a 'noise' hyperparameter is added.
+#' @param hp_config A tibble providing min/max bounds for HP generation, specific
+#'   to the convolution_kernel. If NULL, default bounds are used.
 #'
-#' @return A tibble, providing a set of random hyper-parameters associated with
-#'   the kernel specified through the argument \code{kern}.
-#'
+#' @return A `tibble` containing the generated hyperparameters.
 #' @export
 #'
 #' @examples
 #' TRUE
-hp <- function(
-  kern = "SE",
-  list_ID = NULL,
-  list_hp = NULL,
-  noise = FALSE,
-  common_hp = FALSE
-) {
+
+hp <- function(kern = "SE",
+               list_task_ID = NULL,
+               list_output_ID = NULL,
+               shared_hp_tasks = TRUE,
+               shared_hp_outputs = FALSE,
+               noise = FALSE,
+               hp_config = NULL) {
   ## Initiate interval boundaries
-  min <- 0
-  max <- 3
+  min_val_l <- -3
+  max_val_l <- 0
+  min_val_S <- log(0.5)
+  max_val_S <- log(10)
   min_noise <- -5
-  max_noise <- -1
+  max_noise <- -2
 
-  len <- 1
+  # Convolution case
+  if (is.function(kern)) {
+    if (is.null(list_task_ID) || is.null(list_output_ID)) {
+      stop("For the convolution_kernel, both 'list_task_ID' and 'list_output_ID' must be provided.")
+    }
 
-  ## Split the 'kern' argument into successive kernels
-  if (kern %>% is.character()) {
-    str_kern <- strsplit(kern, " +")[[1]]
-  } else {
-    str_kern <- 1
-  }
+    if (is.null(hp_config)) {
+      message("hp_config not provided for convolution_kernel, using default HP bounds.")
+      ## HPs simus
+      hp_config <- tibble::tibble(
+        output_id   = as.factor(list_output_ID),
+        lt_min      = log(1/1000), lt_max      = log(1/100),
+        St_min      = log(0.4), St_max      = log(20),
+        lu_min      = log(1/1000), lu_max      = log(1/100),
+        noise_min   = -5, noise_max   = -2
+      )
+    }
 
-  if (is.null(list_ID)) {
-    hp <- tibble::tibble(.rows = 1)
-  } else {
-    hp <- tibble::tibble(ID = as.character(list_ID))
-  }
+    num_tasks <- length(list_task_ID)
+    num_outputs <- length(list_output_ID)
 
-  for (i in str_kern) {
-    if (is.null(list_ID)) {
-      if (is.function(kern) | is.null(kern)) {
-        temp_hp <- tibble::tibble(.rows = 1)
-        for (j in list_hp) {
-          temp_hp[j] <- stats::runif(1, min, max)
-        }
-        hp <- hp %>% dplyr::bind_cols(temp_hp)
-      } else if (i == "SE") {
-        hp <- hp %>%
-          dplyr::bind_cols(
-            tibble::tibble(
-              se_variance = stats::runif(1, min, max),
-              se_lengthscale = stats::runif(1, min, max)
-            )
-          )
-      } else if (i == "PERIO") {
-        hp <- hp %>%
-          dplyr::bind_cols(
-            tibble::tibble(
-              perio_variance = stats::runif(1, min, max),
-              perio_lengthscale = stats::runif(1, min, max),
-              period = stats::runif(1, 0, 2 * pi)
-            )
-          )
-      } else if (i == "RQ") {
-        hp <- hp %>%
-          dplyr::bind_cols(
-            tibble::tibble(
-              rq_variance = stats::runif(1, min, max),
-              rq_lengthscale = stats::runif(1, min, max),
-              rq_scale = stats::runif(1, min, max)
-            )
-          )
-      } else if (i == "LIN") {
-        hp <- hp %>%
-          dplyr::bind_cols(
-            tibble::tibble(
-              lin_slope = stats::runif(1, min, max),
-              lin_offset = stats::runif(1, min, max),
-            )
-          )
+    # All combination task x output
+    base_ids <- tidyr::crossing(Task_ID = as.factor(list_task_ID),
+                                Output_ID = as.factor(list_output_ID))
+
+    if (shared_hp_tasks && shared_hp_outputs) {
+      hps_to_add <- tibble::tibble(
+        l_t = stats::runif(1, hp_config$lt_min[1], hp_config$lt_max[1]),
+        S_t = stats::runif(1, hp_config$St_min[1], hp_config$St_max[1])
+      )
+      if (noise) {
+        hps_to_add$noise <- stats::runif(1,
+                                         hp_config$noise_min[1],
+                                         hp_config$noise_max[1])
       }
+      final_hp <- tidyr::crossing(base_ids, hps_to_add)
+
+    } else if (shared_hp_tasks && !shared_hp_outputs) {
+      hps_per_output <- hp_config %>%
+        dplyr::transmute(
+          Output_ID = as.factor(output_id),
+          l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
+          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
+        )
+      if (noise) {
+        hps_per_output$noise <- purrr::map2_dbl(hp_config$noise_min,
+                                                hp_config$noise_max,
+                                                ~stats::runif(1, .x, .y))
+      }
+      final_hp <- dplyr::left_join(base_ids, hps_per_output, by = "Output_ID")
+
+    } else if (!shared_hp_tasks && shared_hp_outputs) {
+      hps_per_task <- tibble::tibble(
+        Task_ID = as.factor(list_task_ID),
+        l_t = stats::runif(num_tasks, hp_config$lt_min[1], hp_config$lt_max[1]),
+        S_t = stats::runif(num_tasks, hp_config$St_min[1], hp_config$St_max[1])
+      )
+      if (noise) {
+        hps_per_task$noise <- stats::runif(num_tasks,
+                                           hp_config$noise_min[1],
+                                           hp_config$noise_max[1])
+      }
+      final_hp <- dplyr::left_join(base_ids, hps_per_task, by = "Task_ID")
+
+    } else { # !shared_hp_tasks && !shared_hp_outputs
+      hps_unique <- base_ids %>%
+        dplyr::left_join(hp_config %>%
+                           dplyr::mutate(Output_ID = as.factor(output_id)),
+                         by = "Output_ID") %>%
+        dplyr::mutate(
+          l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
+          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
+        ) %>%
+        dplyr::select(Task_ID, Output_ID, l_t, S_t)
+      if (noise) {
+        hps_unique <- base_ids %>%
+          dplyr::left_join(hp_config %>%
+                             dplyr::mutate(Output_ID = as.factor(output_id)),
+                           by = "Output_ID") %>%
+          dplyr::mutate(
+            noise = purrr::map2_dbl(noise_min, noise_max, ~stats::runif(1, .x, .y))
+          ) %>%
+          dplyr::select(Task_ID, Output_ID, noise) %>%
+          dplyr::left_join(hps_unique, ., by = c("Task_ID", "Output_ID"))
+      }
+      final_hp <- hps_unique
+    }
+
+    # Manage l_u_t case, which does not depend on output but only on task
+    if (shared_hp_tasks) {
+      final_hp$l_u_t <- stats::runif(1, hp_config$lu_min[1], hp_config$lu_max[1])
     } else {
-      if (common_hp) {
-        len <- 1
+      l_u_t_per_task <- tibble::tibble(
+        Task_ID = as.factor(list_task_ID),
+        l_u_t   = stats::runif(num_tasks, hp_config$lu_min[1], hp_config$lu_max[1])
+      )
+      final_hp <- dplyr::inner_join(final_hp, l_u_t_per_task, by = "Task_ID")
+    }
+
+    return(final_hp)
+
+  } else {
+    # Case 2: Kernel is provided as a string (e.g., "SE", "SE + PERIO")
+    base_ids <- NULL
+    n_draws <- 1
+
+    if (!is.null(list_task_ID) && !is.null(list_output_ID)) {
+      base_ids <- tidyr::crossing(Task_ID = as.factor(list_task_ID),
+                                  Output_ID = as.factor(list_output_ID))
+      if (!shared_hp_tasks && !shared_hp_outputs) {
+        n_draws <- nrow(base_ids)
+      } else if (!shared_hp_tasks && shared_hp_outputs) {
+        n_draws <- length(list_task_ID)
+      } else if (shared_hp_tasks && !shared_hp_outputs) {
+        n_draws <- length(list_output_ID)
+      } # else n_draws remains 1
+    } else if (!is.null(list_output_ID)) {
+      base_ids <- tibble::tibble(Output_ID = as.factor(list_output_ID))
+      n_draws <- if (shared_hp_outputs) 1 else nrow(base_ids)
+    } else if (!is.null(list_task_ID)) {
+      base_ids <- tibble::tibble(Task_ID = as.factor(list_task_ID))
+      n_draws <- if (shared_hp_tasks) 1 else nrow(base_ids)
+    }
+
+    str_kern <- strsplit(kern, " +")[[1]]
+
+    # Generate the required number of unique HP sets
+    generated_hps <- tibble::tibble(.rows = n_draws)
+    for (i in str_kern) {
+      temp_hp <- switch(i,
+                        "SE" = tibble::tibble(
+                          se_variance = stats::runif(n_draws, min_val_S, max_val_S),
+                          se_lengthscale = stats::runif(n_draws, min_val_l, max_val_l)
+                        ),
+                        "PERIO" = tibble::tibble(
+                          perio_variance = stats::runif(n_draws, min_val, max_val),
+                          perio_lengthscale = stats::runif(n_draws, min_val, max_val),
+                          period = stats::runif(n_draws, 0, 2 * pi)
+                        ),
+                        "RQ" = tibble::tibble(
+                          rq_variance = stats::runif(n_draws, min_val, max_val),
+                          rq_lengthscale = stats::runif(n_draws, min_val, max_val),
+                          rq_scale = stats::runif(n_draws, min_val, max_val)
+                        ),
+                        "LIN" = tibble::tibble(
+                          lin_slope = stats::runif(n_draws, min_val, max_val),
+                          lin_offset = stats::runif(n_draws, min_val, max_val)
+                        ),
+                        # Default case for operators like '+' or '*'
+                        tibble::tibble()
+      )
+      generated_hps <- dplyr::bind_cols(generated_hps, temp_hp)
+    }
+
+    if (noise) {
+      generated_hps <- generated_hps %>%
+        dplyr::mutate(noise = stats::runif(n_draws, min_noise, max_noise))
+    }
+
+    # Construct the Final Tibble by combining IDs and HPs
+    if (is.null(base_ids)) {
+      return(generated_hps)
+    }
+
+    if (!is.null(list_task_ID) && !is.null(list_output_ID)) {
+      if (!shared_hp_tasks && !shared_hp_outputs) {
+        final_hp <- dplyr::bind_cols(base_ids, generated_hps)
+      } else if (!shared_hp_tasks && shared_hp_outputs) {
+        task_hps <- dplyr::bind_cols(Task_ID = as.factor(list_task_ID),
+                                     generated_hps)
+        final_hp <- dplyr::left_join(base_ids, task_hps, by = "Task_ID")
+      } else if (shared_hp_tasks && !shared_hp_outputs) {
+        output_hps <- dplyr::bind_cols(Output_ID = as.factor(list_output_ID),
+                                       generated_hps)
+        final_hp <- dplyr::left_join(base_ids, output_hps, by = "Output_ID")
       } else {
-        len <- length(list_ID)
+        final_hp <- tidyr::crossing(base_ids, generated_hps)
       }
-      if (is.function(kern) | is.null(kern)) {
-        temp_hp <- tibble::tibble(ID = as.character(list_ID))
-        for (j in list_hp) {
-          temp_hp[j] <- stats::runif(len, min, max)
-        }
-        hp <- hp %>% dplyr::left_join(temp_hp, by = "ID")
-      } else if (i == "SE") {
-        hp <- hp %>%
-          dplyr::left_join(
-            tibble::tibble(
-              ID = as.character(list_ID),
-              se_variance = stats::runif(len, min, max),
-              se_lengthscale = stats::runif(len, min, max)
-            ),
-            by = "ID"
-          )
-      } else if (i == "PERIO") {
-        hp <- hp %>%
-          dplyr::left_join(
-            tibble::tibble(
-              ID = as.character(list_ID),
-              perio_variance = stats::runif(len, min, max),
-              perio_lengthscale = stats::runif(len, min, max),
-              period = stats::runif(len, 0, 2 * pi)
-            ),
-            by = "ID"
-          )
-      } else if (i == "RQ") {
-        hp <- hp %>%
-          dplyr::left_join(
-            tibble::tibble(
-              ID = as.character(list_ID),
-              rq_variance = stats::runif(len, min, max),
-              rq_lengthscale = stats::runif(len, min, max),
-              rq_scale = stats::runif(len, min, max)
-            ),
-            by = "ID"
-          )
-      } else if (i == "LIN") {
-        hp <- hp %>%
-          dplyr::left_join(
-            tibble::tibble(
-              ID = as.character(list_ID),
-              lin_slope = stats::runif(len, min, max),
-              lin_offset = stats::runif(len, min, max)
-            ),
-            by = "ID"
-          )
+    } else { # Case for only one list provided (task or output)
+      if (n_draws == 1) { # Shared HPs
+        final_hp <- tidyr::crossing(base_ids, generated_hps)
+      } else { # Independent HPs
+        final_hp <- dplyr::bind_cols(base_ids, generated_hps)
       }
     }
+
+    return(final_hp)
   }
-  ## Add noise if necessary
-  if (noise) {
-    hp <- hp %>%
-      dplyr::mutate("noise" = stats::runif(len, min_noise, max_noise))
-  }
-  return(hp)
 }

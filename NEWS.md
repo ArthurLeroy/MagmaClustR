@@ -1,7 +1,19 @@
+# MagmaClustR 1.2.2 (development version)
+
+## Major
+
+
+## Minor
+
+
+
 # MagmaClustR (development version)
 
 ## Major
-- Change the way prior means work in the MagmaClust framework. They are now optimised during Mstep using a closed-form optimum.  
+* Change the way prior means work in the MagmaClust framework. They are now optimised during Mstep using a closed-form optimum.  
+* Update the simu_db() function to handle multi-output scenarios.
+* The mean process is simulated via generate_mean_process(), whereas task data are derived from generate_single_task_data(). simu_indiv_se() has been removed from the package.
+* Update the plot_db() function to handle multi-output scenarios.
 
 ## Minor
 
@@ -13,6 +25,14 @@
 * Replace the deprecated `aes_string` function with modern syntax of `aes`
 * Fix the wrong definition of GPs mixtures by drawing a cluster instead of averaging
 * Fix a bug when using pred_magmaclust() with no data argument.
+* Add convolution_kernel_KD() function to generate the convolution process kernel
+* kern_to_cov() now natively supports multi-output scenarios. The convolution kernel has been added to the list of documented and supported kernels.
+* Added a safety check before returning the covariance matrix. If the matrix contains NaN or Inf values, an explicit warning is now triggered.
+* Update hp() to natively support multi-output scenarios.
+* Add extensive logic to initialize HPs specifically for the convolution kernel.
+* Modernize the internal logic for building the HPs tables in hp().
+* In hp(), the chained if/else logic of standard string kernels has been replaced by a 'switch' statement.
+* In hp(), 'list_hp' argument has been removed, as custom parameter generation is now safely handled via the 'hp_config' workflow.
 
 # MagmaClustR 1.2.1
 

@@ -21,6 +21,7 @@
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
 #'    - "RQ": the Rational Quadratic kernel.
+#'    - convolution_kernel : the Convolution kernel used to manage MO scenario.
 #'    Compound kernels can be created as sums or products of the above kernels.
 #'    For combining kernels, simply provide a formula as a character string
 #'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
@@ -49,7 +50,11 @@
 #'
 #' @examples
 #' TRUE
-kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
+kern_to_cov <- function(input,
+                        kern = "SE",
+                        hp,
+                        deriv = NULL,
+                        input_2 = NULL) {
   ## If a second set of inputs is not provided, only 'input' against itself
   if (input_2 %>% is.null()) {
     input_2 <- input
@@ -61,6 +66,60 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
       "Some inputs are duplicated. This will result in a singular ",
       "matrix and an unexpected behaviour of the algorithm."
     )
+  }
+
+  ## Treat the multi-output function kernels apart from other kernels
+  if (kern %>% rlang::is_function() &&
+      is.data.frame(input) &&
+      "Output_ID" %in% names(input) &&
+      length(input$Output_ID %>% unique()) > 1) {
+    # Need a unique dataframe, containing all observed inputs of all outputs.
+    # The kernel itself generates the whole MO covariance matrix.
+
+    # Call the provided kernel in vectorized mode to generate the whole MO
+    # covariance matrix.
+    mat <- kern(x = input, y = input_2, hp = hp, vectorized = TRUE, deriv = deriv)
+
+    # We select ONLY the columns that uniquely define a point
+    # (coordinates + Output_ID) to ensure consistent naming across different
+    # function calls.
+
+    # Dynamically find all numeric coordinate columns, whatever their names.
+    coord_cols <- names(input)[sapply(input, is.numeric) & names(input) != "Output_ID"]
+
+    # Paste the coordinate values together for each row
+    pasted_coords <- do.call(paste, c(input[coord_cols], sep = ";"))
+
+    # Prepend the output ID to create the final name
+    reference <- paste0("o", input$Output_ID, ";", pasted_coords)
+
+    # Do the same for the second set of inputs if it's different
+    if (identical(input, input_2)) {
+      reference_2 <- reference
+    } else {
+      pasted_coords_2 <- do.call(paste, c(input_2[coord_cols], sep = ";"))
+      reference_2 <- paste0("o", input_2$Output_ID, ";", pasted_coords_2)
+    }
+
+    ## Add a 'noise' term on the diagonal if provided
+    if (("noise" %in% names(hp)) && is.null(deriv)) {
+      # Join to ensure that the noise of each point corresponds to the right
+      # output
+      noise_info <- input %>%
+        dplyr::select(Output_ID) %>%
+        dplyr::left_join(hp, by = "Output_ID")
+
+      full_noise_vector <- exp(noise_info$noise)
+
+      # Add the noise vector to the diagonal
+      mat <- mat + diag(full_noise_vector)
+
+    } else if (is.null(deriv)) {
+      warning("Noise parameter is not provided. Data is then supposed to be ",
+              "noiseless.")
+    }
+
+    return(mat %>% `rownames<-`(reference) %>% `colnames<-`(reference_2))
   }
 
   ## Process the character string defining the covariance structure
@@ -81,7 +140,8 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
       true_deriv <- F
       past_true_deriv <- F
 
-      for (i in 2:(length(str) - 1)) {
+      for (i in 2:(length(str) - 1))
+      {
         s_m <- str[i - 1]
         s <- str[i]
         s_p <- str[i + 1]
@@ -117,23 +177,15 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
               }
             } else if (s == "PERIO") {
               temp_kern <- perio_kernel
-              if (
-                any(
-                  deriv %in%
-                    c("perio_variance", "perio_lengthscale", "period")
-                )
-              ) {
+              if (any(deriv %in%
+                      c("perio_variance", "perio_lengthscale", "period"))) {
                 true_deriv <- T
                 past_true_deriv <- T
               }
             } else if (s == "RQ") {
               temp_kern <- rq_kernel
-              if (
-                any(
-                  deriv %in%
-                    c("rq_variance", "rq_lengthscale", "rq_scale")
-                )
-              ) {
+              if (any(deriv %in%
+                      c("rq_variance", "rq_lengthscale", "rq_scale"))) {
                 true_deriv <- T
                 past_true_deriv <- T
               }
@@ -252,9 +304,8 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
   } else if (is.function(kern)) {
     kernel <- kern
   } else {
-    stop(
-      "Error in the 'kern' argument: please use a valid character string, or",
-      "provide a valid custom kernel function"
+    stop("Error in the 'kern' argument: please use a valid character string, or",
+         "provide a valid custom kernel function"
     )
   }
 
@@ -265,29 +316,30 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
     reference <- as.character(input)
     reference_2 <- as.character(input_2)
   } else {
-    if (
-      ("Reference" %in% colnames(input)) &
-        ("Reference" %in% colnames(input_2))
-    ) {
+    if (("Reference" %in% colnames(input)) &
+        ("Reference" %in% colnames(input_2))) {
       ## If the Reference column exists, store it to name rows and columns
       reference <- input$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input <- input %>% dplyr::select(-.data$Reference)
+      # input <- input %>% dplyr::select(-c(Output_ID, Reference))
+      input <- input %>% dplyr::select(-Reference)
 
       ## Format inputs to be used in a subsequent 'outer()' function
-      list_input <- split(t(input), rep(1:nrow(input), each = ncol(input)))
+      list_input <- split(t(input),
+                          rep(1:nrow(input),each = ncol(input))
+      )
 
       ## If the Reference column exists, store it to name rows and columns
       reference_2 <- input_2$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input_2 <- input_2 %>% dplyr::select(-.data$Reference)
+      # input_2 <- input_2 %>% dplyr::select(-c(Output_ID, Reference))
+      input_2 <- input_2 %>% dplyr::select(-Reference)
 
       ## Format inputs to be used in a subsequent 'outer()' function
-      list_input_2 <- split(
-        t(input_2),
-        rep(1:nrow(input_2), each = ncol(input_2))
+      list_input_2 <- split(t(input_2),
+                            rep(1:nrow(input_2), each = ncol(input_2))
       )
     } else {
       ## Create the Reference column if absent
@@ -295,8 +347,7 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
         as.data.frame(input),
         'Reference',
         tidyselect::everything(),
-        sep = ':'
-      ) %>%
+        sep = ':') %>%
         dplyr::pull(.data$Reference) %>%
         as.character()
 
@@ -304,24 +355,91 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
         as.data.frame(input_2),
         'Reference',
         tidyselect::everything(),
-        sep = ':'
-      ) %>%
+        sep = ':') %>%
         dplyr::pull(.data$Reference) %>%
         as.character()
 
       ## Format inputs to be used in a subsequent 'outer()' function
-      list_input <- split(t(input), rep(1:nrow(input), each = ncol(input)))
-      list_input_2 <- split(
-        t(input_2),
-        rep(1:nrow(input_2), each = ncol(input_2))
+      list_input <- split(t(input),
+                          rep(1:nrow(input), each = ncol(input))
+      )
+      list_input_2 <- split(t(input_2),
+                            rep(1:nrow(input_2), each = ncol(input_2))
       )
     }
   }
 
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
+    if ("Output_ID" %in% names(hp)){
+      if (any(startsWith(deriv, "noise"))){
+        # Extract the ID of the hyper-parameter (ex: "noise_2" -> 2)
+        deriv_id_str <- stringr::str_extract(deriv, "\\d+$")
+        if (is.na(deriv_id_str)) {
+          stop("The derivative name should contain an ID, ex: 'noise_1'")
+        }
+        deriv_id <- as.integer(deriv_id_str)
+
+        if ("Task_ID" %in% colnames(input)) {
+          input <- input %>% dplyr::select(-Task_ID)
+        }
+        input_2 <- input_2 %>% dplyr::arrange(Output_ID)
+        if ("Task_ID" %in% colnames(input_2)) {
+          input_2 <- input_2 %>% dplyr::select(-Task_ID)
+        }
+
+        unique_ids <- unique(input$Output_ID)
+        list_of_blocks <- list()
+
+        for (id in unique_ids) {
+          subset_input <- input %>% dplyr::filter(Output_ID == id)
+          subset_input_2 <- input_2 %>% dplyr::filter(Output_ID == id)
+
+          # Compute the block only if Output_ID matches
+          if (id == deriv_id) {
+            # Compute the matrix derivative according to the current HP
+            current_noise_hp <- hp %>%
+              dplyr::filter(Output_ID == id) %>%
+              dplyr::pull(noise)
+
+            if (length(current_noise_hp) == 0) {
+              stop(paste("'Noise' parameter not found for Output_ID :", id))
+            }
+
+
+            # Create a sub-block of the whole noise matrix
+            block_matrix <- cpp_noise(
+              as.matrix(dplyr::select(subset_input, Input_1)),
+              as.matrix(dplyr::select(subset_input_2, Input_1)),
+              current_noise_hp
+            )
+
+          } else {
+            # Derivative is zero
+            block_matrix <- matrix(0,
+                                   nrow = nrow(subset_input),
+                                   ncol = nrow(subset_input_2)) %>%
+              `rownames<-` (subset_input$Input_1) %>%
+              `colnames<-` (subset_input$Input_1)
+          }
+
+          list_of_blocks[[as.character(id)]] <- block_matrix
+        }
+
+        # Aggregate blocks into the complete block-diagonal matrix
+        mat <- Matrix::bdiag(unname(list_of_blocks))
+        mat <- as.matrix(mat) %>%
+          `rownames<-`(input$Input_1) %>%
+          `colnames<-` (input_2$Input_1)
+        return(mat)
+      }
+    }
+
     if (deriv == "noise") {
-      mat <- cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]]) %>%
+      mat <- cpp_noise(as.matrix(input),
+                       as.matrix(input_2),
+                       hp[["noise"]]
+      ) %>%
         `rownames<-`(reference) %>%
         `colnames<-`(reference_2)
       return(mat)
@@ -339,11 +457,9 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
         deriv = deriv,
         vectorized = T
       )
-    } else {
-      ## Compute the matrix element by element
+    } else { ## Compute the matrix element by element
       mat <- outer(
-        list_input,
-        list_input_2,
+        list_input, list_input_2,
         Vectorize(function(x, y) kernel(x, y, hp, deriv = deriv))
       )
     }
@@ -351,19 +467,31 @@ kern_to_cov <- function(input, kern = "SE", hp, deriv = NULL, input_2 = NULL) {
     ## Detect whether speed-up vectorised computation is provided
     if ("vectorized" %in% methods::formalArgs(kernel)) {
       mat <- kernel(x = input, y = input_2, hp = hp, vectorized = TRUE)
-    } else {
-      ## Compute the matrix element by element
+    } else { ## Compute the matrix element by element
       mat <- outer(
-        list_input,
-        list_input_2,
+        list_input, list_input_2,
         Vectorize(function(x, y) kernel(x, y, hp))
       )
     }
   }
 
-  ## Add noise on the diagonal if provided (and if not computing gradients)
+  # Add noise to the diagonal if provided (for standard, single-output kernels)
   if (("noise" %in% names(hp)) & is.null(deriv)) {
-    mat <- mat + cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]])
+    # This generic noise logic is only for single-output kernels where noise is a single value.
+    # The multi-output convolution_kernel has its own noise logic in the block above.
+    if (length(hp[["noise"]]) == 1) {
+      mat <- mat + cpp_noise(as.matrix(input), as.matrix(input_2), hp[["noise"]])
+    }
+  }
+
+  ## Sanity check: detect NaN/Inf in the resulting covariance matrix
+  if (any(is.nan(mat)) || any(is.infinite(mat))) {
+    warning(
+      "kern_to_cov: the computed covariance matrix contains NaN or Inf. ",
+      "This often indicates that hyper-parameters have diverged ",
+      "(e.g. extremely large variance or very small lengthscale). ",
+      "Current hp: ", paste(names(hp), "=", hp, collapse = ", ")
+    )
   }
 
   mat %>%

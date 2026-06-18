@@ -1,37 +1,146 @@
 #' Plot smoothed curves of raw data
 #'
-#' Display raw data under the Magma format as points and lines.
+#' Display raw data under the Magma format as smoothed curves.
 #'
-#' @param data A data frame or tibble with format : ID, Input, Output.
+#' @param data A data frame or tibble with format : ID, Input, Output for
+#'  single output configurations; Task_ID, Input_ID, Input, Output_ID, Output
+#'  for multi-output configurations.
+#' @param cluster A boolean indicating whether data should be coloured by
+#'   cluster. Requires a column named 'Cluster'.
 #' @param legend A boolean indicating whether the legend should be displayed.
 #'
-#' @return Graph of the raw data.
-#'
-#' @export
+#' @return Graph of smoothed curves of raw data.
 #'
 #' @examples
-#' ## Generate a synthetic dataset
-#' db = simu_db()
-#' ## Plot the raw data
-#' plot_db(db)
-plot_db <- function(data, legend = FALSE) {
-  ## Convert ID into factors for a better display
-  data$ID <- as.factor(data$ID)
-  gg <- ggplot2::ggplot(data) +
-    ggplot2::geom_line(ggplot2::aes(
-      x = .data$Input,
-      y = .data$Output,
-      color = .data$ID
-    )) +
-    ggplot2::geom_point(ggplot2::aes(
-      x = .data$Input,
-      y = .data$Output,
-      color = .data$ID
-    )) +
-    ggplot2::theme_classic()
+#' TRUE
+plot_db <- function(data, cluster = FALSE, legend = FALSE) {
+  # browser()
+  if(all(c("ID", "Input", "Output") %in% names(data))){
+    # Single output case
+    ## Convert Cluster into factors for a better display
+    data$ID <- as.factor(data$ID)
+    if (cluster) {
+      ## Add a dummy column 'Cluster' if absent
+      if (!("Cluster" %in% names(data))) {
+        data$Cluster <- 1
+      }
+      ## Convert Cluster into factors for a better display
+      data$Cluster <- as.factor(data$Cluster)
 
-  if (!legend) {
-    gg <- gg + ggplot2::guides(color = "none")
+      gg <- ggplot2::ggplot(data) +
+        ggplot2::geom_smooth(ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          group = .data$ID,
+          color = .data$Cluster
+        ),
+        se = F,
+        span = 0.5
+        ) +
+        ggplot2::geom_point(ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          group = .data$ID,
+          color = .data$Cluster
+        )) +
+        ggplot2::theme_classic()
+    } else {
+      gg <- ggplot2::ggplot(data) +
+        ggplot2::geom_smooth(ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          color = .data$ID
+        ),
+        se = F,
+        span = 0.5
+        ) +
+        ggplot2::geom_point(ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          color = .data$ID
+        )) +
+        ggplot2::theme_classic()
+    }
+    if (!legend) {
+      gg <- gg + ggplot2::guides(color = "none")
+    }
+  } else {
+    # Multi-output case
+    data$Task_ID <- as.factor(data$Task_ID)
+    if (cluster) {
+      ## Add a dummy column 'Cluster' if absent
+      if (!("Cluster" %in% names(data))) {
+        data$Cluster <- 1
+      }
+      ## Convert Cluster into factors for a better display
+      data$Cluster <- as.factor(data$Cluster)
+
+      gg <- ggplot2::ggplot(data) +
+        ggplot2::geom_point(
+          data = data,
+          ggplot2::aes(x = .data$Input,
+                       y = .data$Output,
+                       group = .data$Task_ID,
+                       color = .data$Cluster),
+          size = 1.5,
+          alpha = 0.6
+        ) +
+        ggplot2::geom_smooth(
+          data = data,
+          ggplot2::aes(x = .data$Input,
+                       y = .data$Output,
+                       group = .data$Task_ID,
+                       color = .data$Cluster),
+          se = F,
+          linewidth = 0.3,
+          alpha = 0.4,
+          span = 0.5
+        ) +
+        ggplot2::facet_wrap(~.data$Output_ID,
+                            labeller = as_labeller(function(x) paste("Output", x)),
+                            scales = "free_y") +
+        ggplot2::scale_color_brewer(palette = "Set1") +
+        ggplot2::theme_classic() +
+        ggplot2::theme(
+          strip.background = element_blank(),
+          strip.text = element_text(face = "bold", size = rel(1.2))
+        ) +
+        ggplot2::labs(
+          y = "Output Value",
+          x = "Input",
+          color = "Cluster"
+        )
+    } else {
+      gg <- ggplot2::ggplot(data) +
+        ggplot2::geom_smooth(ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          color = .data$Task_ID
+        ),
+        se = F,
+        span = 0.5
+        ) +
+        ggplot2::geom_point(ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          color = .data$Task_ID
+        )) +
+        ggplot2::facet_wrap(~.data$Output_ID,
+                            labeller = as_labeller(function(x) paste("Output", x)),
+                            scales = "free_y") +
+        ggplot2::theme_classic() +
+        ggplot2::theme(
+          strip.background = element_blank(),
+          strip.text = element_text(face = "bold", size = rel(1.2))
+        ) +
+        ggplot2::labs(
+          y = "Output Value",
+          x = "Input"
+        )
+    }
+    if (!legend) {
+      gg <- gg + ggplot2::guides(color = "none")
+    }
   }
   return(gg)
 }
