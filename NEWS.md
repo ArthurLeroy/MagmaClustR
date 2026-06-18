@@ -33,6 +33,7 @@
 * Modernize the internal logic for building the HPs tables in hp().
 * In hp(), the chained if/else logic of standard string kernels has been replaced by a 'switch' statement.
 * In hp(), 'list_hp' argument has been removed, as custom parameter generation is now safely handled via the 'hp_config' workflow.
+* Add format_longer() & format_wider() function (bridging the gap between old & new versions of simulated data)
 
 # MagmaClustR 1.2.1
 

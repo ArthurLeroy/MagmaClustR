@@ -588,7 +588,7 @@ simu_db <- function(
     common_hp = TRUE,
     add_hp = FALSE,
     add_clust = FALSE,
-    int_mu_v = c(0, log(30)),
+    int_mu_v = c(0, log(3)),
     int_mu_l = c(log(1/300), log(1/200)),
     int_i_v = c(0, log(1.5)),
     int_i_l = c(log(1/300), log(1/200)),
@@ -714,9 +714,7 @@ simu_db <- function(
         return(db)
       }
 
-      lapply(seq_len(K), floop_k) %>%
-        dplyr::bind_rows() %>%
-        return()
+      final_db <- lapply(seq_len(K), floop_k) %>% dplyr::bind_rows()
 
     } else {
       # Single Output & no covariate
@@ -795,9 +793,7 @@ simu_db <- function(
         return(db)
       }
 
-      lapply(seq_len(K), floop_k) %>%
-        dplyr::bind_rows() %>%
-        return()
+      final_db <- lapply(seq_len(K), floop_k) %>% dplyr::bind_rows()
     }
 
   } else {
@@ -844,12 +840,9 @@ simu_db <- function(
     floop_k_MO <- function(k) {
       if (covariate) {
         if (is.list(grid) && !is.data.frame(grid)) {
-          # L'utilisateur a fourni une liste de grilles (1 par output)
           working_grid <- purrr::map2(grid, grid_cov,
-                                      ~tidyr::expand_grid(Input = .x,
-                                                          Covariate = .y))
+                                      ~tidyr::expand_grid(Input = .x, Covariate = .y))
         } else {
-          # L'utilisateur a fourni des vecteurs communs
           working_grid <- tidyr::expand_grid(Input = grid, Covariate = grid_cov)
         }
       } else {
@@ -901,11 +894,7 @@ simu_db <- function(
         )
       }
 
-      cluster_data <- sapply(seq_len(M),
-                             floop_i_MO,
-                             k = k,
-                             simplify = FALSE,
-                             USE.NAMES = TRUE) %>%
+      cluster_data <- sapply(seq_len(M), floop_i_MO, k = k, simplify = FALSE, USE.NAMES = TRUE) %>%
         dplyr::bind_rows()
 
       if (add_clust) {
@@ -915,20 +904,29 @@ simu_db <- function(
       return(cluster_data)
     }
 
-    final_db <- lapply(seq_len(K), floop_k_MO) %>%
-      dplyr::bind_rows()
+    final_db <- lapply(seq_len(K), floop_k_MO) %>% dplyr::bind_rows()
 
     if (!add_hp) {
-      cols_to_remove <- c("l_t", "S_t", "l_u_t",
-                          "se_variance", "se_lengthscale", "noise")
+      cols_to_remove <- c("l_t", "S_t", "l_u_t", "se_variance", "se_lengthscale", "noise")
       cols_to_remove <- intersect(cols_to_remove, names(final_db))
       if (length(cols_to_remove) > 0) {
         final_db <- final_db %>% dplyr::select(-dplyr::all_of(cols_to_remove))
       }
     }
-
-    return(final_db)
   }
+
+  if (covariate) {
+    final_db <- final_db %>%
+      dplyr::rename(Input_1 = .data$Input, Input_2 = .data$Covariate)
+  } else {
+    final_db <- final_db %>%
+      dplyr::rename(Input_1 = .data$Input)
+  }
+
+  # Appel de la fonction de pivot universelle
+  final_db <- format_longer(final_db)
+
+  return(final_db)
 }
 
 
