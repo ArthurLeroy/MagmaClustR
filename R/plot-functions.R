@@ -14,7 +14,6 @@
 #' @examples
 #' TRUE
 plot_db <- function(data, cluster = FALSE, legend = FALSE) {
-  # browser()
   if(all(c("ID", "Input", "Output") %in% names(data))){
     # Single output case
     ## Convert Cluster into factors for a better display
@@ -97,13 +96,13 @@ plot_db <- function(data, cluster = FALSE, legend = FALSE) {
           span = 0.5
         ) +
         ggplot2::facet_wrap(~.data$Output_ID,
-                            labeller = as_labeller(function(x) paste("Output", x)),
+                            labeller = ggplot2::as_labeller(function(x) paste("Output", x)),
                             scales = "free_y") +
         ggplot2::scale_color_brewer(palette = "Set1") +
         ggplot2::theme_classic() +
         ggplot2::theme(
-          strip.background = element_blank(),
-          strip.text = element_text(face = "bold", size = rel(1.2))
+          strip.background = ggplot2::element_blank(),
+          strip.text = ggplot2::element_text(face = "bold", size = ggplot2::rel(1.2))
         ) +
         ggplot2::labs(
           y = "Output Value",
@@ -126,12 +125,12 @@ plot_db <- function(data, cluster = FALSE, legend = FALSE) {
           color = .data$Task_ID
         )) +
         ggplot2::facet_wrap(~.data$Output_ID,
-                            labeller = as_labeller(function(x) paste("Output", x)),
+                            labeller = ggplot2::as_labeller(function(x) paste("Output", x)),
                             scales = "free_y") +
         ggplot2::theme_classic() +
         ggplot2::theme(
-          strip.background = element_blank(),
-          strip.text = element_text(face = "bold", size = rel(1.2))
+          strip.background = ggplot2::element_blank(),
+          strip.text = ggplot2::element_text(face = "bold", size = ggplot2::rel(1.2))
         ) +
         ggplot2::labs(
           y = "Output Value",

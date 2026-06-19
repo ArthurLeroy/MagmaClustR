@@ -297,16 +297,16 @@ generate_mean_process <- function(
     )
     m0_mean_function <- unlist(mean_list)
 
-    lu0_shared <- runif(1,
+    lu0_shared <- stats::runif(1,
                         hp_config_mean_process$lu0_min[1],
                         hp_config_mean_process$lu0_max[1])
     lu0_vals <- rep(lu0_shared, num_outputs)
 
     if (shared_hp_outputs) {
-      l0_shared <- runif(1,
+      l0_shared <- stats::runif(1,
                          hp_config_mean_process$l0_min[1],
                          hp_config_mean_process$l0_max[1])
-      S0_shared <- runif(1,
+      S0_shared <- stats::runif(1,
                          hp_config_mean_process$S0_min[1],
                          hp_config_mean_process$S0_max[1])
 
@@ -315,10 +315,10 @@ generate_mean_process <- function(
     } else {
       l0_vals <- purrr::map2_dbl(hp_config_mean_process$l0_min,
                                  hp_config_mean_process$l0_max,
-                                 ~runif(1, .x, .y))
+                                 ~stats::runif(1, .x, .y))
       S0_vals <- purrr::map2_dbl(hp_config_mean_process$S0_min,
                                  hp_config_mean_process$S0_max,
-                                 ~runif(1, .x, .y))
+                                 ~stats::runif(1, .x, .y))
     }
 
     input_df_mean_process <- purrr::imap_dfr(grid_list,
@@ -377,7 +377,7 @@ generate_mean_process <- function(
 
 
 #' @title Generate Data for a Single Task
-#'
+
 #' Generates a simulated dataset for a single, specific task, centered around
 #' the mean process. This function samples a sparse sub-grid from a provided
 #' mean process grid, computes a task-specific covariance matrix (using
@@ -929,7 +929,6 @@ simu_db <- function(
   return(final_db)
 }
 
-
-#' @rdname plot_gp
+#' @rdname simu_db
 #' @export
 simu_data <- simu_db

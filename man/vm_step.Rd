@@ -38,7 +38,7 @@ at corresponding timestamps.}
 GP at corresponding timestamps.}
 
 \item{m_k}{A named list of prior mean parameters for the K mean GPs.
-Length = 1 or nrow(unique(db$Input))}
+Length = nrow(unique(db$Input))}
 
 \item{common_hp_k}{A boolean indicating whether hp are common among
 mean GPs (for each mu_k)}

@@ -74,19 +74,9 @@ operator '*' shall always be used before the '+' operators (e.g.
 "LIN", PERIO" and "RQ" are also available here). Recovered from
 \code{trained_model} if not provided.}
 
-\item{prior_mean_k}{The set of hyper-prior mean parameters (m_k) for the K
-mean GPs, one value for each cluster.
-cluster. This argument can be specified under various formats, such as:
-\itemize{
-\item NULL (default). All hyper-prior means would be set to 0 everywhere.
-\item A numerical vector of the same length as the number of clusters.
-Each number is associated with one cluster, and considered
-to be the hyper-prior mean parameter of the cluster (i.e. a constant
-function at all \code{Input}).
-\item A list of functions. Each function is associated with one cluster. These
-functions are all evaluated at all \code{Input} values, to provide
-specific hyper-prior mean vectors for each cluster.
-}}
+\item{prior_mean_k}{A list of vectors, corresponding to the hyper-prior mean
+parameters (m_k) for the K mean GPs, one value for each cluster.
+Recovered from \code{trained_model} if not provided.}
 
 \item{grid_inputs}{A vector or a data frame, indicating the grid of
 additional reference inputs on which the mean process' hyper-posterior

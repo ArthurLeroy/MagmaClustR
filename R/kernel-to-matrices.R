@@ -106,7 +106,7 @@ kern_to_cov <- function(input,
       # Join to ensure that the noise of each point corresponds to the right
       # output
       noise_info <- input %>%
-        dplyr::select(Output_ID) %>%
+        dplyr::select(.data$Output_ID) %>%
         dplyr::left_join(hp, by = "Output_ID")
 
       full_noise_vector <- exp(noise_info$noise)
@@ -322,8 +322,7 @@ kern_to_cov <- function(input,
       reference <- input$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      # input <- input %>% dplyr::select(-c(Output_ID, Reference))
-      input <- input %>% dplyr::select(-Reference)
+      input <- input %>% dplyr::select(-.data$Reference)
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input <- split(t(input),
@@ -334,8 +333,7 @@ kern_to_cov <- function(input,
       reference_2 <- input_2$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      # input_2 <- input_2 %>% dplyr::select(-c(Output_ID, Reference))
-      input_2 <- input_2 %>% dplyr::select(-Reference)
+      input_2 <- input_2 %>% dplyr::select(-.data$Reference)
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input_2 <- split(t(input_2),
@@ -381,26 +379,26 @@ kern_to_cov <- function(input,
         deriv_id <- as.integer(deriv_id_str)
 
         if ("Task_ID" %in% colnames(input)) {
-          input <- input %>% dplyr::select(-Task_ID)
+          input <- input %>% dplyr::select(-.data$Task_ID)
         }
-        input_2 <- input_2 %>% dplyr::arrange(Output_ID)
+        input_2 <- input_2 %>% dplyr::arrange(.data$Output_ID)
         if ("Task_ID" %in% colnames(input_2)) {
-          input_2 <- input_2 %>% dplyr::select(-Task_ID)
+          input_2 <- input_2 %>% dplyr::select(-.data$Task_ID)
         }
 
         unique_ids <- unique(input$Output_ID)
         list_of_blocks <- list()
 
         for (id in unique_ids) {
-          subset_input <- input %>% dplyr::filter(Output_ID == id)
-          subset_input_2 <- input_2 %>% dplyr::filter(Output_ID == id)
+          subset_input <- input %>% dplyr::filter(.data$Output_ID == id)
+          subset_input_2 <- input_2 %>% dplyr::filter(.data$Output_ID == id)
 
           # Compute the block only if Output_ID matches
           if (id == deriv_id) {
             # Compute the matrix derivative according to the current HP
             current_noise_hp <- hp %>%
-              dplyr::filter(Output_ID == id) %>%
-              dplyr::pull(noise)
+              dplyr::filter(.data$Output_ID == id) %>%
+              dplyr::pull(.data$noise)
 
             if (length(current_noise_hp) == 0) {
               stop(paste("'Noise' parameter not found for Output_ID :", id))
@@ -409,8 +407,8 @@ kern_to_cov <- function(input,
 
             # Create a sub-block of the whole noise matrix
             block_matrix <- cpp_noise(
-              as.matrix(dplyr::select(subset_input, Input_1)),
-              as.matrix(dplyr::select(subset_input_2, Input_1)),
+              as.matrix(dplyr::select(.data$subset_input, .data$Input_1)),
+              as.matrix(dplyr::select(.data$subset_input_2, .data$Input_1)),
               current_noise_hp
             )
 
