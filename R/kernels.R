@@ -449,6 +449,8 @@ hp <- function(kern = "SE",
   max_val_S <- log(10)
   min_noise <- -5
   max_noise <- -2
+  min_val <- -3
+  max_val <- 10
 
   # Convolution case
   if (is.function(kern)) {
@@ -490,9 +492,9 @@ hp <- function(kern = "SE",
     } else if (shared_hp_tasks && !shared_hp_outputs) {
       hps_per_output <- hp_config %>%
         dplyr::transmute(
-          Output_ID = as.factor(output_id),
-          l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
-          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
+          Output_ID = as.factor(.data$output_id),
+          l_t = purrr::map2_dbl(.data$lt_min, .data$lt_max, ~stats::runif(1, .x, .y)),
+          S_t = purrr::map2_dbl(.data$St_min, .data$St_max, ~stats::runif(1, .x, .y))
         )
       if (noise) {
         hps_per_output$noise <- purrr::map2_dbl(hp_config$noise_min,
@@ -517,22 +519,22 @@ hp <- function(kern = "SE",
     } else { # !shared_hp_tasks && !shared_hp_outputs
       hps_unique <- base_ids %>%
         dplyr::left_join(hp_config %>%
-                           dplyr::mutate(Output_ID = as.factor(output_id)),
+                           dplyr::mutate(Output_ID = as.factor(.data$output_id)),
                          by = "Output_ID") %>%
         dplyr::mutate(
-          l_t = purrr::map2_dbl(lt_min, lt_max, ~stats::runif(1, .x, .y)),
-          S_t = purrr::map2_dbl(St_min, St_max, ~stats::runif(1, .x, .y))
+          l_t = purrr::map2_dbl(.data$lt_min, .data$lt_max, ~stats::runif(1, .x, .y)),
+          S_t = purrr::map2_dbl(.data$St_min, .data$St_max, ~stats::runif(1, .x, .y))
         ) %>%
-        dplyr::select(Task_ID, Output_ID, l_t, S_t)
+        dplyr::select(.data$Task_ID, .data$Output_ID, .data$l_t, .data$S_t)
       if (noise) {
         hps_unique <- base_ids %>%
           dplyr::left_join(hp_config %>%
-                             dplyr::mutate(Output_ID = as.factor(output_id)),
+                             dplyr::mutate(Output_ID = as.factor(.data$output_id)),
                            by = "Output_ID") %>%
           dplyr::mutate(
-            noise = purrr::map2_dbl(noise_min, noise_max, ~stats::runif(1, .x, .y))
+            noise = purrr::map2_dbl(.data$noise_min, .data$noise_max, ~stats::runif(1, .x, .y))
           ) %>%
-          dplyr::select(Task_ID, Output_ID, noise) %>%
+          dplyr::select(.data$Task_ID, .data$Output_ID, .data$noise) %>%
           dplyr::left_join(hps_unique, ., by = c("Task_ID", "Output_ID"))
       }
       final_hp <- hps_unique

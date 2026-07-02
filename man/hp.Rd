@@ -2,14 +2,16 @@
 % Please edit documentation in R/kernels.R
 \name{hp}
 \alias{hp}
-\title{Generate random hyper-parameters}
+\title{Generate Initial Hyperparameters for GP Kernels}
 \usage{
 hp(
   kern = "SE",
-  list_ID = NULL,
-  list_hp = NULL,
+  list_task_ID = NULL,
+  list_output_ID = NULL,
+  shared_hp_tasks = TRUE,
+  shared_hp_outputs = FALSE,
   noise = FALSE,
-  common_hp = FALSE
+  hp_config = NULL
 )
 }
 \arguments{
@@ -32,26 +34,24 @@ In case of a custom kernel function, the argument \code{list_hp} has to be
 provided as well, for designing a tibble with the correct names of
 hyper-parameters.}
 
-\item{list_ID}{A vector, associating an \code{ID} value with each individual
-for whom hyper-parameters are generated. If NULL (default) only one set of
-hyper-parameters is return without the \code{ID} column.}
+\item{list_task_ID}{A vector of task IDs.}
 
-\item{list_hp}{A vector of characters, providing the name of each
-hyper-parameter, in case where \code{kern} is a custom kernel function.}
+\item{list_output_ID}{A vector of output IDs.}
 
-\item{noise}{A logical value, indicating whether a 'noise' hyper-parameter
-should be included.}
+\item{shared_hp_tasks}{If TRUE, HPs are shared across tasks.}
 
-\item{common_hp}{A logical value, indicating whether the set of
-hyper-parameters is assumed to be common to all individuals.}
+\item{shared_hp_outputs}{If TRUE, HPs are shared across outputs.}
+
+\item{noise}{If TRUE, a 'noise' hyperparameter is added.}
+
+\item{hp_config}{A tibble providing min/max bounds for HP generation, specific
+to the convolution_kernel. If NULL, default bounds are used.}
 }
 \value{
-A tibble, providing a set of random hyper-parameters associated with
-the kernel specified through the argument \code{kern}.
+A \code{tibble} containing the generated hyperparameters.
 }
 \description{
-Generate a set of random hyper-parameters, specific to the chosen type of
-kernel, under the format that is used in Magma.
+Generate Initial Hyperparameters for GP Kernels
 }
 \examples{
 TRUE

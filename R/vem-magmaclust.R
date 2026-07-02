@@ -230,20 +230,20 @@ vm_step <- function(
 
   # Recompute prior mean parameters for each cluster with the updated mixture probabilities
   floop <- function(k) {
-    mu <- list_mu_param$mean[[k]] %>% pull(Output)
+    mu <- list_mu_param$mean[[k]] %>% dplyr::pull(Output)
     inv <- list_mu_param$cov[[k]] %>% chol_inv_jitter(pen_diag = pen_diag)
     dim <- length(mu)
     ones <- rep(1, dim)
 
     # Update the prior mean parameters for the k-th cluster
     # update_m_k = (t(ones) %*% inv %*% mu) / (t(ones) %*% inv %*% ones)
-    
+
     # rep(update_m_k[1,1], dim) %>%
     return(rep(mean(mu), dim))
   }
   new_m_k <- lapply(list_ID_k, floop) %>%
     `names<-`(list_ID_k)
-    
+
 
   ## Check whether hyper-parameters are common to all individuals
   if (common_hp_i) {

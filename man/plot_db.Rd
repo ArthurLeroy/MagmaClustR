@@ -4,22 +4,24 @@
 \alias{plot_db}
 \title{Plot smoothed curves of raw data}
 \usage{
-plot_db(data, legend = FALSE)
+plot_db(data, cluster = FALSE, legend = FALSE)
 }
 \arguments{
-\item{data}{A data frame or tibble with format : ID, Input, Output.}
+\item{data}{A data frame or tibble with format : ID, Input, Output for
+single output configurations; Task_ID, Input_ID, Input, Output_ID, Output
+for multi-output configurations.}
+
+\item{cluster}{A boolean indicating whether data should be coloured by
+cluster. Requires a column named 'Cluster'.}
 
 \item{legend}{A boolean indicating whether the legend should be displayed.}
 }
 \value{
-Graph of the raw data.
+Graph of smoothed curves of raw data.
 }
 \description{
-Display raw data under the Magma format as points and lines.
+Display raw data under the Magma format as smoothed curves.
 }
 \examples{
-## Generate a synthetic dataset
-db = simu_db()
-## Plot the raw data
-plot_db(db)
+TRUE
 }

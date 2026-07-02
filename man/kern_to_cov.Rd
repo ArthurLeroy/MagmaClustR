@@ -24,6 +24,7 @@ Radial Basis Function or Gaussian kernel),
 \item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
 \item "RQ": the Rational Quadratic kernel.
+\item convolution_kernel : the Convolution kernel used to manage MO scenario.
 Compound kernels can be created as sums or products of the above kernels.
 For combining kernels, simply provide a formula as a character string
 where elements are separated by whitespaces (e.g. "SE + PERIO"). As the

@@ -14,7 +14,6 @@
 #' @examples
 #' TRUE
 plot_db <- function(data, cluster = FALSE, legend = FALSE) {
-  # browser()
   if(all(c("ID", "Input", "Output") %in% names(data))){
     # Single output case
     ## Convert Cluster into factors for a better display
