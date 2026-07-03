@@ -838,6 +838,10 @@ plot_gif <- function(
 #'    identifying the different individuals/tasks. If provided, those data are
 #'    displayed as backward colourful points (each colour corresponding to one
 #'    individual or a cluster, see \code{col_clust} below).
+#' @param data_test (Optional) A tibble or data frame. Required columns:
+#'    \code{Input}, \code{Output}. These are data points withheld from the
+#'    prediction and overlaid on the plot as a distinct layer, allowing visual
+#'    evaluation of prediction quality at unobserved locations.
 #' @param col_clust A boolean indicating whether backward points are coloured
 #'    according to the individuals or to their most probable cluster. If one
 #'    wants to colour by clusters, a column \code{Cluster} shall be present in
@@ -900,6 +904,7 @@ plot_magmaclust <- function(
   x_input = NULL,
   data = NULL,
   data_train = NULL,
+  data_test = NULL,
   col_clust = FALSE,
   prior_mean = NULL,
   y_grid = NULL,
@@ -1111,6 +1116,19 @@ plot_magmaclust <- function(
     }
   }
 
+  ## Add testing point if provided
+
+  if (!is.null(data_test)) {
+    gg <- gg +
+      ggplot2::geom_point(
+        data = data_test,
+        ggplot2::aes(x = .data[[names(inputs)[1]]], y = .data$Output),
+        colour = "red",
+        size = size_data,
+        shape = 18
+      )
+  }
+
   ## Display the prior mean process if provided
   if (!is.null(prior_mean)) {
     ## Extract 'mean' if the user provides the full 'hyperpost'
@@ -1143,5 +1161,233 @@ plot_magmaclust <- function(
   gg <- gg + ggplot2::scale_color_brewer(palette = "Set1")
 
   (gg + ggplot2::ggtitle(gtitle)) %>%
+    return()
+}
+
+#' Plot time series grouped by cluster
+#'
+#' After training a MagmaClust model, this function assigns each individual
+#' to its most likely cluster and plots all time series in that cluster
+#' together — one panel per cluster, arranged in a grid.
+#'
+#' @param trained_model The object returned by \code{\link{train_magmaclust}}.
+#' @param panels A boolean, indicating whether a single plot with all clusters
+#'    should be displayed (FALSE), or a panel of plots for each cluster (TRUE).
+#' @param grid_inputs The grid of input (reference Input and covariates) values
+#'    on which the hyperposterior should be re-evaluated. If \code{NULL}
+#'    (default), the hyperposterior evaluated on the data grid (from training)
+#'    is returned. Ideally, this argument should be a
+#'    tibble or a data frame, providing the same columns as \code{data}, except
+#'    'Output'. Nonetheless, in cases where \code{data} provides only one
+#'    'Input' column, the \code{grid_inputs} argument can be a vector.
+#' @param remove_empty A boolean, indicating whether empty clusters should be
+#'    removed from the plot.
+#' @param displayed_clusters A vector of characters, indicating which subset of
+#'    clusters should be displayed. When \code{NULL}, they are all plotted.
+#' @param ncol A number, indicating the number of columns in the panel grid.
+#'    If NULL (default), the value is chosen automatically: 1 for a single
+#'    cluster, 2 for 2–4 clusters, and 3 for 5 or more.
+#' @param prob_CI A number between 0 and 1 (default is 0.95), indicating the
+#'    level of the Credible Interval associated with the posterior mean curve.
+#'    If this this argument is set to 1, the Credible Interval is not displayed.
+#' @param x_input A character string, specifying the Input used in the x-axis.
+#'     As this visual representation is only available in 1-dimension, when
+#'     multiple Inputs exist, the marginal according to the chosen Input will be
+#'     displayed. Default is \code{"Input"}.
+#' @param y_lab A character string, specifying the y-axis label. Default is
+#'    \code{"Output"}.
+#' @param alpha_point A number, between 0 and 1, controlling transparency of
+#'    the individual data points.
+#' @param size_point A number, controlling the size of the data points.
+#' @param show_prob A logical value, indicating whether the mean assignment
+#'    probability should be appended to each panel title (e.g.
+#'    \emph{K1 (n = 5, mean prob = 0.91)}). Default is \code{TRUE}.
+#' @param show_legend A logical value, indicating whether a colour legend
+#'    mapping line colours to individual IDs should be displayed. Set to
+#'    \code{FALSE} for large clusters where the legend would be unreadable.
+#'    Default is \code{TRUE}.
+#'
+#' @return A visual representation of clusters resulting from MagmaClust
+#'         training. If \code{panels = FALSE}, a single ggplot object is
+#'         returned, and a (cowplot) panel for each cluster
+#'         is displayed when \code{panels = TRUE}.
+#'
+#' @seealso \code{\link{train_magmaclust}}, \code{\link{plot_magmaclust}},
+#'    \code{\link{data_allocate_cluster}}
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+plot_clusters <- function(
+    trained_model,
+    panels = FALSE,
+    grid_inputs = NULL,
+    remove_empty = TRUE,
+    displayed_clusters = NULL,
+    x_input = "Input",
+    y_lab = "Output",
+    ncol = NULL,
+    prob_CI = 0.95,
+    alpha_point = 0.5,
+    size_point = 1.5,
+    show_prob = TRUE,
+    show_legend = FALSE) {
+
+  ## Extract cluster assignments from the trained model
+  mixture <- trained_model$hyperpost$mixture
+
+  if(grid_inputs %>% is.null()){
+    hyperpost = trained_model$hyperpost
+  } else {
+    ## Recompute hyperposterior mean processes on a fine grid
+    hyperpost = quiet(hyperposterior_clust(trained_model = trained_model,
+                                           grid_inputs = grid_inputs))
+  }
+
+
+  ## Extract the dataset used to train the model
+  data = trained_model$ini_args$data
+
+  ## Get the names of clusters
+  k_cols <- names(mixture)
+
+  ## Assign task to the most probable cluster
+  data_clustered <- trained_model %>%
+    data_allocate_cluster()
+
+  assignments = data_clustered %>%
+    dplyr::select(.data$ID, .data$Cluster, .data$Proba)
+
+
+  ## Extract the list of all clusters' names
+  all_clust = trained_model$hp_k$ID %>% unique()
+
+  ## If users want to display a subset of clusters
+  if(displayed_clusters %>% is.null()){
+
+    ## Remove empty cluster
+    if(remove_empty){
+
+      ## Identify non-empty clusters and filter to requested subset
+      non_empty <- assignments %>%
+        dplyr::distinct(.data$Cluster) %>%
+        dplyr::pull(.data$Cluster)
+
+      ## Identify empty clusters
+      empty = all_clust[ which(!(all_clust %in% non_empty) )]
+
+      if( !(length(empty) == 0) )
+      {
+        cat("Clusters", empty, "are empty, and were removed from the plot.")
+      }
+
+      clusters_to_plot <- non_empty
+
+    } else{
+      clusters_to_plot <- all_clust
+    }
+
+  } else {
+    clusters_to_plot <- displayed_clusters
+  }
+
+  if(panels == FALSE){
+    mean_k <- hyperpost$mean %>%
+      dplyr::bind_rows(.id = "Cluster") %>%
+      dplyr::filter(.data$Cluster %in% clusters_to_plot)
+
+    data_k = data_clustered %>%
+      dplyr::filter(.data$Cluster %in% clusters_to_plot)
+
+    ## Display the mean functions if available
+    gg = ggplot2::ggplot() +
+      ggplot2::geom_line(
+        data = mean_k,
+        ggplot2::aes(
+          x = .data[[x_input]],
+          y = .data$Output,
+          col = .data$Cluster
+        ),
+        linetype = "dashed"
+      ) +
+      ggplot2::geom_point(data = data_k, ggplot2::aes(
+        x = .data[[x_input]],
+        y = .data$Output,
+        col = .data$Cluster), size = size_point, alpha = alpha_point) +
+      ggplot2::theme_classic()
+
+    return(gg)
+  }
+
+  ## Build one ggplot panel per cluster
+  loop_panel = function(k) {
+
+    quant_ci <- stats::qnorm((1 + prob_CI) / 2)
+
+    hyperpost_k = hyperpost$pred[[k]] %>%
+      dplyr::mutate("CI_inf" = .data$Mean - quant_ci * sqrt(.data$Var)) %>%
+      dplyr::mutate("CI_sup" = .data$Mean + quant_ci * sqrt(.data$Var) )
+
+    k_data <- data_clustered %>%
+      dplyr::filter(.data$Cluster == k)
+
+    n_ids <- dplyr::n_distinct(k_data$ID)
+
+    mean_prob <- assignments %>%
+      dplyr::filter(.data$Cluster == k) %>%
+      dplyr::pull(.data$Proba) %>%
+      mean() %>%
+      round(2)
+
+    ## Define panel title with or without assignment probability
+    title <- if(show_prob){
+      paste0(k, "  (n = ", n_ids, ", mean probability = ", mean_prob, ")")
+    } else {
+      paste0(k, "  (n = ", n_ids, ")")
+    }
+
+    gg <- ggplot2::ggplot() +
+      ## Plot data points
+      ggplot2::geom_point(data = k_data, ggplot2::aes(
+        x = .data[[x_input]],
+        y = .data$Output,
+        col = .data$ID), size = size_point, alpha = alpha_point) +
+      ggplot2::labs(title = title, x = x_input, y = y_lab) +
+      ggplot2::theme_classic() +
+      ggplot2::theme(
+        legend.position = "right",
+        legend.justification = "top") +
+      ## Add mean process
+      ggplot2::geom_line(
+        data = hyperpost_k,
+        ggplot2::aes(
+          x = .data[[x_input]],
+          y = .data$Mean),
+        linetype = "dashed") +
+      ggplot2::geom_ribbon(
+        data = hyperpost_k,
+        ggplot2::aes(
+          x = .data[[x_input]],
+          ymin = .data$CI_inf,
+          ymax = .data$CI_sup
+        ),
+        alpha = 0.2,
+        fill = "#FA9FB5"
+      )
+
+
+    ## Remove legend if requested
+    if (!show_legend){gg <- gg + ggplot2::theme(legend.position = "none")}
+
+    return(gg)
+  }
+
+  panels <- lapply(clusters_to_plot,loop_panel)
+
+  ## Return a single panel directly, or arrange multiple panels in a grid
+  if (length(panels) == 1) return(panels[[1]])
+
+  cowplot::plot_grid(plotlist = panels, ncol = ncol, align = "hv") %>%
     return()
 }

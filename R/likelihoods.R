@@ -83,6 +83,49 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
     return()
 }
 
+#' Sum of Gaussian Process Log-Likelihoods across all individuals
+#'
+#' Computes the joint log-likelihood of the full dataset by summing
+#' individual GP log-likelihoods. The resulting value can be optimised over
+#' hyper-parameters to obtain a shared hyperparameters
+#' estimate for the whole dataset, replacing the single task hyperparameters for
+#' initialisation purposes.
+#'
+#' @param hp A tibble, data frame or named vector containing hyper-parameters.
+#' @param db A tibble containing the full dataset.
+#'    Required columns: ID, Input, Output. Additional covariate columns
+#'    are allowed.
+#' @param mean A scalar, specifying the mean of the GP at reference inputs.
+#' @param kern A kernel function.
+#' @param pen_diag A jitter term added to the covariance matrix to avoid
+#'    numerical issues with nearly singular matrices.
+#'
+#' @return A number, corresponding to the total GP log-likelihood summed
+#'    across all individuals in the dataset. Consistent with other logL_*
+#'    functions, the negative sum is returned.
+#'
+#' @keywords internal
+#'
+#' @examples
+#' TRUE
+sum_logL_GP <- function(hp, db, mean, kern, pen_diag) {
+
+  ## Sum the log-likelihood of the GP over all individuals in the database
+  floop = function(i) {
+    ## Extract the data and reference inputs for individual i
+    db_i <- db %>% dplyr::filter(.data$ID == i) %>% dplyr::select(- .data$ID)
+
+    ## Create a mean vector of the correct length
+    mean_i <- rep(mean, nrow(db_i))
+
+    logL_GP(hp, db_i, mean_i, kern, 0, pen_diag)
+  }
+
+  sapply(unique(db$ID), floop) %>%
+    sum() %>%
+    return()
+}
+
 
 #' Modified log-Likelihood function for GPs
 #'
@@ -111,7 +154,7 @@ logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   if (length(mean) == 1) {
     mean <- rep(mean, nrow(db))
   }
-  ## mean is equal for all timestamps
+  ## mean is equal for all Inputs
 
   ## Extract the input variables (reference Input + Covariates)
   inputs <- db %>% dplyr::select(-.data$Output)

@@ -1,12 +1,3 @@
-# MagmaClustR 1.2.2 (development version)
-
-## Major
-
-
-## Minor
-
-
-
 # MagmaClustR (development version)
 
 ## Major
@@ -14,9 +5,12 @@
 * Update the simu_db() function to handle multi-output scenarios.
 * The mean process is simulated via generate_mean_process(), whereas task data are derived from generate_single_task_data(). simu_indiv_se() has been removed from the package.
 * Update the plot_db() function to handle multi-output scenarios.
+* Add the 'train_shared_gp()' function to provide more robust initialisation of hyperparameters
 
 ## Minor
 
+* Add the 'plot_clusters()' function to display clustering results directly after training
+* Add an argument to display testing data directly within plotting functions
 * Fix the plot_gif() function to avoid saving multiple temporary png files
 * Add a minimal implementation of Laplace Matching for binary classification
 * Fix a bug when plotting in 2D mean process predictions

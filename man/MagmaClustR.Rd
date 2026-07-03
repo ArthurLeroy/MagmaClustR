@@ -86,7 +86,6 @@ Useful links:
 
 Authors:
 \itemize{
-  \item Arthur Leroy \email{arthur.leroy.pro@gmail.com} (\href{https://orcid.org/0000-0003-0806-8934}{ORCID})
   \item Pierre Latouche \email{pierre.latouche@gmail.com}
 }
 

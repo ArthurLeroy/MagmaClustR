@@ -10,6 +10,7 @@ plot_magmaclust(
   x_input = NULL,
   data = NULL,
   data_train = NULL,
+  data_test = NULL,
   col_clust = FALSE,
   prior_mean = NULL,
   y_grid = NULL,
@@ -52,6 +53,11 @@ the \code{data} argument with an additional required column \code{ID} for
 identifying the different individuals/tasks. If provided, those data are
 displayed as backward colourful points (each colour corresponding to one
 individual or a cluster, see \code{col_clust} below).}
+
+\item{data_test}{(Optional) A tibble or data frame. Required columns:
+\code{Input}, \code{Output}. These are data points withheld from the
+prediction and overlaid on the plot as a distinct layer, allowing visual
+evaluation of prediction quality at unobserved locations.}
 
 \item{col_clust}{A boolean indicating whether backward points are coloured
 according to the individuals or to their most probable cluster. If one

@@ -1,3 +1,393 @@
+#' Learning hyper-parameters of a Gaussian Process
+#'
+#' Learning hyper-parameters of any new individual/task in \code{Magma} is
+#' required in the prediction procedure. This function can also be used to learn
+#' hyper-parameters of a simple GP (just let the \code{hyperpost} argument set
+#' to NULL, and use \code{prior_mean} instead). When using within \code{Magma},
+#' by providing data for the new individual/task, the hyper-posterior mean and
+#' covariance parameters, and initialisation values for the hyper-parameters,
+#' the function computes maximum likelihood estimates of the hyper-parameters.
+#'
+#' @param data A tibble or data frame. Required columns: \code{Input},
+#'    \code{Output}. Additional columns for covariates can be specified.
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param prior_mean Mean parameter of the GP. This argument can be
+#'    specified under various formats, such as:
+#'    - NULL (default). The hyper-posterior mean would be set to 0 everywhere.
+#'    - A number. The hyper-posterior mean would be a constant function.
+#'    - A vector of the same length as all the distinct Input values in the
+#'     \code{data} argument. This vector would be considered as the evaluation
+#'     of the hyper-posterior mean function at the training Inputs.
+#'    - A function. This function is defined as the hyper-posterior mean.
+#'    - A tibble or data frame. Required columns: Input, Output. The Input
+#'     values should include at least the same values as in the \code{data}
+#'     argument.
+#' @param ini_hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with the \code{kern} of the new individual/task.
+#'    The columns should be named according to the hyper-parameters that are
+#'    used in \code{kern}. In cases where the model includes a noise term,
+#'    \code{ini_hp} should contain an additional 'noise' column. If NULL
+#'    (default), random values are used as initialisation. The \code{\link{hp}}
+#'    function can be used to draw  custom hyper-parameters with the correct
+#'    format.
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param hyperpost A list, containing the elements 'mean' and 'cov',
+#'    the parameters of the hyper-posterior distribution of the mean process.
+#'    Typically, this argument should come from a previous learning using
+#'    \code{\link{train_magma}}, or from the \code{\link{hyperposterior}}
+#'    function. If \code{hyperpost} is provided, the likelihood that is
+#'    maximised is the one involved during Magma's prediction step, and the
+#'    \code{prior_mean} argument is ignored. For classic GP training, leave
+#'    \code{hyperpost} to NULL.
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#'
+#' @return A tibble, containing the trained hyper-parameters for the kernel of
+#'   the new individual/task.
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+train_gp <- function(
+    data,
+    prior_mean = NULL,
+    ini_hp = NULL,
+    kern = "SE",
+    hyperpost = NULL,
+    pen_diag = 1e-10
+) {
+  ## Remove the 'ID' column if present
+  if ("ID" %in% names(data)) {
+    if (dplyr::n_distinct(data$ID) > 1) {
+      stop(
+        "Problem in the 'ID' column: different values are not allowed. ",
+        "The prediction can only be performed for one individual/task."
+      )
+    }
+    data <- data %>% dplyr::select(-.data$ID)
+  }
+  if (!("Reference" %in% (data %>% names()))) {
+    ## Get input column names
+    names_col <- data %>%
+      dplyr::select(-.data$Output) %>%
+      names()
+  } else {
+    names_col <- data %>%
+      dplyr::select(-c(.data$Output, .data$Reference)) %>%
+      names()
+  }
+
+  ## Keep 6 significant digits for entries to avoid numerical errors and
+  ## Add a Reference column for identification
+  data <- data %>%
+    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    tidyr::unite(
+      "Reference",
+      tidyselect::all_of(names_col),
+      sep = ":",
+      remove = FALSE
+    ) %>%
+    tidyr::drop_na() %>%
+    dplyr::arrange(.data$Reference)
+
+  ## Extract the union of all reference inputs provided in the training data
+  inputs_obs <- data %>%
+    dplyr::select(-.data$Output) %>%
+    unique()
+
+  input_obs <- inputs_obs %>% dplyr::pull(.data$Reference)
+
+  ## Check whether 'hyperpost' is provided and thus used for Magma prediction
+  if (!is.null(hyperpost)) {
+    cat(
+      "The 'hyperpost' argument is provided. Therefore, this training is",
+      "considered to be part of the prediction step in Magma. Hyper-posterior",
+      "mean and covariance parameters are used in the likelihood",
+      "maximisation. \n \n"
+    )
+    mean <- hyperpost$mean %>%
+      dplyr::filter(.data$Reference %in% input_obs) %>%
+      dplyr::arrange(.data$Reference) %>%
+      dplyr::pull(.data$Output)
+
+    post_cov <- hyperpost$cov[
+      as.character(input_obs),
+      as.character(input_obs)
+    ]
+  } else {
+    ## Set post_cov to 0 if we are not in Magma but in a classic GP training
+    post_cov <- 0
+
+    ## Extract the values of the hyper-posterior mean at reference Input
+    if (prior_mean %>% is.null()) {
+      mean <- rep(0, length(input_obs))
+      cat(
+        "The 'prior_mean' argument has not been specified. The",
+        "mean function is thus set to be 0 everywhere.\n \n"
+      )
+    } else if (prior_mean %>% is.vector()) {
+      if (length(prior_mean) == length(input_obs)) {
+        mean <- prior_mean
+      } else if (length(prior_mean) == 1) {
+        mean <- rep(prior_mean, length(input_obs))
+
+        cat(
+          "The provided 'prior_mean' argument is of length 1. Thus, the",
+          "hyper-posterior mean function has set to be constant everywhere.",
+          "\n \n"
+        )
+      } else {
+        stop(
+          "The 'prior_mean' argument is of length ",
+          length(prior_mean),
+          ", whereas the grid of training inputs is of length ",
+          length(input_obs)
+        )
+      }
+    } else if (prior_mean %>% is.function()) {
+      mean <- prior_mean(
+        inputs_obs %>%
+          dplyr::select(-.data$Reference)
+      )
+    } else if (prior_mean %>% is.data.frame()) {
+      if (
+        all(c("Output", tidyselect::all_of(names_col)) %in% names(prior_mean))
+      ) {
+        mean <- prior_mean %>%
+          purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+          tidyr::unite(
+            "Reference",
+            tidyselect::all_of(names_col),
+            sep = ":",
+            remove = FALSE
+          ) %>%
+          dplyr::filter(.data$Reference %in% input_obs) %>%
+          dplyr::arrange(.data$Reference) %>%
+          dplyr::pull(.data$Output)
+
+        if (length(mean) != length(input_obs)) {
+          stop(
+            "Problem in the length of the prior mean parameter. The ",
+            "'prior_mean' argument should provide an Output value for each ",
+            "Input value appearing in the training data."
+          )
+        }
+      } else {
+        stop(
+          "If the 'prior_mean' argument is provided as a data frame, it ",
+          "should contain the mandatory column names: 'Output', 'Input'"
+        )
+      }
+    } else {
+      stop(
+        "Incorrect format for the 'prior_mean' argument. Please read ",
+        "?train_gp() for details."
+      )
+    }
+  }
+
+  ## Initialise hp according to user's values
+  if (kern %>% is.function()) {
+    if (ini_hp %>% is.null()) {
+      stop(
+        "When using a custom kernel function the 'ini_hp' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format for initialisation."
+      )
+    } else {
+      hp <- ini_hp
+    }
+  } else {
+    if (ini_hp %>% is.null()) {
+      hp <- hp(kern, noise = T)
+      cat(
+        "The 'ini_hp' argument has not been specified. Random values of",
+        "hyper-parameters are used as initialisation.\n \n"
+      )
+    } else {
+      hp <- ini_hp
+    }
+  }
+  ## Extract the names of hyper-parameters
+  list_hp <- hp %>% names()
+
+  hp_new <- stats::optim(
+    hp,
+    fn = logL_GP,
+    gr = gr_GP,
+    db = data,
+    mean = mean,
+    kern = kern,
+    post_cov = post_cov,
+    pen_diag = pen_diag,
+    method = "L-BFGS-B",
+    control = list(factr = 1e13, maxit = 25)
+  )$par %>%
+    tibble::as_tibble_row()
+
+  ## If something went wrong during the optimization
+  if (hp_new %>% is.na() %>% any()) {
+    warning(
+      "Training encountered an error and the function returns initial",
+      "values of the hyperparameters"
+    )
+    hp_new <- hp
+  }
+  return(hp_new)
+}
+
+#' Learning shared hyper-parameters of a Gaussian Process across all
+#' individuals
+#'
+#' Learning shared hyper-parameters across all individuals in a dataset by
+#' maximising the joint GP log-likelihood (see \code{\link{sum_logL_GP}}).
+#' This function extends \code{\link{train_gp}} to the multi-task
+#' setting: rather than fitting one set of hyper-parameters per GP,
+#' it estimates a single set that is shared across the whole dataset.
+#'
+#' @param data A tibble or data frame. Required columns: \code{ID},
+#'    \code{Input}, \code{Output}. Additional columns for covariates can be
+#'    specified. The \code{ID} column identifies each individual/time series.
+#'    The \code{Input} column should define the variable that is used as
+#'    reference for the observations (e.g. time for longitudinal data). The
+#'    \code{Output} column specifies the observed values (the response
+#'    variable). The data frame can also provide as many covariates as desired,
+#'    with no constraints on the column names. These covariates are additional
+#'    inputs (explanatory variables) of the models that are also observed at
+#'    each reference \code{Input}.
+#' @param prior_mean Mean parameter of the GP. This argument can be
+#'    specified under various formats, such as:
+#'    - NULL (default). The mean would be set to 0 everywhere.
+#'    - A number. The mean would be a constant function evaluated at all
+#'      reference inputs.
+#' @param ini_hp A named vector, tibble or data frame of hyper-parameters
+#'    associated with the \code{kern} of the GP.
+#'    The columns should be named according to the hyper-parameters that are
+#'    used in \code{kern}. In cases where the model includes a noise term,
+#'    \code{ini_hp} should contain an additional 'noise' column. If NULL
+#'    (default), random values are used as initialisation. The \code{\link{hp}}
+#'    function can be used to draw custom hyper-parameters with the correct
+#'    format.
+#' @param kern A kernel function, defining the covariance structure of the GP.
+#'    Several popular kernels
+#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
+#'    Cookbook}) are already implemented and can be selected within the
+#'    following list:
+#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'        Radial Basis Function or Gaussian kernel),
+#'    - "LIN": the Linear kernel,
+#'    - "PERIO": the Periodic kernel,
+#'    - "RQ": the Rational Quadratic kernel.
+#'    Compound kernels can be created as sums or products of the above kernels.
+#'    For combining kernels, simply provide a formula as a character string
+#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
+#'    elements are treated sequentially from the left to the right, the product
+#'    operator '*' shall always be used before the '+' operators (e.g.
+#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is not).
+#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
+#'    numerical issues when inverting nearly singular matrices.
+#'
+#' @return A tibble, containing the trained hyper-parameters for the kernel,
+#'    shared across all individuals in the dataset.
+#'
+#' @export
+#'
+#' @examples
+#' TRUE
+train_shared_gp <- function(
+    data,
+    prior_mean = NULL,
+    ini_hp = NULL,
+    kern = "SE",
+    pen_diag = 1e-10
+) {
+
+  ## Extract the values of the prior mean at reference inputs
+  if (prior_mean %>% is.null()) {
+    mean = 0
+    cat(
+      "The 'prior_mean' argument has not been specified. The",
+      "mean function is thus set to be 0 everywhere.\n \n"
+    )
+  } else if (prior_mean %>% is.vector()) {
+
+    if (length(prior_mean) != 1){
+      stop(
+        "Incorrect format for the 'prior_mean' argument, which should be ",
+        "a scalar value." )
+    }
+  }
+
+  ## Initialise hp according to user's values
+  if (kern %>% is.function()) {
+    if (ini_hp %>% is.null()) {
+      stop(
+        "When using a custom kernel function the 'ini_hp' argument is ",
+        "mandatory, in order to provide the name of the hyper-parameters. ",
+        "You can use the function 'hp()' to easily generate a tibble of random",
+        " hyper-parameters with the desired format for initialisation."
+      )
+    } else {
+      hp <- ini_hp
+    }
+  } else {
+    if (ini_hp %>% is.null()) {
+      hp <- hp(kern, noise = TRUE)
+      cat(
+        "The 'ini_hp' argument has not been specified. Random values of",
+        "hyper-parameters are used as initialisation.\n \n"
+      )
+    } else {
+      hp <- ini_hp
+    }
+  }
+
+  hp_new <- stats::optim(
+    hp,
+    fn = sum_logL_GP,
+    db = data,
+    mean = mean,
+    kern = kern,
+    pen_diag = pen_diag,
+    method = "L-BFGS-B",
+    control = list(factr = 1e13, maxit = 100)
+  )$par %>%
+    tibble::as_tibble_row()
+
+  ## If something went wrong during the optimization
+  if (hp_new %>% is.na() %>% any()) {
+    warning(
+      "Training encountered an error and the function returns initial",
+      "values of the hyperparameters"
+    )
+    hp_new <- hp
+  }
+  return(hp_new)
+}
+
 #' Training Magma with an EM algorithm
 #'
 #' The hyper-parameters and the hyper-posterior distribution involved in Magma
@@ -540,267 +930,6 @@ train_magma <- function(
     "training_time" = difftime(t_2, t_1, units = "secs")
   ) %>%
     return()
-}
-
-#' Learning hyper-parameters of a Gaussian Process
-#'
-#' Learning hyper-parameters of any new individual/task in \code{Magma} is
-#' required in the prediction procedure. This function can also be used to learn
-#' hyper-parameters of a simple GP (just let the \code{hyperpost} argument set
-#' to NULL, and use \code{prior_mean} instead). When using within \code{Magma},
-#' by providing data for the new individual/task, the hyper-posterior mean and
-#' covariance parameters, and initialisation values for the hyper-parameters,
-#' the function computes maximum likelihood estimates of the hyper-parameters.
-#'
-#' @param data A tibble or data frame. Required columns: \code{Input},
-#'    \code{Output}. Additional columns for covariates can be specified.
-#'    The \code{Input} column should define the variable that is used as
-#'    reference for the observations (e.g. time for longitudinal data). The
-#'    \code{Output} column specifies the observed values (the response
-#'    variable). The data frame can also provide as many covariates as desired,
-#'    with no constraints on the column names. These covariates are additional
-#'    inputs (explanatory variables) of the models that are also observed at
-#'    each reference \code{Input}.
-#' @param prior_mean Mean parameter of the GP. This argument can be
-#'    specified under various formats, such as:
-#'    - NULL (default). The hyper-posterior mean would be set to 0 everywhere.
-#'    - A number. The hyper-posterior mean would be a constant function.
-#'    - A vector of the same length as all the distinct Input values in the
-#'     \code{data} argument. This vector would be considered as the evaluation
-#'     of the hyper-posterior mean function at the training Inputs.
-#'    - A function. This function is defined as the hyper-posterior mean.
-#'    - A tibble or data frame. Required columns: Input, Output. The Input
-#'     values should include at least the same values as in the \code{data}
-#'     argument.
-#' @param ini_hp A named vector, tibble or data frame of hyper-parameters
-#'    associated with the \code{kern} of the new individual/task.
-#'    The columns should be named according to the hyper-parameters that are
-#'    used in \code{kern}. In cases where the model includes a noise term,
-#'    \code{ini_hp} should contain an additional 'noise' column. If NULL
-#'    (default), random values are used as initialisation. The \code{\link{hp}}
-#'    function can be used to draw  custom hyper-parameters with the correct
-#'    format.
-#' @param kern A kernel function, defining the covariance structure of the GP.
-#'    Several popular kernels
-#'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
-#'    Cookbook}) are already implemented and can be selected within the
-#'    following list:
-#'    - "SE": (default value) the Squared Exponential Kernel (also called
-#'        Radial Basis Function or Gaussian kernel),
-#'    - "LIN": the Linear kernel,
-#'    - "PERIO": the Periodic kernel,
-#'    - "RQ": the Rational Quadratic kernel.
-#'    Compound kernels can be created as sums or products of the above kernels.
-#'    For combining kernels, simply provide a formula as a character string
-#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the²
-#'    elements are treated sequentially from the left to the right, the product
-#'    operator '*' shall always be used before the '+' operators (e.g.
-#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-#' @param hyperpost A list, containing the elements 'mean' and 'cov',
-#'    the parameters of the hyper-posterior distribution of the mean process.
-#'    Typically, this argument should come from a previous learning using
-#'    \code{\link{train_magma}}, or from the \code{\link{hyperposterior}}
-#'    function. If \code{hyperpost} is provided, the likelihood that is
-#'    maximised is the one involved during Magma's prediction step, and the
-#'    \code{prior_mean} argument is ignored. For classic GP training, leave
-#'    \code{hyperpost} to NULL.
-#' @param pen_diag A number. A jitter term, added on the diagonal to prevent
-#'    numerical issues when inverting nearly singular matrices.
-#'
-#' @return A tibble, containing the trained hyper-parameters for the kernel of
-#'   the new individual/task.
-#'
-#' @export
-#'
-#' @examples
-#' TRUE
-train_gp <- function(
-  data,
-  prior_mean = NULL,
-  ini_hp = NULL,
-  kern = "SE",
-  hyperpost = NULL,
-  pen_diag = 1e-10
-) {
-  ## Remove the 'ID' column if present
-  if ("ID" %in% names(data)) {
-    if (dplyr::n_distinct(data$ID) > 1) {
-      stop(
-        "Problem in the 'ID' column: different values are not allowed. ",
-        "The prediction can only be performed for one individual/task."
-      )
-    }
-    data <- data %>% dplyr::select(-.data$ID)
-  }
-  if (!("Reference" %in% (data %>% names()))) {
-    ## Get input column names
-    names_col <- data %>%
-      dplyr::select(-.data$Output) %>%
-      names()
-  } else {
-    names_col <- data %>%
-      dplyr::select(-c(.data$Output, .data$Reference)) %>%
-      names()
-  }
-
-  ## Keep 6 significant digits for entries to avoid numerical errors and
-  ## Add a Reference column for identification
-  data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-    tidyr::unite(
-      "Reference",
-      tidyselect::all_of(names_col),
-      sep = ":",
-      remove = FALSE
-    ) %>%
-    tidyr::drop_na() %>%
-    dplyr::arrange(.data$Reference)
-
-  ## Extract the union of all reference inputs provided in the training data
-  inputs_obs <- data %>%
-    dplyr::select(-.data$Output) %>%
-    unique()
-
-  input_obs <- inputs_obs %>% dplyr::pull(.data$Reference)
-
-  ## Check whether 'hyperpost' is provided and thus used for Magma prediction
-  if (!is.null(hyperpost)) {
-    cat(
-      "The 'hyperpost' argument is provided. Therefore, this training is",
-      "considered to be part of the prediction step in Magma. Hyper-posterior",
-      "mean and covariance parameters are used in the likelihood",
-      "maximisation. \n \n"
-    )
-    mean <- hyperpost$mean %>%
-      dplyr::filter(.data$Reference %in% input_obs) %>%
-      dplyr::arrange(.data$Reference) %>%
-      dplyr::pull(.data$Output)
-
-    post_cov <- hyperpost$cov[
-      as.character(input_obs),
-      as.character(input_obs)
-    ]
-  } else {
-    ## Set post_cov to 0 if we are not in Magma but in a classic GP training
-    post_cov <- 0
-
-    ## Extract the values of the hyper-posterior mean at reference Input
-    if (prior_mean %>% is.null()) {
-      mean <- rep(0, length(input_obs))
-      cat(
-        "The 'prior_mean' argument has not been specified. The",
-        "mean function is thus set to be 0 everywhere.\n \n"
-      )
-    } else if (prior_mean %>% is.vector()) {
-      if (length(prior_mean) == length(input_obs)) {
-        mean <- prior_mean
-      } else if (length(prior_mean) == 1) {
-        mean <- rep(prior_mean, length(input_obs))
-
-        cat(
-          "The provided 'prior_mean' argument is of length 1. Thus, the",
-          "hyper-posterior mean function has set to be constant everywhere.",
-          "\n \n"
-        )
-      } else {
-        stop(
-          "The 'prior_mean' argument is of length ",
-          length(prior_mean),
-          ", whereas the grid of training inputs is of length ",
-          length(input_obs)
-        )
-      }
-    } else if (prior_mean %>% is.function()) {
-      mean <- prior_mean(
-        inputs_obs %>%
-          dplyr::select(-.data$Reference)
-      )
-    } else if (prior_mean %>% is.data.frame()) {
-      if (
-        all(c("Output", tidyselect::all_of(names_col)) %in% names(prior_mean))
-      ) {
-        mean <- prior_mean %>%
-          purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-          tidyr::unite(
-            "Reference",
-            tidyselect::all_of(names_col),
-            sep = ":",
-            remove = FALSE
-          ) %>%
-          dplyr::filter(.data$Reference %in% input_obs) %>%
-          dplyr::arrange(.data$Reference) %>%
-          dplyr::pull(.data$Output)
-
-        if (length(mean) != length(input_obs)) {
-          stop(
-            "Problem in the length of the prior mean parameter. The ",
-            "'prior_mean' argument should provide an Output value for each ",
-            "Input value appearing in the training data."
-          )
-        }
-      } else {
-        stop(
-          "If the 'prior_mean' argument is provided as a data frame, it ",
-          "should contain the mandatory column names: 'Output', 'Input'"
-        )
-      }
-    } else {
-      stop(
-        "Incorrect format for the 'prior_mean' argument. Please read ",
-        "?train_gp() for details."
-      )
-    }
-  }
-
-  ## Initialise hp according to user's values
-  if (kern %>% is.function()) {
-    if (ini_hp %>% is.null()) {
-      stop(
-        "When using a custom kernel function the 'ini_hp' argument is ",
-        "mandatory, in order to provide the name of the hyper-parameters. ",
-        "You can use the function 'hp()' to easily generate a tibble of random",
-        " hyper-parameters with the desired format for initialisation."
-      )
-    } else {
-      hp <- ini_hp
-    }
-  } else {
-    if (ini_hp %>% is.null()) {
-      hp <- hp(kern, noise = T)
-      cat(
-        "The 'ini_hp' argument has not been specified. Random values of",
-        "hyper-parameters are used as initialisation.\n \n"
-      )
-    } else {
-      hp <- ini_hp
-    }
-  }
-  ## Extract the names of hyper-parameters
-  list_hp <- hp %>% names()
-
-  hp_new <- stats::optim(
-    hp,
-    fn = logL_GP,
-    gr = gr_GP,
-    db = data,
-    mean = mean,
-    kern = kern,
-    post_cov = post_cov,
-    pen_diag = pen_diag,
-    method = "L-BFGS-B",
-    control = list(factr = 1e13, maxit = 25)
-  )$par %>%
-    tibble::as_tibble_row()
-
-  ## If something went wrong during the optimization
-  if (hp_new %>% is.na() %>% any()) {
-    warning(
-      "Training encountered an error and the function returns initial",
-      "values of the hyperparameters"
-    )
-    hp_new <- hp
-  }
-  return(hp_new)
 }
 
 
@@ -1359,7 +1488,7 @@ train_magmaclust <- function(
     }
   }
 
-  ## Collapse the dimension of the constant prior means (m_k) to length 1 
+  ## Collapse the dimension of the constant prior means (m_k) to length 1
   for (k in 1:nb_cluster) {
       m_k[[ID_k[k]]] <- unique(m_k[[ID_k[k]]])
   }
