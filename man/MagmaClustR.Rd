@@ -91,7 +91,6 @@ Authors:
 
 Other contributors:
 \itemize{
-  \item Pierre Pathé \email{pathepierre@gmail.com} [contributor]
   \item Alexia Grenouillat \email{grenouil@insa-toulouse.fr} [contributor]
   \item Hugo Lelievre \email{lelievre@insa-toulouse.fr} [contributor]
 }

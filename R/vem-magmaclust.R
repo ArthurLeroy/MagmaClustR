@@ -230,7 +230,7 @@ vm_step <- function(
 
   # Recompute prior mean parameters for each cluster with the updated mixture probabilities
   floop <- function(k) {
-    mu <- list_mu_param$mean[[k]] %>% dplyr::pull(Output)
+    mu <- list_mu_param$mean[[k]] %>% dplyr::pull(.data$Output)
     inv <- list_mu_param$cov[[k]] %>% chol_inv_jitter(pen_diag = pen_diag)
     dim <- length(mu)
     ones <- rep(1, dim)

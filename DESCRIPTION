@@ -7,7 +7,6 @@ Authors@R: c(
            role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-0806-8934")),
     person("Pierre", "Latouche", , "pierre.latouche@gmail.com", role = "aut"),
-    person("Pierre", "Pathé", , "pathepierre@gmail.com", role = "ctb"),
     person("Alexia", "Grenouillat", , "grenouil@insa-toulouse.fr", role = "ctb"),
     person("Hugo", "Lelievre", , "lelievre@insa-toulouse.fr", role = "ctb")
   )
@@ -53,11 +52,7 @@ Imports:
 Suggests: 
     cowplot,
     gganimate,
-    gifski,
-    gridExtra,
     knitr,
-    plotly,
-    png,
     rmarkdown,
     testthat (>= 3.0.0),
     transformr
