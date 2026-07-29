@@ -51,9 +51,9 @@ task are observed on the same sampled inputs.}
 one per output. If provided, the same sampled inputs are reused instead of
 drawing a new sub-grid for the task.}
 
-\item{input_i}{A vector or data.frame representing the inputs for the individual.}
+\item{input_i}{A vector or data.frame representing the inputs for the task.}
 
-\item{mean_i}{A vector representing the mean process for the individual.}
+\item{mean_i}{A vector representing the mean process for the task.}
 
 \item{v}{A number. The variance hyper-parameter of the SE kernel.}
 

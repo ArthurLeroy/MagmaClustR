@@ -9,7 +9,7 @@ Gaussian Process using a convolution kernel.}
 \usage{
 generate_mean_process(
   points_per_output,
-  grid,
+  grid_input,
   hp_config_mean_process,
   prior_means,
   noise_0 = NULL,
@@ -26,7 +26,7 @@ generate_mean_process(
 \item{points_per_output}{A numeric vector specifying the number of points for
 each output's working grid.}
 
-\item{grid}{A list of numeric vectors, where each defines the
+\item{grid_input}{A list of numeric vectors, where each defines the
 input domain for the corresponding output.}
 
 \item{hp_config_mean_process}{A tibble configuring the hyperparameters for
@@ -56,8 +56,6 @@ same hyperparameters.}
 \item{sigma}{A number. The noise hyper-parameter.}
 }
 \value{
-A list containing the realization, grid, and hyperparameters.
-
 A list containing the realization, grid, and hyperparameters.
 }
 \description{

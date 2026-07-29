@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulate-data.R
 \name{coerce_grid_to_df}
 \alias{coerce_grid_to_df}
-\title{Coerce a grid object to a tibble}
+\title{Coerce a grid object into a tibble}
 \usage{
 coerce_grid_to_df(grid_obj)
 }

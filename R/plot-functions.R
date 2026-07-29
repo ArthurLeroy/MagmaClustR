@@ -1,6 +1,6 @@
-#' Plot smoothed curves of raw data
+#' Plot raw data
 #'
-#' Display raw data under the Magma format as smoothed curves.
+#' Display raw data under the Magma format as dot and lines.
 #'
 #' @param data A data frame or tibble with format : ID, Input, Output for
 #'  single output configurations; Task_ID, Input_ID, Input, Output_ID, Output
@@ -10,6 +10,8 @@
 #' @param legend A boolean indicating whether the legend should be displayed.
 #'
 #' @return Graph of smoothed curves of raw data.
+#'
+#' @export
 #'
 #' @examples
 #' TRUE

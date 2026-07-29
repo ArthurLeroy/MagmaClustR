@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot-functions.R
 \name{plot_db}
 \alias{plot_db}
-\title{Plot smoothed curves of raw data}
+\title{Plot raw data}
 \usage{
 plot_db(data, cluster = FALSE, legend = FALSE)
 }
@@ -20,7 +20,7 @@ cluster. Requires a column named 'Cluster'.}
 Graph of smoothed curves of raw data.
 }
 \description{
-Display raw data under the Magma format as smoothed curves.
+Display raw data under the Magma format as dot and lines.
 }
 \examples{
 TRUE

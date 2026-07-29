@@ -42,7 +42,7 @@ revert_laplace_matching = function(sample, likelihood = 'Bernoulli') {
 #' @export
 format_longer <- function(db) {
   # Rename "ID" in "Task_ID" if necessary
-  if ("ID" %in% names(db) && !"Task_ID" %in% names(db)) {
+  if ("ID" %in% names(db) && !("Task_ID" %in% names(db))) {
     db <- db %>% dplyr::rename(Task_ID = .data$ID)
   }
 
