@@ -3,147 +3,167 @@
 #' Display raw data under the Magma format as dot and lines.
 #'
 #' @param data A data frame or tibble with format : ID, Input, Output for
-#'  single output configurations; Task_ID, Input_ID, Input, Output_ID, Output
-#'  for multi-output configurations.
+#'   single output configurations; Task_ID, Input_ID, Input, Output_ID, Output
+#'   for multi-output configurations.
 #' @param cluster A boolean indicating whether data should be coloured by
 #'   cluster. Requires a column named 'Cluster'.
-#' @param legend A boolean indicating whether the legend should be displayed.
-#'
-#' @return Graph of smoothed curves of raw data.
+#' @param inputs A vector of characters, containing the name of Inputs (max 2
+#'   Inputs can be simultaneously displayed in 2D) that should be used for
+#'   plotting. Default is \code{NULL}, simply uses the first Input appearing in
+#'   the dataset.
+#' @return Graph of raw data as dots and lines (1D) or heatmap labels (2D).
 #'
 #' @export
 #'
 #' @examples
 #' TRUE
-plot_db <- function(data, cluster = FALSE, legend = FALSE) {
+plot_db <- function(
+    data,
+    cluster = FALSE,
+    inputs = NULL,
+    legend = FALSE) {
+  ## Sanity check
+  if(length(inputs) > 2){
+    stop("Dimension of Inputs is > 2, which is impossible to plot. Please ",
+         "select maximum 2 inputs.")
+    }
+
+  # Old data format
   if(all(c("ID", "Input", "Output") %in% names(data))){
-    # Single output case
+
     ## Convert Cluster into factors for a better display
     data$ID <- as.factor(data$ID)
-    if (cluster) {
-      ## Add a dummy column 'Cluster' if absent
-      if (!("Cluster" %in% names(data))) {
-        data$Cluster <- 1
-      }
-      ## Convert Cluster into factors for a better display
-      data$Cluster <- as.factor(data$Cluster)
 
-      gg <- ggplot2::ggplot(data) +
-        ggplot2::geom_smooth(ggplot2::aes(
-          x = .data$Input,
+    if(is.null(inputs)){
+      inputs = 'Input'
+    }
+
+    if(length(inputs) == 1){
+
+      if (cluster) {
+        ## Add a dummy column 'Cluster' if absent
+        if (!("Cluster" %in% names(data))) {
+          data$Cluster <- 1
+        }
+        ## Convert Cluster into factors for a better display
+        data$Cluster <- as.factor(data$Cluster)
+
+        gg <- ggplot2::ggplot(data,
+                              ggplot2::aes(
+                                x = .data[[inputs]],
+                                y = .data$Output,
+                                group = .data$ID,
+                                color = .data$Cluster
+                              ))
+      } else {
+        gg <- ggplot2::ggplot(data, ggplot2::aes(
+          x = .data[[inputs]],
           y = .data$Output,
-          group = .data$ID,
-          color = .data$Cluster
-        ),
-        se = F,
-        span = 0.5
-        ) +
-        ggplot2::geom_point(ggplot2::aes(
-          x = .data$Input,
-          y = .data$Output,
-          group = .data$ID,
-          color = .data$Cluster
-        )) +
-        ggplot2::theme_classic()
+          color = .data$ID
+        ))
+      }
+
+      gg <- gg +
+        ggplot2::geom_line() +
+        ggplot2::geom_point()
+
     } else {
-      gg <- ggplot2::ggplot(data) +
-        ggplot2::geom_smooth(ggplot2::aes(
-          x = .data$Input,
-          y = .data$Output,
-          color = .data$ID
-        ),
-        se = F,
-        span = 0.5
-        ) +
-        ggplot2::geom_point(ggplot2::aes(
-          x = .data$Input,
-          y = .data$Output,
-          color = .data$ID
-        )) +
-        ggplot2::theme_classic()
-    }
-    if (!legend) {
-      gg <- gg + ggplot2::guides(color = "none")
-    }
-  } else {
-    # Multi-output case
-    data$Task_ID <- as.factor(data$Task_ID)
-    if (cluster) {
-      ## Add a dummy column 'Cluster' if absent
-      if (!("Cluster" %in% names(data))) {
-        data$Cluster <- 1
-      }
-      ## Convert Cluster into factors for a better display
-      data$Cluster <- as.factor(data$Cluster)
+      ## 2D plot
 
-      gg <- ggplot2::ggplot(data) +
-        ggplot2::geom_point(
-          data = data,
-          ggplot2::aes(x = .data$Input,
-                       y = .data$Output,
-                       group = .data$Task_ID,
-                       color = .data$Cluster),
-          size = 1.5,
-          alpha = 0.6
-        ) +
-        ggplot2::geom_smooth(
-          data = data,
-          ggplot2::aes(x = .data$Input,
-                       y = .data$Output,
-                       group = .data$Task_ID,
-                       color = .data$Cluster),
-          se = F,
-          linewidth = 0.3,
-          alpha = 0.4,
-          span = 0.5
-        ) +
-        ggplot2::facet_wrap(~.data$Output_ID,
-                            labeller = ggplot2::as_labeller(function(x) paste("Output", x)),
-                            scales = "free_y") +
-        ggplot2::scale_color_brewer(palette = "Set1") +
-        ggplot2::theme_classic() +
-        ggplot2::theme(
-          strip.background = ggplot2::element_blank(),
-          strip.text = ggplot2::element_text(face = "bold", size = ggplot2::rel(1.2))
-        ) +
+      round_data = data |> dplyr::mutate(Output = round(Output, 1))
+
+      gg <- ggplot2::ggplot(round_data, ggplot2::aes(
+        x = .data[[inputs[1]]],
+        y = .data[[inputs[2]]],
+        label = .data$Output,
+        col = .data$ID
+      )) +
+        ggplot2::geom_label() +
+        ggplot2::labs(
+          x = paste0("Input ", inputs[[1]]),
+          y = paste0("Input ", inputs[[2]])
+        )
+    }
+
+  } else { ## New data format
+
+    if(is.null(inputs)){
+      inputs = data$Task_ID[[1]]
+    } else{
+      data = data |> dplyr::filter(Input_ID %in% inputs)
+    }
+
+    ## 1D plots
+    if(length(inputs) == 1){
+
+      # Multi-output case
+      data$Task_ID <- as.factor(data$Task_ID)
+      if (cluster) {
+        ## Add a dummy column 'Cluster' if absent
+        if (!("Cluster" %in% names(data))) {
+          data$Cluster <- 1
+        }
+        ## Convert Cluster into factors for a better display
+        data$Cluster <- as.factor(data$Cluster)
+
+        gg <- ggplot2::ggplot(data,ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          group = .data$Task_ID,
+          color = .data$Cluster))
+      } else {
+        gg <- ggplot2::ggplot(data, ggplot2::aes(
+          x = .data$Input,
+          y = .data$Output,
+          color = .data$Task_ID
+        ))
+      }
+
+      gg <- gg +
+        ggplot2::geom_point() +
+        ggplot2::geom_line() +
         ggplot2::labs(
           y = "Output Value",
-          x = "Input",
+          x = paste0("Input ", inputs),
           color = "Cluster"
         )
-    } else {
-      gg <- ggplot2::ggplot(data) +
-        ggplot2::geom_smooth(ggplot2::aes(
-          x = .data$Input,
-          y = .data$Output,
-          color = .data$Task_ID
-        ),
-        se = F,
-        span = 0.5
-        ) +
-        ggplot2::geom_point(ggplot2::aes(
-          x = .data$Input,
-          y = .data$Output,
-          color = .data$Task_ID
-        )) +
-        ggplot2::facet_wrap(~.data$Output_ID,
-                            labeller = ggplot2::as_labeller(function(x) paste("Output", x)),
-                            scales = "free_y") +
-        ggplot2::theme_classic() +
-        ggplot2::theme(
-          strip.background = ggplot2::element_blank(),
-          strip.text = ggplot2::element_text(face = "bold", size = ggplot2::rel(1.2))
-        ) +
+    } else ## 2D plots (clusters are not represented)
+    {
+      wider_data = data |>
+        tidyr::pivot_wider(names_from = Input_ID, values_from = Input) |>
+        dplyr::mutate(Task_ID = as.factor(Task_ID), Output = round(Output, 1))
+
+      gg <- ggplot2::ggplot(wider_data, ggplot2::aes(
+        x = .data[[inputs[1]]],
+        y = .data[[inputs[2]]],
+        label = .data$Output,
+        col = .data$Task_ID
+      )) +
+        ggplot2::geom_label() +
         ggplot2::labs(
-          y = "Output Value",
-          x = "Input"
-        )
+          x = paste0("Input ", inputs[[1]]),
+          y = paste0("Input ", inputs[[2]])
+          )
     }
-    if (!legend) {
-      gg <- gg + ggplot2::guides(color = "none")
-    }
+
+    gg <- gg +
+      ggplot2::facet_wrap(
+        ~.data$Output_ID,
+        labeller = ggplot2::as_labeller(function(x) paste("Output", x)),
+        scales = "free_y") +
+      ggplot2::theme(
+        strip.background = ggplot2::element_blank(),
+        strip.text = ggplot2::element_text(face = "bold",
+                                           size = ggplot2::rel(1.2))
+      )
   }
-  return(gg)
+
+  if (!legend) {
+    gg <- gg + ggplot2::guides(color = "none")
+  }
+
+
+  return(gg + ggplot2::theme_classic())
 }
 
 #' Plot Magma or GP predictions

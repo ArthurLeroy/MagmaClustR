@@ -2,13 +2,13 @@
 
 ## Major
 * Change the way prior means work in the MagmaClust framework. They are now optimised during Mstep using a closed-form optimum.  
-* Update the simu_db() function to handle multi-output scenarios.
-* The mean process is simulated via generate_mean_process(), whereas task data are derived from generate_single_task_data(). simu_indiv_se() has been removed from the package.
-* Update the plot_db() function to handle multi-output scenarios.
-* Add the 'train_shared_gp()' function to provide more robust initialisation of hyperparameters
+* Update the simu_db() (and add an alias simu_data()) function to handle multi-output scenarios.
+* Update the plot_db() function to handle multi-output scenarios, and 2D inputs.
+* Add the 'train_shared_gp()' function to provide more robust initialisation of hyperparameters.
 
 ## Minor
 
+* The mean process is simulated via generate_mean_process(), whereas task data are derived from generate_single_task_data(). simu_indiv_se() has been removed from the package.
 * Add the 'plot_clusters()' function to display clustering results directly after training
 * Add an argument to display testing data directly within plotting functions
 * Fix the plot_gif() function to avoid saving multiple temporary png files
@@ -27,7 +27,7 @@
 * Modernize the internal logic for building the HPs tables in hp().
 * In hp(), the chained if/else logic of standard string kernels has been replaced by a 'switch' statement.
 * In hp(), 'list_hp' argument has been removed, as custom parameter generation is now safely handled via the 'hp_config' workflow.
-* Add format_longer() & format_wider() function (bridging the gap between old & new versions of simulated data)
+* Add format_to_legacy() to reformat from new to old conventions for datasets' column names.
 
 # MagmaClustR 1.2.1
 

@@ -183,6 +183,47 @@ build_reference_names <- function(input_df) {
   paste0("o", input_df$Output_ID, ";", pasted_coords)
 }
 
+#' Pivot the wide coordinate columns of a simulated dataset into the
+#' standardised long format
+#'
+#' Internally, the mean process and per-task realizations are built with one
+#' column per input dimension ('Input', 'Input2', 'Input3', ...), because the
+#' covariance computations need the coordinates side by side. This helper
+#' performs the final pivot into the package's standardised long format
+#' ('Input_ID' + 'Input'), dropping the placeholder `Input_ID` column set
+#' during task generation and rebuilding it from the actual coordinate
+#' columns present.
+#'
+#' @param db A tibble containing 'Task_ID', 'Output_ID', 'Output', and one or
+#'   several coordinate columns named 'Input', 'Input2', 'Input3', ...
+#'
+#' @return A tibble in the standardised long format, with 'Input_ID' and
+#'   'Input' columns instead of the wide coordinate columns.
+#'
+#' @keywords internal
+pivot_inputs_longer <- function(db) {
+  input_cols <- grep("^Input\\d*$", names(db), value = TRUE)
+
+  input_ids <- ifelse(input_cols == "Input", "1", sub("^Input", "", input_cols))
+  id_map <- stats::setNames(input_ids, input_cols)
+  id_levels <- as.character(sort(as.integer(unique(input_ids))))
+
+  db %>%
+    dplyr::select(-dplyr::any_of("Input_ID")) %>%
+    tidyr::pivot_longer(
+      cols = dplyr::all_of(input_cols),
+      names_to = "Input_ID",
+      values_to = "Input"
+    ) %>%
+    dplyr::mutate(
+      Input_ID = factor(id_map[.data$Input_ID], levels = id_levels)
+    ) %>%
+    dplyr::select(
+      .data$Task_ID, .data$Input_ID, .data$Input, .data$Output_ID, .data$Output,
+      dplyr::everything()
+    )
+}
+
 #' Generate the prior mean of the mean process, for every output
 #'
 #' If `prior_means` is provided, it is used as-is (one scalar, or one full
@@ -662,7 +703,7 @@ simu_data <- function(
     input2 = FALSE,
     prior_means = NULL,
     grid_input = seq(-1, 1, 0.01),
-    grid_input2 = seq(-1, 1, 0.1),
+    grid_input2 = seq(-1, 1, 0.5),
     shared_input = FALSE,
     shared_hp = TRUE,
     add_hp = FALSE,
@@ -852,17 +893,7 @@ simu_data <- function(
 
   final_db <- purrr::map_dfr(seq_len(n_clusters), floop_k)
 
-  if (input2) {
-    final_db <- final_db %>%
-      dplyr::rename(Input_1 = .data$Input, Input_2 = .data$Input2)
-  } else {
-    final_db <- final_db %>%
-      dplyr::rename(Input_1 = .data$Input)
-  }
-
-  final_db <- format_longer(final_db)
-
-  return(final_db)
+  pivot_inputs_longer(final_db)
 }
 
 #' @rdname simu_data
