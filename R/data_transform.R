@@ -30,101 +30,106 @@ revert_laplace_matching = function(sample, likelihood = 'Bernoulli') {
 }
 
 
-#' Pivot MagmaClustR data to long format
+#' Convert data to the legacy single-output format
 #'
-#' Converts a simulated dataset from a wide format (e.g. containing an 'ID',
-#' 'Input_1', 'Input_2', 'Output') to a standardized long format with
-#' 'Task_ID', 'Input_ID', 'Input', 'Output_ID', and 'Output'.
+#' Before Multi-Output support was introduced, every MagmaClustR function
+#' expected a single-output dataset with mandatory columns 'ID', 'Input', and
+#' 'Output', where *any* additional column (whatever its name) was implicitly
+#' treated as an extra input dimension. This legacy convention is not
+#' directly compatible with the newer, unified long format
+#' ('Task_ID'/'Input_ID'/'Input'/'Output_ID'/'Output'), which does not
+#' constrain the number of outputs.
 #'
-#' @param db A data frame or tibble containing the simulated data.
+#' `format_to_legacy()` bridges the two, to keep using functions that have
+#' not yet been updated for Multi-Output data. Because the legacy format has
+#' no notion of multiple outputs, a dataset with several distinct
+#' `Output_ID` values is split into one legacy dataset per output.
 #'
-#' @return A formatted \code{tibble} in long format.
+#' @param db A tibble or data.frame in the new long format, containing at
+#'   least 'Task_ID', 'Input', and 'Output' columns (and, if relevant,
+#'   'Input_ID' and 'Output_ID').
+#' @param keep_extra_cols A logical value. Columns other than
+#'   Task_ID/Input_ID/Input/Output_ID/Output (e.g. simulation hyperparameters
+#'   such as those added by `simu_data(add_hp = TRUE)`) would be silently
+#'   reinterpreted as extra input dimensions by legacy code. By default
+#'   (`FALSE`), such columns are dropped (with a message). Set to `TRUE` to
+#'   keep them anyway, at your own risk.
+#'
+#' @return If `db` contains a single output, a tibble with columns 'ID',
+#'   'Input' (plus 'Input2', 'Input3', ... when several input dimensions are
+#'   present), and 'Output'. If `db` contains several outputs, a *named list*
+#'   of such tibbles (one per `Output_ID` level).
+#'
 #' @export
-format_longer <- function(db) {
-  # Rename "ID" in "Task_ID" if necessary
-  if ("ID" %in% names(db) && !("Task_ID" %in% names(db))) {
-    db <- db %>% dplyr::rename(Task_ID = .data$ID)
+#'
+#' @examples
+#' db_so <- simu_data(n_outputs = 1)
+#' format_to_legacy(db_so)
+#'
+#' db_mo <- simu_data(n_outputs = 2)
+#' format_to_legacy(db_mo)
+format_to_legacy <- function(db, keep_extra_cols = FALSE) {
+  required_cols <- c("Task_ID", "Input", "Output")
+  if (!all(required_cols %in% names(db))) {
+    stop(
+      "'db' should contain at least the columns: ",
+      paste(required_cols, collapse = ", ")
+    )
   }
 
-
+  if (!"Input_ID" %in% names(db)) {
+    db <- db %>% dplyr::mutate(Input_ID = factor(1))
+  }
   if (!"Output_ID" %in% names(db)) {
-    db <- db %>% dplyr::mutate(Output_ID = as.factor(1))
+    db <- db %>% dplyr::mutate(Output_ID = factor(1))
   }
 
-  input_cols <- grep("^Input_\\d+$", names(db), value = TRUE)
-
-  if (length(input_cols) > 0) {
-    if ("Input_ID" %in% names(db)) {
-      db <- db %>% dplyr::select(-.data$Input_ID)
-    }
-
-    db <- db %>%
-      tidyr::pivot_longer(
-        cols = dplyr::all_of(input_cols),
-        names_to = "Input_ID",
-        values_to = "Input",
-        names_prefix = "Input_"
-      ) %>%
-      dplyr::mutate(Input_ID = as.factor(.data$Input_ID))
-
-  } else if ("Input" %in% names(db)) {
-    if (!"Input_ID" %in% names(db)) {
-      db <- db %>% dplyr::mutate(Input_ID = as.factor(1))
-    } else {
-      db <- db %>% dplyr::mutate(Input_ID = as.factor(.data$Input_ID))
-    }
-  }
-
-
-  if ("Task_ID" %in% names(db)) {
-    db <- db %>% dplyr::mutate(Task_ID = as.factor(.data$Task_ID))
-  }
-  db <- db %>% dplyr::mutate(Output_ID = as.factor(.data$Output_ID))
-
-  cols_order <- c("Task_ID", "Input_ID", "Input", "Output_ID", "Output")
-  present_order <- intersect(cols_order, names(db))
-  other_cols <- setdiff(names(db), present_order)
-
-  db %>% dplyr::select(dplyr::all_of(present_order), dplyr::all_of(other_cols))
-}
-
-#' Pivot MagmaClustR data to wide format
-#'
-#' Converts a simulated dataset from the standard long format back to a
-#' wider format, extracting dimensions into 'Input_1', 'Input_2', etc.,
-#' and renaming 'Task_ID' to 'ID'.
-#'
-#' @param db A data frame or tibble containing the simulated data in long format.
-#'
-#' @return A formatted \code{tibble} in wide format.
-#' @export
-format_wider <- function(db) {
-  if ("Input_ID" %in% names(db) && "Input" %in% names(db)) {
-    db <- db %>%
-      tidyr::pivot_wider(
-        names_from = "Input_ID",
-        values_from = "Input",
-        names_prefix = "Input_"
+  ## Any column beyond the 5 standardised ones would be silently treated as
+  ## an extra input dimension by legacy code: drop them by default.
+  core_cols <- c("Task_ID", "Input_ID", "Input", "Output_ID", "Output")
+  extra_cols <- setdiff(names(db), core_cols)
+  if (length(extra_cols) > 0) {
+    if (keep_extra_cols) {
+      message(
+        "Keeping non-standard column(s) that will be treated as extra ",
+        "input dimensions by legacy code: ", paste(extra_cols, collapse = ", ")
       )
-  }
-
-  if ("Task_ID" %in% names(db)) {
-    db <- db %>% dplyr::rename(ID = .data$Task_ID)
-  }
-
-  if ("Output_ID" %in% names(db)) {
-    if (length(unique(db$Output_ID)) == 1 && as.character(unique(db$Output_ID)[1]) == "1") {
-      db <- db %>% dplyr::select(-.data$Output_ID)
+    } else {
+      message(
+        "Dropping column(s) not part of the legacy format (they would ",
+        "otherwise be treated as extra input dimensions): ",
+        paste(extra_cols, collapse = ", "),
+        ". Use 'keep_extra_cols = TRUE' to keep them."
+      )
+      db <- db %>% dplyr::select(dplyr::all_of(core_cols))
     }
   }
 
-  input_cols <- grep("^Input_\\d+$", names(db), value = TRUE)
-  input_cols <- input_cols[order(as.numeric(gsub("Input_", "", input_cols)))]
+  ## Pivot each output separately, and use the legacy naming convention for
+  ## additional input dimensions: 'Input', 'Input2', 'Input3', ...
+  to_legacy_single_output <- function(sub_db) {
+    input_ids <- sort(unique(as.integer(as.character(sub_db$Input_ID))))
+    legacy_names <- c("Input", paste0("Input", input_ids[-1]))
+    names(legacy_names) <- input_ids
 
-  expected_cols <- c("ID", input_cols, "Output")
-  present_cols <- intersect(expected_cols, names(db))
-  other_cols <- setdiff(names(db), present_cols)
+    sub_db %>%
+      dplyr::mutate(
+        Input_ID = legacy_names[as.character(.data$Input_ID)]
+      ) %>%
+      dplyr::select(-.data$Output_ID) %>%
+      tidyr::pivot_wider(names_from = "Input_ID", values_from = "Input") %>%
+      dplyr::rename(ID = .data$Task_ID) %>%
+      dplyr::select(.data$ID, dplyr::all_of(unname(legacy_names)), dplyr::everything())
+  }
 
-  db %>% dplyr::select(dplyr::all_of(present_cols), dplyr::all_of(other_cols))
+  output_levels <- unique(db$Output_ID)
+
+  if (length(output_levels) == 1) {
+    return(db %>% to_legacy_single_output())
+  }
+
+  db %>%
+    split(db$Output_ID) %>%
+    purrr::map(to_legacy_single_output)
 }
 

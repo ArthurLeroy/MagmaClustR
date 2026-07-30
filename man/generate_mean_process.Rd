@@ -2,20 +2,27 @@
 % Please edit documentation in R/simulate-data.R
 \name{generate_mean_process}
 \alias{generate_mean_process}
-\title{Generate a Mean Process Realization (Convolution Kernel Version)
+\title{Generate a Mean Process Realization
 Creates a working grid for each output and generates a single smooth
-underlying mean process, \code{mu_0}, by drawing a realization from a multi-output
-Gaussian Process using a convolution kernel.}
+underlying mean process, \code{mu_0}, by drawing a realization from a Gaussian
+Process. A single output uses the Squared Exponential ("SE") kernel;
+several outputs jointly use a multi-output convolution kernel. Apart from
+this unavoidable kernel-choice fork (a single-output convolution kernel is
+not equivalent to a standalone SE kernel, and \code{kern_to_cov()} itself
+requires at least 2 distinct outputs to enable its vectorized multi-output
+mode), every other step (grid sampling, prior mean, final tibble format) is
+shared between the two cases.}
 \usage{
 generate_mean_process(
   points_per_output,
   grid_input,
-  hp_config_mean_process,
-  prior_means,
+  prior_means = NULL,
+  m0_intercept = c(-50, 50),
+  m0_slope = c(-5, 5),
+  hp_config_mean_process = NULL,
   noise_0 = NULL,
-  shared_grid_outputs,
-  shared_hp_outputs,
-  shared_grid_clusters = FALSE,
+  shared_grid_outputs = FALSE,
+  shared_hp_outputs = FALSE,
   precomputed_grid_list = NULL,
   v = NULL,
   l = NULL,
@@ -23,45 +30,63 @@ generate_mean_process(
 )
 }
 \arguments{
-\item{points_per_output}{A numeric vector specifying the number of points for
-each output's working grid.}
+\item{points_per_output}{A numeric vector specifying the number of points
+to sample for each output's working grid.}
 
-\item{grid_input}{A list of numeric vectors, where each defines the
-input domain for the corresponding output.}
+\item{grid_input}{A numeric vector, a data.frame, or a list of such
+objects (one candidate pool per output), defining the input domain(s)
+from which the working grid(s) are sampled.}
+
+\item{prior_means}{An optional vector or list providing one element (a
+scalar, or a full vector matching the output's grid length) per output.
+If \code{NULL} (default), a random linear trend is drawn for each output.}
+
+\item{m0_intercept}{A vector of 2 numbers. Interval for the intercept of
+the default linear trend (used only when \code{prior_means} is \code{NULL}).}
+
+\item{m0_slope}{A vector of 2 numbers. Interval for the slope of the
+default linear trend (used only when \code{prior_means} is \code{NULL}).}
 
 \item{hp_config_mean_process}{A tibble configuring the hyperparameters for
-the mean process's convolution kernel.}
+the mean process's convolution kernel. Required when there is more than
+one output.}
 
-\item{prior_means}{A vector containing the values of the prior mean of each
-output.}
-
-\item{noise_0}{An optional numeric vector specifying the standard deviation
-of the noise for each output. If provided, its length must
-match the number of outputs. Default is \code{NULL} (no noise).}
+\item{noise_0}{An optional numeric vector specifying the log-variance of
+the noise for each output (multi-output case only). If provided, its
+length must match the number of outputs. Default is \code{NULL} (no noise).}
 
 \item{shared_grid_outputs}{A logical value. If \code{TRUE}, all outputs are
 defined on the exact same input grid.}
 
 \item{shared_hp_outputs}{A logical value. If \code{TRUE}, all outputs share the
-same hyperparameters.}
+same hyperparameters (multi-output case only).}
 
-\item{shared_grid_clusters}{A logical value. If \code{TRUE}, clusters share the same grid.}
+\item{precomputed_grid_list}{An optional list of precomputed grids, one per
+output.}
 
-\item{precomputed_grid_list}{An optional list of precomputed grids, one per output.}
+\item{v}{A number. The variance hyper-parameter of the SE kernel (single
+output case only).}
 
-\item{v}{A number. The variance hyper-parameter of the SE kernel.}
+\item{l}{A number. The lengthscale hyper-parameter of the SE kernel
+(single output case only).}
 
-\item{l}{A number. The lengthscale hyper-parameter of the SE kernel.}
-
-\item{sigma}{A number. The noise hyper-parameter.}
+\item{sigma}{A number. The noise variance added on the diagonal (single
+output case only).}
 }
 \value{
-A list containing the realization, grid, and hyperparameters.
+A list containing the realization (as both a named vector and a
+tibble), the grid used for each output, and the drawn hyperparameters.
 }
 \description{
-Generate a Mean Process Realization (Convolution Kernel Version)
+Generate a Mean Process Realization
 Creates a working grid for each output and generates a single smooth
-underlying mean process, \code{mu_0}, by drawing a realization from a multi-output
-Gaussian Process using a convolution kernel.
+underlying mean process, \code{mu_0}, by drawing a realization from a Gaussian
+Process. A single output uses the Squared Exponential ("SE") kernel;
+several outputs jointly use a multi-output convolution kernel. Apart from
+this unavoidable kernel-choice fork (a single-output convolution kernel is
+not equivalent to a standalone SE kernel, and \code{kern_to_cov()} itself
+requires at least 2 distinct outputs to enable its vectorized multi-output
+mode), every other step (grid sampling, prior mean, final tibble format) is
+shared between the two cases.
 }
 \keyword{internal}

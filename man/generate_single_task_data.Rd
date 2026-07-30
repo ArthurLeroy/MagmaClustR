@@ -7,17 +7,16 @@ Generates a simulated dataset for a single, specific task, centered around
 the mean process. This function samples a sparse sub-grid from a provided
 mean process grid, computes a task-specific covariance matrix (using
 \code{kern_to_cov}), and then draws a realization from a multivariate normal
-distribution.}
+distribution. As in \code{generate_mean_process()}, the only genuine fork
+between the single-output and multi-output cases is the choice of kernel.}
 \usage{
 generate_single_task_data(
   task_id,
   mean_process_info,
-  task_hp_tibble,
-  n_points_range,
+  task_hp_tibble = NULL,
+  n_points_per_output,
   shared_grid_outputs = FALSE,
   precomputed_task_grid_list = NULL,
-  input_i = NULL,
-  mean_i = NULL,
   v = NULL,
   l = NULL,
   sigma = NULL
@@ -28,38 +27,33 @@ generate_single_task_data(
 generated.}
 
 \item{mean_process_info}{A list object containing information from the
-shared mean process (e.g., output from
-\code{generate_mean_process}). Must contain at least:
-\itemize{
-\item \code{grid_list}: A list of input grids, one for each output.
-\item \code{mean_process_realization}: A named vector of the full mean
-process realization.
-}}
+shared mean process (output from \code{generate_mean_process()}). Must
+contain \code{grid_list} (a list of input grids, one per output) and
+\code{mean_process_realization} (a named vector of the full mean process
+realization).}
 
 \item{task_hp_tibble}{A \code{tibble} containing the specific hyperparameters
-for this task. This tibble is passed directly to the \code{hp} argument
-of \code{kern_to_cov}.}
+for this task. Required in the multi-output case; passed directly to the
+\code{hp} argument of \code{kern_to_cov}.}
 
-\item{n_points_range}{A numeric vector of length 2, \code{c(min, max)}.
-The function currently uses \code{n_points_range[2]} (the max value) as the
-fixed number of points to sample for each output.}
+\item{n_points_per_output}{A numeric vector giving the number of points to
+sample, for each output, from that output's mean-process grid.}
 
 \item{shared_grid_outputs}{A logical value. If \code{TRUE}, all outputs in the
 task are observed on the same sampled inputs.}
 
-\item{precomputed_task_grid_list}{An optional list of precomputed task grids,
-one per output. If provided, the same sampled inputs are reused instead of
-drawing a new sub-grid for the task.}
+\item{precomputed_task_grid_list}{An optional list of precomputed task
+grids, one per output. If provided, the same sampled inputs are reused
+instead of drawing a new sub-grid for the task.}
 
-\item{input_i}{A vector or data.frame representing the inputs for the task.}
+\item{v}{A number. The variance hyper-parameter of the SE kernel (single
+output case only).}
 
-\item{mean_i}{A vector representing the mean process for the task.}
+\item{l}{A number. The lengthscale hyper-parameter of the SE kernel
+(single output case only).}
 
-\item{v}{A number. The variance hyper-parameter of the SE kernel.}
-
-\item{l}{A number. The lengthscale hyper-parameter of the SE kernel).}
-
-\item{sigma}{A number. The noise hyper-parameter.}
+\item{sigma}{A number. The noise variance added on the diagonal (single
+output case only).}
 }
 \value{
 A \code{tibble} containing the simulated data for the single task. Includes
@@ -71,6 +65,7 @@ Generates a simulated dataset for a single, specific task, centered around
 the mean process. This function samples a sparse sub-grid from a provided
 mean process grid, computes a task-specific covariance matrix (using
 \code{kern_to_cov}), and then draws a realization from a multivariate normal
-distribution.
+distribution. As in \code{generate_mean_process()}, the only genuine fork
+between the single-output and multi-output cases is the choice of kernel.
 }
 \keyword{internal}

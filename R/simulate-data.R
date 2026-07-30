@@ -98,216 +98,307 @@ sample_grid_points <- function(grid_obj, size) {
   sample(grid_obj, size, replace = FALSE) %>% sort()
 }
 
+#' Build one candidate grid per output
+#'
+#' Provides a single, output-count-agnostic strategy for constructing the
+#' working input grid of every output: for each output, \code{size} points are
+#' sampled *without replacement* from a candidate pool of points, then sorted.
+#' The very same discrete-sampling strategy is applied whether there is a
+#' single output or several, and whether the grid is a 1D numeric vector or a
+#' multidimensional data.frame, which keeps the number of points effectively
+#' generated for the mean process and for each task consistent and
+#' predictable (no separate, precision-based continuous re-sampling is used
+#' for the multi-output case anymore).
+#'
+#' @param grid_input A numeric vector, a data.frame, or a list of such objects
+#'   (one candidate pool per output). If a single vector/data.frame is
+#'   provided while several outputs are requested, the same pool is reused
+#'   (independently, unless `shared_grid_outputs = TRUE`) for every output.
+#' @param points_per_output A numeric vector giving the number of points to
+#'   sample for each output.
+#' @param shared_grid_outputs A logical value. If `TRUE`, a single grid is
+#'   sampled once and shared identically across all outputs.
+#' @param precomputed_grid_list An optional list of precomputed grids (one per
+#'   output), used verbatim instead of sampling.
+#'
+#' @return A list of grid objects (vectors or data.frames), one per output.
+#'
+#' @keywords internal
+build_output_grid_list <- function(grid_input,
+                                    points_per_output,
+                                    shared_grid_outputs = FALSE,
+                                    precomputed_grid_list = NULL) {
+  num_outputs <- length(points_per_output)
 
-#' @title Generate a Mean Process Realization (Convolution Kernel Version)
+  if (!is.null(precomputed_grid_list)) {
+    if (length(precomputed_grid_list) != num_outputs) {
+      stop("'precomputed_grid_list' length must match the number of outputs.")
+    }
+    return(precomputed_grid_list)
+  }
+
+  # A distinct candidate pool per output is only used when 'grid_input' is
+  # itself a plain list (not a data.frame) of the expected length.
+  is_per_output_pool <- is.list(grid_input) &&
+    !is.data.frame(grid_input) &&
+    length(grid_input) == num_outputs
+
+  pool_list <- if (is_per_output_pool) {
+    grid_input
+  } else {
+    rep(list(grid_input), num_outputs)
+  }
+
+  if (shared_grid_outputs) {
+    if (length(unique(points_per_output)) > 1) {
+      stop("For a shared grid across outputs, 'points_per_output' must be ",
+           "identical for every output.")
+    }
+    shared_grid <- sample_grid_points(pool_list[[1]], points_per_output[1])
+    return(rep(list(shared_grid), num_outputs))
+  }
+
+  purrr::map2(pool_list, points_per_output, sample_grid_points)
+}
+
+#' Build unique reference names for a grid of (possibly multi-output) inputs
+#'
+#' Creates a character vector uniquely identifying each row of an input
+#' data.frame containing an `Output_ID` column, by combining the output
+#' identifier with its numeric coordinates. Used to keep a consistent naming
+#' convention between the mean process grid and any task-specific sub-grid,
+#' regardless of the kernel used to generate the data (SE or convolution).
+#'
+#' @param input_df A data.frame containing numeric coordinate columns and an
+#'   `Output_ID` column.
+#'
+#' @return A character vector of unique reference names, one per row.
+#'
+#' @keywords internal
+build_reference_names <- function(input_df) {
+  coord_cols <- names(input_df)[
+    sapply(input_df, is.numeric) & names(input_df) != "Output_ID"
+  ]
+  pasted_coords <- do.call(paste, c(input_df[coord_cols], sep = ";"))
+  paste0("o", input_df$Output_ID, ";", pasted_coords)
+}
+
+#' Generate the prior mean of the mean process, for every output
+#'
+#' If `prior_means` is provided, it is used as-is (one scalar, or one full
+#' vector matching an output's grid length, per output). Otherwise, a linear
+#' trend (randomly drawn intercept and slope, applied along the first
+#' coordinate of each output's grid) is generated for every output, providing
+#' a single, output-count-agnostic default.
+#'
+#' @param grid_list A list of grid objects (one per output), as returned by
+#'   \code{build_output_grid_list()}.
+#' @param prior_means An optional vector or list, providing one element per
+#'   output (a scalar, or a vector matching the output's grid length).
+#' @param m0_intercept A vector of 2 numbers. Interval for the intercept of
+#'   the default linear trend.
+#' @param m0_slope A vector of 2 numbers. Interval for the slope of the
+#'   default linear trend.
+#'
+#' @return A list of length `length(grid_list)`, each element being the prior
+#'   mean (scalar or vector) associated with the corresponding output.
+#'
+#' @keywords internal
+generate_prior_means <- function(grid_list,
+                                  prior_means = NULL,
+                                  m0_intercept = c(-50, 50),
+                                  m0_slope = c(-5, 5)) {
+  num_outputs <- length(grid_list)
+
+  if (!is.null(prior_means)) {
+    if (length(prior_means) != num_outputs) {
+      stop("'prior_means' must provide exactly one element per output.")
+    }
+    return(as.list(prior_means))
+  }
+
+  purrr::map(grid_list, function(grid) {
+    coords <- coerce_grid_to_df(grid)
+    draw(m0_intercept) + draw(m0_slope) * coords[[1]]
+  })
+}
+
+#' Build a task or cluster identifier
+#'
+#' @param i An integer, the task index within its cluster.
+#' @param k An integer, the cluster index.
+#' @param n_clusters An integer, the total number of clusters being simulated.
+#'
+#' @return A character string identifying the task.
+#'
+#' @keywords internal
+make_task_id <- function(i, k, n_clusters) {
+  if (n_clusters > 1) {
+    paste0("ID", i, "-Clust", k)
+  } else {
+    as.character(i)
+  }
+}
+
+#' Post-process a single cluster's simulated dataset
+#'
+#' Optionally drops the hyperparameter columns and/or adds a 'Cluster' column,
+#' factorising the two `add_hp`/`add_clust` steps that were otherwise repeated
+#' identically for every code path in \code{simu_data()}.
+#'
+#' @param db A tibble, the simulated data for one cluster.
+#' @param add_hp A logical value. If `FALSE`, hyperparameter columns are
+#'   dropped.
+#' @param add_clust A logical value. If `TRUE`, a 'Cluster' column is added.
+#' @param k An integer, the cluster index used to populate the 'Cluster'
+#'   column.
+#' @param hp_cols A character vector naming the hyperparameter columns to
+#'   drop when `add_hp = FALSE`.
+#'
+#' @return The post-processed tibble.
+#'
+#' @keywords internal
+postprocess_cluster_db <- function(db, add_hp, add_clust, k, hp_cols) {
+  if (!add_hp) {
+    db <- db %>% dplyr::select(-dplyr::any_of(hp_cols))
+  }
+  if (add_clust) {
+    db <- db %>% dplyr::mutate(Cluster = k)
+  }
+  db
+}
+
+
+#' @title Generate a Mean Process Realization
 
 #' Creates a working grid for each output and generates a single smooth
-#' underlying mean process, `mu_0`, by drawing a realization from a multi-output
-#' Gaussian Process using a convolution kernel.
+#' underlying mean process, `mu_0`, by drawing a realization from a Gaussian
+#' Process. A single output uses the Squared Exponential ("SE") kernel;
+#' several outputs jointly use a multi-output convolution kernel. Apart from
+#' this unavoidable kernel-choice fork (a single-output convolution kernel is
+#' not equivalent to a standalone SE kernel, and \code{kern_to_cov()} itself
+#' requires at least 2 distinct outputs to enable its vectorized multi-output
+#' mode), every other step (grid sampling, prior mean, final tibble format) is
+#' shared between the two cases.
 #'
-#' @param points_per_output A numeric vector specifying the number of points for
-#'    each output's working grid.
-#' @param grid_input A list of numeric vectors, where each defines the
-#'    input domain for the corresponding output.
+#' @param points_per_output A numeric vector specifying the number of points
+#'    to sample for each output's working grid.
+#' @param grid_input A numeric vector, a data.frame, or a list of such
+#'    objects (one candidate pool per output), defining the input domain(s)
+#'    from which the working grid(s) are sampled.
+#' @param prior_means An optional vector or list providing one element (a
+#'    scalar, or a full vector matching the output's grid length) per output.
+#'    If `NULL` (default), a random linear trend is drawn for each output.
+#' @param m0_intercept A vector of 2 numbers. Interval for the intercept of
+#'    the default linear trend (used only when `prior_means` is `NULL`).
+#' @param m0_slope A vector of 2 numbers. Interval for the slope of the
+#'    default linear trend (used only when `prior_means` is `NULL`).
 #' @param hp_config_mean_process A tibble configuring the hyperparameters for
-#'    the mean process's convolution kernel.
-#' @param prior_means A vector containing the values of the prior mean of each
-#'    output.
-#' @param noise_0 An optional numeric vector specifying the standard deviation
-#'    of the noise for each output. If provided, its length must
-#'    match the number of outputs. Default is `NULL` (no noise).
+#'    the mean process's convolution kernel. Required when there is more than
+#'    one output.
+#' @param noise_0 An optional numeric vector specifying the log-variance of
+#'    the noise for each output (multi-output case only). If provided, its
+#'    length must match the number of outputs. Default is `NULL` (no noise).
 #' @param shared_grid_outputs A logical value. If `TRUE`, all outputs are
 #'    defined on the exact same input grid.
 #' @param shared_hp_outputs A logical value. If `TRUE`, all outputs share the
-#'    same hyperparameters.
-#' @param shared_grid_clusters A logical value. If `TRUE`, clusters share the same grid.
-#' @param precomputed_grid_list An optional list of precomputed grids, one per output.
-#' @param v A number. The variance hyper-parameter of the SE kernel.
-#' @param l A number. The lengthscale hyper-parameter of the SE kernel.
-#' @param sigma A number. The noise hyper-parameter.
+#'    same hyperparameters (multi-output case only).
+#' @param precomputed_grid_list An optional list of precomputed grids, one per
+#'    output.
+#' @param v A number. The variance hyper-parameter of the SE kernel (single
+#'    output case only).
+#' @param l A number. The lengthscale hyper-parameter of the SE kernel
+#'    (single output case only).
+#' @param sigma A number. The noise variance added on the diagonal (single
+#'    output case only).
 #'
-#' @return A list containing the realization, grid, and hyperparameters.
+#' @return A list containing the realization (as both a named vector and a
+#'   tibble), the grid used for each output, and the drawn hyperparameters.
 #'
 #' @keywords internal
 #'
-
 generate_mean_process <- function(
     points_per_output,
     grid_input,
-    hp_config_mean_process,
-    prior_means,
+    prior_means = NULL,
+    m0_intercept = c(-50, 50),
+    m0_slope = c(-5, 5),
+    hp_config_mean_process = NULL,
     noise_0 = NULL,
-    shared_grid_outputs,
-    shared_hp_outputs,
-    shared_grid_clusters = FALSE,
+    shared_grid_outputs = FALSE,
+    shared_hp_outputs = FALSE,
     precomputed_grid_list = NULL,
     v = NULL,
     l = NULL,
     sigma = 0
 ) {
-  # Extract the number of outputs
   num_outputs <- length(points_per_output)
 
+  ## 1. Sample one working grid per output, using a single discrete-sampling
+  ## strategy regardless of dimensionality or number of outputs.
+  grid_list <- build_output_grid_list(
+    grid_input = grid_input,
+    points_per_output = points_per_output,
+    shared_grid_outputs = shared_grid_outputs,
+    precomputed_grid_list = precomputed_grid_list
+  )
+
+  ## 2. Build the prior mean vector, shared logic for any number of outputs.
+  prior_means_list <- generate_prior_means(
+    grid_list,
+    prior_means = prior_means,
+    m0_intercept = m0_intercept,
+    m0_slope = m0_slope
+  )
+  mean_list <- purrr::map2(grid_list, prior_means_list, function(grid, pm) {
+    if (length(pm) == 1) {
+      return(rep(pm, grid_n_points(grid)))
+    }
+    if (length(pm) != grid_n_points(grid)) {
+      stop("Each element of 'prior_means' must be a scalar or match its ",
+           "output's grid length.")
+    }
+    pm
+  })
+  m0_mean_function <- unlist(mean_list)
+
+  ## 3. Build the full input data.frame and the consistent reference names.
+  input_df_mean_process <- purrr::imap_dfr(
+    grid_list,
+    ~coerce_grid_to_df(.x) %>% dplyr::mutate(Output_ID = as.factor(.y))
+  )
+  reference <- build_reference_names(input_df_mean_process)
+
+  ## 4. Compute the covariance matrix. This is the only step where the
+  ## single-output and multi-output cases genuinely differ: they rely on two
+  ## different kernel families (see title note above).
+  hp_draws <- NULL
+
   if (num_outputs == 1) {
-    # Generate mean process
-    ID <- "0"
-
-    if (length(prior_means) == 1) {
-      mean_vec <- rep(prior_means, grid_n_points(grid_input))
-    } else {
-      mean_vec <- prior_means
-    }
-
-    if (is.data.frame(grid_input)) {
-      db <- tibble::tibble(
-        "ID" = ID,
-        grid_input,
-        "Output" = mvtnorm::rmvnorm(
-          1,
-          mean = mean_vec,
-          sigma = kern_to_cov(
-            grid_input,
-            "SE",
-            tibble::tibble(se_variance = v, se_lengthscale = l)
-          ) + diag(sigma, nrow(grid_input), nrow(grid_input))
-        ) %>% as.vector(),
-        "se_variance" = v,
-        "se_lengthscale" = l,
-        "noise" = sigma
-      )
-    } else {
-      db <- tibble::tibble(
-        "ID" = ID,
-        "Input" = grid_input,
-        "Output" = mvtnorm::rmvnorm(
-          1,
-          mean = mean_vec,
-          sigma = kern_to_cov(
-            grid_input,
-            "SE",
-            tibble::tibble(se_variance = v, se_lengthscale = l)
-          ) + diag(sigma, length(grid_input), length(grid_input))
-        ) %>% as.vector(),
-        "se_variance" = v,
-        "se_lengthscale" = l,
-        "noise" = sigma
-      )
-    }
-
-    return(list(
-      mean_process_realization = db,
-      grid_list = list(grid_input)))
-
+    grid_coords <- input_df_mean_process %>% dplyr::select(-.data$Output_ID)
+    K_theta0_X <- kern_to_cov(
+      grid_coords,
+      "SE",
+      tibble::tibble(se_variance = v, se_lengthscale = l)
+    ) + diag(sigma, nrow(input_df_mean_process))
   } else {
-    # Multi-Output case
-    precision <- 1e6
-    # Detect if we have a unique dataframe or a list of dataframes
-    is_multidim <- is.data.frame(grid_input) || (is.list(grid_input) &&
-                                             all(purrr::map_lgl(grid_input, is.data.frame)))
-
-    # Grid generation
-    if (is_multidim) {
-      if (!is.null(precomputed_grid_list)) {
-        grid_list <- precomputed_grid_list
-      } else if (shared_grid_outputs) {
-        # First dataframe of the list
-        grid_to_sample <- if (is.data.frame(grid_input)) grid_input else grid_input[[1]]
-        sampled_idx <- sample(seq_len(nrow(grid_to_sample)),
-                              size = points_per_output[1],
-                              replace = FALSE)
-        shared_grid_input <- grid_to_sample[sampled_idx, , drop = FALSE]
-        shared_grid_input <- shared_grid_input [do.call(order, shared_grid_input ), , drop = FALSE]
-        grid_list <- rep(list(shared_grid_input ), num_outputs)
-      } else {
-        if (is.data.frame(grid_input)) {
-          # If only one dataframe is provided
-          grid_list <- purrr::map(points_per_output, ~{
-            sampled_idx <- sample(seq_len(nrow(grid_input)), size = .x, replace = FALSE)
-            sub_grid <- grid[sampled_idx, , drop = FALSE]
-            sub_grid[do.call(order, sub_grid), , drop = FALSE]
-          })
-        } else {
-          # If a list of dataframes is provided (MO case)
-          grid_list <- purrr::map2(grid_input, points_per_output, ~{
-            sampled_idx <- sample(seq_len(nrow(.x)), size = .y, replace = FALSE)
-            sub_grid <- .x[sampled_idx, , drop = FALSE]
-            sub_grid[do.call(order, sub_grid), , drop = FALSE]
-          })
-        }
-      }
-    } else {
-      if (!is.list(grid_input)) {
-        grid_ranges <- rep(list(range(grid_input)), num_outputs)
-      } else {
-        grid_ranges <- purrr::map(grid_input, range)
-      }
-
-      if (length(grid_ranges) != num_outputs) {
-        stop("The number of grid ranges must match the number of outputs.")
-      }
-
-      if (!is.null(precomputed_grid_list)) {
-        if (length(precomputed_grid_list) != num_outputs) {
-          stop("'precomputed_grid_list' length must match the number of outputs.")
-        }
-        grid_list <- precomputed_grid_list
-
-      } else if (shared_grid_outputs) {
-        if (length(unique(points_per_output)) > 1 ||
-            length(unique(lapply(grid_ranges, as.character))) > 1) {
-          stop("For a shared grid_input, 'points_per_output' and 'grid_ranges' must be identical.")
-        }
-        possible_points <- seq(from = grid_ranges[[1]][1],
-                               to = grid_ranges[[1]][2],
-                               by = 1/precision)
-        shared_grid_input  <- sort(sample(possible_points,
-                                   size = points_per_output[1],
-                                   replace = FALSE))
-        grid_list <- rep(list(shared_grid_input ), num_outputs)
-
-      } else {
-        grid_list <- purrr::map2(
-          points_per_output,
-          grid_ranges,
-          function(n_pts, range) {
-            possible_points <- seq(from = range[1], to = range[2], by = 1/precision)
-            sort(sample(possible_points, size = n_pts, replace = FALSE))
-          }
-        )
-      }
+    if (is.null(hp_config_mean_process)) {
+      stop("'hp_config_mean_process' is required when there is more than ",
+           "one output.")
     }
-
-    mean_list <- purrr::pmap(
-      .l = list(grid_input  = grid_list, prior_means = prior_means),
-      .f = function(grid_input, prior_means) {
-        if (length(prior_means) == 1) {
-          if (is.data.frame(grid_input)) {
-            return(rep(prior_means, nrow(grid_input)))
-          }
-          return(rep(prior_means, length(grid_input)))
-        }
-
-        if (length(prior_means) != grid_n_points(grid_input)) {
-          stop("Each element of 'prior_means' must be a scalar or match the grid_input  length.")
-        }
-        prior_means
-      }
-    )
-    m0_mean_function <- unlist(mean_list)
 
     lu0_shared <- stats::runif(1,
-                        hp_config_mean_process$lu0_min[1],
-                        hp_config_mean_process$lu0_max[1])
+                               hp_config_mean_process$lu0_min[1],
+                               hp_config_mean_process$lu0_max[1])
     lu0_vals <- rep(lu0_shared, num_outputs)
 
     if (shared_hp_outputs) {
       l0_shared <- stats::runif(1,
-                         hp_config_mean_process$l0_min[1],
-                         hp_config_mean_process$l0_max[1])
+                                hp_config_mean_process$l0_min[1],
+                                hp_config_mean_process$l0_max[1])
       S0_shared <- stats::runif(1,
-                         hp_config_mean_process$S0_min[1],
-                         hp_config_mean_process$S0_max[1])
-
+                                hp_config_mean_process$S0_min[1],
+                                hp_config_mean_process$S0_max[1])
       l0_vals <- rep(l0_shared, num_outputs)
       S0_vals <- rep(S0_shared, num_outputs)
     } else {
@@ -319,13 +410,8 @@ generate_mean_process <- function(
                                  ~stats::runif(1, .x, .y))
     }
 
-    input_df_mean_process <- purrr::imap_dfr(grid_list,
-                                             ~coerce_grid_to_df(.x) %>%
-                                               dplyr::mutate(Output_ID = as.factor(.y))
-    )
-
     hp_tibble_for_kernel <- tibble::tibble(
-      Output_ID = as.factor(1:num_outputs),
+      Output_ID = as.factor(seq_len(num_outputs)),
       l_t       = l0_vals,
       S_t       = S0_vals,
       l_u_t     = lu0_vals
@@ -340,37 +426,40 @@ generate_mean_process <- function(
     if (!is.null(noise_0)) {
       if (length(noise_0) != num_outputs) {
         stop(sprintf(
-          "'noise_0' length should match with the number of outputs (%d).",
-          length(noise_0), num_outputs
+          "'noise_0' length should match the number of outputs (%d).",
+          num_outputs
         ))
       }
-      noise_variances <- exp(noise_0[input_df_mean_process$Output_ID])
-      diag(K_theta0_X) <- diag(K_theta0_X) + noise_variances
+      diag(K_theta0_X) <- diag(K_theta0_X) +
+        exp(noise_0[input_df_mean_process$Output_ID])
     }
 
-    all_point_names <- rownames(K_theta0_X)
-
-    mean_process_realization <- MASS::mvrnorm(
-      n = 1,
-      mu = m0_mean_function,
-      Sigma = K_theta0_X
-    )
-    names(mean_process_realization) <- all_point_names
-
-    mean_process_df <- input_df_mean_process %>%
-      dplyr::mutate(Output = as.numeric(mean_process_realization))
-
-    return(list(
-      mean_process_realization = mean_process_realization,
-      grid_list = grid_list,
-      points_per_output = points_per_output,
-      list_l0 = l0_vals,
-      list_S0 = S0_vals,
-      list_lu0 = lu0_vals,
-      noise_0 = noise_0,
-      mean_process_df = mean_process_df
-    ))
+    hp_draws <- list(l0 = l0_vals, S0 = S0_vals, lu0 = lu0_vals)
   }
+
+  rownames(K_theta0_X) <- colnames(K_theta0_X) <- reference
+  names(m0_mean_function) <- reference
+
+  ## 5. Draw the mean process realization, shared logic for any number of
+  ## outputs.
+  mean_process_realization <- MASS::mvrnorm(
+    n = 1,
+    mu = m0_mean_function,
+    Sigma = K_theta0_X
+  )
+  names(mean_process_realization) <- reference
+
+  mean_process_df <- input_df_mean_process %>%
+    dplyr::mutate(Output = as.numeric(mean_process_realization))
+
+  list(
+    mean_process_realization = mean_process_realization,
+    mean_process_df = mean_process_df,
+    grid_list = grid_list,
+    points_per_output = points_per_output,
+    hp_draws = hp_draws,
+    noise_0 = noise_0
+  )
 }
 
 
@@ -380,152 +469,125 @@ generate_mean_process <- function(
 #' the mean process. This function samples a sparse sub-grid from a provided
 #' mean process grid, computes a task-specific covariance matrix (using
 #' `kern_to_cov`), and then draws a realization from a multivariate normal
-#' distribution.
+#' distribution. As in \code{generate_mean_process()}, the only genuine fork
+#' between the single-output and multi-output cases is the choice of kernel.
 #'
 #' @param task_id An identifier (numeric or string) for the task being
 #'   generated.
 #' @param mean_process_info A list object containing information from the
-#'   shared mean process (e.g., output from
-#'   `generate_mean_process`). Must contain at least:
-#'   \itemize{
-#'     \item `grid_list`: A list of input grids, one for each output.
-#'     \item `mean_process_realization`: A named vector of the full mean
-#'       process realization.
-#'   }
+#'   shared mean process (output from \code{generate_mean_process()}). Must
+#'   contain `grid_list` (a list of input grids, one per output) and
+#'   `mean_process_realization` (a named vector of the full mean process
+#'   realization).
 #' @param task_hp_tibble A `tibble` containing the specific hyperparameters
-#'   for this task. This tibble is passed directly to the `hp` argument
-#'   of `kern_to_cov`.
-#' @param n_points_range A numeric vector of length 2, `c(min, max)`.
-#'   The function currently uses `n_points_range[2]` (the max value) as the
-#'   fixed number of points to sample for each output.
+#'   for this task. Required in the multi-output case; passed directly to the
+#'   `hp` argument of `kern_to_cov`.
+#' @param n_points_per_output A numeric vector giving the number of points to
+#'   sample, for each output, from that output's mean-process grid.
 #' @param shared_grid_outputs A logical value. If `TRUE`, all outputs in the
 #'   task are observed on the same sampled inputs.
-#' @param precomputed_task_grid_list An optional list of precomputed task grids,
-#'   one per output. If provided, the same sampled inputs are reused instead of
-#'   drawing a new sub-grid for the task.
-#' @param input_i A vector or data.frame representing the inputs for the task.
-#' @param mean_i A vector representing the mean process for the task.
-#' @param v A number. The variance hyper-parameter of the SE kernel.
-#' @param l A number. The lengthscale hyper-parameter of the SE kernel).
-#' @param sigma A number. The noise hyper-parameter.
+#' @param precomputed_task_grid_list An optional list of precomputed task
+#'   grids, one per output. If provided, the same sampled inputs are reused
+#'   instead of drawing a new sub-grid for the task.
+#' @param v A number. The variance hyper-parameter of the SE kernel (single
+#'   output case only).
+#' @param l A number. The lengthscale hyper-parameter of the SE kernel
+#'   (single output case only).
+#' @param sigma A number. The noise variance added on the diagonal (single
+#'   output case only).
 #'
 #' @return
 #' A `tibble` containing the simulated data for the single task. Includes
 #' columns: `Task_ID`, `Input_ID`, `Input`, `Output_ID`, and `Output`.
 #'
 #' @keywords internal
-
-
 generate_single_task_data <- function(
     task_id,
     mean_process_info,
-    task_hp_tibble,
-    n_points_range,
+    task_hp_tibble = NULL,
+    n_points_per_output,
     shared_grid_outputs = FALSE,
     precomputed_task_grid_list = NULL,
-    input_i = NULL,
-    mean_i = NULL,
     v = NULL,
     l = NULL,
     sigma = NULL
 ) {
-  # Extract the number of outputs
   num_outputs <- length(mean_process_info$grid_list)
 
-  if (num_outputs == 1) {
-    # Generate task data
-    if (is.data.frame(input_i)) {
-      db <- tibble::tibble(
-        "ID" = task_id,
-        input_i,
-        "Output" = mvtnorm::rmvnorm(
-          1,
-          mean = mean_i,
-          sigma = kern_to_cov(
-            input_i,
-            "SE",
-            tibble::tibble(se_variance = v, se_lengthscale = l)
-          ) + diag(sigma, nrow(input_i), nrow(input_i))
-        ) %>% as.vector(),
-        "se_variance" = v,
-        "se_lengthscale" = l,
-        "noise" = sigma
+  ## 1. Sample a sparse sub-grid for this task (same strategy for any number
+  ## of outputs).
+  if (is.null(precomputed_task_grid_list)) {
+    if (shared_grid_outputs) {
+      shared_task_grid <- sample_grid_points(
+        grid_obj = mean_process_info$grid_list[[1]],
+        size = n_points_per_output[1]
       )
+      task_grid_list <- rep(list(shared_task_grid), num_outputs)
     } else {
-      db <- tibble::tibble(
-        "ID" = task_id,
-        "Input" = input_i,
-        "Output" = mvtnorm::rmvnorm(
-          1,
-          mean = mean_i,
-          sigma = kern_to_cov(
-            input_i,
-            "SE",
-            tibble::tibble(se_variance = v, se_lengthscale = l)
-          ) + diag(sigma, length(input_i), length(input_i))
-        ) %>% as.vector(),
-        "se_variance" = v,
-        "se_lengthscale" = l,
-        "noise" = sigma
-      )
+      task_grid_list <- purrr::map2(mean_process_info$grid_list,
+                                    n_points_per_output,
+                                    sample_grid_points)
     }
-    return(db)
-
   } else {
-    # Sample a sparse sub-grid for this task.
-    # Each task has the same number of observations
-    n_points_per_output_task <- rep(n_points_range[2], num_outputs)
-
-    if (is.null(precomputed_task_grid_list)) {
-      if (shared_grid_outputs) {
-        shared_task_grid <- sample_grid_points(
-          grid_obj = mean_process_info$grid_list[[1]],
-          size = n_points_per_output_task[1]
-        )
-        task_grid_list <- rep(list(shared_task_grid), num_outputs)
-      } else {
-        task_grid_list <- purrr::map2(mean_process_info$grid_list,
-                                      n_points_per_output_task,
-                                      ~sample_grid_points(grid_obj = .x, size = .y))
-      }
-    } else {
-      if (length(precomputed_task_grid_list) != num_outputs) {
-        stop("'precomputed_task_grid_list' length must match the number of",
-             " outputs.")
-      }
-      task_grid_list <- precomputed_task_grid_list
+    if (length(precomputed_task_grid_list) != num_outputs) {
+      stop("'precomputed_task_grid_list' length must match the number of",
+           " outputs.")
     }
+    task_grid_list <- precomputed_task_grid_list
+  }
 
-    ## Build task-specific covariance and add noise
-    # Create the unique data frame input from the sampled grid list
-    input_df <- purrr::imap_dfr(task_grid_list,
-                                ~coerce_grid_to_df(.x) %>%
-                                  dplyr::mutate(Output_ID = as.factor(.y)))
+  ## 2. Build the task input data.frame and its reference names.
+  input_df <- purrr::imap_dfr(
+    task_grid_list,
+    ~coerce_grid_to_df(.x) %>% dplyr::mutate(Output_ID = as.factor(.y))
+  )
+  reference <- build_reference_names(input_df)
 
-    # Call kern_to_cov(), passing the received hp_tibble directly
+  ## 3. Compute the task-specific covariance matrix (kernel-choice fork).
+  if (num_outputs == 1) {
+    K_task_t <- kern_to_cov(
+      input_df %>% dplyr::select(-.data$Output_ID),
+      "SE",
+      tibble::tibble(se_variance = v, se_lengthscale = l)
+    ) + diag(sigma, nrow(input_df))
+  } else {
+    if (is.null(task_hp_tibble)) {
+      stop("'task_hp_tibble' is required when there is more than one output.")
+    }
     K_task_t <- kern_to_cov(
       input = input_df,
       kern = convolution_kernel_KD,
       hp = task_hp_tibble
     )
-
-    ## Select mean process subset and generate final data
-    target_point_names <- rownames(K_task_t)
-    mu0_subset <- mean_process_info$mean_process_realization[target_point_names]
-
-    # Draw a sample for task_id
-    y_task <- MASS::mvrnorm(n = 1, mu = mu0_subset, Sigma = K_task_t)
-
-    # Format result into a clean tibble
-    input_df %>%
-      dplyr::mutate(
-        Task_ID = factor(task_id),
-        Input_ID = factor(1),
-        Output = as.numeric(y_task)
-      ) %>%
-      dplyr::select(.data$Task_ID, .data$Input_ID, dplyr::everything()) %>%
-      return()
   }
+  rownames(K_task_t) <- colnames(K_task_t) <- reference
+
+  ## 4. Select the corresponding mean process subset and draw the task data.
+  mu0_subset <- mean_process_info$mean_process_realization[reference]
+  y_task <- MASS::mvrnorm(n = 1, mu = mu0_subset, Sigma = K_task_t)
+
+  ## 5. Format the result, keeping track of the hyperparameters used so that
+  ## they can optionally be exposed as columns (see 'add_hp' in simu_data()).
+  result <- input_df %>%
+    dplyr::mutate(
+      Task_ID = factor(task_id),
+      Input_ID = factor(1),
+      Output = as.numeric(y_task)
+    )
+
+  if (num_outputs == 1) {
+    result <- result %>%
+      dplyr::mutate(se_variance = v, se_lengthscale = l, noise = sigma)
+  } else {
+    result <- result %>%
+      dplyr::left_join(
+        task_hp_tibble %>% dplyr::select(-dplyr::any_of("Task_ID")),
+        by = "Output_ID"
+      )
+  }
+
+  result %>%
+    dplyr::select(.data$Task_ID, .data$Input_ID, dplyr::everything())
 }
 
 
@@ -538,15 +600,17 @@ generate_single_task_data <- function(
 #' many parameters controlling the data generation.
 #'
 #' @param n_tasks An integer. The number of tasks (per cluster).
-#' @param n_points An integer. The number of observations per task.
+#' @param n_points An integer. The number of observations per task, for each
+#'    output.
 #' @param n_clusters An integer. The number of underlying clusters.
 #' @param n_outputs An integer. The number of outputs.
-#'    If n_outputs = 1, standard SE kernels are used.
+#'    If n_outputs = 1, a standard SE kernel is used.
 #'    If n_outputs > 1, the Multi-Output Convolution kernel structure is simulated.
 #' @param input2 A logical value indicating whether the dataset should
 #'    include an additional input named 'Input2'.
-#' @param prior_means A vector of numbers. Prior means for the MO processes
-#'    (n_outputs > 1).
+#' @param prior_means A vector of numbers. Prior means for each output's mean
+#'    process. If `NULL` (default), a random linear trend is generated for
+#'    each output (see `m0_intercept`/`m0_slope`).
 #' @param grid_input A vector of numbers defining a grid of observations
 #'    (i.e. the reference inputs).
 #' @param grid_input2 A vector of numbers defining a grid of observations
@@ -565,11 +629,10 @@ generate_single_task_data <- function(
 #' @param int_i_v A vector of 2 numbers. Interval for task process variance.
 #' @param int_i_l A vector of 2 numbers. Interval for task process lengthscale.
 #' @param int_i_sigma A vector of 2 numbers. Interval for noise hyper-parameter.
-#' @param lambda_int A vector of 2 numbers. Lambda parameter of 2D exponential.
-#' @param m_int A vector of 2 numbers. Mean of 2D exponential.
-#' @param lengthscale_int A vector of 2 numbers. Lengthscale of 2D exponential.
-#' @param m0_slope A vector of 2 numbers. Slope interval for m0.
-#' @param m0_intercept A vector of 2 numbers. Intercept interval for m0.
+#' @param m0_slope A vector of 2 numbers. Slope interval for the mean
+#'    process's default linear prior trend.
+#' @param m0_intercept A vector of 2 numbers. Intercept interval for the mean
+#'    process's default linear prior trend.
 #' @param warning_grid A boolean, indicating whether data generation should be
 #'    stopped by anticipation if the size of input grid is > 2000 points. To
 #'    force data generation to complete, switch this argument to \code{FALSE}
@@ -600,7 +663,7 @@ simu_data <- function(
     prior_means = NULL,
     grid_input = seq(-1, 1, 0.01),
     grid_input2 = seq(-1, 1, 0.1),
-    shared_input = TRUE,
+    shared_input = FALSE,
     shared_hp = TRUE,
     add_hp = FALSE,
     add_clust = FALSE,
@@ -609,347 +672,185 @@ simu_data <- function(
     int_i_v = c(0, log(1.5)),
     int_i_l = c(log(1/300), log(1/200)),
     int_i_sigma = c(0, 0.2),
-    lambda_int = c(30, 40),
-    m_int = c(0, 10),
-    lengthscale_int = c(30, 40),
     m0_slope = c(-5, 5),
     m0_intercept = c(-50, 50),
     warning_grid = TRUE
 ) {
 
   ## Stop if the size of the grid is too large
-  if( (length(grid_input) > 2000) && warning_grid){
+  if ((grid_n_points(grid_input) > 2000) && warning_grid) {
     stop("The defined input grid is > 2000 points. There is a high risk ",
         "that data generation takes a long time to complete, so the process ",
         "has been preemptively stopped. If you understand the issue, and still ",
         "want to force data generation to complete, use 'warning_grid=FALSE'.")
   }
 
-  if (n_outputs == 1) {
-    if (input2) {
-      t_0_tibble <- tidyr::expand_grid(Input = grid_input , Input2 = grid_input2) %>%
-        purrr::modify(signif) %>%
-        tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
-        dplyr::arrange(.data$Reference)
+  ## Build the domain over which each output's mean process grid is sampled.
+  ## A list of per-output candidate grids (MO-specific feature) is preserved
+  ## as-is; a single vector/data.frame is expanded with 'Input2' when relevant.
+  is_per_output_pool <- is.list(grid_input) && !is.data.frame(grid_input)
 
-      ## Stop if the size of the grid is too large
-      if( (nrow(t_0_tibble) > 2000) && warning_grid){
-        stop("The defined input grid is > 2000 points. There is a high risk ",
-        "that data generation takes a long time to complete, so the process ",
-        "has been preemptively stopped. If you understand the issue, and still ",
-        "want to force data generation to complete, use 'warning_grid=FALSE'.")
-      }
-
-      t_0 <- t_0_tibble %>% dplyr::pull(.data$Reference)
-
-      if (shared_input) {
-        t_i_input <- sample(grid_input , n_points, replace = F)
-        t_i_input2 <- sample(grid_input2, n_points, replace = F)
-        t_i_tibble <- tibble::tibble(
-          Input = t_i_input,
-          Input2 = t_i_input2
-        ) %>%
-          purrr::modify(signif) %>%
-          tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
-          dplyr::arrange(.data$Reference)
-
-        t_i <- t_i_tibble %>% dplyr::pull(.data$Reference)
-      }
-
-      floop_k <- function(k) {
-        mu_v <- draw(int_mu_v)
-        mu_l <- draw(int_mu_l)
-
-        db_0_info <- generate_mean_process(
-          points_per_output = c(nrow(t_0_tibble)),
-          grid_input = t_0_tibble %>% dplyr::select(.data$Input, .data$Input2),
-          hp_config_mean_process = NULL,
-          prior_means = draw(m_int),
-          noise_0 = NULL,
-          shared_grid_outputs= FALSE,
-          shared_hp_outputs = FALSE,
-          shared_grid_clusters = FALSE,
-          precomputed_grid_list = NULL,
-          v = mu_v,
-          l = mu_l
-        )
-
-        m_0 <- db_0_info$mean_process_realization %>%
-          dplyr::mutate(dplyr::across(tidyselect::where(is.numeric), signif)) %>%
-          tidyr::unite(
-            "Reference",
-            -dplyr::any_of(c("ID", "Output", "se_variance", "se_lengthscale", "noise")),
-            sep = ":",
-            remove = FALSE
-          )
-
-        if (shared_hp) {
-          i_v <- draw(int_i_v)
-          i_l <- draw(int_i_l)
-          i_sigma <- draw(int_i_sigma)
-        }
-
-        floop_i <- function(i, k) {
-          if (!shared_input) {
-            t_i_input <- sample(grid_input , n_points, replace = F)
-            t_i_input2 <- sample(grid_input2, n_points, replace = F)
-            t_i_tibble <- tibble::tibble(
-              Input = t_i_input,
-              Input2 = t_i_input2
-            ) %>%
-              purrr::modify(signif) %>%
-              tidyr::unite("Reference", sep = ":", remove = FALSE) %>%
-              dplyr::arrange(.data$Reference)
-
-            t_i <- t_i_tibble %>% dplyr::pull(.data$Reference)
-          }
-          if (!shared_hp) {
-            i_v <- draw(int_i_v)
-            i_l <- draw(int_i_l)
-            i_sigma <- draw(int_i_sigma)
-          }
-          mean_i <- m_0 %>%
-            dplyr::filter(.data$Reference %in% t_i) %>%
-            dplyr::pull(.data$Output)
-
-          if (n_clusters > 1) {
-            ID <- paste0("ID", i, "-Clust", k)
-          } else {
-            ID <- as.character(i)
-          }
-
-          generate_single_task_data(
-            task_id = ID,
-            mean_process_info = db_0_info,
-            task_hp_tibble = NULL,
-            n_points_range = c(5, 20),
-            shared_grid_outputs = FALSE,
-            precomputed_task_grid_list = NULL,
-            input_i = t_i_tibble %>% dplyr::select(.data$Input, .data$Input2),
-            mean_i = mean_i,
-            v = i_v,
-            l = i_l,
-            sigma = i_sigma
-          ) %>% return()
-        }
-
-        db <- sapply(seq_len(n_tasks), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
-          dplyr::bind_rows()
-
-        if (!add_hp) {
-          db <- db %>%
-            dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
-        }
-
-        if (add_clust) {
-          db <- db %>% dplyr::mutate("Cluster" = k)
-        }
-        return(db)
-      }
-
-      final_db <- lapply(seq_len(n_clusters), floop_k) %>% dplyr::bind_rows()
-
+  if (input2) {
+    if (is_per_output_pool) {
+      domain_grid <- purrr::map2(
+        grid_input, grid_input2,
+        ~tidyr::expand_grid(Input = .x, Input2 = .y)
+      )
     } else {
-      # Single Output & no input2
-      if (shared_input) {
-        t_i <- sample(grid_input , n_points, replace = F) %>% sort()
+      domain_grid <- tidyr::expand_grid(Input = grid_input, Input2 = grid_input2)
+
+      if ((nrow(domain_grid) > 2000) && warning_grid) {
+        stop("The defined input grid is > 2000 points. There is a high risk ",
+            "that data generation takes a long time to complete, so the process ",
+            "has been preemptively stopped. If you understand the issue, and still ",
+            "want to force data generation to complete, use 'warning_grid=FALSE'.")
       }
-
-      floop_k <- function(k) {
-        m_0 <- draw(m0_intercept) + draw(m0_slope) * grid_input
-        mu_v <- draw(int_mu_v)
-        mu_l <- draw(int_mu_l)
-
-        db_0 <- generate_mean_process(
-          points_per_output = length(grid_input),
-          grid_input = grid_input,
-          hp_config_mean_process = NULL,
-          prior_means = m_0,
-          noise_0 = NULL,
-          shared_grid_outputs= FALSE,
-          shared_hp_outputs = FALSE,
-          shared_grid_clusters = FALSE,
-          precomputed_grid_list = NULL,
-          v = mu_v,
-          l = mu_l
-        )
-
-        if (shared_hp) {
-          i_v <- draw(int_i_v)
-          i_l <- draw(int_i_l)
-          i_sigma <- draw(int_i_sigma)
-        }
-
-        floop_i <- function(i, k) {
-          if (!shared_input) {
-            t_i <- sample(grid_input, n_points, replace = F) %>% sort()
-          }
-          if (!shared_hp) {
-            i_v <- draw(int_i_v)
-            i_l <- draw(int_i_l)
-            i_sigma <- draw(int_i_sigma)
-          }
-          mean_i <- db_0$mean_process_realization %>%
-            dplyr::filter(.data$Input %in% t_i) %>%
-            dplyr::pull(.data$Output)
-
-          if (n_clusters > 1) {
-            ID <- paste0("ID", i, "-Clust", k)
-          } else {
-            ID <- as.character(i)
-          }
-
-          generate_single_task_data(
-            task_id = ID,
-            mean_process_info = db_0,
-            task_hp_tibble = NULL,
-            n_points_range = c(5, 20),
-            shared_grid_outputs = FALSE,
-            precomputed_task_grid_list = NULL,
-            input_i = t_i,
-            mean_i = mean_i,
-            v = i_v,
-            l = i_l,
-            sigma = i_sigma
-          ) %>% return()
-        }
-        db <- sapply(seq_len(n_tasks), floop_i, k = k, simplify = F, USE.NAMES = T) %>%
-          dplyr::bind_rows()
-
-        if (!add_hp) {
-          db <- db %>% dplyr::select(-c("se_variance", "se_lengthscale", "noise"))
-        }
-
-        if (add_clust) {
-          db <- db %>% dplyr::mutate("Cluster" = k)
-        }
-        return(db)
-      }
-
-      final_db <- lapply(seq_len(n_clusters), floop_k) %>% dplyr::bind_rows()
     }
-
   } else {
-    # Multi-Output case
+    domain_grid <- grid_input
+  }
+
+  domain_size_per_output <- if (is_per_output_pool) {
+    purrr::map_dbl(domain_grid, grid_n_points)
+  } else {
+    rep(grid_n_points(domain_grid), n_outputs)
+  }
+
+  ## Hyperparameter bound configuration (multi-output case only).
+  hp_config_mean_process <- NULL
+  hp_config_tasks <- NULL
+
+  if (n_outputs > 1) {
     hp_config_mean_process <- tibble::tibble(
-      output_id = 1:n_outputs ,
-      l0_min = rep(int_mu_l[1], n_outputs),l0_max = rep(int_mu_l[2], n_outputs),
-      S0_min = rep(int_mu_v[1], n_outputs),S0_max = rep(int_mu_v[2], n_outputs),
-      lu0_min = rep(int_mu_l[1], n_outputs),lu0_max = rep(int_mu_l[2],n_outputs)
+      output_id = 1:n_outputs,
+      l0_min = rep(int_mu_l[1], n_outputs), l0_max = rep(int_mu_l[2], n_outputs),
+      S0_min = rep(int_mu_v[1], n_outputs), S0_max = rep(int_mu_v[2], n_outputs),
+      lu0_min = rep(int_mu_l[1], n_outputs), lu0_max = rep(int_mu_l[2], n_outputs)
     )
 
     hp_config_tasks <- tibble::tibble(
-      output_id = 1:n_outputs ,
+      output_id = 1:n_outputs,
       lt_min = rep(int_i_l[1], n_outputs), lt_max = rep(int_i_l[2], n_outputs),
       St_min = rep(int_i_v[1], n_outputs), St_max = rep(int_i_v[2], n_outputs),
       noise_min = rep(int_i_sigma[1], n_outputs),
       noise_max = rep(int_i_sigma[2], n_outputs),
       lu_min = rep(int_i_l[1], n_outputs), lu_max = rep(int_i_l[2], n_outputs)
     )
+  }
 
-    if (!is.null(hp_config_mean_process) &&
-        nrow(hp_config_mean_process) == n_outputs && n_clusters > 1) {
-      hp_config_mean_process <- purrr::map_dfr(seq_len(n_clusters), ~hp_config_mean_process)
-    }
-    if (!is.null(hp_config_tasks) && nrow(hp_config_tasks) == n_outputs &&
-        n_clusters > 1) {
-      hp_config_tasks <- purrr::map_dfr(seq_len(n_clusters), ~hp_config_tasks)
-    }
+  hp_cols_to_drop <- c(
+    "se_variance", "se_lengthscale", "noise", "l_t", "S_t", "l_u_t"
+  )
 
-    list_config_mp <- vector("list", n_clusters)
-    list_config_tasks <- vector("list", n_clusters)
+  floop_k <- function(k) {
+    n_points_task <- rep(n_points, n_outputs)
 
-    for (k in seq_len(n_clusters)) {
-      start_idx <- (k - 1) * n_outputs + 1
-      end_idx   <- k * n_outputs
-
-      if (!is.null(hp_config_mean_process)) {
-        list_config_mp[[k]] <- hp_config_mean_process %>%
-          dplyr::slice(start_idx:end_idx)
-      }
-      if (!is.null(hp_config_tasks)) {
-        list_config_tasks[[k]] <- hp_config_tasks %>%
-          dplyr::slice(start_idx:end_idx)
-      }
-    }
-
-    floop_k_MO <- function(k) {
-      if (input2) {
-        if (is.list(grid_input) && !is.data.frame(grid_input)) {
-          working_grid_input <- purrr::map2(grid_input, grid_input2,
-                                      ~tidyr::expand_grid(Input = .x, Input2 = .y))
-        } else {
-          working_grid_input <- tidyr::expand_grid(Input = grid_input, Input2 = grid_input2)
-        }
-      } else {
-        working_grid_input <- grid_input
-      }
-
-      if (is.null(prior_means)) {
-        prior_means_k <- purrr::map_dbl(1:n_outputs , ~ draw(m0_intercept))
-      } else {
-        prior_means_k <- prior_means
-      }
-
+    ## --- Mean process realization for this cluster (kernel-choice fork) ---
+    if (n_outputs == 1) {
       mp_info_k <- generate_mean_process(
-        points_per_output = rep(200, n_outputs),
-        grid_input = working_grid_input,
-        hp_config_mean_process = list_config_mp[[k]],
-        prior_means = prior_means_k,
-        noise_0 = NULL,
-        shared_grid_outputs= FALSE,
-        shared_hp_outputs = FALSE,
-        shared_grid_clusters = FALSE,
-        precomputed_grid_list = NULL
+        points_per_output = domain_size_per_output,
+        grid_input = domain_grid,
+        prior_means = prior_means,
+        m0_intercept = m0_intercept,
+        m0_slope = m0_slope,
+        v = draw(int_mu_v),
+        l = draw(int_mu_l)
       )
+    } else {
+      mp_info_k <- generate_mean_process(
+        points_per_output = domain_size_per_output,
+        grid_input = domain_grid,
+        prior_means = prior_means,
+        m0_intercept = m0_intercept,
+        m0_slope = m0_slope,
+        hp_config_mean_process = hp_config_mean_process,
+        shared_hp_outputs = FALSE
+      )
+    }
 
-      floop_i_MO <- function(i, k) {
-        if (n_clusters > 1) {
-          task_id <- paste0("ID", i, "-Clust", k)
-        } else {
-          task_id <- as.character(i)
-        }
-
-        hp_i <- hp(
+    ## --- Task hyperparameters shared across tasks within this cluster ---
+    if (shared_hp) {
+      if (n_outputs == 1) {
+        shared_task_hp <- list(v = draw(int_i_v), l = draw(int_i_l),
+                                sigma = draw(int_i_sigma))
+      } else {
+        shared_task_hp_tibble <- hp(
           kern = convolution_kernel_KD,
           list_task_ID = as.factor(1),
           list_output_ID = as.factor(1:n_outputs),
           shared_hp_tasks = TRUE,
           shared_hp_outputs = FALSE,
           noise = TRUE,
-          hp_config = list_config_tasks[[k]]
+          hp_config = hp_config_tasks
         )
+      }
+    }
+
+    ## When inputs are shared across tasks, the same sub-grid is sampled once
+    ## per cluster and reused by every task; otherwise, each task samples its
+    ## own sub-grid independently (handled inside generate_single_task_data).
+    shared_task_grid_list <- if (shared_input) {
+      purrr::map2(mp_info_k$grid_list, n_points_task, sample_grid_points)
+    } else {
+      NULL
+    }
+
+    floop_i <- function(i) {
+      task_id <- make_task_id(i, k, n_clusters)
+
+      if (n_outputs == 1) {
+        task_hp <- if (shared_hp) {
+          shared_task_hp
+        } else {
+          list(v = draw(int_i_v), l = draw(int_i_l), sigma = draw(int_i_sigma))
+        }
 
         generate_single_task_data(
           task_id = task_id,
           mean_process_info = mp_info_k,
-          task_hp_tibble = hp_i,
-          n_points_range = c(5, 20),
-          shared_grid_outputs = FALSE,
-          precomputed_task_grid_list = NULL
+          n_points_per_output = n_points_task,
+          precomputed_task_grid_list = shared_task_grid_list,
+          v = task_hp$v,
+          l = task_hp$l,
+          sigma = task_hp$sigma
+        )
+      } else {
+        task_hp_tibble <- if (shared_hp) {
+          shared_task_hp_tibble
+        } else {
+          hp(
+            kern = convolution_kernel_KD,
+            list_task_ID = as.factor(1),
+            list_output_ID = as.factor(1:n_outputs),
+            shared_hp_tasks = TRUE,
+            shared_hp_outputs = FALSE,
+            noise = TRUE,
+            hp_config = hp_config_tasks
+          )
+        }
+
+        generate_single_task_data(
+          task_id = task_id,
+          mean_process_info = mp_info_k,
+          task_hp_tibble = task_hp_tibble,
+          n_points_per_output = n_points_task,
+          precomputed_task_grid_list = shared_task_grid_list
         )
       }
-
-      cluster_data <- sapply(seq_len(n_tasks), floop_i_MO, k = k, simplify = FALSE, USE.NAMES = TRUE) %>%
-        dplyr::bind_rows()
-
-      if (add_clust) {
-        cluster_data <- cluster_data %>% dplyr::mutate("Cluster" = k)
-      }
-
-      return(cluster_data)
     }
 
-    final_db <- lapply(seq_len(n_clusters), floop_k_MO) %>% dplyr::bind_rows()
+    cluster_db <- purrr::map_dfr(seq_len(n_tasks), floop_i)
 
-    if (!add_hp) {
-      cols_to_remove <- c("l_t", "S_t", "l_u_t", "se_variance", "se_lengthscale", "noise")
-      cols_to_remove <- intersect(cols_to_remove, names(final_db))
-      if (length(cols_to_remove) > 0) {
-        final_db <- final_db %>% dplyr::select(-dplyr::all_of(cols_to_remove))
-      }
-    }
+    postprocess_cluster_db(
+      cluster_db,
+      add_hp = add_hp,
+      add_clust = add_clust,
+      k = k,
+      hp_cols = hp_cols_to_drop
+    )
   }
+
+  final_db <- purrr::map_dfr(seq_len(n_clusters), floop_k)
 
   if (input2) {
     final_db <- final_db %>%
@@ -959,7 +860,6 @@ simu_data <- function(
       dplyr::rename(Input_1 = .data$Input)
   }
 
-  # Appel de la fonction de pivot universelle
   final_db <- format_longer(final_db)
 
   return(final_db)

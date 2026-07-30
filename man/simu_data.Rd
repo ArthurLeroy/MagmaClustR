@@ -14,7 +14,7 @@ simu_data(
   prior_means = NULL,
   grid_input = seq(-1, 1, 0.01),
   grid_input2 = seq(-1, 1, 0.1),
-  shared_input = TRUE,
+  shared_input = FALSE,
   shared_hp = TRUE,
   add_hp = FALSE,
   add_clust = FALSE,
@@ -23,9 +23,6 @@ simu_data(
   int_i_v = c(0, log(1.5)),
   int_i_l = c(log(1/300), log(1/200)),
   int_i_sigma = c(0, 0.2),
-  lambda_int = c(30, 40),
-  m_int = c(0, 10),
-  lengthscale_int = c(30, 40),
   m0_slope = c(-5, 5),
   m0_intercept = c(-50, 50),
   warning_grid = TRUE
@@ -40,7 +37,7 @@ simu_db(
   prior_means = NULL,
   grid_input = seq(-1, 1, 0.01),
   grid_input2 = seq(-1, 1, 0.1),
-  shared_input = TRUE,
+  shared_input = FALSE,
   shared_hp = TRUE,
   add_hp = FALSE,
   add_clust = FALSE,
@@ -49,30 +46,29 @@ simu_db(
   int_i_v = c(0, log(1.5)),
   int_i_l = c(log(1/300), log(1/200)),
   int_i_sigma = c(0, 0.2),
-  lambda_int = c(30, 40),
-  m_int = c(0, 10),
-  lengthscale_int = c(30, 40),
   m0_slope = c(-5, 5),
   m0_intercept = c(-50, 50),
   warning_grid = TRUE
 )
 }
 \arguments{
-\item{n_tasks}{An integer. The number of tasks per cluster.}
+\item{n_tasks}{An integer. The number of tasks (per cluster).}
 
-\item{n_points}{An integer. The number of observations per task.}
+\item{n_points}{An integer. The number of observations per task, for each
+output.}
 
 \item{n_clusters}{An integer. The number of underlying clusters.}
 
 \item{n_outputs}{An integer. The number of outputs.
-If n_outputs = 1, standard SE kernels are used.
+If n_outputs = 1, a standard SE kernel is used.
 If n_outputs > 1, the Multi-Output Convolution kernel structure is simulated.}
 
 \item{input2}{A logical value indicating whether the dataset should
 include an additional input named 'Input2'.}
 
-\item{prior_means}{A vector of numbers. Prior means for the MO processes
-(n_outputs > 1).}
+\item{prior_means}{A vector of numbers. Prior means for each output's mean
+process. If \code{NULL} (default), a random linear trend is generated for
+each output (see \code{m0_intercept}/\code{m0_slope}).}
 
 \item{grid_input}{A vector of numbers defining a grid of observations
 (i.e. the reference inputs).}
@@ -103,18 +99,14 @@ clusters should be added as a column in the dataset.}
 
 \item{int_i_sigma}{A vector of 2 numbers. Interval for noise hyper-parameter.}
 
-\item{lambda_int}{A vector of 2 numbers. Lambda parameter of 2D exponential.}
+\item{m0_slope}{A vector of 2 numbers. Slope interval for the mean
+process's default linear prior trend.}
 
-\item{m_int}{A vector of 2 numbers. Mean of 2D exponential.}
-
-\item{lengthscale_int}{A vector of 2 numbers. Lengthscale of 2D exponential.}
-
-\item{m0_slope}{A vector of 2 numbers. Slope interval for m0.}
-
-\item{m0_intercept}{A vector of 2 numbers. Intercept interval for m0.}
+\item{m0_intercept}{A vector of 2 numbers. Intercept interval for the mean
+process's default linear prior trend.}
 
 \item{warning_grid}{A boolean, indicating whether data generation should be
-stoped by anticipation if the size of input grid is > 3000 points. To
+stopped by anticipation if the size of input grid is > 2000 points. To
 force data generation to complete, switch this argument to \code{FALSE}}
 }
 \value{
@@ -131,9 +123,12 @@ many parameters controlling the data generation.
 
 data = simu_data()
 
-data_2D = simu_data(input2 = TRUE)
-
-data_MO = simu_data(n_ouputs = 2)
+data_MO = simu_data(n_outputs = 2)
 
 data_clust = simu_data(n_clusters = 3)
+
+data_2D = simu_data(
+   input2 = TRUE,
+   grid_input = seq(-1, 1, 0.1),
+   grid_input2 = seq(-1, 1, 0.1))
 }
