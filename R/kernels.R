@@ -9,138 +9,132 @@
 #' @param vectorized If TRUE, enables the calculation of the full MO covariance
 #'   matrix.
 #' @param deriv A character string specifying the partial derivative to compute.
-#'   Can be one of "l_t_1", "l_t_2", "S_t_1", "S_t_2", "l_u_t".
+#'   Names embed the Output_ID label: 'l_t_<o>', 'S_t_<o>', 'l_u_t' (single
 #' @return The covariance matrix or its partial derivative.
 #'
-convolution_kernel_KD <- function(x,
+convolution_kernel <- function(x,
                                   y,
                                   hp,
                                   vectorized = FALSE,
                                   deriv = NULL) {
 
-  # 1. Identification of the Input Dimension (I)
+  # Identify the input dimension from the numeric coordinate columns.
   if (is.data.frame(x)) {
-    coord_cols <- names(x)[sapply(x, is.numeric) & names(x) != "Output_ID"]
+    coord_cols <- identify_coord_cols(x)
     input_dim <- length(coord_cols)
   } else {
-    # Fallback for non-vectorized pure numeric vectors
     input_dim <- length(x)
   }
 
-  # Non vectorized case
+  ## Non-vectorized single-pair evaluation (kept for completeness).
   if (!vectorized) {
     l_i <- exp(hp[["lengthscale_output1"]])
     l_j <- exp(hp[["lengthscale_output2"]])
     l_u <- exp(hp[["lengthscale_u"]])
     S_i <- exp(hp[["variance_output1"]])
     S_j <- exp(hp[["variance_output2"]])
-
-    # sum((x - y)^2) automatically aggregates across all input dimensions
-    distance_sq     <- sum((x - y)^2)
+    distance_sq <- sum((x - y)^2)
     denominator_sum <- l_i + l_j + l_u
-    S_prod          <- S_i * S_j
-
-    # Generalization: The square root becomes a power of (input_dim / 2)
-    pre_factor <- S_prod / ((2 * pi * denominator_sum)^(input_dim / 2))
-    exp_term <- exp(-0.5 * distance_sq / denominator_sum)
-    K <- pre_factor * exp_term
-
-  } else {
-    # Vectorized case, which allows to build an entire covariance matrix
-    if (!"Output_ID" %in% names(x) || !"Output_ID" %in% names(hp)) {
-      stop("'input' and 'hp' must contain an 'Output_ID' column for vectorized ",
-           "mode.")
+    K <- (S_i * S_j) / ((2 * pi * denominator_sum)^(input_dim / 2)) *
+      exp(-0.5 * distance_sq / denominator_sum)
+    if (!is.null(deriv)) {
+      stop("Derivatives of the convolution kernel are only implemented in ",
+           "vectorized mode.")
     }
+    return(K)
+  }
 
-    # Important: all HPs ID must be numeric (otherwise it raises an error
-    # further in the code of the kernel)
-    x_ids_numeric <- as.numeric(as.character(x$Output_ID))
-    y_ids_numeric <- as.numeric(as.character(y$Output_ID))
-    hp_ids_numeric <- as.numeric(as.character(hp$Output_ID))
+  ## Vectorized evaluation: build the full multi-output covariance as a SUM
+  ## over Q latent processes (Alvarez & Lawrence convolution processes). A
+  ## single latent (no 'Latent_ID' column) reduces to the original kernel.
+  if (!"Output_ID" %in% names(x) || !"Output_ID" %in% names(hp)) {
+    stop("'input' and 'hp' must contain an 'Output_ID' column for ",
+         "vectorized mode.")
+  }
 
-    x_coords <- as.matrix(x[, coord_cols, drop = FALSE])
-    y_coords <- as.matrix(y[, coord_cols, drop = FALSE])
+  x_ids <- as.character(x$Output_ID)
+  y_ids <- as.character(y$Output_ID)
+  x_coords <- as.matrix(x[, coord_cols, drop = FALSE])
+  y_coords <- as.matrix(y[, coord_cols, drop = FALSE])
+  distance_sq <- cpp_dist(x_coords, y_coords)
+  N <- nrow(x)
+  M <- nrow(y)
 
-    # Match inputs indices with HPs indices, to get each input observed
-    # associated to the right Output_ID HPs.
-    indices_x <- match(x_ids_numeric, hp_ids_numeric)
-    indices_y <- match(y_ids_numeric, hp_ids_numeric)
+  if (!"Latent_ID" %in% names(hp)) hp$Latent_ID <- "1"
+  hp_lat <- as.character(hp$Latent_ID)
+  lat_levels <- unique(hp_lat)
+  multi_latent <- length(lat_levels) > 1
 
-    # Exponentialisation of HPs to avoid numerical problems during optimisation
-    l_vec_1 <- exp(hp$l_t[indices_x])
-    l_vec_2 <- exp(hp$l_t[indices_y])
-    S_vec_1 <- exp(hp$S_t[indices_x])
-    S_vec_2 <- exp(hp$S_t[indices_y])
-    l_u_val <- exp(unique(hp$l_u_t))
+  K <- matrix(0, nrow = N, ncol = M)
+  denom_list <- K_list <- l1_list <- l2_list <-
+    stats::setNames(vector("list", length(lat_levels)), lat_levels)
 
-    # Compute each term of the convolution kernel
-    distance_sq <- cpp_dist(x_coords, y_coords)
-    denominator_sum <- outer(l_vec_1, l_vec_2, FUN = "+") + l_u_val
-    S_prod          <- outer(S_vec_1, S_vec_2, FUN = "*")
+  for (q in lat_levels) {
+    rows_q <- hp_lat == q
+    out_q <- as.character(hp$Output_ID[rows_q])
+    ix <- match(x_ids, out_q)
+    iy <- match(y_ids, out_q)
+    l1 <- exp(hp$l_t[rows_q][ix])
+    l2 <- exp(hp$l_t[rows_q][iy])
+    S1 <- exp(hp$S_t[rows_q][ix])
+    S2 <- exp(hp$S_t[rows_q][iy])
+    l_u_q <- exp(unique(hp$l_u_t[rows_q]))
 
-    # Generalization: The square root becomes a power of (input_dim / 2)
-    pre_factor <- S_prod / ((2 * pi * denominator_sum)^(input_dim / 2))
-    exp_term   <- exp(-0.5 * distance_sq / denominator_sum)
-    K          <- pre_factor * exp_term
+    denom_q <- outer(l1, l2, FUN = "+") + l_u_q
+    S_prod <- outer(S1, S2, FUN = "*")
+    K_q <- S_prod / ((2 * pi * denom_q)^(input_dim / 2)) *
+      exp(-0.5 * distance_sq / denom_q)
+
+    K <- K + K_q
+    denom_list[[q]] <- denom_q; K_list[[q]] <- K_q
+    l1_list[[q]] <- l1; l2_list[[q]] <- l2
   }
 
   if (is.null(deriv)) {
     return(K)
   }
 
-  # Partial derivative computation
-  hp_id_str <- stringr::str_extract(deriv, "\\d+$")
-  if (is.na(hp_id_str) && deriv != "l_u_t") {
-    stop("The name of the derivative should end with a number, ex: 'l_t_1'.")
-  }
-  hp_id <- as.integer(hp_id_str)
+  ## Derivative names embed the Output_ID / Latent_ID labels directly:
+  ##   single latent : 'l_t_{o}', 'S_t_{o}', 'l_u_t'
+  ##   multi-latent  : 'l_t_o{o}_l{q}', 'S_t_o{o}_l{q}', 'l_u_t_l{q}'
+  ## (latent labels are internal integers). Labels are matched, not decoded.
+  if (deriv == "l_u_t" || grepl("^l_u_t_l", deriv)) {
+    lat_lab <- if (deriv == "l_u_t") lat_levels[1] else sub("^l_u_t_l", "", deriv)
+    denom_q <- denom_list[[lat_lab]]; K_q <- K_list[[lat_lab]]
+    common <- K_q * ((-0.5 * input_dim / denom_q) +
+                       (0.5 * distance_sq / (denom_q^2)))
+    return(common * exp(unique(hp$l_u_t[hp_lat == lat_lab])))
 
-  if (startsWith(deriv, "l_t_")) {
-    # UPDATED: Chain rule adjusted for the new determinant exponent (input_dim)
-    common_deriv_denom <- K * ((-0.5 * input_dim / denominator_sum) +
-                                 (0.5 * distance_sq / (denominator_sum^2)))
+  } else if (startsWith(deriv, "l_t")) {
+    if (multi_latent) {
+      lat_lab <- sub("^.*_l", "", deriv)
+      out_lab <- sub("^l_t_o(.*)_l[0-9]+$", "\\1", deriv)
+    } else {
+      out_lab <- sub("^l_t_", "", deriv); lat_lab <- lat_levels[1]
+    }
+    denom_q <- denom_list[[lat_lab]]; K_q <- K_list[[lat_lab]]
+    common <- K_q * ((-0.5 * input_dim / denom_q) +
+                       (0.5 * distance_sq / (denom_q^2)))
+    l_i_mat <- matrix(l1_list[[lat_lab]], nrow = N, ncol = M)
+    l_j_mat <- matrix(l2_list[[lat_lab]], nrow = N, ncol = M, byrow = TRUE)
+    mask_i <- outer(x_ids == out_lab, rep(TRUE, M))
+    mask_j <- outer(rep(TRUE, N), y_ids == out_lab)
+    return(common * (l_i_mat * mask_i + l_j_mat * mask_j))
 
-    # We need l_i and l_j, which corresponds for now to l_vec_1 and l_vec_2
-    N <- nrow(x)
-    M <- nrow(y)
-
-    # Create a matrix in which each (i, j) contains l_i
-    l_i_mat <- matrix(l_vec_1, nrow = N, ncol = M)
-
-    # Create a matrix in which each (i, j) contains l_j
-    l_j_mat <- matrix(l_vec_2, nrow = N, ncol = M, byrow = TRUE)
-
-    # Create a "switch", which turns on (= 1) for rows where Output i is equal to k
-    mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
-
-    # Create a "switch", which turns on (= 1) for rows where Output j is equal to k
-    mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
-
-    # l_i * I(i=k) + l_j * I(j=k)
-    chain_rule_matrix <- l_i_mat * mask_i_is_k + l_j_mat * mask_j_is_k
-
-    return(common_deriv_denom * chain_rule_matrix)
-
-  } else if (startsWith(deriv, "S_t_")) {
-    N <- nrow(x)
-    M <- nrow(y)
-    mask_i_is_k <- outer(x_ids_numeric == hp_id, rep(TRUE, M))
-    mask_j_is_k <- outer(rep(TRUE, N), y_ids_numeric == hp_id)
-
-    pd <- K * (mask_i_is_k + mask_j_is_k)
-    return(pd)
-
-  } else if (deriv == "l_u_t") {
-    # UPDATED: Chain rule adjusted for the new determinant exponent (input_dim)
-    common_deriv_denom <- K * ((-0.5 * input_dim / denominator_sum) +
-                                 (0.5 * distance_sq / (denominator_sum^2)))
-
-    chain_rule_factor <- exp(unique(hp$l_u_t))
-
-    return(common_deriv_denom * chain_rule_factor)
+  } else if (startsWith(deriv, "S_t")) {
+    if (multi_latent) {
+      lat_lab <- sub("^.*_l", "", deriv)
+      out_lab <- sub("^S_t_o(.*)_l[0-9]+$", "\\1", deriv)
+    } else {
+      out_lab <- sub("^S_t_", "", deriv); lat_lab <- lat_levels[1]
+    }
+    K_q <- K_list[[lat_lab]]
+    mask_i <- outer(x_ids == out_lab, rep(TRUE, M))
+    mask_j <- outer(rep(TRUE, N), y_ids == out_lab)
+    return(K_q * (mask_i + mask_j))
 
   } else {
-    stop("Invalid 'deriv' argument.")
+    stop("Invalid 'deriv' argument: ", deriv)
   }
 }
 
@@ -403,43 +397,53 @@ lin_kernel <- function(
 }
 
 
-#' Generate Initial Hyperparameters for GP Kernels
+#' Generate initial hyper-parameters for GP and multi-output kernels
 #'
-#' @param kern A function, or a character string indicating the chosen type of
-#'    kernel among:
-#'    - "SE": the Squared Exponential kernel,
-#'    - "LIN": the Linear kernel,
-#'    - "PERIO": the Periodic kernel,
-#'    - "RQ": the Rational Quadratic kernel.
-#'    Compound kernels can be created as sums or products of the above kernels.
-#'    For combining kernels, simply provide a formula as a character string
-#'    where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
-#'    elements are treated sequentially from the left to the right, the product
-#'    operator '*' shall always be used before the '+' operators (e.g.
-#'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' `hp()` draws a tibble of random initial hyper-parameters with the correct
+#' structure for a given kernel. It supports two regimes:
+#' * Single-output kernels given as a character string (e.g. "SE",
+#'   "SE + PERIO"): returns one row of the kernel's named hyper-parameters.
+#' * The multi-output convolution kernel given as a function
+#'   ([convolution_kernel()]): returns a tibble keyed by `Task_ID` and
+#'   `Output_ID`, with the smoothing-kernel parameters `l_t`, `S_t`, the
+#'   shared latent-process lengthscale `l_u_t`, and optionally `noise`.
 #'
-#'    In case of a custom kernel function, the argument \code{list_hp} has to be
-#'    provided as well, for designing a tibble with the correct names of
-#'    hyper-parameters.
-#' @param list_task_ID A vector of task IDs.
-#' @param list_output_ID A vector of output IDs.
-#' @param shared_hp_tasks If TRUE, HPs are shared across tasks.
-#' @param shared_hp_outputs If TRUE, HPs are shared across outputs.
-#' @param noise If TRUE, a 'noise' hyperparameter is added.
-#' @param hp_config A tibble providing min/max bounds for HP generation, specific
-#'   to the convolution_kernel. If NULL, default bounds are used.
+#' @param kern A character string naming a single-output kernel (one of
+#'   "SE", "LIN", "PERIO", "RQ", or a whitespace-separated combination
+#'   such as "SE + PERIO"), or a kernel *function* for the multi-output case
+#'   (typically [convolution_kernel()]).
+#' @param list_task_ID A vector of task identifiers. Required for the
+#'   multi-output convolution kernel.
+#' @param list_output_ID A vector of output identifiers (labels; may be arbitrary strings, e.g. 'weight', 'height').
+#'   Required for the multi-output convolution kernel.
+#' @param shared_hp_tasks A logical value. If TRUE (default), hyper-parameters
+#'   are shared across tasks; otherwise they are drawn independently per task.
+#' @param shared_hp_outputs A logical value. If TRUE, the smoothing-kernel
+#'   hyper-parameters are shared across outputs; otherwise (default) they are
+#'   output-specific.
+#' @param noise A logical value. If TRUE, a 'noise' hyper-parameter is added.
+#' @param hp_config An optional tibble of per-output generation bounds for the
+#'   convolution kernel, with an 'Output_ID' column and columns
+#'   'lt_min'/'lt_max', 'St_min'/'St_max', 'lu_min'/'lu_max',
+#'   'noise_min'/'noise_max'. If NULL (default), sensible bounds are used.
 #'
-#' @return A `tibble` containing the generated hyperparameters.
+#' @return A `tibble` of initial hyper-parameters.
 #' @export
 #'
 #' @examples
-#' TRUE
+#' ## Single-output kernel
+#' hp("SE", noise = TRUE)
+#'
+#' ## Multi-output convolution kernel: 2 tasks, 3 outputs
+#' hp(convolution_kernel, list_task_ID = c("a", "b"),
+#'    list_output_ID = 1:3, noise = TRUE)
 
 hp <- function(kern = "SE",
                list_task_ID = NULL,
                list_output_ID = NULL,
                shared_hp_tasks = TRUE,
                shared_hp_outputs = FALSE,
+               n_latent = 1,
                noise = FALSE,
                hp_config = NULL) {
   ## Initiate interval boundaries
@@ -452,103 +456,94 @@ hp <- function(kern = "SE",
   min_val <- -3
   max_val <- 10
 
-  # Convolution case
+  ## ---- Multi-output convolution kernel -----------------------------------
   if (is.function(kern)) {
     if (is.null(list_task_ID) || is.null(list_output_ID)) {
-      stop("For the convolution_kernel, both 'list_task_ID' and 'list_output_ID' must be provided.")
+      stop("For a multi-output convolution kernel, both 'list_task_ID' and ",
+           "'list_output_ID' must be provided.", call. = FALSE)
     }
 
-    if (is.null(hp_config)) {
-      message("hp_config not provided for convolution_kernel, using default HP bounds.")
-      ## HPs simus
-      hp_config <- tibble::tibble(
-        output_id   = as.factor(list_output_ID),
-        lt_min      = log(1/1000), lt_max      = log(1/100),
-        St_min      = log(0.4), St_max      = log(20),
-        lu_min      = log(1/1000), lu_max      = log(1/100),
-        noise_min   = -5, noise_max   = -2
-      )
-    }
+    ## Output/Task IDs are identifier labels used throughout; they may be
+    ## arbitrary strings (e.g. 'weight', 'height').
+    out_ids  <- sort(unique(as.character(list_output_ID)))
+    task_ids <- unique(as.character(list_task_ID))
+    task_fct <- task_ids
+    out_fct  <- out_ids
 
-    num_tasks <- length(list_task_ID)
-    num_outputs <- length(list_output_ID)
+    ## Per-output generation bounds (log-scale); overridable via 'hp_config'.
+    config <- .hp_conv_config(hp_config, out_ids)
 
-    # All combination task x output
-    base_ids <- tidyr::crossing(Task_ID = as.factor(list_task_ID),
-                                Output_ID = as.factor(list_output_ID))
-
-    if (shared_hp_tasks && shared_hp_outputs) {
-      hps_to_add <- tibble::tibble(
-        l_t = stats::runif(1, hp_config$lt_min[1], hp_config$lt_max[1]),
-        S_t = stats::runif(1, hp_config$St_min[1], hp_config$St_max[1])
-      )
-      if (noise) {
-        hps_to_add$noise <- stats::runif(1,
-                                         hp_config$noise_min[1],
-                                         hp_config$noise_max[1])
-      }
-      final_hp <- tidyr::crossing(base_ids, hps_to_add)
-
-    } else if (shared_hp_tasks && !shared_hp_outputs) {
-      hps_per_output <- hp_config %>%
-        dplyr::transmute(
-          Output_ID = as.factor(.data$output_id),
-          l_t = purrr::map2_dbl(.data$lt_min, .data$lt_max, ~stats::runif(1, .x, .y)),
-          S_t = purrr::map2_dbl(.data$St_min, .data$St_max, ~stats::runif(1, .x, .y))
+    ## ---- Multiple latent processes -------------------------------------
+    ## Q > 1 latent convolution processes: draw l_t/S_t per (output, latent),
+    ## l_u_t per latent, and a per-output noise shared across latents.
+    if (n_latent > 1) {
+      grid <- tidyr::crossing(Task_ID = task_fct, Output_ID = out_fct,
+                              Latent_ID = as.character(seq_len(n_latent)))
+      gi_out  <- match(as.character(grid$Output_ID), out_ids)
+      gi_task <- match(as.character(grid$Task_ID), task_ids)
+      gi_lat  <- as.character(grid$Latent_ID)
+      draw_group <- function(param, use_output, use_latent) {
+        lo <- config[[paste0(param, "_min")]]
+        hi <- config[[paste0(param, "_max")]]
+        key <- paste(
+          if (!shared_hp_tasks) gi_task else 0L,
+          if (use_output && !shared_hp_outputs) gi_out else 0L,
+          if (use_latent) gi_lat else 0L,
+          sep = "_"
         )
-      if (noise) {
-        hps_per_output$noise <- purrr::map2_dbl(hp_config$noise_min,
-                                                hp_config$noise_max,
-                                                ~stats::runif(1, .x, .y))
+        val <- numeric(length(key))
+        for (k in unique(key)) {
+          idx <- which(key == k)
+          oi <- if (use_output && !shared_hp_outputs) gi_out[idx[1]] else 1L
+          val[idx] <- stats::runif(1, lo[oi], hi[oi])
+        }
+        val
       }
-      final_hp <- dplyr::left_join(base_ids, hps_per_output, by = "Output_ID")
-
-    } else if (!shared_hp_tasks && shared_hp_outputs) {
-      hps_per_task <- tibble::tibble(
-        Task_ID = as.factor(list_task_ID),
-        l_t = stats::runif(num_tasks, hp_config$lt_min[1], hp_config$lt_max[1]),
-        S_t = stats::runif(num_tasks, hp_config$St_min[1], hp_config$St_max[1])
-      )
-      if (noise) {
-        hps_per_task$noise <- stats::runif(num_tasks,
-                                           hp_config$noise_min[1],
-                                           hp_config$noise_max[1])
-      }
-      final_hp <- dplyr::left_join(base_ids, hps_per_task, by = "Task_ID")
-
-    } else { # !shared_hp_tasks && !shared_hp_outputs
-      hps_unique <- base_ids %>%
-        dplyr::left_join(hp_config %>%
-                           dplyr::mutate(Output_ID = as.factor(.data$output_id)),
-                         by = "Output_ID") %>%
-        dplyr::mutate(
-          l_t = purrr::map2_dbl(.data$lt_min, .data$lt_max, ~stats::runif(1, .x, .y)),
-          S_t = purrr::map2_dbl(.data$St_min, .data$St_max, ~stats::runif(1, .x, .y))
-        ) %>%
-        dplyr::select(.data$Task_ID, .data$Output_ID, .data$l_t, .data$S_t)
-      if (noise) {
-        hps_unique <- base_ids %>%
-          dplyr::left_join(hp_config %>%
-                             dplyr::mutate(Output_ID = as.factor(.data$output_id)),
-                           by = "Output_ID") %>%
-          dplyr::mutate(
-            noise = purrr::map2_dbl(.data$noise_min, .data$noise_max, ~stats::runif(1, .x, .y))
-          ) %>%
-          dplyr::select(.data$Task_ID, .data$Output_ID, .data$noise) %>%
-          dplyr::left_join(hps_unique, ., by = c("Task_ID", "Output_ID"))
-      }
-      final_hp <- hps_unique
+      final_hp <- grid
+      final_hp$l_t   <- draw_group("lt", TRUE,  TRUE)
+      final_hp$S_t   <- draw_group("St", TRUE,  TRUE)
+      final_hp$l_u_t <- draw_group("lu", FALSE, TRUE)
+      if (noise) final_hp$noise <- draw_group("noise", TRUE, FALSE)
+      return(final_hp)
     }
 
-    # Manage l_u_t case, which does not depend on output but only on task
+    ## Full Task x Output grid onto which every hyper-parameter is broadcast.
+    grid <- tidyr::crossing(Task_ID = task_fct, Output_ID = out_fct)
+
+    ## Draw a smoothing-kernel parameter ('lt', 'St' or 'noise') at the
+    ## granularity implied by the sharing flags, then broadcast onto 'grid'.
+    draw_smoothing <- function(param) {
+      lo <- config[[paste0(param, "_min")]]
+      hi <- config[[paste0(param, "_max")]]
+      if (shared_hp_outputs) {
+        if (shared_hp_tasks) {
+          rep(stats::runif(1, lo[1], hi[1]), nrow(grid))
+        } else {
+          vals <- stats::runif(length(task_ids), lo[1], hi[1])
+          vals[match(grid$Task_ID, task_fct)]
+        }
+      } else {
+        if (shared_hp_tasks) {
+          vals <- stats::runif(length(out_ids), lo, hi)
+          vals[match(grid$Output_ID, out_fct)]
+        } else {
+          idx <- match(grid$Output_ID, out_fct)
+          stats::runif(nrow(grid), lo[idx], hi[idx])
+        }
+      }
+    }
+
+    final_hp <- grid %>%
+      dplyr::mutate(l_t = draw_smoothing("lt"), S_t = draw_smoothing("St"))
+    if (noise) final_hp$noise <- draw_smoothing("noise")
+
+    ## A single latent process is shared by all outputs, so 'l_u_t' never
+    ## varies by output. It varies by task only when HPs are task-specific.
     if (shared_hp_tasks) {
-      final_hp$l_u_t <- stats::runif(1, hp_config$lu_min[1], hp_config$lu_max[1])
+      final_hp$l_u_t <- stats::runif(1, config$lu_min[1], config$lu_max[1])
     } else {
-      l_u_t_per_task <- tibble::tibble(
-        Task_ID = as.factor(list_task_ID),
-        l_u_t   = stats::runif(num_tasks, hp_config$lu_min[1], hp_config$lu_max[1])
-      )
-      final_hp <- dplyr::inner_join(final_hp, l_u_t_per_task, by = "Task_ID")
+      lu <- stats::runif(length(task_ids), config$lu_min[1], config$lu_max[1])
+      final_hp$l_u_t <- lu[match(final_hp$Task_ID, task_fct)]
     }
 
     return(final_hp)
@@ -601,7 +596,7 @@ hp <- function(kern = "SE",
                           lin_offset = stats::runif(n_draws, min_val, max_val)
                         ),
                         # Default case for operators like '+' or '*'
-                        tibble::tibble()
+                        NULL
       )
       generated_hps <- dplyr::bind_cols(generated_hps, temp_hp)
     }
@@ -640,4 +635,152 @@ hp <- function(kern = "SE",
 
     return(final_hp)
   }
+}
+
+#' Build the per-output generation bounds for the convolution kernel
+#'
+#' @param hp_config A user-supplied tibble of bounds, or NULL for defaults.
+#' @param out_ids An integer vector of (sorted, unique) output IDs.
+#' @return A tibble of bounds with one row per output, in `out_ids` order.
+#' @keywords internal
+.hp_conv_config <- function(hp_config, out_ids) {
+  default <- tibble::tibble(
+    Output_ID = out_ids,
+    lt_min = log(1 / 1000), lt_max = log(1 / 100),
+    St_min = log(0.4),      St_max = log(20),
+    lu_min = log(1 / 1000), lu_max = log(1 / 100),
+    noise_min = -5,         noise_max = -2
+  )
+  if (is.null(hp_config)) return(default)
+  ## Accept the historical lower-case 'output_id' spelling.
+  if ("output_id" %in% names(hp_config) && !("Output_ID" %in% names(hp_config))) {
+    hp_config <- dplyr::rename(hp_config, Output_ID = "output_id")
+  }
+  needed <- setdiff(names(default), "Output_ID")
+  miss <- setdiff(needed, names(hp_config))
+  if (length(miss) > 0) {
+    stop("'hp_config' is missing column(s): ", paste(miss, collapse = ", "),
+         ".", call. = FALSE)
+  }
+  hp_config %>%
+    dplyr::mutate(Output_ID = as.character(.data$Output_ID)) %>%
+    dplyr::arrange(match(.data$Output_ID, out_ids))
+}
+
+#' Flatten a multi-output hyper-parameter tibble into a named vector
+#'
+#' Converts the canonical multi-output hyper-parameter tibble into the flat
+#' named numeric vector consumed by `stats::optim()`. Names are the derivative
+#' identifiers understood by `convolution_kernel()`. Names embed the Output_ID
+#' label: 'l_t_<o>', 'S_t_<o>', 'l_u_t', 'noise_<o>' (single latent); with a
+#' 'Latent_ID' column: 'l_t_o<o>_l<q>', 'S_t_o<o>_l<q>', 'l_u_t_l<q>',
+#' 'noise_o{d}'.
+#'
+#' @param hp A hyper-parameter tibble (single individual, no 'Task_ID').
+#' @return A named numeric vector.
+#' @keywords internal
+flatten_hp_mo <- function(hp) {
+  if ("Latent_ID" %in% names(hp) &&
+      length(unique(as.character(hp$Latent_ID))) > 1) {
+    hp <- hp %>% dplyr::arrange(as.character(.data$Latent_ID),
+                                as.character(.data$Output_ID))
+    ol <- as.character(hp$Output_ID); ql <- as.character(hp$Latent_ID)
+    vec <- c(
+      stats::setNames(hp$l_t, paste0("l_t_o", ol, "_l", ql)),
+      stats::setNames(hp$S_t, paste0("S_t_o", ol, "_l", ql))
+    )
+    lu <- hp %>% dplyr::distinct(.data$Latent_ID, .data$l_u_t) %>%
+      dplyr::arrange(as.character(.data$Latent_ID))
+    if (anyDuplicated(as.character(lu$Latent_ID))) {
+      stop("flatten_hp_mo(): 'l_u_t' must be constant within each latent.",
+           call. = FALSE)
+    }
+    vec <- c(vec, stats::setNames(lu$l_u_t,
+      paste0("l_u_t_l", as.character(lu$Latent_ID))))
+    if ("noise" %in% names(hp)) {
+      ns <- hp %>% dplyr::distinct(.data$Output_ID, .data$noise) %>%
+        dplyr::arrange(as.character(.data$Output_ID))
+      vec <- c(vec, stats::setNames(ns$noise,
+        paste0("noise_o", as.character(ns$Output_ID))))
+    }
+    return(vec)
+  }
+  hp <- hp %>% dplyr::arrange(as.character(.data$Output_ID))
+  lab <- as.character(hp$Output_ID)
+  lu <- unique(hp$l_u_t)
+  if (length(lu) != 1) {
+    stop("flatten_hp_mo() expects a single shared 'l_u_t' value.",
+         call. = FALSE)
+  }
+  vec <- c(
+    stats::setNames(hp$l_t, paste0("l_t_", lab)),
+    stats::setNames(hp$S_t, paste0("S_t_", lab)),
+    stats::setNames(lu, "l_u_t")
+  )
+  if ("noise" %in% names(hp)) {
+    vec <- c(vec, stats::setNames(hp$noise, paste0("noise_", lab)))
+  }
+  vec
+}
+
+#' Rebuild a multi-output hyper-parameter tibble from a flat named vector
+#'
+#' Inverse of [flatten_hp_mo()]. Multi-latent names (containing a latent
+#' suffix '_l{q}') reconstruct a 'Latent_ID' column.
+#'
+#' @param hp A named numeric vector as produced by [flatten_hp_mo()].
+#' @return A hyper-parameter tibble.
+#' @keywords internal
+unflatten_hp_mo <- function(hp) {
+  nm <- names(hp)
+  if (any(grepl("^l_u_t_l", nm))) {
+    lt <- hp[grepl("^l_t_o", nm)]
+    st <- hp[grepl("^S_t_o", nm)]
+    lu <- hp[grepl("^l_u_t_l", nm)]
+    ns <- hp[grepl("^noise_o", nm)]
+    d <- sub("^l_t_o(.*)_l[0-9]+$", "\\1", names(lt))
+    q <- sub("^.*_l", "", names(lt))
+    lat <- sub("^l_u_t_l", "", names(lu))
+    lu_map <- stats::setNames(as.numeric(lu), lat)
+    out <- tibble::tibble(
+      Output_ID = d,
+      Latent_ID = q,
+      l_t = as.numeric(lt),
+      S_t = as.numeric(st[paste0("S_t_o", d, "_l", q)]),
+      l_u_t = as.numeric(lu_map[q])
+    )
+    if (length(ns) > 0) {
+      nd <- sub("^noise_o", "", names(ns))
+      ns_map <- stats::setNames(as.numeric(ns), nd)
+      out$noise <- as.numeric(ns_map[d])
+    }
+    return(out)
+  }
+  lt <- hp[grepl("^l_t_", nm)]
+  st <- hp[grepl("^S_t_", nm)]
+  ns <- hp[grepl("^noise_", nm)]
+  lu <- hp[nm == "l_u_t"]
+  lab <- sub("^l_t_", "", names(lt))
+  out <- tibble::tibble(
+    Output_ID = lab,
+    l_t = as.numeric(lt),
+    S_t = as.numeric(st[paste0("S_t_", lab)]),
+    l_u_t = as.numeric(lu)
+  )
+  if (length(ns) > 0) {
+    out$noise <- as.numeric(ns[paste0("noise_", lab)])
+  }
+  out
+}
+
+#' Test whether a hyper-parameter object is a flat multi-output vector
+#'
+#' @param hp An object to test.
+#' @return A logical value.
+#' @keywords internal
+is_flat_mo_hp <- function(hp) {
+  if (!is.numeric(hp) || is.null(names(hp)) || length(hp) == 0) return(FALSE)
+  ## Multi-output flat names: 'l_t_<o>', 'S_t_<o>', 'noise_<o>' (labels may be
+  ## arbitrary strings), 'l_u_t' or 'l_u_t_l<q>' (single/multi-latent).
+  all(grepl("^(l_t_|S_t_|noise_).+$|^l_u_t(_l.+)?$", names(hp)))
 }

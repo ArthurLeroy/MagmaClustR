@@ -102,7 +102,7 @@ e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
 #'    associated Output of the hyper-posterior mean parameter.
 #' @param post_cov A matrix, coming out of the E step, being the hyper-posterior
 #'    covariance parameter.
-#' @param common_hp A logical value, indicating whether the set of
+#' @param shared_hp A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all indiviuals.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #' numerical issues when inverting nearly singular matrices.
@@ -125,33 +125,37 @@ m_step <- function(
   old_hp_i,
   post_mean,
   post_cov,
-  common_hp,
+  shared_hp,
   pen_diag
 ) {
   list_ID <- unique(db$ID)
-  list_hp_0 <- old_hp_0 %>% names()
-  list_hp_i <- old_hp_i %>%
-    dplyr::select(-.data$ID) %>%
-    names()
 
-  ## Detect whether the kernel_0 provides derivatives for its hyper-parameters
+  ## Multi-output HPs carry an 'Output_ID' column. In that case the optimiser
+  ## works on a flat named vector (names = the kernel's derivative ids), which
+  ## is rebuilt into the canonical tibble inside logL_*/gr_* via unflatten.
+  mo_0 <- "Output_ID" %in% names(old_hp_0)
+  mo_i <- "Output_ID" %in% names(old_hp_i)
+
+  ## Disable analytic gradients if a custom kernel provides no derivatives.
   if (kern_0 %>% is.function()) {
-    if (!("deriv" %in% methods::formalArgs(kern_0))) {
-      gr_GP_mod <- NULL
-    }
+    if (!("deriv" %in% methods::formalArgs(kern_0))) gr_GP_mod <- NULL
   }
-
-  ## Detect whether the kernel_i provides derivatives for its hyper-parameters
   if (kern_i %>% is.function()) {
     if (!("deriv" %in% methods::formalArgs(kern_i))) {
       gr_GP_mod <- NULL
-      gr_GP_mod_common_hp <- NULL
+      gr_GP_mod_shared_hp <- NULL
     }
   }
 
-  ## Optimise hyper-parameters of the mean process
+  ## Convert an hp representation to the flat vector optim consumes, and back.
+  to_par <- function(hp_tbl, mo) if (mo) flatten_hp_mo(hp_tbl) else hp_tbl
+  from_par <- function(par, mo) {
+    if (mo) unflatten_hp_mo(par) else tibble::as_tibble_row(par)
+  }
+
+  ## ---- Mean process -----------------------------------------------------
   new_hp_0 <- stats::optim(
-    par = old_hp_0,
+    par = to_par(old_hp_0, mo_0),
     fn = logL_GP_mod,
     gr = gr_GP_mod,
     db = post_mean,
@@ -162,19 +166,19 @@ m_step <- function(
     method = "L-BFGS-B",
     control = list(factr = 1e13, maxit = 25)
   )$par %>%
-    tibble::as_tibble_row()
+    from_par(mo_0)
 
-  ## Check whether hyper-parameters are common to all individuals
-  if (common_hp) {
-    ## Retrieve the adequate initial hyper-parameters
-    par_i <- old_hp_i %>%
-      dplyr::select(-.data$ID) %>%
-      dplyr::slice(1)
-    ## Optimise hyper-parameters of the individual processes
-    new_hp_i <- stats::optim(
-      par = par_i,
-      fn = logL_GP_mod_common_hp,
-      gr = gr_GP_mod_common_hp,
+  ## ---- Individual processes: shared hyper-parameters --------------------
+  if (shared_hp) {
+    ## One shared HP set: take the block (all outputs) of a single individual.
+    hp_block <- old_hp_i %>%
+      dplyr::filter(.data$ID == list_ID[[1]]) %>%
+      dplyr::select(-.data$ID)
+
+    one_hp <- stats::optim(
+      par = to_par(hp_block, mo_i),
+      fn = logL_GP_mod_shared_hp,
+      gr = gr_GP_mod_shared_hp,
       db = db,
       mean = post_mean,
       kern = kern_i,
@@ -183,33 +187,33 @@ m_step <- function(
       method = "L-BFGS-B",
       control = list(factr = 1e13, maxit = 25)
     )$par %>%
-      tibble::as_tibble_row() %>%
-      tidyr::uncount(weights = length(list_ID)) %>%
-      dplyr::mutate("ID" = list_ID, .before = 1)
+      from_par(mo_i)
+
+    ## Replicate the shared HPs across every individual.
+    new_hp_i <- dplyr::bind_rows(lapply(
+      list_ID,
+      function(id) dplyr::mutate(one_hp, ID = id, .before = 1)
+    ))
+
+  ## ---- Individual processes: task-specific hyper-parameters -------------
   } else {
     floop <- function(i) {
-      ## Extract the i-th specific inputs
       input_i <- db %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::pull(.data$Reference)
-      ## Extract the mean values associated with the i-th specific inputs
       post_mean_i <- post_mean %>%
         dplyr::filter(.data$Reference %in% input_i) %>%
         dplyr::pull(.data$Output)
-      ## Extract the covariance values associated with the i-th specific inputs
       post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
-      ## Extract the data associated with the i-th individual
       db_i <- db %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::select(-.data$ID)
-      ## Extract the hyper-parameters associated with the i-th individual
-      par_i <- old_hp_i %>%
+      hp_block <- old_hp_i %>%
         dplyr::filter(.data$ID == i) %>%
         dplyr::select(-.data$ID)
 
-      ## Optimise hyper-parameters of the individual processes
       stats::optim(
-        par = par_i,
+        par = to_par(hp_block, mo_i),
         fn = logL_GP_mod,
         gr = gr_GP_mod,
         db = db_i,
@@ -220,17 +224,12 @@ m_step <- function(
         method = "L-BFGS-B",
         control = list(factr = 1e13, maxit = 25)
       )$par %>%
-        tibble::as_tibble_row() %>%
-        return()
+        from_par(mo_i) %>%
+        dplyr::mutate(ID = i, .before = 1)
     }
-    new_hp_i <- sapply(list_ID, floop, simplify = FALSE, USE.NAMES = TRUE) %>%
-      tibble::enframe(name = "ID") %>%
-      tidyr::unnest(cols = .data$value)
+    new_hp_i <- dplyr::bind_rows(lapply(list_ID, floop))
   }
 
-  list(
-    "hp_0" = new_hp_0,
-    "hp_i" = new_hp_i
-  ) %>%
+  list("hp_0" = new_hp_0, "hp_i" = new_hp_i) %>%
     return()
 }

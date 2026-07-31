@@ -460,7 +460,7 @@ generate_mean_process <- function(
 
     K_theta0_X <- suppressWarnings(kern_to_cov(
       input = input_df_mean_process,
-      kern = convolution_kernel_KD,
+      kern = convolution_kernel,
       hp = hp_tibble_for_kernel
     ))
 
@@ -597,7 +597,7 @@ generate_single_task_data <- function(
     }
     K_task_t <- kern_to_cov(
       input = input_df,
-      kern = convolution_kernel_KD,
+      kern = convolution_kernel,
       hp = task_hp_tibble
     )
   }
@@ -816,7 +816,7 @@ simu_data <- function(
                                 sigma = draw(int_i_sigma))
       } else {
         shared_task_hp_tibble <- hp(
-          kern = convolution_kernel_KD,
+          kern = convolution_kernel,
           list_task_ID = as.factor(1),
           list_output_ID = as.factor(1:n_outputs),
           shared_hp_tasks = TRUE,
@@ -860,7 +860,7 @@ simu_data <- function(
           shared_task_hp_tibble
         } else {
           hp(
-            kern = convolution_kernel_KD,
+            kern = convolution_kernel,
             list_task_ID = as.factor(1),
             list_output_ID = as.factor(1:n_outputs),
             shared_hp_tasks = TRUE,
@@ -893,7 +893,10 @@ simu_data <- function(
 
   final_db <- purrr::map_dfr(seq_len(n_clusters), floop_k)
 
-  pivot_inputs_longer(final_db)
+  ## Return identifier columns as character (coherent, join-friendly type).
+  pivot_inputs_longer(final_db) %>%
+    dplyr::mutate(dplyr::across(
+      dplyr::any_of(c("Task_ID", "Output_ID", "Input_ID")), as.character))
 }
 
 #' @rdname simu_data

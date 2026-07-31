@@ -13,8 +13,8 @@ train_magmaclust(
   kern_k = "SE",
   kern_i = "SE",
   ini_mixture = NULL,
-  common_hp_k = TRUE,
-  common_hp_i = TRUE,
+  shared_hp_k = TRUE,
+  shared_hp_i = TRUE,
   grid_inputs = NULL,
   pen_diag = 1e-10,
   n_iter_max = 25,
@@ -94,10 +94,10 @@ details above in \code{kern_k}).}
 cluster for each individual (\code{\link{ini_mixture}} can be used for
 a k-means initialisation. Used by default if NULL).}
 
-\item{common_hp_k}{A boolean indicating whether hyper-parameters are common
+\item{shared_hp_k}{A boolean indicating whether hyper-parameters are common
 among the mean GPs.}
 
-\item{common_hp_i}{A boolean indicating whether hyper-parameters are common
+\item{shared_hp_i}{A boolean indicating whether hyper-parameters are common
 among the individual GPs.}
 
 \item{grid_inputs}{A vector, indicating the grid of additional reference

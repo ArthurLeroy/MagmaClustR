@@ -2,7 +2,7 @@
 % Please edit documentation in R/kernels.R
 \name{hp}
 \alias{hp}
-\title{Generate Initial Hyperparameters for GP Kernels}
+\title{Generate initial hyper-parameters for GP and multi-output kernels}
 \usage{
 hp(
   kern = "SE",
@@ -10,49 +10,57 @@ hp(
   list_output_ID = NULL,
   shared_hp_tasks = TRUE,
   shared_hp_outputs = FALSE,
+  n_latent = 1,
   noise = FALSE,
   hp_config = NULL
 )
 }
 \arguments{
-\item{kern}{A function, or a character string indicating the chosen type of
-kernel among:
-\itemize{
-\item "SE": the Squared Exponential kernel,
-\item "LIN": the Linear kernel,
-\item "PERIO": the Periodic kernel,
-\item "RQ": the Rational Quadratic kernel.
-Compound kernels can be created as sums or products of the above kernels.
-For combining kernels, simply provide a formula as a character string
-where elements are separated by whitespaces (e.g. "SE + PERIO"). As the
-elements are treated sequentially from the left to the right, the product
-operator '*' shall always be used before the '+' operators (e.g.
-'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
-}
+\item{kern}{A character string naming a single-output kernel (one of
+"SE", "LIN", "PERIO", "RQ", or a whitespace-separated combination
+such as "SE + PERIO"), or a kernel \emph{function} for the multi-output case
+(typically \code{\link[=convolution_kernel]{convolution_kernel()}}).}
 
-In case of a custom kernel function, the argument \code{list_hp} has to be
-provided as well, for designing a tibble with the correct names of
-hyper-parameters.}
+\item{list_task_ID}{A vector of task identifiers. Required for the
+multi-output convolution kernel.}
 
-\item{list_task_ID}{A vector of task IDs.}
+\item{list_output_ID}{A vector of output identifiers (labels; may be arbitrary strings, e.g. 'weight', 'height').
+Required for the multi-output convolution kernel.}
 
-\item{list_output_ID}{A vector of output IDs.}
+\item{shared_hp_tasks}{A logical value. If TRUE (default), hyper-parameters
+are shared across tasks; otherwise they are drawn independently per task.}
 
-\item{shared_hp_tasks}{If TRUE, HPs are shared across tasks.}
+\item{shared_hp_outputs}{A logical value. If TRUE, the smoothing-kernel
+hyper-parameters are shared across outputs; otherwise (default) they are
+output-specific.}
 
-\item{shared_hp_outputs}{If TRUE, HPs are shared across outputs.}
+\item{noise}{A logical value. If TRUE, a 'noise' hyper-parameter is added.}
 
-\item{noise}{If TRUE, a 'noise' hyperparameter is added.}
-
-\item{hp_config}{A tibble providing min/max bounds for HP generation, specific
-to the convolution_kernel. If NULL, default bounds are used.}
+\item{hp_config}{An optional tibble of per-output generation bounds for the
+convolution kernel, with an 'Output_ID' column and columns
+'lt_min'/'lt_max', 'St_min'/'St_max', 'lu_min'/'lu_max',
+'noise_min'/'noise_max'. If NULL (default), sensible bounds are used.}
 }
 \value{
-A \code{tibble} containing the generated hyperparameters.
+A \code{tibble} of initial hyper-parameters.
 }
 \description{
-Generate Initial Hyperparameters for GP Kernels
+\code{hp()} draws a tibble of random initial hyper-parameters with the correct
+structure for a given kernel. It supports two regimes:
+\itemize{
+\item Single-output kernels given as a character string (e.g. "SE",
+"SE + PERIO"): returns one row of the kernel's named hyper-parameters.
+\item The multi-output convolution kernel given as a function
+(\code{\link[=convolution_kernel]{convolution_kernel()}}): returns a tibble keyed by \code{Task_ID} and
+\code{Output_ID}, with the smoothing-kernel parameters \code{l_t}, \code{S_t}, the
+shared latent-process lengthscale \code{l_u_t}, and optionally \code{noise}.
+}
 }
 \examples{
-TRUE
+## Single-output kernel
+hp("SE", noise = TRUE)
+
+## Multi-output convolution kernel: 2 tasks, 3 outputs
+hp(convolution_kernel, list_task_ID = c("a", "b"),
+   list_output_ID = 1:3, noise = TRUE)
 }

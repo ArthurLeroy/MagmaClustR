@@ -136,7 +136,7 @@ In the case of swimmers, we want a smooth progression curve for Michaela; theref
 The most commonly used kernels and their properties are discussed in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
 Details of available kernels and how to combine them  in the package are available in [`help(train_magma)`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 
 
-*   `common_hp`: here, we assume that the set of hyper-parameters is common to all individuals. Thus, we model a context where individuals represent different trajectories of the same process, whereas different hyper-parameters indicate different covariance structures and thus a more flexible model.
+*   `shared_hp`: here, we assume that the set of hyper-parameters is common to all individuals. Thus, we model a context where individuals represent different trajectories of the same process, whereas different hyper-parameters indicate different covariance structures and thus a more flexible model.
 
 As for any GP method, initialisation of the hyper-parameters may have an influence on the final optimisation and lead to inadequate prediction for pathological cases. Therefore, users may explicitly define specific initial values through the dedicated `ini_hp` argument.
 
@@ -148,7 +148,7 @@ set.seed(3)
 model <- train_magma(data = swimmers_train,
                      kern_0 = "SE",
                      kern_i = "SE",
-                     common_hp = TRUE)
+                     shared_hp = TRUE)
 ```
 
 ### Prediction for Michaela
@@ -264,7 +264,7 @@ swimmers_pred_m <- swimmers_m %>% filter(ID %in% list_ID_m[24])
 model_m <- train_magma(data = swimmers_train_m,
                         kern_0 = "SE",
                         kern_i = "SE",
-                        common_hp = TRUE)
+                        shared_hp = TRUE)
 
 ## Compute a prediction for Michael 
 pred_m <- pred_magma(data = swimmers_pred_m,

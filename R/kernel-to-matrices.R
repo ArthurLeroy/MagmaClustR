@@ -1,3 +1,21 @@
+#' Identify the numeric input-coordinate columns of a dataset
+#'
+#' Returns the names of the numeric columns that represent input coordinates,
+#' excluding identifier/metadata columns (e.g. 'Output_ID', 'Input_ID',
+#' 'Task_ID', 'ID', 'Output'). This keeps coordinate detection robust to
+#' identifier columns that happen to be numeric.
+#'
+#' @param df A data frame or tibble.
+#'
+#' @return A character vector of coordinate column names.
+#'
+#' @keywords internal
+identify_coord_cols <- function(df) {
+  non_coord <- c("Output_ID", "Input_ID", "Task_ID", "ID",
+                 "Output", "Var_output", "Reference")
+  names(df)[vapply(df, is.numeric, logical(1)) & !(names(df) %in% non_coord)]
+}
+
 #' Create covariance matrix from a kernel
 #'
 #' \code{kern_to_cov()} creates a covariance matrix between input values (that
@@ -73,50 +91,69 @@ kern_to_cov <- function(input,
       is.data.frame(input) &&
       "Output_ID" %in% names(input) &&
       length(input$Output_ID %>% unique()) > 1) {
-    # Need a unique dataframe, containing all observed inputs of all outputs.
     # The kernel itself generates the whole MO covariance matrix.
 
-    # Call the provided kernel in vectorized mode to generate the whole MO
-    # covariance matrix.
-    mat <- kern(x = input, y = input_2, hp = hp, vectorized = TRUE, deriv = deriv)
-
-    # We select ONLY the columns that uniquely define a point
-    # (coordinates + Output_ID) to ensure consistent naming across different
-    # function calls.
-
-    # Dynamically find all numeric coordinate columns, whatever their names.
-    coord_cols <- names(input)[sapply(input, is.numeric) & names(input) != "Output_ID"]
-
-    # Paste the coordinate values together for each row
+    # Build the row/column names from the columns that uniquely define a point
+    # (numeric coordinates + Output_ID) for consistent naming across calls.
+    coord_cols <- identify_coord_cols(input)
     pasted_coords <- do.call(paste, c(input[coord_cols], sep = ";"))
-
-    # Prepend the output ID to create the final name
     reference <- paste0("o", input$Output_ID, ";", pasted_coords)
 
-    # Do the same for the second set of inputs if it's different
-    if (identical(input, input_2)) {
+    # 'input' and 'input_2' are identical for a (square) covariance matrix, but
+    # differ for a (rectangular) cross-covariance matrix.
+    same_inputs <- identical(input, input_2)
+    if (same_inputs) {
       reference_2 <- reference
     } else {
       pasted_coords_2 <- do.call(paste, c(input_2[coord_cols], sep = ";"))
       reference_2 <- paste0("o", input_2$Output_ID, ";", pasted_coords_2)
     }
 
-    ## Add a 'noise' term on the diagonal if provided
-    if (("noise" %in% names(hp)) && is.null(deriv)) {
-      # Join to ensure that the noise of each point corresponds to the right
-      # output
-      noise_info <- input %>%
-        dplyr::select(.data$Output_ID) %>%
-        dplyr::left_join(hp, by = "Output_ID")
+    ## Derivative w.r.t. an output-specific noise term. The noise only enters
+    ## the diagonal of the (square) covariance matrix as exp(noise_k), so its
+    ## derivative is a diagonal matrix carrying exp(noise_k) on the entries
+    ## belonging to output k and 0 elsewhere. For a cross-covariance matrix it
+    ## does not appear at all (zero matrix). Handled here because the kernel
+    ## only knows its own hyper-parameters (l_t, S_t, l_u_t), not the noise.
+    if (!is.null(deriv) && startsWith(deriv, "noise")) {
+      out_lab <- if (grepl("^noise_o", deriv)) sub("^noise_o", "", deriv) else
+        sub("^noise_", "", deriv)
 
-      full_noise_vector <- exp(noise_info$noise)
+      mat <- matrix(0, nrow = nrow(input), ncol = nrow(input_2))
+      if (same_inputs) {
+        noise_k <- hp %>%
+          dplyr::filter(
+            as.character(.data$Output_ID) == out_lab
+          ) %>%
+          dplyr::pull(.data$noise)
+        if (length(noise_k) == 0) {
+          stop("'noise' parameter not found for Output_ID: ", out_lab)
+        }
+        noise_k <- noise_k[1]
+        is_output_k <- as.character(input$Output_ID) == out_lab
+        diag(mat) <- ifelse(is_output_k, exp(noise_k), 0)
+      }
+      return(mat %>% `rownames<-`(reference) %>% `colnames<-`(reference_2))
+    }
 
-      # Add the noise vector to the diagonal
-      mat <- mat + diag(full_noise_vector)
+    # Covariance matrix, or a derivative w.r.t. a kernel hyper-parameter.
+    mat <- kern(x = input, y = input_2, hp = hp, vectorized = TRUE,
+                deriv = deriv)
 
-    } else if (is.null(deriv)) {
-      warning("Noise parameter is not provided. Data is then supposed to be ",
-              "noiseless.")
+    ## Add the noise on the diagonal only for a covariance matrix of a set of
+    ## inputs against itself. A cross-covariance matrix has no diagonal noise,
+    ## and 'diag()' would break on a non-square matrix.
+    if (is.null(deriv)) {
+      if (("noise" %in% names(hp)) && same_inputs) {
+        # Attach each point to the noise of its own output.
+        noise_by_output <- hp %>%
+          dplyr::distinct(.data$Output_ID, .data$noise) %>%
+          dplyr::mutate(Output_ID = as.character(.data$Output_ID))
+        noise_info <- tibble::tibble(
+          Output_ID = as.character(input$Output_ID)) %>%
+          dplyr::left_join(noise_by_output, by = "Output_ID")
+        mat <- mat + diag(exp(noise_info$noise))
+      }
     }
 
     return(mat %>% `rownames<-`(reference) %>% `colnames<-`(reference_2))
@@ -369,68 +406,35 @@ kern_to_cov <- function(input,
 
   ## Return the derivative of the noise if required
   if (!is.null(deriv)) {
-    if ("Output_ID" %in% names(hp)){
-      if (any(startsWith(deriv, "noise"))){
-        # Extract the ID of the hyper-parameter (ex: "noise_2" -> 2)
-        deriv_id_str <- stringr::str_extract(deriv, "\\d+$")
-        if (is.na(deriv_id_str)) {
-          stop("The derivative name should contain an ID, ex: 'noise_1'")
+    if ("Output_ID" %in% names(hp) && any(startsWith(deriv, "noise"))) {
+      # Output-specific noise derivative. The noise enters only the diagonal
+      # of the (square) covariance matrix as exp(noise_k); its derivative is a
+      # diagonal matrix carrying exp(noise_k) on the points of output k and 0
+      # elsewhere. For a cross-covariance matrix (input != input_2) the noise
+      # is absent, hence a zero matrix. Working directly on the diagonal (in
+      # the row order of 'input') avoids any reordering/misalignment.
+      out_lab <- if (grepl("^noise_o", deriv)) sub("^noise_o", "", deriv) else
+        sub("^noise_", "", deriv)
+
+      mat <- matrix(0, nrow = nrow(input), ncol = nrow(input_2))
+      if (identical(input, input_2)) {
+        noise_k <- hp %>%
+          dplyr::filter(
+            as.character(.data$Output_ID) == out_lab
+          ) %>%
+          dplyr::pull(.data$noise)
+        if (length(noise_k) == 0) {
+          stop("'noise' parameter not found for Output_ID: ", out_lab)
         }
-        deriv_id <- as.integer(deriv_id_str)
-
-        if ("Task_ID" %in% colnames(input)) {
-          input <- input %>% dplyr::select(-.data$Task_ID)
-        }
-        input_2 <- input_2 %>% dplyr::arrange(.data$Output_ID)
-        if ("Task_ID" %in% colnames(input_2)) {
-          input_2 <- input_2 %>% dplyr::select(-.data$Task_ID)
-        }
-
-        unique_ids <- unique(input$Output_ID)
-        list_of_blocks <- list()
-
-        for (id in unique_ids) {
-          subset_input <- input %>% dplyr::filter(.data$Output_ID == id)
-          subset_input_2 <- input_2 %>% dplyr::filter(.data$Output_ID == id)
-
-          # Compute the block only if Output_ID matches
-          if (id == deriv_id) {
-            # Compute the matrix derivative according to the current HP
-            current_noise_hp <- hp %>%
-              dplyr::filter(.data$Output_ID == id) %>%
-              dplyr::pull(.data$noise)
-
-            if (length(current_noise_hp) == 0) {
-              stop(paste("'Noise' parameter not found for Output_ID :", id))
-            }
-
-
-            # Create a sub-block of the whole noise matrix
-            block_matrix <- cpp_noise(
-              as.matrix(dplyr::select(.data$subset_input, .data$Input_1)),
-              as.matrix(dplyr::select(.data$subset_input_2, .data$Input_1)),
-              current_noise_hp
-            )
-
-          } else {
-            # Derivative is zero
-            block_matrix <- matrix(0,
-                                   nrow = nrow(subset_input),
-                                   ncol = nrow(subset_input_2)) %>%
-              `rownames<-` (subset_input$Input_1) %>%
-              `colnames<-` (subset_input$Input_1)
-          }
-
-          list_of_blocks[[as.character(id)]] <- block_matrix
-        }
-
-        # Aggregate blocks into the complete block-diagonal matrix
-        mat <- Matrix::bdiag(unname(list_of_blocks))
-        mat <- as.matrix(mat) %>%
-          `rownames<-`(input$Input_1) %>%
-          `colnames<-` (input_2$Input_1)
-        return(mat)
+        noise_k <- noise_k[1]
+        is_output_k <- as.character(input$Output_ID) == out_lab
+        diag(mat) <- ifelse(is_output_k, exp(noise_k), 0)
       }
+      return(
+        mat %>%
+          `rownames<-`(reference) %>%
+          `colnames<-`(reference_2)
+      )
     }
 
     if (deriv == "noise") {

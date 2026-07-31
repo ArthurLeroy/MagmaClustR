@@ -11,7 +11,7 @@ train_magma(
   ini_hp_i = NULL,
   kern_0 = "SE",
   kern_i = "SE",
-  common_hp = TRUE,
+  shared_hp = TRUE,
   grid_inputs = NULL,
   pen_diag = 1e-10,
   n_iter_max = 25,
@@ -86,7 +86,7 @@ operator '*' shall always be used before the '+' operators (e.g.
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
 "PERIO" and "RQ" are also available here).}
 
-\item{common_hp}{A logical value, indicating whether the set of
+\item{shared_hp}{A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all individuals.}
 
 \item{grid_inputs}{A vector, indicating the grid of additional reference

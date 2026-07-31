@@ -21,6 +21,8 @@
 #' TRUE
 gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
+  ## Multi-output: optim passes a flat named vector; rebuild the tibble.
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   output <- db$Output
   ## Extract the reference Input
   input <- db$Reference
@@ -68,6 +70,8 @@ gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #' TRUE
 gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
+  ## Multi-output: optim passes a flat named vector; rebuild the tibble.
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   output <- db$Output
   ## Extract the reference Input
   input <- db$Reference
@@ -114,8 +118,10 @@ gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @examples
 #' TRUE
-gr_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
+gr_GP_mod_shared_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_hp <- names(hp)
+  ## Multi-output: optim passes a flat named vector; rebuild the tibble.
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   ## Loop over individuals to compute the sum of log-Likelihoods
   funloop <- function(i) {
     ## Extract the i-th specific reference Input

@@ -16,6 +16,7 @@
 #' @examples
 #' TRUE
 elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   names_k <- hyperpost$mean %>% names()
   t_i <- db$Reference
   y_i <- db$Output
@@ -74,7 +75,8 @@ elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 #'
 #' @examples
 #' TRUE
-elbo_GP_mod_common_hp_k <- function(hp, db, mean, kern, post_cov, pen_diag) {
+elbo_GP_mod_shared_hp_k <- function(hp, db, mean, kern, post_cov, pen_diag) {
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   list_ID_k <- names(db)
 
   if ("ID" %in% names(db)) {
@@ -115,7 +117,8 @@ elbo_GP_mod_common_hp_k <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @examples
 #' TRUE
-elbo_clust_multi_GP_common_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
+elbo_clust_multi_GP_shared_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   names_k <- hyperpost$mean %>% names()
 
   sum_i <- 0

@@ -164,9 +164,9 @@ ve_step <- function(
 #'    GP at corresponding timestamps.
 #' @param m_k A named list of prior mean parameters for the K mean GPs.
 #'    Length = nrow(unique(db$Input))
-#' @param common_hp_k A boolean indicating whether hp are common among
+#' @param shared_hp_k A boolean indicating whether hp are common among
 #'    mean GPs (for each mu_k)
-#' @param common_hp_i A boolean indicating whether hp are common among
+#' @param shared_hp_i A boolean indicating whether hp are common among
 #'    individual GPs (for each y_i)
 #' @param old_hp_i A named vector, tibble or data frame, containing the
 #'    hyper-parameters from the previous  M-step (or initialisation) associated
@@ -196,177 +196,109 @@ vm_step <- function(
   kern_k,
   kern_i,
   m_k,
-  common_hp_k,
-  common_hp_i,
+  shared_hp_k,
+  shared_hp_i,
   pen_diag
 ) {
   list_ID_k <- names(m_k)
   list_ID_i <- unique(db$ID)
 
-  list_hp_i <- old_hp_i %>%
-    dplyr::select(-.data$ID) %>%
-    names()
+  ## Multi-output detection (convolution-kernel hp carry an 'Output_ID' col).
+  mo_i <- "Output_ID" %in% names(old_hp_i)
+  mo_k <- "Output_ID" %in% names(old_hp_k)
+  to_par <- function(hp_tbl, mo) if (mo) flatten_hp_mo(hp_tbl) else hp_tbl
+  from_par <- function(par, mo) {
+    if (mo) unflatten_hp_mo(par) else tibble::as_tibble_row(par)
+  }
 
-  list_hp_k <- old_hp_k %>%
-    dplyr::select(-.data$ID) %>%
-    dplyr::select(-.data$prop_mixture) %>%
-    names()
-
-  ## Detect whether kernel_k provides derivatives for its hyper-parameters
+  ## Disable analytic gradients if a custom kernel provides no derivatives.
   if (kern_k %>% is.function()) {
     if (!("deriv" %in% methods::formalArgs(kern_k))) {
       gr_GP_mod <- NULL
-      gr_GP_mod_common_hp_k <- NULL
+      gr_GP_mod_shared_hp_k <- NULL
     }
   }
-
-  ## Detect whether kernel_i provides derivatives for its hyper-parameters
   if (kern_i %>% is.function()) {
     if (!("deriv" %in% methods::formalArgs(kern_i))) {
-      gr_clust_multi_GP_common_hp_i <- NULL
+      gr_clust_multi_GP_shared_hp_i <- NULL
       gr_clust_multi_GP <- NULL
     }
   }
 
-  # Recompute prior mean parameters for each cluster with the updated mixture probabilities
-  floop <- function(k) {
+  ## Recompute the prior mean parameter for each cluster.
+  new_m_k <- lapply(list_ID_k, function(k) {
     mu <- list_mu_param$mean[[k]] %>% dplyr::pull(.data$Output)
-    inv <- list_mu_param$cov[[k]] %>% chol_inv_jitter(pen_diag = pen_diag)
-    dim <- length(mu)
-    ones <- rep(1, dim)
+    rep(mean(mu), length(mu))
+  }) %>% `names<-`(list_ID_k)
 
-    # Update the prior mean parameters for the k-th cluster
-    # update_m_k = (t(ones) %*% inv %*% mu) / (t(ones) %*% inv %*% ones)
-
-    # rep(update_m_k[1,1], dim) %>%
-    return(rep(mean(mu), dim))
-  }
-  new_m_k <- lapply(list_ID_k, floop) %>%
-    `names<-`(list_ID_k)
-
-
-  ## Check whether hyper-parameters are common to all individuals
-  if (common_hp_i) {
-    ## Extract the hyper-parameters associated with the i-th individual
-    par_i <- old_hp_i %>%
-      dplyr::select(-.data$ID) %>%
-      dplyr::slice(1)
-
-    ## Optimise hyper-parameters of the individual processes
-    new_hp_i <- stats::optim(
-      par = par_i,
-      fn = elbo_clust_multi_GP_common_hp_i,
-      gr = gr_clust_multi_GP_common_hp_i,
-      db = db,
-      hyperpost = list_mu_param,
-      kern = kern_i,
-      pen_diag = pen_diag,
-      method = "L-BFGS-B",
-      control = list(factr = 1e13, maxit = 25)
-    )$par %>%
-      tibble::as_tibble_row() %>%
-      tidyr::uncount(weights = length(list_ID_i)) %>%
-      dplyr::mutate("ID" = list_ID_i, .before = 1)
+  ## ---- Individual processes ---------------------------------------------
+  if (shared_hp_i) {
+    block_i <- old_hp_i %>%
+      dplyr::filter(.data$ID == list_ID_i[[1]]) %>%
+      dplyr::select(-.data$ID)
+    one_i <- stats::optim(
+      par = to_par(block_i, mo_i),
+      fn = elbo_clust_multi_GP_shared_hp_i,
+      gr = gr_clust_multi_GP_shared_hp_i,
+      db = db, hyperpost = list_mu_param, kern = kern_i, pen_diag = pen_diag,
+      method = "L-BFGS-B", control = list(factr = 1e13, maxit = 25)
+    )$par %>% from_par(mo_i)
+    new_hp_i <- dplyr::bind_rows(lapply(
+      list_ID_i, function(id) dplyr::mutate(one_i, ID = id, .before = 1)))
   } else {
     loop2 <- function(i) {
-      ## Extract the hyper-parameters associated with the i-th individual
-      par_i <- old_hp_i %>%
-        dplyr::filter(.data$ID == i) %>%
-        dplyr::select(-.data$ID)
-      ## Extract the data associated with the i-th individual
+      block_i <- old_hp_i %>%
+        dplyr::filter(.data$ID == i) %>% dplyr::select(-.data$ID)
       db_i <- db %>% dplyr::filter(.data$ID == i)
-
-      ## Optimise hyper-parameters of the individual processes
       stats::optim(
-        par = par_i,
-        fn = elbo_clust_multi_GP,
-        gr = gr_clust_multi_GP,
-        db = db_i,
-        pen_diag = pen_diag,
-        hyperpost = list_mu_param,
-        kern = kern_i,
-        method = "L-BFGS-B",
+        par = to_par(block_i, mo_i),
+        fn = elbo_clust_multi_GP, gr = gr_clust_multi_GP,
+        db = db_i, pen_diag = pen_diag, hyperpost = list_mu_param,
+        kern = kern_i, method = "L-BFGS-B",
         control = list(factr = 1e13, maxit = 25)
-      )$par %>%
-        tibble::as_tibble_row() %>%
-        return()
+      )$par %>% from_par(mo_i) %>% dplyr::mutate(ID = i, .before = 1)
     }
-    new_hp_i <- sapply(list_ID_i, loop2, simplify = FALSE, USE.NAMES = TRUE) %>%
-      tibble::enframe(name = "ID") %>%
-      tidyr::unnest(cols = .data$value)
+    new_hp_i <- dplyr::bind_rows(lapply(list_ID_i, loop2))
   }
 
-  ## Compute the prop mixture of each cluster
+  ## Mixture proportions per cluster.
   prop_mixture <- list_mu_param$mixture %>%
-    dplyr::select(-.data$ID) %>%
-    colMeans()
+    dplyr::select(-.data$ID) %>% colMeans()
 
-  ## Check whether hyper-parameters are common to all cluster
-  if (common_hp_k) {
-    ## Extract the hyper-parameters associated with the k-th cluster
-    par_k <- old_hp_k %>%
-      dplyr::select(-.data$ID) %>%
-      dplyr::slice(1) %>%
-      dplyr::select(-.data$prop_mixture)
-
-    ## Optimise hyper-parameters of the processes of each cluster
-    new_hp_k <- stats::optim(
-      par = par_k,
-      fn = elbo_GP_mod_common_hp_k,
-      gr = gr_GP_mod_common_hp_k,
-      db = list_mu_param$mean,
-      mean = new_m_k,
-      kern = kern_k,
-      post_cov = list_mu_param$cov,
-      pen_diag = pen_diag,
-      method = "L-BFGS-B",
-      control = list(factr = 1e13, maxit = 25)
-    )$par %>%
-      tibble::as_tibble_row() %>%
-      tidyr::uncount(weights = length(list_ID_k)) %>%
-      dplyr::mutate("ID" = list_ID_k, .before = 1) %>%
-      dplyr::mutate("prop_mixture" = prop_mixture)
+  ## ---- Cluster mean processes -------------------------------------------
+  if (shared_hp_k) {
+    block_k <- old_hp_k %>%
+      dplyr::filter(.data$ID == list_ID_k[[1]]) %>%
+      dplyr::select(-.data$ID, -.data$prop_mixture)
+    one_k <- stats::optim(
+      par = to_par(block_k, mo_k),
+      fn = elbo_GP_mod_shared_hp_k, gr = gr_GP_mod_shared_hp_k,
+      db = list_mu_param$mean, mean = new_m_k, kern = kern_k,
+      post_cov = list_mu_param$cov, pen_diag = pen_diag,
+      method = "L-BFGS-B", control = list(factr = 1e13, maxit = 25)
+    )$par %>% from_par(mo_k)
+    new_hp_k <- dplyr::bind_rows(lapply(list_ID_k, function(id)
+      dplyr::mutate(one_k, ID = id,
+                    prop_mixture = unname(prop_mixture[id]), .before = 1)))
   } else {
     loop <- function(k) {
-      ## Extract the hyper-parameters associated with the k-th cluster
-      par_k <- old_hp_k %>%
+      block_k <- old_hp_k %>%
         dplyr::filter(.data$ID == k) %>%
-        dplyr::select(-.data$ID) %>%
-        dplyr::select(-.data$prop_mixture)
-      ## Extract the data associated with the k-th cluster
-      db_k <- list_mu_param$mean[[k]]
-      ## Extract the mean values associated with the k-th specific inputs
-      mean_k <- new_m_k[[k]]
-      ## Extract the covariance values associated with the k-th specific inputs
-      post_cov_k <- list_mu_param$cov[[k]]
-
-      ## Optimise hyper-parameters of the processes of each cluster
+        dplyr::select(-.data$ID, -.data$prop_mixture)
       stats::optim(
-        par = par_k,
-        logL_GP_mod,
-        gr = gr_GP_mod,
-        db = db_k,
-        mean = mean_k,
-        kern = kern_k,
-        post_cov = post_cov_k,
-        pen_diag = pen_diag,
-        method = "L-BFGS-B",
-        control = list(factr = 1e13, maxit = 25)
-      )$par %>%
-        tibble::as_tibble_row() %>%
-        return()
+        par = to_par(block_k, mo_k),
+        fn = logL_GP_mod, gr = gr_GP_mod,
+        db = list_mu_param$mean[[k]], mean = new_m_k[[k]], kern = kern_k,
+        post_cov = list_mu_param$cov[[k]], pen_diag = pen_diag,
+        method = "L-BFGS-B", control = list(factr = 1e13, maxit = 25)
+      )$par %>% from_par(mo_k) %>%
+        dplyr::mutate(ID = k, prop_mixture = unname(prop_mixture[k]),
+                      .before = 1)
     }
-    new_hp_k <- sapply(list_ID_k, loop, simplify = FALSE, USE.NAMES = TRUE) %>%
-      tibble::enframe(name = "ID") %>%
-      tidyr::unnest_wider(.data$value) %>%
-      dplyr::mutate("prop_mixture" = prop_mixture)
+    new_hp_k <- dplyr::bind_rows(lapply(list_ID_k, loop))
   }
 
-  list(
-    "m_k" = new_m_k,
-    "hp_k" = new_hp_k,
-    "hp_i" = new_hp_i
-  ) %>%
+  list("m_k" = new_m_k, "hp_k" = new_hp_k, "hp_i" = new_hp_i) %>%
     return()
 }
 

@@ -1,6 +1,7 @@
 # MagmaClustR (development version)
 
 ## Major
+* Add support for multiple latent processes in the multi-output convolution kernel (`convolution_kernel()`): the covariance is now a sum over Q latent processes, enabling richer (rank-Q) cross-output correlation structures. Initialise the corresponding hyper-parameters with `hp(..., n_latent = Q)`.
 * Change the way prior means work in the MagmaClust framework. They are now optimised during Mstep using a closed-form optimum.  
 * Update the simu_db() (and add an alias simu_data()) function to handle multi-output scenarios.
 * Update the plot_db() function to handle multi-output scenarios, and 2D inputs.
@@ -8,6 +9,8 @@
 
 ## Minor
 
+
+* The model assumption 'common_hp' are now named 'shared_hp' instead for clarity.
 * The mean process is simulated via generate_mean_process(), whereas task data are derived from generate_single_task_data(). simu_indiv_se() has been removed from the package.
 * Add the 'plot_clusters()' function to display clustering results directly after training
 * Add an argument to display testing data directly within plotting functions
@@ -19,7 +22,7 @@
 * Replace the deprecated `aes_string` function with modern syntax of `aes`
 * Fix the wrong definition of GPs mixtures by drawing a cluster instead of averaging
 * Fix a bug when using pred_magmaclust() with no data argument.
-* Add convolution_kernel_KD() function to generate the convolution process kernel
+* Add convolution_kernel() function to generate the convolution process kernel
 * kern_to_cov() now natively supports multi-output scenarios. The convolution kernel has been added to the list of documented and supported kernels.
 * Added a safety check before returning the covariance matrix. If the matrix contains NaN or Inf values, an explicit warning is now triggered.
 * Update hp() to natively support multi-output scenarios.

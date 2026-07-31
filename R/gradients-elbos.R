@@ -16,6 +16,8 @@
 #' TRUE
 gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
   list_hp <- names(hp)
+  ## Multi-output: optim passes a flat named vector; rebuild the tibble.
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
 
   names_k <- hyperpost$mean %>% names()
   t_i <- db$Reference
@@ -87,7 +89,7 @@ gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
 #'
 #' @examples
 #' TRUE
-gr_GP_mod_common_hp_k <- function(
+gr_GP_mod_shared_hp_k <- function(
   hp,
   db,
   mean,
@@ -101,6 +103,8 @@ gr_GP_mod_common_hp_k <- function(
 
   list_ID_k <- names(db)
   list_hp <- names(hp)
+  ## Multi-output: optim passes a flat named vector; rebuild the tibble.
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
 
   ## Extract the k-th specific reference Input
   input_k <- db[[1]] %>%
@@ -164,7 +168,7 @@ gr_GP_mod_common_hp_k <- function(
 #'
 #' @examples
 #' TRUE
-gr_clust_multi_GP_common_hp_i <- function(
+gr_clust_multi_GP_shared_hp_i <- function(
   hp,
   db,
   hyperpost,
@@ -172,6 +176,8 @@ gr_clust_multi_GP_common_hp_i <- function(
   pen_diag = NULL
 ) {
   list_hp <- names(hp)
+  ## Multi-output: optim passes a flat named vector; rebuild the tibble.
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   names_k <- hyperpost$mean %>% names()
 
   ## Loop over individuals to compute the sum of log-Likelihoods

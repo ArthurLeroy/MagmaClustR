@@ -72,6 +72,8 @@ dmnorm <- function(x, mu, inv_Sigma, log = FALSE) {
 #' TRUE
 logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   ## Extract the input variables (reference Input + Covariates)
+  ## Multi-output: optim passes a flat named vector; rebuild the tibble.
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   inputs <- db %>% dplyr::select(-.data$Output)
 
   ## Sum the two covariance matrices and inverse the result
@@ -158,6 +160,8 @@ logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 
   ## Extract the input variables (reference Input + Covariates)
   inputs <- db %>% dplyr::select(-.data$Output)
+  ## Multi-output: optim passes a flat named vector; rebuild the tibble.
+  if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   ## Compute the inverse of the covariance matrix
   inv <- kern_to_inv(inputs, kern, hp, pen_diag)
 
@@ -194,7 +198,7 @@ logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
 #'
 #' @examples
 #' TRUE
-logL_GP_mod_common_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
+logL_GP_mod_shared_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
   funloop <- function(i) {
     ## Extract the i-th specific reference inputs
     input_i <- db %>%

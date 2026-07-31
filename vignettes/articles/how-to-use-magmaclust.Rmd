@@ -132,9 +132,9 @@ In the case of swimmers, we want a smooth progression curve for James; therefore
 The most commonly used kernels and their properties are discussed in [the kernel cookbook](https://www.cs.toronto.edu/~duvenaud/cookbook/).
 Details of available kernels and how to combine them are available in [`help(train_magma)`](https://arthurleroy.github.io/MagmaClustR/reference/train_magma.html). 
 
-*   `common_hp_k`: here, we assume that the set of hyper-parameters is the same for each cluster by setting `common_hp_k = TRUE`. Thus, we suppose that all clusters share the same covariance structure. This property implies that the shapes and variations of the curves are assumed to be roughly identical from one cluster to another; the differentiation is mainly due to the mean values.
+*   `shared_hp_k`: here, we assume that the set of hyper-parameters is the same for each cluster by setting `shared_hp_k = TRUE`. Thus, we suppose that all clusters share the same covariance structure. This property implies that the shapes and variations of the curves are assumed to be roughly identical from one cluster to another; the differentiation is mainly due to the mean values.
 
-*  `common_hp_i`: as we want to share information across children, we specify `common_hp_i = TRUE`. If this assumption may appear restrictive at first glance, it actually offers a valuable way to share common patterns between tasks.
+*  `shared_hp_i`: as we want to share information across children, we specify `shared_hp_i = TRUE`. If this assumption may appear restrictive at first glance, it actually offers a valuable way to share common patterns between tasks.
 
 As for any GP method, initialisation of the HP may have an influence on the final optimisation and leads to inadequate prediction for pathological cases. Therefore, users may explicitly define specific initial values through the dedicated arguments: `ini_hp_k` and `ini_hp_i`.
 
@@ -148,8 +148,8 @@ model_clust <- train_magmaclust(data = weight_train,
                         nb_cluster = 3,
                         kern_k = "SE",
                         kern_i = "SE",
-                        common_hp_k = TRUE,
-                        common_hp_i = TRUE)
+                        shared_hp_k = TRUE,
+                        shared_hp_i = TRUE)
 ```
 
 ### Prediction for James
@@ -236,7 +236,7 @@ set.seed(11)
 model_magma <- train_magma(data = weight_train,
                         kern_0 = "SE",
                         kern_i = "SE",
-                        common_hp = FALSE)
+                        shared_hp = FALSE)
 
 pred_magma <- pred_magma(data=weight_pred,
                    grid_inputs = seq(0,72,0.1),

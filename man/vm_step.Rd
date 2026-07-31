@@ -12,8 +12,8 @@ vm_step(
   kern_k,
   kern_i,
   m_k,
-  common_hp_k,
-  common_hp_i,
+  shared_hp_k,
+  shared_hp_i,
   pen_diag
 )
 }
@@ -40,10 +40,10 @@ GP at corresponding timestamps.}
 \item{m_k}{A named list of prior mean parameters for the K mean GPs.
 Length = nrow(unique(db$Input))}
 
-\item{common_hp_k}{A boolean indicating whether hp are common among
+\item{shared_hp_k}{A boolean indicating whether hp are common among
 mean GPs (for each mu_k)}
 
-\item{common_hp_i}{A boolean indicating whether hp are common among
+\item{shared_hp_i}{A boolean indicating whether hp are common among
 individual GPs (for each y_i)}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent

@@ -11,6 +11,9 @@
 #'   Inputs can be simultaneously displayed in 2D) that should be used for
 #'   plotting. Default is \code{NULL}, simply uses the first Input appearing in
 #'   the dataset.
+#' @param legend A boolean indicating whether to display the legend for colors.
+#'  Default is \code{FALSE}.
+#'
 #' @return Graph of raw data as dots and lines (1D) or heatmap labels (2D).
 #'
 #' @export

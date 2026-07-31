@@ -129,7 +129,7 @@ pred_gp <- function(
 
   ## Keep 6 significant digits for entries to avoid numerical errors
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -153,39 +153,31 @@ pred_gp <- function(
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
-    set_grid <- function(data, size_grid) {
-      seq(data %>% min(), data %>% max(), length.out = size_grid) %>%
-        return()
-    }
-    if (inputs_obs %>% names() %>% length() == 2) {
+    set_grid <- function(x, size_grid) seq(min(x), max(x), length.out = size_grid)
+    has_output_id <- "Output_ID" %in% names(inputs_obs)
+    coord_cols <- setdiff(names_col, "Output_ID")
+    if (length(coord_cols) == 1) {
       size_grid <- 500
-    } else if (inputs_obs %>% names() %>% length() > 2) {
-      size_grid <- 1000^(1 / (ncol(inputs_obs) - 1)) %>% round()
-      ## floor instead of round ?
+    } else if (length(coord_cols) > 1) {
+      size_grid <- round(1000^(1 / length(coord_cols)))
     } else {
-      stop(
-        "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_magma()."
-      )
+      stop("The 'grid_inputs' argument should be a either a numerical vector ",
+           "or a data frame depending on the context. Please read ?pred_gp().")
     }
-
-    inputs_pred <- purrr::map_dfr(
-      data %>% dplyr::select(tidyselect::all_of(names_col)),
-      set_grid,
-      size_grid
-    ) %>%
-      unique() %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-      expand.grid() %>%
-      tibble::as_tibble() %>% ## df to tibble
-      tidyr::unite(
-        "Reference",
-        tidyselect::all_of(names_col),
-        sep = ":",
-        remove = FALSE
-      ) %>%
+    coord_seqs <- stats::setNames(
+      lapply(coord_cols, function(cc) set_grid(data[[cc]], size_grid)), coord_cols)
+    coord_grid <- expand.grid(coord_seqs) %>% tibble::as_tibble() %>%
+      dplyr::mutate(dplyr::across(tidyselect::everything(), signif))
+    if (has_output_id) {
+      inputs_pred <- tidyr::crossing(
+        Output_ID = unique(inputs_obs$Output_ID), coord_grid)
+    } else {
+      inputs_pred <- coord_grid
+    }
+    inputs_pred <- inputs_pred %>%
+      tidyr::unite("Reference", tidyselect::all_of(names_col), sep = ":",
+                   remove = FALSE) %>%
       dplyr::arrange(.data$Reference)
-
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
   } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
@@ -206,7 +198,7 @@ pred_gp <- function(
     }
   } else if (grid_inputs %>% is.data.frame()) {
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif)
+      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif))
 
     if (!("Reference" %in% (grid_inputs %>% names()))) {
       grid_inputs <- grid_inputs %>%
@@ -337,7 +329,14 @@ pred_gp <- function(
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if ("noise" %in% names(hp)) {
     hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
-    noise <- exp(hp[["noise"]])
+    if ("Output_ID" %in% names(hp)) {
+      noise_map <- hp %>% dplyr::distinct(.data$Output_ID, .data$noise)
+      noise <- exp(noise_map$noise[match(
+        as.character(inputs_pred$Output_ID),
+        as.character(noise_map$Output_ID))])
+    } else {
+      noise <- exp(hp[["noise"]])
+    }
   } else {
     hp_rm_noi <- hp
     noise <- 0
@@ -538,7 +537,7 @@ hyperposterior <- function(
   ## Keep 6 significant digits for entries to avoid numerical errors and
   ## Add Reference column if missing
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -569,7 +568,7 @@ hyperposterior <- function(
 
     ## Define the union among all reference Inputs and a specified grid
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
       tidyr::unite(
         "Reference",
         tidyselect::all_of(names_col),
@@ -585,6 +584,22 @@ hyperposterior <- function(
       dplyr::arrange(.data$Reference)
 
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
+  }
+
+  ## Guard against prohibitively large hyper-posterior grids: the mean-process
+  ## covariance is inverted at O(n^3) cost, and in the multi-output case the
+  ## grid is replicated across every output, so it grows quickly.
+  n_grid <- length(all_input)
+  if (n_grid > 5000) {
+    stop("The hyper-posterior grid has ", n_grid, " points. Inverting a ",
+         "covariance of this size is O(n^3) and would be prohibitively slow ",
+         "(> 5000 points, typically > 10s). Please provide a coarser ",
+         "'grid_inputs' (recall it is replicated across every output).",
+         call. = FALSE)
+  } else if (n_grid > 2000) {
+    warning("The hyper-posterior grid has ", n_grid, " points; the O(n^3) ",
+            "inversion may be slow. Consider a coarser 'grid_inputs'.",
+            call. = FALSE)
   }
 
   ## Initialise m_0 according to the value provided by the user
@@ -621,7 +636,7 @@ hyperposterior <- function(
       all(c(tidyselect::all_of(names_col), "Output") %in% names(prior_mean))
     ) {
       m_0 <- prior_mean %>%
-        purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+        dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
         tidyr::unite(
           "Reference",
           tidyselect::all_of(names_col),
@@ -870,6 +885,12 @@ pred_magma <- function(
     data <- data %>% dplyr::select(-.data$ID)
   }
 
+  ## When a trained model is provided, use its individual-process kernel
+  ## (the default 'kern' argument cannot carry a custom kernel function).
+  if (!is.null(trained_model)) {
+    kern <- trained_model$ini_args$kern_i
+  }
+
   ## Get input column names
   if ("Reference" %in% names(data)) {
     names_col <- data %>%
@@ -883,7 +904,7 @@ pred_magma <- function(
 
   ## Keep 6 significant digits for entries to avoid numerical errors
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -907,16 +928,20 @@ pred_magma <- function(
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
-    set_grid <- function(data, size_grid) {
-      seq(data %>% min(), data %>% max(), length.out = size_grid) %>%
-        return()
+    set_grid <- function(x, size_grid) {
+      seq(min(x), max(x), length.out = size_grid)
     }
 
-    if (inputs_obs %>% names() %>% length() == 2) {
+    ## Build the grid on the numeric input columns only. In the multi-output
+    ## case 'Output_ID' is an identifier, not a coordinate: the grid is built
+    ## on the remaining inputs and replicated across every observed output.
+    has_output_id <- "Output_ID" %in% names(inputs_obs)
+    coord_cols <- setdiff(names_col, "Output_ID")
+
+    if (length(coord_cols) == 1) {
       size_grid <- 500
-    } else if (inputs_obs %>% names() %>% length() > 2) {
-      size_grid <- 1000^(1 / (ncol(inputs_obs) - 1)) %>% round()
-      ## floor instead of round ?
+    } else if (length(coord_cols) > 1) {
+      size_grid <- round(1000^(1 / length(coord_cols)))
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
@@ -924,15 +949,24 @@ pred_magma <- function(
       )
     }
 
-    inputs_pred <- purrr::map_dfr(
-      data %>% dplyr::select(tidyselect::all_of(names_col)),
-      set_grid,
-      size_grid
-    ) %>%
-      unique() %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-      expand.grid() %>%
-      tibble::as_tibble() %>% ## df to tibble
+    coord_seqs <- stats::setNames(
+      lapply(coord_cols, function(cc) set_grid(data[[cc]], size_grid)),
+      coord_cols
+    )
+    coord_grid <- expand.grid(coord_seqs) %>%
+      tibble::as_tibble() %>%
+      dplyr::mutate(dplyr::across(tidyselect::everything(), signif))
+
+    if (has_output_id) {
+      inputs_pred <- tidyr::crossing(
+        Output_ID = unique(inputs_obs$Output_ID),
+        coord_grid
+      )
+    } else {
+      inputs_pred <- coord_grid
+    }
+
+    inputs_pred <- inputs_pred %>%
       tidyr::unite(
         "Reference",
         tidyselect::all_of(names_col),
@@ -964,7 +998,7 @@ pred_magma <- function(
     }
   } else if (grid_inputs %>% is.data.frame()) {
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif)
+      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif))
     if (!("Reference" %in% (grid_inputs %>% names()))) {
       grid_inputs <- grid_inputs %>%
         tidyr::unite(
@@ -1085,19 +1119,36 @@ pred_magma <- function(
     if (!is.null(trained_model)) {
       ## Check whether hyper-parameters are common if we have 'trained_model'
       if (
-        tryCatch(trained_model$ini_args$common_hp, error = function(e) FALSE)
+        tryCatch(trained_model$ini_args$shared_hp, error = function(e) FALSE)
       ) {
         ## Extract the hyper-parameters common to all 'i'
+        ## Common HPs: take the full block of a single individual (all its
+        ## outputs in the multi-output case, a single row otherwise).
+        first_id <- trained_model$hp_i$ID[[1]]
         hp <- trained_model$hp_i %>%
-          dplyr::slice(1) %>%
+          dplyr::filter(.data$ID == first_id) %>%
           dplyr::select(-.data$ID)
       } else if (kern %>% is.function()) {
-        stop(
-          "When using a custom kernel function the 'hp' argument is ",
-          "mandatory, in order to provide the name of the hyper-parameters. ",
-          "You can use the function 'hp()' to easily generate a tibble of ",
-          "random hyper-parameters with the desired format, or use ",
-          "'train_gp()' to learn ML estimators for a better fit."
+        ## Individual-specific HPs (shared_hp = FALSE) with a custom kernel:
+        ## learn this individual's HPs by ML, reusing the trained model's HP
+        ## structure as initialisation and the hyper-posterior as prior.
+        ini_block <- trained_model$hp_i %>%
+          dplyr::filter(.data$ID == trained_model$hp_i$ID[[1]]) %>%
+          dplyr::select(-.data$ID)
+        hp <- quiet(
+          train_gp(
+            data,
+            prior_mean = NULL,
+            ini_hp = ini_block,
+            kern = kern,
+            hyperpost = hyperpost,
+            pen_diag = pen_diag
+          )
+        )
+        cat(
+          "The 'hp' argument has not been specified. 'train_gp()' has been ",
+          "used to learn ML estimators of this individual's hyper-parameters ",
+          "for the provided kernel.\n \n"
         )
       } else if (kern %>% is.character()) {
         hp <- quiet(
@@ -1159,7 +1210,17 @@ pred_magma <- function(
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if ("noise" %in% names(hp)) {
     hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
-    noise <- exp(hp[["noise"]])
+    if ("Output_ID" %in% names(hp)) {
+      ## Multi-output: map each prediction point to its own output noise
+      ## (deduplicated across latent-process rows).
+      noise_map <- hp %>% dplyr::distinct(.data$Output_ID, .data$noise)
+      noise <- exp(noise_map$noise[match(
+        as.character(inputs_pred$Output_ID),
+        as.character(noise_map$Output_ID)
+      )])
+    } else {
+      noise <- exp(hp[["noise"]])
+    }
   } else {
     hp_rm_noi <- hp
     noise <- 0
@@ -1554,7 +1615,7 @@ hyperposterior_clust <- function(
   ## Keep 6 significant digits for entries to avoid numerical errors and
   ## Add Reference column if missing
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -1567,16 +1628,16 @@ hyperposterior_clust <- function(
     dplyr::ungroup()
 
   ## Get the number of clusters
-  nb_cluster <- hp_k %>%
-    dplyr::pull(.data$ID) %>%
-    length()
-  ## Get the name of clusters
-  ID_k <- hp_k %>%
-    dplyr::pull(.data$ID) %>%
-    as.character()
+  ## Cluster identifiers (distinct: multi-output hp_k has several rows per
+  ## cluster, one per output).
+  ID_k <- hp_k %>% dplyr::pull(.data$ID) %>% unique() %>% as.character()
+  nb_cluster <- length(ID_k)
 
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
+  if ("Output_ID" %in% names(data)) {
+    data$Output_ID <- as.character(data$Output_ID)
+  }
 
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
@@ -1597,7 +1658,7 @@ hyperposterior_clust <- function(
 
     ## Define the union among all reference Inputs and a specified grid
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
       tidyr::unite(
         "Reference",
         tidyselect::all_of(names_col),
@@ -1606,6 +1667,9 @@ hyperposterior_clust <- function(
       ) %>%
       dplyr::arrange(.data$Reference)
 
+    if (is.data.frame(grid_inputs) && "Output_ID" %in% names(grid_inputs)) {
+      grid_inputs$Output_ID <- as.character(grid_inputs$Output_ID)
+    }
     all_inputs <- data %>%
       dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
       dplyr::union(grid_inputs) %>%
@@ -1966,7 +2030,7 @@ pred_magmaclust <- function(
 
   ## Keep 6 significant digits for entries to avoid numerical errors
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -1988,43 +2052,40 @@ pred_magmaclust <- function(
   inputs_obs <- data %>%
     dplyr::select(-c(.data$ID, .data$Output))
 
+  ## When a trained model is provided, use its individual-process kernel.
+  if (!is.null(trained_model)) kern <- trained_model$ini_args$kern_i
+
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
-    set_grid <- function(data, size_grid) {
-      seq(data %>% min(), data %>% max(), length.out = size_grid) %>%
-        return()
+    set_grid <- function(x, size_grid) {
+      seq(min(x), max(x), length.out = size_grid)
     }
-
-    if (ncol(inputs_obs) == 2) {
-      size_grid = 500
-    } else if (ncol(inputs_obs) > 2) {
-      size_grid = 1000^(1 / (ncol(inputs_obs) - 1)) %>% round()
+    has_output_id <- "Output_ID" %in% names(inputs_obs)
+    coord_cols <- setdiff(names_col, "Output_ID")
+    if (length(coord_cols) == 1) {
+      size_grid <- 500
+    } else if (length(coord_cols) > 1) {
+      size_grid <- round(1000^(1 / length(coord_cols)))
     } else {
-      stop(
-        "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ",
-        "?pred_magmaclust()."
-      )
+      stop("The 'grid_inputs' argument should be a either a numerical vector ",
+           "or a data frame depending on the context. Please read ",
+           "?pred_magmaclust().")
     }
-
-    inputs_pred <- purrr::map_dfr(
-      data %>%
-        dplyr::select(tidyselect::all_of(names_col)),
-      set_grid,
-      size_grid
-    ) %>%
-      unique() %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
-      expand.grid() %>%
-      tibble::as_tibble() %>%
-      tidyr::unite(
-        "Reference",
-        tidyselect::all_of(names_col),
-        sep = ":",
-        remove = FALSE
-      ) %>%
+    coord_seqs <- stats::setNames(
+      lapply(coord_cols, function(cc) set_grid(data[[cc]], size_grid)),
+      coord_cols)
+    coord_grid <- expand.grid(coord_seqs) %>% tibble::as_tibble() %>%
+      dplyr::mutate(dplyr::across(tidyselect::everything(), signif))
+    if (has_output_id) {
+      inputs_pred <- tidyr::crossing(
+        Output_ID = unique(inputs_obs$Output_ID), coord_grid)
+    } else {
+      inputs_pred <- coord_grid
+    }
+    inputs_pred <- inputs_pred %>%
+      tidyr::unite("Reference", tidyselect::all_of(names_col), sep = ":",
+                   remove = FALSE) %>%
       dplyr::arrange(.data$Reference)
-
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
   } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
@@ -2056,7 +2117,7 @@ pred_magmaclust <- function(
       names_grid <- names(grid_inputs)
     }
     grid_inputs <- grid_inputs %>%
-      purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
       tidyr::unite(
         "Reference",
         tidyselect::all_of(names_grid),
@@ -2163,15 +2224,16 @@ pred_magmaclust <- function(
     if (!is.null(trained_model)) {
       ## Check whether hyper-parameters are common if we have 'trained_model'
       if (
-        tryCatch(trained_model$ini_args$common_hp_i, error = function(e) FALSE)
+        tryCatch(trained_model$ini_args$shared_hp_i, error = function(e) FALSE)
       ) {
         ## Extract the hyper-parameters common to all 'i'
+        first_id <- trained_model$hp_i$ID[[1]]
         hp <- trained_model$hp_i %>%
-          dplyr::slice(1) %>%
-          dplyr::mutate("ID" = ID_data)
+          dplyr::filter(.data$ID == first_id) %>%
+          dplyr::mutate(ID = ID_data)
         ## Extract and format the mixture proportions
         prop_mixture <- trained_model$hp_k %>%
-          dplyr::pull(.data$prop_mixture, name = .data$ID)
+          dplyr::distinct(.data$ID, .data$prop_mixture) %>% dplyr::pull(.data$prop_mixture, name = .data$ID)
 
         mixture <- update_mixture(
           data,
@@ -2193,7 +2255,7 @@ pred_magmaclust <- function(
       } else if (kern %>% is.character()) {
         ## Extract the mixture proportions
         prop_mixture <- trained_model$hp_k %>%
-          dplyr::pull(.data$prop_mixture, name = .data$ID)
+          dplyr::distinct(.data$ID, .data$prop_mixture) %>% dplyr::pull(.data$prop_mixture, name = .data$ID)
 
         cat(
           "The 'hp' argument has not been specified. The 'train_gp_clust()'",
@@ -2255,7 +2317,14 @@ pred_magmaclust <- function(
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if ("noise" %in% names(hp)) {
     hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
-    noise <- exp(hp[["noise"]])
+    if ("Output_ID" %in% names(hp)) {
+      noise_map <- hp %>% dplyr::distinct(.data$Output_ID, .data$noise)
+      noise <- exp(noise_map$noise[match(
+        as.character(inputs_pred$Output_ID),
+        as.character(noise_map$Output_ID))])
+    } else {
+      noise <- exp(hp[["noise"]])
+    }
   } else {
     hp_rm_noi <- hp
     noise <- 0

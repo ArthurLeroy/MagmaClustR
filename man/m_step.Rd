@@ -13,7 +13,7 @@ m_step(
   old_hp_i,
   post_mean,
   post_cov,
-  common_hp,
+  shared_hp,
   pen_diag
 )
 }
@@ -41,7 +41,7 @@ associated Output of the hyper-posterior mean parameter.}
 \item{post_cov}{A matrix, coming out of the E step, being the hyper-posterior
 covariance parameter.}
 
-\item{common_hp}{A logical value, indicating whether the set of
+\item{shared_hp}{A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all indiviuals.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent

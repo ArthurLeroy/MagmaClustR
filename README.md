@@ -93,7 +93,7 @@ be treated as a covariate (and thus define multi-dimensional inputs).
 ### Training and prediction with Magma
 
 ``` r
-model <- train_magma(data = magma_train, common_hp = F)
+model <- train_magma(data = magma_train, shared_hp = F)
 #> The 'prior_mean' argument has not been specified. The hyper_prior mean function is thus set to be 0 everywhere.
 #>  
 #> The 'ini_hp_0' argument has not been specified. Random values of hyper-parameters for the mean process are used as initialisation.
@@ -136,7 +136,7 @@ pred  <- pred_magma(data = magma_pred,
 
 <img src="man/figures/README-train_and_predict_Magma-1.png" width="80%" style="display: block; margin: auto;" />
 
-Note that the `common_hp` and `grid_inputs` arguments are optional. They
+Note that the `shared_hp` and `grid_inputs` arguments are optional. They
 respectively indicate that a specific set of hyper-parameters is trained
 for each curve, and control the grid of values on which the prediction
 is performed.

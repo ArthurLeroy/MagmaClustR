@@ -102,7 +102,7 @@ train_gp <- function(
   ## Keep 6 significant digits for entries to avoid numerical errors and
   ## Add a Reference column for identification
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -176,7 +176,7 @@ train_gp <- function(
         all(c("Output", tidyselect::all_of(names_col)) %in% names(prior_mean))
       ) {
         mean <- prior_mean %>%
-          purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+          dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
           tidyr::unite(
             "Reference",
             tidyselect::all_of(names_col),
@@ -234,8 +234,13 @@ train_gp <- function(
   ## Extract the names of hyper-parameters
   list_hp <- hp %>% names()
 
+  ## Multi-output HPs (a convolution-kernel tibble with an 'Output_ID'
+  ## column) are flattened to the vector optim consumes, then rebuilt.
+  mo <- "Output_ID" %in% names(hp)
+  par <- if (mo) flatten_hp_mo(hp) else hp
+
   hp_new <- stats::optim(
-    hp,
+    par,
     fn = logL_GP,
     gr = gr_GP,
     db = data,
@@ -245,8 +250,9 @@ train_gp <- function(
     pen_diag = pen_diag,
     method = "L-BFGS-B",
     control = list(factr = 1e13, maxit = 25)
-  )$par %>%
-    tibble::as_tibble_row()
+  )$par
+
+  hp_new <- if (mo) unflatten_hp_mo(hp_new) else tibble::as_tibble_row(hp_new)
 
   ## If something went wrong during the optimization
   if (hp_new %>% is.na() %>% any()) {
@@ -454,7 +460,7 @@ train_shared_gp <- function(
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are also available here).
-#' @param common_hp A logical value, indicating whether the set of
+#' @param shared_hp A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all individuals.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
@@ -519,7 +525,7 @@ train_magma <- function(
   ini_hp_i = NULL,
   kern_0 = "SE",
   kern_i = "SE",
-  common_hp = TRUE,
+  shared_hp = TRUE,
   grid_inputs = NULL,
   pen_diag = 1e-10,
   n_iter_max = 25,
@@ -545,6 +551,12 @@ train_magma <- function(
   data <- data %>% tidyr::drop_na()
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
+  ## Normalise the output identifier to a factor so that Output_ID keeps a
+  ## consistent type throughout training and later prediction (avoids
+  ## factor/double clashes in joins and unions in the multi-output case).
+  if ("Output_ID" %in% names(data)) {
+    data$Output_ID <- as.character(data$Output_ID)
+  }
   ## Extract the list of different IDs
   list_ID <- data$ID %>% unique()
 
@@ -562,7 +574,7 @@ train_magma <- function(
   ## Keep 6 significant digits for entries to avoid numerical errors and
   ## Add a Reference column for identification
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -627,7 +639,7 @@ train_magma <- function(
       all(c(tidyselect::all_of(names_col), "Output") %in% names(prior_mean))
     ) {
       m_0 <- prior_mean %>%
-        purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+        dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
         tidyr::unite(
           "Reference",
           tidyselect::all_of(names_col),
@@ -671,6 +683,7 @@ train_magma <- function(
         " hyper-parameters with the desired format for initialisation."
       )
     }
+    hp_0 <- ini_hp_0
   } else {
     if (ini_hp_0 %>% is.null()) {
       hp_0 <- hp(kern_0)
@@ -698,9 +711,10 @@ train_magma <- function(
         " hyper-parameters with the desired format for initialisation."
       )
     }
+    hp_i <- ini_hp_i
   } else {
     if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(kern_i, list_ID = list_ID, common_hp = common_hp, noise = TRUE)
+      hp_i <- hp(kern_i, list_ID = list_ID, shared_hp = shared_hp, noise = TRUE)
       cat(
         "The 'ini_hp_i' argument has not been specified. Random values of",
         "hyper-parameters for the individal processes are used as",
@@ -724,7 +738,7 @@ train_magma <- function(
 
   ## Add a 'noise' hyper-parameter if absent
   if (!("noise" %in% names(hp_i))) {
-    if (common_hp) {
+    if (shared_hp) {
       hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
     } else {
       hp_i <- hp_i %>%
@@ -785,7 +799,7 @@ train_magma <- function(
       old_hp_i = hp_i,
       post_mean = post$mean,
       post_cov = post$cov,
-      common_hp = common_hp,
+      shared_hp = shared_hp,
       pen_diag = pen_diag
     )
     new_hp_0 <- new_hp$hp_0
@@ -911,7 +925,7 @@ train_magma <- function(
     "ini_hp_i" = hp_i_ini,
     "kern_0" = kern_0,
     "kern_i" = kern_i,
-    "common_hp" = common_hp,
+    "shared_hp" = shared_hp,
     "grid_inputs" = grid_inputs,
     "pen_diag" = pen_diag,
     "n_iter_max" = n_iter_max,
@@ -1003,9 +1017,9 @@ train_magma <- function(
 #' @param ini_mixture Initial values of the probability to belong to each
 #'    cluster for each individual (\code{\link{ini_mixture}} can be used for
 #'    a k-means initialisation. Used by default if NULL).
-#' @param common_hp_k A boolean indicating whether hyper-parameters are common
+#' @param shared_hp_k A boolean indicating whether hyper-parameters are common
 #'    among the mean GPs.
-#' @param common_hp_i A boolean indicating whether hyper-parameters are common
+#' @param shared_hp_i A boolean indicating whether hyper-parameters are common
 #'    among the individual GPs.
 #' @param grid_inputs A vector, indicating the grid of additional reference
 #'    inputs on which the mean processes' hyper-posteriors should be evaluated.
@@ -1071,8 +1085,8 @@ train_magmaclust <- function(
   kern_k = "SE",
   kern_i = "SE",
   ini_mixture = NULL,
-  common_hp_k = TRUE,
-  common_hp_i = TRUE,
+  shared_hp_k = TRUE,
+  shared_hp_i = TRUE,
   grid_inputs = NULL,
   pen_diag = 1e-10,
   n_iter_max = 25,
@@ -1105,7 +1119,7 @@ train_magmaclust <- function(
   }
 
   ##Convert all non ID columns to double (implicitly throw error if not numeric)
-  data = data %>% dplyr::mutate(dplyr::across(-.data$ID, as.double))
+  data = data %>% dplyr::mutate(dplyr::across(-dplyr::any_of(c("ID", "Output_ID")), as.double))
 
   ## Check the number of cluster
   if (nb_cluster %>% is.null()) {
@@ -1132,6 +1146,12 @@ train_magmaclust <- function(
 
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
+  ## Normalise the output identifier to a factor so that Output_ID keeps a
+  ## consistent type throughout training and later prediction (avoids
+  ## factor/double clashes in joins and unions in the multi-output case).
+  if ("Output_ID" %in% names(data)) {
+    data$Output_ID <- as.character(data$Output_ID)
+  }
   ## Extract the list of different IDs
   list_ID <- data$ID %>% unique()
 
@@ -1143,7 +1163,7 @@ train_magmaclust <- function(
   ## Keep 6 significant digits for entries to avoid numerical errors and
   ## Add a Reference column for identification and sort according to it
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -1189,12 +1209,13 @@ train_magmaclust <- function(
         " hyper-parameters with the desired format for initialisation."
       )
     }
+    hp_i <- ini_hp_i
   } else {
     if (ini_hp_i %>% is.null()) {
       hp_i <- hp(
         kern_i,
         list_ID = list_ID,
-        common_hp = common_hp_i,
+        shared_hp = shared_hp_i,
         noise = TRUE
       )
       cat(
@@ -1227,7 +1248,7 @@ train_magmaclust <- function(
 
   ## Add a 'noise' hyper-parameter if absent
   if (!("noise" %in% names(hp_i))) {
-    if (common_hp_i) {
+    if (shared_hp_i) {
       hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
     } else {
       hp_i <- hp_i %>%
@@ -1245,9 +1266,10 @@ train_magmaclust <- function(
         " hyper-parameters with the desired format for initialisation."
       )
     }
+    hp_k <- ini_hp_k
   } else {
     if (ini_hp_k %>% is.null()) {
-      hp_k <- hp(kern_k, list_ID = ID_k, common_hp = common_hp_k, noise = F)
+      hp_k <- hp(kern_k, list_ID = ID_k, shared_hp = shared_hp_k, noise = F)
       cat(
         "The 'ini_hp_k' argument has not been specified. Random values of",
         "hyper-parameters for the mean processes are used as",
@@ -1338,10 +1360,10 @@ train_magmaclust <- function(
     )
   }
 
-  hp_k[["prop_mixture"]] <- mixture %>%
+  prop_vec <- mixture %>%
     dplyr::select(-.data$ID) %>%
-    colMeans() %>%
-    as.vector()
+    colMeans()
+  hp_k[["prop_mixture"]] <- as.numeric(prop_vec[as.character(hp_k$ID)])
 
   ## Keep an history of the (possibly random) initial values of hyper-parameters
   m_k_ini <- m_k
@@ -1394,8 +1416,8 @@ train_magmaclust <- function(
       kern_k,
       kern_i,
       m_k,
-      common_hp_k,
-      common_hp_i,
+      shared_hp_k,
+      shared_hp_i,
       pen_diag
     ) # %>% suppressMessages()
 
@@ -1538,8 +1560,8 @@ train_magmaclust <- function(
     "kern_k" = kern_k,
     "kern_i" = kern_i,
     "ini_mixture" = mixture_ini,
-    "common_hp_k" = common_hp_k,
-    "common_hp_i" = common_hp_i,
+    "shared_hp_k" = shared_hp_k,
+    "shared_hp_i" = shared_hp_i,
     "n_iter_max" = n_iter_max,
     "pen_diag" = pen_diag,
     "cv_threshold" = cv_threshold
@@ -1652,7 +1674,7 @@ train_gp_clust <- function(
   ## Keep 6 significant digits for entries to avoid numerical errors and
   ## Add Reference column if missing
   data <- data %>%
-    purrr::modify_at(tidyselect::all_of(names_col), signif) %>%
+    dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
     tidyr::unite(
       "Reference",
       tidyselect::all_of(names_col),
@@ -1763,6 +1785,12 @@ train_gp_clust <- function(
 
   ## Certify that IDs are of type 'character'
   data$ID <- data$ID %>% as.character()
+  ## Normalise the output identifier to a factor so that Output_ID keeps a
+  ## consistent type throughout training and later prediction (avoids
+  ## factor/double clashes in joins and unions in the multi-output case).
+  if ("Output_ID" %in% names(data)) {
+    data$Output_ID <- as.character(data$Output_ID)
+  }
   hp$ID <- hp$ID %>% as.character()
   ## Collect hyper-parameters' names
   list_hp <- hp %>%
@@ -1981,7 +2009,7 @@ select_nb_cluster <- function(
     hp_i <- hp(
       kern = kern_i,
       list_ID = unique(data$ID),
-      common_hp = T,
+      shared_hp = T,
       noise = T
     )
   } else {

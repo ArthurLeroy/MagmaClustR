@@ -4,7 +4,7 @@
 \alias{plot_db}
 \title{Plot raw data}
 \usage{
-plot_db(data, cluster = FALSE, legend = FALSE)
+plot_db(data, cluster = FALSE, inputs = NULL, legend = FALSE)
 }
 \arguments{
 \item{data}{A data frame or tibble with format : ID, Input, Output for
@@ -14,10 +14,16 @@ for multi-output configurations.}
 \item{cluster}{A boolean indicating whether data should be coloured by
 cluster. Requires a column named 'Cluster'.}
 
-\item{legend}{A boolean indicating whether the legend should be displayed.}
+\item{inputs}{A vector of characters, containing the name of Inputs (max 2
+Inputs can be simultaneously displayed in 2D) that should be used for
+plotting. Default is \code{NULL}, simply uses the first Input appearing in
+the dataset.}
+
+\item{legend}{A boolean indicating whether to display the legend for colors.
+Default is \code{FALSE}.}
 }
 \value{
-Graph of smoothed curves of raw data.
+Graph of raw data as dots and lines (1D) or heatmap labels (2D).
 }
 \description{
 Display raw data under the Magma format as dot and lines.
