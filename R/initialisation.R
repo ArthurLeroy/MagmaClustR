@@ -127,7 +127,7 @@ regularize_data <- function(
 
   ## Get the Input columns names
   names_col <- data %>%
-    dplyr::select(-.data$ID, -.data$Output) %>%
+    dplyr::select(-"ID", -"Output") %>%
     names()
 
   if (is.null(grid_inputs)) {
@@ -210,14 +210,14 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
   db_regular <- unique(data$ID) %>%
     lapply(floop) %>%
     dplyr::bind_rows() %>%
-    dplyr::select(c(.data$ID, .data$Input, .data$Output))
+    dplyr::select(c("ID", "Input", "Output"))
   # } else {
   #   db_regular <- data %>% dplyr::select(c(.data$ID, .data$Input, .data$Output))
   # }
 
   res <- db_regular %>%
     tidyr::spread(key = .data$Input, value = .data$Output) %>%
-    dplyr::select(-.data$ID) %>%
+    dplyr::select(-"ID") %>%
     stats::kmeans(centers = k, nstart = nstart)
 
   if (summary) {
@@ -228,7 +228,7 @@ ini_kmeans <- function(data, k, nstart = 50, summary = FALSE) {
     res,
     db_regular %>% tidyr::spread(key = .data$Input, value = .data$Output)
   ) %>%
-    dplyr::select(c(.data$ID, .data$.cluster)) %>%
+    dplyr::select(c("ID", ".cluster")) %>%
     dplyr::rename(Cluster_ini = .data$.cluster) %>%
     dplyr::mutate(Cluster_ini = paste0("K", .data$Cluster_ini)) %>%
     return()

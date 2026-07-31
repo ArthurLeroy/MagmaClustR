@@ -304,18 +304,18 @@ plot_gp <- function(
 
   ## Remove 'ID' column if present
   if ("ID" %in% names(pred)) {
-    pred <- pred %>% dplyr::select(-.data$ID)
+    pred <- pred %>% dplyr::select(-"ID")
   }
 
   ## Remove 'Reference' column if present
   if ("Reference" %in% names(pred)) {
-    pred <- pred %>% dplyr::select(-.data$Reference)
+    pred <- pred %>% dplyr::select(-"Reference")
   }
 
   ## Remove the 'Index' column if the prediction comes from 'pred_gif()'
   if (any("Index" %in% names(pred))) {
     index <- pred %>% dplyr::pull(.data$Index)
-    pred <- pred %>% dplyr::select(-.data$Index)
+    pred <- pred %>% dplyr::select(-"Index")
   } else {
     index <- NULL
   }
@@ -326,7 +326,7 @@ plot_gp <- function(
   }
   ## Get the inputs that should be used
   if (x_input %>% is.null()) {
-    inputs <- pred %>% dplyr::select(-c(.data$Mean, .data$Var))
+    inputs <- pred %>% dplyr::select(-c("Mean", "Var"))
   } else {
     if (all(x_input %in% names(pred_gp))) {
       inputs <- pred[x_input]
@@ -427,7 +427,7 @@ plot_gp <- function(
         "Impossible to display inputs with dimensions greater than 2. The ",
         "graph then simply uses 'Input' as x_axis and 'Output' as y-axis. "
       )
-      inputs <- inputs %>% dplyr::select(.data$Input)
+      inputs <- inputs %>% dplyr::select("Input")
     }
 
     ## Display a 'heatmap' if the argument is TRUE
@@ -648,7 +648,7 @@ plot_samples <- function(
 
   ## Get the inputs that should be used
   if (x_input %>% is.null()) {
-    inputs <- samples %>% dplyr::select(-c(.data$Sample, .data$Output))
+    inputs <- samples %>% dplyr::select(-c("Sample", "Output"))
   } else {
     inputs <- samples[x_input]
   }
@@ -658,7 +658,7 @@ plot_samples <- function(
     ## Extract only one sample when displaying in 2D
     samples <- samples %>%
       dplyr::filter(.data$Sample == unique(samples$Sample)[1]) %>%
-      dplyr::select(-.data$Sample)
+      dplyr::select(-"Sample")
 
     gg <- ggplot2::ggplot() +
       ggplot2::geom_raster(
@@ -1011,7 +1011,7 @@ plot_magmaclust <- function(
       )
     }
     ## Remove the 'Proba' column if selecting cluster-specific prediction
-    pred_gp <- pred[[cluster]] %>% dplyr::select(-.data$Proba)
+    pred_gp <- pred[[cluster]] %>% dplyr::select(-"Proba")
 
     ## Get the 'Proba' value to display in the Title
     proba <- pred[[cluster]] %>%
@@ -1021,7 +1021,7 @@ plot_magmaclust <- function(
 
   ## Get the inputs that should be used
   if (x_input %>% is.null()) {
-    inputs <- pred_gp %>% dplyr::select(-c(.data$ID, .data$Mean, .data$Var))
+    inputs <- pred_gp %>% dplyr::select(-c("ID", "Mean", "Var"))
   } else {
     if (all(x_input %in% names(pred_gp))) {
       inputs <- pred_gp[x_input]
@@ -1284,7 +1284,7 @@ plot_clusters <- function(
     data_allocate_cluster()
 
   assignments = data_clustered %>%
-    dplyr::select(.data$ID, .data$Cluster, .data$Proba)
+    dplyr::select("ID", "Cluster", "Proba")
 
 
   ## Extract the list of all clusters' names

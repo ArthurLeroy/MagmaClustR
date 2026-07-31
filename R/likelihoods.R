@@ -74,7 +74,7 @@ logL_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   ## Extract the input variables (reference Input + Covariates)
   ## Multi-output: optim passes a flat named vector; rebuild the tibble.
   if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
-  inputs <- db %>% dplyr::select(-.data$Output)
+  inputs <- db %>% dplyr::select(-"Output")
 
   ## Sum the two covariance matrices and inverse the result
   cov <- kern_to_cov(inputs, kern, hp) + post_cov
@@ -115,7 +115,7 @@ sum_logL_GP <- function(hp, db, mean, kern, pen_diag) {
   ## Sum the log-likelihood of the GP over all individuals in the database
   floop = function(i) {
     ## Extract the data and reference inputs for individual i
-    db_i <- db %>% dplyr::filter(.data$ID == i) %>% dplyr::select(- .data$ID)
+    db_i <- db %>% dplyr::filter(.data$ID == i) %>% dplyr::select(- "ID")
 
     ## Create a mean vector of the correct length
     mean_i <- rep(mean, nrow(db_i))
@@ -159,7 +159,7 @@ logL_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   ## mean is equal for all Inputs
 
   ## Extract the input variables (reference Input + Covariates)
-  inputs <- db %>% dplyr::select(-.data$Output)
+  inputs <- db %>% dplyr::select(-"Output")
   ## Multi-output: optim passes a flat named vector; rebuild the tibble.
   if (is_flat_mo_hp(hp)) hp <- unflatten_hp_mo(hp)
   ## Compute the inverse of the covariance matrix
@@ -207,7 +207,7 @@ logL_GP_mod_shared_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
     ## Extract the i-th specific Inputs and Output
     db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
     ## Extract the mean values associated with the i-th specific inputs
     mean_i <- mean %>%
       dplyr::filter(.data$Reference %in% input_i) %>%
@@ -280,11 +280,11 @@ logL_monitoring <- function(
     ## Extract the i-th specific hyper-parameters
     hp_i_i <- hp_i %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
     ## Extract the i-th specific Inputs and Output
     db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
     ## Extract the mean values associated with the i-th specific inputs
     post_mean_i <- post_mean %>%
       dplyr::filter(.data$Reference %in% input_i) %>%
@@ -363,7 +363,7 @@ sum_logL_GP_clust <- function(
 
   ## Remove 'ID' if present in 'db'
   if ("ID" %in% names(db)) {
-    db <- db %>% dplyr::select(-.data$ID)
+    db <- db %>% dplyr::select(-"ID")
   }
 
   ## Loop over the K clusters

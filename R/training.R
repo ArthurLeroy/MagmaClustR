@@ -86,16 +86,16 @@ train_gp <- function(
         "The prediction can only be performed for one individual/task."
       )
     }
-    data <- data %>% dplyr::select(-.data$ID)
+    data <- data %>% dplyr::select(-"ID")
   }
   if (!("Reference" %in% (data %>% names()))) {
     ## Get input column names
     names_col <- data %>%
-      dplyr::select(-.data$Output) %>%
+      dplyr::select(-"Output") %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-c(.data$Output, .data$Reference)) %>%
+      dplyr::select(-c("Output", "Reference")) %>%
       names()
   }
 
@@ -114,7 +114,7 @@ train_gp <- function(
 
   ## Extract the union of all reference inputs provided in the training data
   inputs_obs <- data %>%
-    dplyr::select(-.data$Output) %>%
+    dplyr::select(-"Output") %>%
     unique()
 
   input_obs <- inputs_obs %>% dplyr::pull(.data$Reference)
@@ -169,7 +169,7 @@ train_gp <- function(
     } else if (prior_mean %>% is.function()) {
       mean <- prior_mean(
         inputs_obs %>%
-          dplyr::select(-.data$Reference)
+          dplyr::select(-"Reference")
       )
     } else if (prior_mean %>% is.data.frame()) {
       if (
@@ -563,11 +563,11 @@ train_magma <- function(
   ## Get input column names
   if (!("Reference" %in% (data %>% names()))) {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID, .data$Output)) %>%
+      dplyr::select(-c("ID", "Output")) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID, .data$Output, .data$Reference)) %>%
+      dplyr::select(-c("ID", "Output", "Reference")) %>%
       names()
   }
 
@@ -589,8 +589,8 @@ train_magma <- function(
   ## Check that individuals do not have duplicate inputs
   if (
     !(setequal(
-      data %>% dplyr::select(-.data$Output),
-      data %>% dplyr::select(-.data$Output) %>% unique()
+      data %>% dplyr::select(-"Output"),
+      data %>% dplyr::select(-"Output") %>% unique()
     ))
   ) {
     stop(
@@ -601,7 +601,7 @@ train_magma <- function(
 
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- data %>%
-    dplyr::select(-c(.data$ID, .data$Output)) %>%
+    dplyr::select(-c("ID", "Output")) %>%
     unique()
   all_input <- all_inputs %>% dplyr::pull(.data$Reference)
 
@@ -632,7 +632,7 @@ train_magma <- function(
   } else if (prior_mean %>% is.function()) {
     m_0 <- prior_mean(
       all_inputs %>%
-        dplyr::select(-.data$Reference)
+        dplyr::select(-"Reference")
     )
   } else if (prior_mean %>% is.data.frame()) {
     if (
@@ -927,12 +927,12 @@ train_magma <- function(
         dplyr::rename(Mean = .data$Output),
       "Var" = post$cov %>% diag() %>% as.vector()
     ) %>%
-      dplyr::select(-.data$Reference)
+      dplyr::select(-"Reference")
   }
 
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
-    "data" = data %>% dplyr::select(-.data$Reference),
+    "data" = data %>% dplyr::select(-"Reference"),
     "prior_mean" = prior_mean,
     "ini_hp_0" = hp_0_ini,
     "ini_hp_i" = hp_i_ini,
@@ -1170,7 +1170,7 @@ train_magmaclust <- function(
 
   ## Get input column names
   names_col <- data %>%
-    dplyr::select(-c(.data$ID, .data$Output)) %>%
+    dplyr::select(-c("ID", "Output")) %>%
     names()
 
   ## Keep 6 significant digits for entries to avoid numerical errors and
@@ -1191,8 +1191,8 @@ train_magmaclust <- function(
   ## Check that individuals do not have duplicate inputs
   if (
     !(setequal(
-      data %>% dplyr::select(-.data$Output),
-      data %>% dplyr::select(-.data$Output) %>% unique()
+      data %>% dplyr::select(-"Output"),
+      data %>% dplyr::select(-"Output") %>% unique()
     ))
   ) {
     stop(
@@ -1208,7 +1208,7 @@ train_magmaclust <- function(
     sort()
 
   all_inputs <- data %>%
-    dplyr::select(-c(.data$ID, .data$Output)) %>%
+    dplyr::select(-c("ID", "Output")) %>%
     unique() %>%
     dplyr::arrange(.data$Reference)
 
@@ -1389,7 +1389,7 @@ train_magmaclust <- function(
   }
 
   prop_vec <- mixture %>%
-    dplyr::select(-.data$ID) %>%
+    dplyr::select(-"ID") %>%
     colMeans()
   hp_k[["prop_mixture"]] <- as.numeric(prop_vec[as.character(hp_k$ID)])
 
@@ -1572,7 +1572,7 @@ train_magmaclust <- function(
           as.vector()
       ) %>%
         dplyr::rename("Mean" = .data$Output) %>%
-        dplyr::select(-.data$Reference) %>%
+        dplyr::select(-"Reference") %>%
         return()
     }
     post$pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
@@ -1580,7 +1580,7 @@ train_magmaclust <- function(
 
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
-    "data" = data %>% dplyr::select(-.data$Reference),
+    "data" = data %>% dplyr::select(-"Reference"),
     "nb_cluster" = nb_cluster,
     "prior_mean_k" = m_k_ini,
     "ini_hp_k" = hp_k_ini,
@@ -1687,11 +1687,11 @@ train_gp_clust <- function(
   ## Get input column names
   if ("Reference" %in% names(data)) {
     names_col <- data %>%
-      dplyr::select(-c(.data$Output, .data$Reference)) %>%
+      dplyr::select(-c("Output", "Reference")) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-.data$Output) %>%
+      dplyr::select(-"Output") %>%
       names()
   }
 
@@ -1752,7 +1752,7 @@ train_gp_clust <- function(
     ## Remove the 'ID' column if present
     if ("ID" %in% names(prop_mixture)) {
       prop_mixture <- prop_mixture %>%
-        dplyr::select(-.data$ID)
+        dplyr::select(-"ID")
     }
     ## Check clusters' names
     if (!(names(prop_mixture) %>% setequal(names(hyperpost$mean)))) {
@@ -1822,7 +1822,7 @@ train_gp_clust <- function(
   hp$ID <- hp$ID %>% as.character()
   ## Collect hyper-parameters' names
   list_hp <- hp %>%
-    dplyr::select(-.data$ID) %>%
+    dplyr::select(-"ID") %>%
     names()
   ID_hp <- hp$ID %>% unique()
 
@@ -1838,7 +1838,7 @@ train_gp_clust <- function(
     t_i_1 <- Sys.time()
 
     ## Format the hyper-parameters for optimisation
-    par <- hp %>% dplyr::select(-.data$ID)
+    par <- hp %>% dplyr::select(-"ID")
 
     ## We start with a M-step to take advantage of the initial 'prop_mixture'
     ## M step
@@ -2087,12 +2087,12 @@ select_nb_cluster <- function(
 
     ## Define the adequate BIC penalty according to the hypotheses on HPs
     nb_hp_k <- hp_k %>%
-      dplyr::select(-.data$ID) %>%
+      dplyr::select(-"ID") %>%
       unlist() %>%
       dplyr::n_distinct()
 
     nb_hp_i <- hp_i %>%
-      dplyr::select(-.data$ID) %>%
+      dplyr::select(-"ID") %>%
       unlist() %>%
       dplyr::n_distinct()
 

@@ -13,7 +13,7 @@ laplace_matching = function(data, likelihood, eps = 1e-2) {
         Var_output = (.data$alpha + .data$beta + 2 * eps) /
           ((.data$alpha + eps) * (.data$beta + eps))
       ) %>%
-      dplyr::select(c(.data$ID, .data$Input, .data$Output, .data$Var_output))
+      dplyr::select(c("ID", "Input", "Output", "Var_output"))
   }
 
   return(pseudo_data)
@@ -116,10 +116,10 @@ format_to_legacy <- function(db, keep_extra_cols = FALSE) {
       dplyr::mutate(
         Input_ID = legacy_names[as.character(.data$Input_ID)]
       ) %>%
-      dplyr::select(-.data$Output_ID) %>%
+      dplyr::select(-"Output_ID") %>%
       tidyr::pivot_wider(names_from = "Input_ID", values_from = "Input") %>%
       dplyr::rename(ID = .data$Task_ID) %>%
-      dplyr::select(.data$ID, dplyr::all_of(unname(legacy_names)), dplyr::everything())
+      dplyr::select("ID", dplyr::all_of(unname(legacy_names)), dplyr::everything())
   }
 
   output_levels <- unique(db$Output_ID)

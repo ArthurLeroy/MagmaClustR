@@ -23,9 +23,9 @@ elbo_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
   i <- unique(db$ID)
 
   if ("ID" %in% names(db)) {
-    inputs <- db %>% dplyr::select(-.data$Output, -.data$ID)
+    inputs <- db %>% dplyr::select(-"Output", -"ID")
   } else {
-    inputs <- db %>% dplyr::select(-.data$Output)
+    inputs <- db %>% dplyr::select(-"Output")
   }
 
   inv <- kern_to_inv(inputs, kern, hp, pen_diag)
@@ -80,9 +80,9 @@ elbo_GP_mod_shared_hp_k <- function(hp, db, mean, kern, post_cov, pen_diag) {
   list_ID_k <- names(db)
 
   if ("ID" %in% names(db)) {
-    inputs <- db[[1]] %>% dplyr::select(-.data$Output, -.data$ID)
+    inputs <- db[[1]] %>% dplyr::select(-"Output", -"ID")
   } else {
-    inputs <- db[[1]] %>% dplyr::select(-.data$Output)
+    inputs <- db[[1]] %>% dplyr::select(-"Output")
   }
 
   inv <- kern_to_inv(inputs, kern, hp, pen_diag)
@@ -130,7 +130,7 @@ elbo_clust_multi_GP_shared_hp_i <- function(hp, db, hyperpost, kern, pen_diag) {
     ## Extract the i-th specific inputs (reference + covariates)
     inputs_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-c(.data$ID, .data$Output))
+      dplyr::select(-c("ID", "Output"))
     ## Extract the i-th specific Inputs and Output
     output_i <- db %>%
       dplyr::filter(.data$ID == i) %>%

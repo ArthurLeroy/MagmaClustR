@@ -42,7 +42,7 @@ ve_step <- function(
 ) {
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- db %>%
-    dplyr::select(-.data$ID, -.data$Output) %>%
+    dplyr::select(-"ID", -"Output") %>%
     unique() %>%
     dplyr::arrange(.data$Reference)
 
@@ -68,7 +68,7 @@ ve_step <- function(
   floop <- function(k) {
     post_inv <- list_inv_k[[k]]
 
-    tau_k <- old_mixture %>% dplyr::select(.data$ID, k)
+    tau_k <- old_mixture %>% dplyr::select("ID", k)
     for (i in list_inv_i %>% names()) {
       ## Extract the corresponding mixture probability
       tau_i_k <- tau_k %>%
@@ -102,7 +102,7 @@ ve_step <- function(
   floop2 <- function(k) {
     prior_mean <- m_k[[k]]
     prior_inv <- list_inv_k[[k]]
-    tau_k <- old_mixture %>% dplyr::select(.data$ID, k)
+    tau_k <- old_mixture %>% dplyr::select("ID", k)
 
     weighted_mean <- prior_inv %*% prior_mean
 
@@ -235,7 +235,7 @@ vm_step <- function(
   if (shared_hp_i) {
     block_i <- old_hp_i %>%
       dplyr::filter(.data$ID == list_ID_i[[1]]) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
     one_i <- stats::optim(
       par = to_par(block_i, mo_i),
       fn = elbo_clust_multi_GP_shared_hp_i,
@@ -248,7 +248,7 @@ vm_step <- function(
   } else {
     loop2 <- function(i) {
       block_i <- old_hp_i %>%
-        dplyr::filter(.data$ID == i) %>% dplyr::select(-.data$ID)
+        dplyr::filter(.data$ID == i) %>% dplyr::select(-"ID")
       db_i <- db %>% dplyr::filter(.data$ID == i)
       stats::optim(
         par = to_par(block_i, mo_i),
@@ -263,13 +263,13 @@ vm_step <- function(
 
   ## Mixture proportions per cluster.
   prop_mixture <- list_mu_param$mixture %>%
-    dplyr::select(-.data$ID) %>% colMeans()
+    dplyr::select(-"ID") %>% colMeans()
 
   ## ---- Cluster mean processes -------------------------------------------
   if (shared_hp_k) {
     block_k <- old_hp_k %>%
       dplyr::filter(.data$ID == list_ID_k[[1]]) %>%
-      dplyr::select(-.data$ID, -.data$prop_mixture)
+      dplyr::select(-"ID", -"prop_mixture")
     one_k <- stats::optim(
       par = to_par(block_k, mo_k),
       fn = elbo_GP_mod_shared_hp_k, gr = gr_GP_mod_shared_hp_k,
@@ -284,7 +284,7 @@ vm_step <- function(
     loop <- function(k) {
       block_k <- old_hp_k %>%
         dplyr::filter(.data$ID == k) %>%
-        dplyr::select(-.data$ID, -.data$prop_mixture)
+        dplyr::select(-"ID", -"prop_mixture")
       stats::optim(
         par = to_par(block_k, mo_k),
         fn = logL_GP_mod, gr = gr_GP_mod,
@@ -355,7 +355,7 @@ update_mixture <- function(
     ## Extract the data associated with the i-th individual
     db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
 
     for (k in ID_k) {
       c_k <- c_k + 1

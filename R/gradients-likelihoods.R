@@ -27,7 +27,7 @@ gr_GP <- function(hp, db, mean, kern, post_cov, pen_diag) {
   ## Extract the reference Input
   input <- db$Reference
   ## Extract the input variables (reference Input + Covariates)
-  inputs <- db %>% dplyr::select(-.data$Output)
+  inputs <- db %>% dplyr::select(-"Output")
 
   cov <- kern_to_cov(inputs, kern, hp) + post_cov
 
@@ -76,7 +76,7 @@ gr_GP_mod <- function(hp, db, mean, kern, post_cov, pen_diag) {
   ## Extract the reference Input
   input <- db$Reference
   ## Extract the input variables (reference Input + Covariates)
-  inputs <- db %>% dplyr::select(-.data$Output)
+  inputs <- db %>% dplyr::select(-"Output")
 
   inv <- kern_to_inv(inputs, kern, hp, pen_diag)
   ## Compute the term common to all partial derivatives
@@ -131,7 +131,7 @@ gr_GP_mod_shared_hp <- function(hp, db, mean, kern, post_cov, pen_diag) {
     ## Extract the i-th specific inputs (reference + covariates)
     inputs_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-c(.data$ID, .data$Output))
+      dplyr::select(-c("ID", "Output"))
     ## Extract the i-th specific Inputs and Output
     output_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
@@ -204,7 +204,7 @@ gr_sum_logL_GP_clust <- function(
     dplyr::pull(.data$Reference)
   ## Remove 'ID' if present in 'db'
   if ("ID" %in% names(db)) {
-    db <- db %>% dplyr::select(-.data$ID)
+    db <- db %>% dplyr::select(-"ID")
   }
 
   ## Loop over the K clusters

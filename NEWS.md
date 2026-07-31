@@ -9,7 +9,7 @@
 
 ## Minor
 
-
+* Fix the deprecation issues of tidyselect() through .data$
 * The model assumption 'common_hp' are now named 'shared_hp' instead for clarity.
 * The mean process is simulated via generate_mean_process(), whereas task data are derived from generate_single_task_data(). simu_indiv_se() has been removed from the package.
 * Add the 'plot_clusters()' function to display clustering results directly after training

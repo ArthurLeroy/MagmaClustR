@@ -22,11 +22,11 @@ sample_gp = function(
 
   ## Remove 'ID' if present
   if ("ID" %in% names(pred)) {
-    pred = pred %>% dplyr::select(-.data$ID)
+    pred = pred %>% dplyr::select(-"ID")
   }
 
   ## Extract parameters and inputs from the prediction
-  inputs <- pred %>% dplyr::select(-c(.data$Mean, .data$Var))
+  inputs <- pred %>% dplyr::select(-c("Mean", "Var"))
   mean <- pred %>% dplyr::pull(.data$Mean)
   cov <- pred_gp$cov
 
@@ -98,11 +98,11 @@ sample_magmaclust = function(
 
     ## Remove 'ID' if present
     if ("ID" %in% names(pred)) {
-      pred = pred %>% dplyr::select(-.data$ID)
+      pred = pred %>% dplyr::select(-"ID")
     }
 
     ## Extract parameters and inputs from the prediction
-    inputs <- pred %>% dplyr::select(-c(.data$Mean, .data$Var))
+    inputs <- pred %>% dplyr::select(-c("Mean", "Var"))
     mean <- pred %>% dplyr::pull(.data$Mean)
     cov <- pred_clust$cov[[k]]
     weight <- pred_clust$mixture[[k]]
@@ -125,6 +125,6 @@ sample_magmaclust = function(
   names(pred_clust$pred) %>%
     lapply(floop) %>%
     dplyr::bind_rows() %>%
-    dplyr::select(c(.data$Sample, .data$Input, .data$Output)) %>%
+    dplyr::select(c("Sample", "Input", "Output")) %>%
     return()
 }

@@ -24,9 +24,9 @@ gr_clust_multi_GP <- function(hp, db, hyperpost, kern, pen_diag) {
   y_i <- db$Output
 
   if ("ID" %in% names(db)) {
-    inputs <- db %>% dplyr::select(-.data$Output, -.data$ID)
+    inputs <- db %>% dplyr::select(-"Output", -"ID")
   } else {
-    inputs <- db %>% dplyr::select(-.data$Output)
+    inputs <- db %>% dplyr::select(-"Output")
   }
 
   i <- unique(db$ID)
@@ -98,7 +98,7 @@ gr_GP_mod_shared_hp_k <- function(
   pen_diag
 ) {
   if ("ID" %in% names(hp)) {
-    hp <- hp %>% dplyr::select(-.data$ID)
+    hp <- hp %>% dplyr::select(-"ID")
   }
 
   list_ID_k <- names(db)
@@ -111,9 +111,9 @@ gr_GP_mod_shared_hp_k <- function(
     dplyr::pull(.data$Reference)
   ## Extract the k-th specific inputs (reference + covariates)
   inputs_k <- db[[1]] %>%
-    dplyr::select(-.data$Output)
+    dplyr::select(-"Output")
   if ("ID" %in% names(db[[1]])) {
-    inputs_k <- inputs_k %>% dplyr::select(-.data$ID)
+    inputs_k <- inputs_k %>% dplyr::select(-"ID")
   }
 
   inv <- kern_to_inv(inputs_k, kern, hp, pen_diag)
@@ -189,7 +189,7 @@ gr_clust_multi_GP_shared_hp_i <- function(
     ## Extract the i-th specific inputs (reference + covariates)
     inputs_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-c(.data$ID, .data$Output))
+      dplyr::select(-c("ID", "Output"))
     ## Extract the i-th specific Inputs and Output
     output_i <- db %>%
       dplyr::filter(.data$ID == i) %>%

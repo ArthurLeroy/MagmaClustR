@@ -219,7 +219,7 @@ pivot_inputs_longer <- function(db) {
       Input_ID = factor(id_map[.data$Input_ID], levels = id_levels)
     ) %>%
     dplyr::select(
-      .data$Task_ID, .data$Input_ID, .data$Input, .data$Output_ID, .data$Output,
+      "Task_ID", "Input_ID", "Input", "Output_ID", "Output",
       dplyr::everything()
     )
 }
@@ -416,7 +416,7 @@ generate_mean_process <- function(
   hp_draws <- NULL
 
   if (num_outputs == 1) {
-    grid_coords <- input_df_mean_process %>% dplyr::select(-.data$Output_ID)
+    grid_coords <- input_df_mean_process %>% dplyr::select(-"Output_ID")
     K_theta0_X <- kern_to_cov(
       grid_coords,
       "SE",
@@ -587,7 +587,7 @@ generate_single_task_data <- function(
   ## 3. Compute the task-specific covariance matrix (kernel-choice fork).
   if (num_outputs == 1) {
     K_task_t <- kern_to_cov(
-      input_df %>% dplyr::select(-.data$Output_ID),
+      input_df %>% dplyr::select(-"Output_ID"),
       "SE",
       tibble::tibble(se_variance = v, se_lengthscale = l)
     ) + diag(sigma, nrow(input_df))
@@ -628,7 +628,7 @@ generate_single_task_data <- function(
   }
 
   result %>%
-    dplyr::select(.data$Task_ID, .data$Input_ID, dplyr::everything())
+    dplyr::select("Task_ID", "Input_ID", dplyr::everything())
 }
 
 

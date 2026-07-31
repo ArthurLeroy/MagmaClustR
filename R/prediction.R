@@ -113,17 +113,17 @@ pred_gp <- function(
       )
     }
     data <- data %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
   }
 
   if (!("Reference" %in% (data %>% names()))) {
     ## Get input column names
     names_col <- data %>%
-      dplyr::select(-.data$Output) %>%
+      dplyr::select(-"Output") %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-c(.data$Output, .data$Reference)) %>%
+      dplyr::select(-c("Output", "Reference")) %>%
       names()
   }
 
@@ -145,7 +145,7 @@ pred_gp <- function(
 
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
-    dplyr::select(-.data$Output)
+    dplyr::select(-"Output")
 
   ## Extract the observed (reference) Input
   input_obs <- inputs_obs %>%
@@ -328,7 +328,7 @@ pred_gp <- function(
 
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if ("noise" %in% names(hp)) {
-    hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
+    hp_rm_noi <- hp %>% dplyr::select(-"noise")
     if ("Output_ID" %in% names(hp)) {
       noise_map <- hp %>% dplyr::distinct(.data$Output_ID, .data$noise)
       noise <- exp(noise_map$noise[match(
@@ -369,7 +369,7 @@ pred_gp <- function(
     "Var" = diag(pred_cov) + noise
   ) %>%
     dplyr::mutate(inputs_pred) %>%
-    dplyr::select(-.data$Reference)
+    dplyr::select(-"Reference")
 
   ## Display the graph of the prediction if expected
   if (plot) {
@@ -526,11 +526,11 @@ hyperposterior <- function(
   ## Get input column names
   if (!("Reference" %in% (names(data)))) {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID, .data$Output)) %>%
+      dplyr::select(-c("ID", "Output")) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID, .data$Output, .data$Reference)) %>%
+      dplyr::select(-c("ID", "Output", "Reference")) %>%
       names()
   }
 
@@ -552,7 +552,7 @@ hyperposterior <- function(
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
     all_inputs <- data %>%
-      dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
+      dplyr::select("Reference", tidyselect::all_of(names_col)) %>%
       dplyr::arrange(.data$Reference) %>%
       unique()
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
@@ -578,7 +578,7 @@ hyperposterior <- function(
       dplyr::arrange(.data$Reference)
 
     all_inputs <- data %>%
-      dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
+      dplyr::select("Reference", tidyselect::all_of(names_col)) %>%
       dplyr::union(grid_inputs) %>%
       unique() %>%
       dplyr::arrange(.data$Reference)
@@ -629,7 +629,7 @@ hyperposterior <- function(
   } else if (prior_mean %>% is.function()) {
     m_0 <- prior_mean(
       all_inputs %>%
-        dplyr::select(-.data$Reference)
+        dplyr::select(-"Reference")
     )
   } else if (prior_mean %>% is.data.frame()) {
     if (
@@ -716,7 +716,7 @@ hyperposterior <- function(
     "Mean" = post_mean,
     "Var" = post_cov %>% diag() %>% as.vector()
   ) %>%
-    dplyr::select(-.data$Reference)
+    dplyr::select(-"Reference")
 
   list(
     "mean" = mean,
@@ -859,7 +859,7 @@ pred_magma <- function(
           res,
           data_train = data_train,
           prior_mean = hyperpost$mean %>%
-            dplyr::select(-.data$Reference),
+            dplyr::select(-"Reference"),
           samples = display_samples
         ) %>%
           print()
@@ -882,7 +882,7 @@ pred_magma <- function(
         "The prediction can only be performed for one individual/task."
       )
     }
-    data <- data %>% dplyr::select(-.data$ID)
+    data <- data %>% dplyr::select(-"ID")
   }
 
   ## When a trained model is provided, use its individual-process kernel
@@ -894,11 +894,11 @@ pred_magma <- function(
   ## Get input column names
   if ("Reference" %in% names(data)) {
     names_col <- data %>%
-      dplyr::select(-c(.data$Output, .data$Reference)) %>%
+      dplyr::select(-c("Output", "Reference")) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-.data$Output) %>%
+      dplyr::select(-"Output") %>%
       names()
   }
 
@@ -924,7 +924,7 @@ pred_magma <- function(
 
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
-    dplyr::select(-.data$Output)
+    dplyr::select(-"Output")
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
@@ -1127,14 +1127,14 @@ pred_magma <- function(
         first_id <- trained_model$hp_i$ID[[1]]
         hp <- trained_model$hp_i %>%
           dplyr::filter(.data$ID == first_id) %>%
-          dplyr::select(-.data$ID)
+          dplyr::select(-"ID")
       } else if (kern %>% is.function()) {
         ## Individual-specific HPs (shared_hp = FALSE) with a custom kernel:
         ## learn this individual's HPs by ML, reusing the trained model's HP
         ## structure as initialisation and the hyper-posterior as prior.
         ini_block <- trained_model$hp_i %>%
           dplyr::filter(.data$ID == trained_model$hp_i$ID[[1]]) %>%
-          dplyr::select(-.data$ID)
+          dplyr::select(-"ID")
         hp <- quiet(
           train_gp(
             data,
@@ -1209,7 +1209,7 @@ pred_magma <- function(
 
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if ("noise" %in% names(hp)) {
-    hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
+    hp_rm_noi <- hp %>% dplyr::select(-"noise")
     if ("Output_ID" %in% names(hp)) {
       ## Multi-output: map each prediction point to its own output noise
       ## (deduplicated across latent-process rows).
@@ -1250,7 +1250,7 @@ pred_magma <- function(
     "Var" = diag(pred_cov) + noise
   ) %>%
     dplyr::mutate(inputs_pred) %>%
-    dplyr::select(-.data$Reference)
+    dplyr::select(-"Reference")
 
   ## Display the graph of the prediction if expected
   if (plot) {
@@ -1274,7 +1274,7 @@ pred_magma <- function(
       data = data,
       data_train = data_train,
       prior_mean = hyperpost$mean %>%
-        dplyr::select(-.data$Reference),
+        dplyr::select(-"Reference"),
       samples = display_samples
     ) %>%
       print()
@@ -1388,10 +1388,10 @@ pred_gif <- function(
   data <- data %>% tidyr::drop_na()
 
   ## Extract the inputs (reference Input + covariates)
-  inputs <- data %>% dplyr::select(-.data$Output)
+  inputs <- data %>% dplyr::select(-"Output")
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
-    inputs <- inputs %>% dplyr::select(-.data$ID)
+    inputs <- inputs %>% dplyr::select(-"ID")
   }
   min_data <- min(data$Input)
   max_data <- max(data$Input)
@@ -1410,7 +1410,7 @@ pred_gif <- function(
       )
       ## Add a grid for the covariate
       name_cova <- inputs %>%
-        dplyr::select(-.data$Input) %>%
+        dplyr::select(-"Input") %>%
         names()
       cova <- inputs[name_cova]
       grid_inputs[name_cova] <- rep(
@@ -1605,11 +1605,11 @@ hyperposterior_clust <- function(
   ## Get input column names
   if ("Reference" %in% names(data)) {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID, .data$Output, .data$Reference)) %>%
+      dplyr::select(-c("ID", "Output", "Reference")) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID, .data$Output)) %>%
+      dplyr::select(-c("ID", "Output")) %>%
       names()
   }
   ## Keep 6 significant digits for entries to avoid numerical errors and
@@ -1642,7 +1642,7 @@ hyperposterior_clust <- function(
   if (grid_inputs %>% is.null()) {
     ## Define the union of all reference Inputs in the dataset
     all_inputs <- data %>%
-      dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
+      dplyr::select("Reference", tidyselect::all_of(names_col)) %>%
       dplyr::arrange(.data$Reference) %>%
       unique()
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
@@ -1671,7 +1671,7 @@ hyperposterior_clust <- function(
       grid_inputs$Output_ID <- as.character(grid_inputs$Output_ID)
     }
     all_inputs <- data %>%
-      dplyr::select(.data$Reference, tidyselect::all_of(names_col)) %>%
+      dplyr::select("Reference", tidyselect::all_of(names_col)) %>%
       dplyr::union(grid_inputs) %>%
       dplyr::arrange(.data$Reference) %>%
       unique()
@@ -1757,7 +1757,7 @@ hyperposterior_clust <- function(
       "Var" = cov_k[[k]] %>% diag() %>% as.vector()
     ) %>%
       dplyr::rename("Mean" = .data$Output) %>%
-      dplyr::select(-.data$Reference) %>%
+      dplyr::select(-"Reference") %>%
       return()
   }
   pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
@@ -1912,7 +1912,7 @@ pred_magmaclust <- function(
 
       ## Compute the generic mixture weights
       mixture = hyperpost$mixture %>%
-        dplyr::select(-.data$ID) %>%
+        dplyr::select(-"ID") %>%
         dplyr::summarise(dplyr::across(tidyselect::everything(), mean)) %>%
         dplyr::mutate('ID' = 'ID_pred', .before = 1)
 
@@ -1949,7 +1949,7 @@ pred_magmaclust <- function(
           "Mean" = mixture_mean,
           "Var" = mixture_var %>% as.vector()
         ) %>%
-        dplyr::select(-.data$Proba)
+        dplyr::select(-"Proba")
 
       ## Define the list to return with the correct format
       pred <- list(
@@ -2020,11 +2020,11 @@ pred_magmaclust <- function(
   if ("Reference" %in% names(data)) {
     ## Get input column names
     names_col <- data %>%
-      dplyr::select(-c(.data$ID, .data$Output, .data$Reference)) %>%
+      dplyr::select(-c("ID", "Output", "Reference")) %>%
       names()
   } else {
     names_col <- data %>%
-      dplyr::select(-c(.data$ID, .data$Output)) %>%
+      dplyr::select(-c("ID", "Output")) %>%
       names()
   }
 
@@ -2050,7 +2050,7 @@ pred_magmaclust <- function(
 
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
-    dplyr::select(-c(.data$ID, .data$Output))
+    dplyr::select(-c("ID", "Output"))
 
   ## When a trained model is provided, use its individual-process kernel.
   if (!is.null(trained_model)) kern <- trained_model$ini_args$kern_i
@@ -2111,7 +2111,7 @@ pred_magmaclust <- function(
   } else if (grid_inputs %>% is.data.frame()) {
     if ("Reference" %in% names(grid_inputs)) {
       names_grid <- grid_inputs %>%
-        dplyr::select(-.data$Reference) %>%
+        dplyr::select(-"Reference") %>%
         names()
     } else {
       names_grid <- names(grid_inputs)
@@ -2316,7 +2316,7 @@ pred_magmaclust <- function(
 
   ## Remove the noise of the hp for evaluating some of the sub-matrix
   if ("noise" %in% names(hp)) {
-    hp_rm_noi <- hp %>% dplyr::select(-.data$noise)
+    hp_rm_noi <- hp %>% dplyr::select(-"noise")
     if ("Output_ID" %in% names(hp)) {
       noise_map <- hp %>% dplyr::distinct(.data$Output_ID, .data$noise)
       noise <- exp(noise_map$noise[match(
@@ -2406,7 +2406,7 @@ pred_magmaclust <- function(
       "Var" = (diag(pred_cov) + noise) %>% as.vector()
     ) %>%
       dplyr::mutate(inputs_pred) %>%
-      dplyr::select(-.data$Reference) %>%
+      dplyr::select(-"Reference") %>%
       return()
   }
   pred <- sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
@@ -2429,7 +2429,7 @@ pred_magmaclust <- function(
     "Var" = mixture_var %>% as.vector()
   ) %>%
     dplyr::mutate(inputs_pred) %>%
-    dplyr::select(-.data$Reference)
+    dplyr::select(-"Reference")
 
   res <- list("pred" = pred, "mixture" = mixture, "mixture_pred" = mixture_pred)
 
@@ -2499,7 +2499,7 @@ pred_magmaclust <- function(
 proba_max_cluster <- function(mixture) {
   if ("ID" %in% names(mixture)) {
     mixture %>%
-      tidyr::pivot_longer(-.data$ID) %>%
+      tidyr::pivot_longer(-"ID") %>%
       dplyr::group_by(.data$ID) %>%
       dplyr::filter(.data$value == max(.data$value)) %>%
       dplyr::rename("Cluster" = .data$name, "Proba" = .data$value)
@@ -2537,7 +2537,7 @@ data_allocate_cluster <- function(trained_model) {
 
   ## Remove old 'Cluster' column if necessary
   if ("Cluster" %in% names(db)) {
-    db <- db %>% dplyr::select(-.data$Cluster)
+    db <- db %>% dplyr::select(-"Cluster")
   }
 
   max_clust <- proba_max_cluster(mixture)

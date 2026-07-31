@@ -359,7 +359,7 @@ kern_to_cov <- function(input,
       reference <- input$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input <- input %>% dplyr::select(-.data$Reference)
+      input <- input %>% dplyr::select(-"Reference")
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input <- split(t(input),
@@ -370,7 +370,7 @@ kern_to_cov <- function(input,
       reference_2 <- input_2$Reference %>% as.character()
 
       ## Only retain the actual input columns
-      input_2 <- input_2 %>% dplyr::select(-.data$Reference)
+      input_2 <- input_2 %>% dplyr::select(-"Reference")
 
       ## Format inputs to be used in a subsequent 'outer()' function
       list_input_2 <- split(t(input_2),
@@ -587,16 +587,16 @@ list_kern_to_cov <- function(data, kern, hp, deriv = NULL) {
   floop <- function(i) {
     db_i <- data %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
 
     ## To avoid throwing an error if 'Output' has already been removed
     if ("Output" %in% names(db_i)) {
-      db_i <- db_i %>% dplyr::select(-.data$Output)
+      db_i <- db_i %>% dplyr::select(-"Output")
     }
 
     hp_i <- hp %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
 
     kern_to_cov(db_i, kern, hp_i, deriv = deriv) %>%
       return()
@@ -634,15 +634,15 @@ list_kern_to_inv <- function(db, kern, hp, pen_diag, deriv = NULL) {
   floop <- function(i) {
     db_i <- db %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
     ## To avoid throwing an error if 'Output' has already been removed
     if ("Output" %in% names(db_i)) {
-      db_i <- db_i %>% dplyr::select(-.data$Output)
+      db_i <- db_i %>% dplyr::select(-"Output")
     }
 
     hp_i <- hp %>%
       dplyr::filter(.data$ID == i) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
 
     kern_to_inv(db_i, kern, hp_i, pen_diag, deriv = deriv) %>%
       return()

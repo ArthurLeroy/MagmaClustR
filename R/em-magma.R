@@ -25,7 +25,7 @@
 e_step <- function(db, m_0, kern_0, kern_i, hp_0, hp_i, pen_diag) {
   ## Extract the union of all reference inputs provided in the training data
   all_inputs <- db %>%
-    dplyr::select(-.data$ID, -.data$Output) %>%
+    dplyr::select(-"ID", -"Output") %>%
     unique() %>%
     dplyr::arrange(.data$Reference)
 
@@ -173,7 +173,7 @@ m_step <- function(
     ## One shared HP set: take the block (all outputs) of a single individual.
     hp_block <- old_hp_i %>%
       dplyr::filter(.data$ID == list_ID[[1]]) %>%
-      dplyr::select(-.data$ID)
+      dplyr::select(-"ID")
 
     one_hp <- stats::optim(
       par = to_par(hp_block, mo_i),
@@ -207,10 +207,10 @@ m_step <- function(
       post_cov_i <- post_cov[as.character(input_i), as.character(input_i)]
       db_i <- db %>%
         dplyr::filter(.data$ID == i) %>%
-        dplyr::select(-.data$ID)
+        dplyr::select(-"ID")
       hp_block <- old_hp_i %>%
         dplyr::filter(.data$ID == i) %>%
-        dplyr::select(-.data$ID)
+        dplyr::select(-"ID")
 
       stats::optim(
         par = to_par(hp_block, mo_i),
