@@ -10,7 +10,8 @@ pred_magmaclust(
   grid_inputs = NULL,
   mixture = NULL,
   hp = NULL,
-  kern = "SE",
+  kern = NULL,
+  multi_output = NULL,
   hyperpost = NULL,
   prop_mixture = NULL,
   get_hyperpost = FALSE,
@@ -63,7 +64,7 @@ Several popular kernels
 Cookbook}) are already implemented and can be selected within the
 following list:
 \itemize{
-\item "SE": (default value) the Squared Exponential Kernel (also called
+\item "SE": the Squared Exponential Kernel (also called
 Radial Basis Function or Gaussian kernel),
 \item "LIN": the Linear kernel,
 \item "PERIO": the Periodic kernel,
@@ -75,6 +76,12 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
+
+\item{multi_output}{A logical value or NULL (default). If NULL, single-
+output (SO) vs multi-output (MO) mode is auto-detected from the
+provided kernel(s) and the cardinality of the 'Output_ID' column of
+'data' (if any). If explicitly provided, it must agree with the
+detected mode, otherwise an error is raised.}
 
 \item{hyperpost}{A list, containing the elements \code{mean}, \code{cov} and
 \code{mixture} the parameters of the hyper-posterior distributions of the

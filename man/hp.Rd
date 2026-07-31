@@ -12,7 +12,8 @@ hp(
   shared_hp_outputs = FALSE,
   n_latent = 1,
   noise = FALSE,
-  hp_config = NULL
+  hp_config = NULL,
+  data = NULL
 )
 }
 \arguments{
@@ -43,7 +44,16 @@ drawn per latent process and a 'Latent_ID' column is added.}
 \item{hp_config}{An optional tibble of per-output generation bounds for the
 convolution kernel, with an 'Output_ID' column and columns
 'lt_min'/'lt_max', 'St_min'/'St_max', 'lu_min'/'lu_max',
-'noise_min'/'noise_max'. If NULL (default), sensible bounds are used.}
+'noise_min'/'noise_max'. If NULL (default), sensible bounds are used
+(either the fixed defaults, or data-driven bounds if 'data' is provided).}
+
+\item{data}{An optional tibble or data.frame (columns 'Input', 'Output',
+and, for the multi-output case, 'Output_ID'), used to derive data-driven
+generation bounds for the parameters whose scale directly depends on the
+data (lengthscale, signal variance, noise), instead of the fixed
+defaults (which implicitly assume inputs on an [-1, 1]-ish domain and
+outputs of order 1). Ignored if 'hp_config' is also provided (for the
+multi-output case).}
 }
 \value{
 A \code{tibble} of initial hyper-parameters.

@@ -74,10 +74,26 @@ train_gp <- function(
     data,
     prior_mean = NULL,
     ini_hp = NULL,
-    kern = "SE",
+    kern = NULL,
+    multi_output = NULL,
     hyperpost = NULL,
     pen_diag = 1e-10
 ) {
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format ('Task_ID'/'Input_ID'/'Output_ID') if needed.
+  mo_res <- resolve_mo_mode(data, kern, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
+  if (is.null(kern)) {
+    kern <- if (mo) convolution_kernel else "SE"
+    cat(
+      "The 'kern' argument has not been specified. The",
+      if (mo) "'convolution_kernel'" else "'SE'",
+      "kernel is used by default.\n \n"
+    )
+  }
+
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
     if (dplyr::n_distinct(data$ID) > 1) {
@@ -209,7 +225,7 @@ train_gp <- function(
   }
 
   ## Initialise hp according to user's values
-  if (kern %>% is.function()) {
+  if (.is_custom_kernel_fn(kern)) {
     if (ini_hp %>% is.null()) {
       stop(
         "When using a custom kernel function the 'ini_hp' argument is ",
@@ -222,7 +238,7 @@ train_gp <- function(
     }
   } else {
     if (ini_hp %>% is.null()) {
-      hp <- hp(kern, noise = T)
+      hp <- draw_ini_hp(kern, data, noise = TRUE)
       cat(
         "The 'ini_hp' argument has not been specified. Random values of",
         "hyper-parameters are used as initialisation.\n \n"
@@ -327,9 +343,24 @@ train_shared_gp <- function(
     data,
     prior_mean = NULL,
     ini_hp = NULL,
-    kern = "SE",
+    kern = NULL,
+    multi_output = NULL,
     pen_diag = 1e-10
 ) {
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format ('Task_ID'/'Input_ID'/'Output_ID') if needed.
+  mo_res <- resolve_mo_mode(data, kern, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
+  if (is.null(kern)) {
+    kern <- if (mo) convolution_kernel else "SE"
+    cat(
+      "The 'kern' argument has not been specified. The",
+      if (mo) "'convolution_kernel'" else "'SE'",
+      "kernel is used by default.\n \n"
+    )
+  }
 
   ## Extract the values of the prior mean at reference inputs
   if (prior_mean %>% is.null()) {
@@ -348,7 +379,7 @@ train_shared_gp <- function(
   }
 
   ## Initialise hp according to user's values
-  if (kern %>% is.function()) {
+  if (.is_custom_kernel_fn(kern)) {
     if (ini_hp %>% is.null()) {
       stop(
         "When using a custom kernel function the 'ini_hp' argument is ",
@@ -361,7 +392,7 @@ train_shared_gp <- function(
     }
   } else {
     if (ini_hp %>% is.null()) {
-      hp <- hp(kern, noise = TRUE)
+      hp <- draw_ini_hp(kern, data, noise = TRUE)
       cat(
         "The 'ini_hp' argument has not been specified. Random values of",
         "hyper-parameters are used as initialisation.\n \n"
@@ -371,8 +402,13 @@ train_shared_gp <- function(
     }
   }
 
+  ## Multi-output HPs (a convolution-kernel tibble with an 'Output_ID'
+  ## column) are flattened to the vector optim consumes, then rebuilt.
+  hp_is_mo <- "Output_ID" %in% names(hp)
+  par <- if (hp_is_mo) flatten_hp_mo(hp) else hp
+
   hp_new <- stats::optim(
-    hp,
+    par,
     fn = sum_logL_GP,
     db = data,
     mean = mean,
@@ -380,8 +416,13 @@ train_shared_gp <- function(
     pen_diag = pen_diag,
     method = "L-BFGS-B",
     control = list(factr = 1e13, maxit = 100)
-  )$par %>%
-    tibble::as_tibble_row()
+  )$par
+
+  hp_new <- if (hp_is_mo) {
+    unflatten_hp_mo(hp_new)
+  } else {
+    tibble::as_tibble_row(hp_new)
+  }
 
   ## If something went wrong during the optimization
   if (hp_new %>% is.na() %>% any()) {
@@ -523,8 +564,10 @@ train_magma <- function(
   prior_mean = NULL,
   ini_hp_0 = NULL,
   ini_hp_i = NULL,
-  kern_0 = "SE",
-  kern_i = "SE",
+  kern_0 = NULL,
+  kern_i = NULL,
+  multi_output = NULL,
+  precondition_tasks = 1,
   shared_hp = TRUE,
   grid_inputs = NULL,
   pen_diag = 1e-10,
@@ -532,19 +575,67 @@ train_magma <- function(
   cv_threshold = 1e-3,
   fast_approx = FALSE
 ) {
-  ## Check for the correct format of the training data
-  if (data %>% is.data.frame()) {
-    if (!all(c("ID", "Output") %in% names(data))) {
-      stop(
-        "The 'data' argument should be a tibble or a data frame containing ",
-        "at least the mandatory column names: 'ID', 'Output' and 'Input'"
-      )
-    }
-  } else {
+  ## Check for the correct format of the training data (legacy or new format)
+  if (!is.data.frame(data) ||
+      !(all(c("ID", "Output") %in% names(data)) ||
+        all(c("Task_ID", "Input", "Output") %in% names(data)))) {
     stop(
       "The 'data' argument should be a tibble or a data frame containing ",
-      "at least the mandatory column names: 'ID', 'Output' and 'Input'"
+      "at least the mandatory column names: 'ID', 'Input' and 'Output' ",
+      "(legacy format), or 'Task_ID', 'Input' and 'Output' (new format)."
     )
+  }
+
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed. Detection relies on whichever of 'kern_i'/
+  ## 'kern_0' is provided (both must eventually agree, see below).
+  kern_for_detect <- if (!is.null(kern_i)) kern_i else kern_0
+  mo_res <- resolve_mo_mode(data, kern_for_detect, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
+  if (mo) {
+    ## The joint MO/MT framework requires the same convolution kernel for
+    ## both the mean process and the individual processes; they cannot be
+    ## mixed with another kernel type.
+    if (!is.null(kern_0) && !identical(kern_0, convolution_kernel)) {
+      stop(
+        "In multi-output mode, 'kern_0' must be 'convolution_kernel' (the ",
+        "joint framework cannot mix kernel types).",
+        call. = FALSE
+      )
+    }
+    if (!is.null(kern_i) && !identical(kern_i, convolution_kernel)) {
+      stop(
+        "In multi-output mode, 'kern_i' must be 'convolution_kernel' (the ",
+        "joint framework cannot mix kernel types).",
+        call. = FALSE
+      )
+    }
+    if (is.null(kern_0) || is.null(kern_i)) {
+      cat(
+        "The 'kern_0'/'kern_i' arguments have not been fully specified.",
+        "The 'convolution_kernel' is used by default for the joint",
+        "multi-output framework.\n \n"
+      )
+    }
+    kern_0 <- convolution_kernel
+    kern_i <- convolution_kernel
+  } else {
+    if (is.null(kern_0)) {
+      kern_0 <- "SE"
+      cat(
+        "The 'kern_0' argument has not been specified. The 'SE' kernel is",
+        "used by default.\n \n"
+      )
+    }
+    if (is.null(kern_i)) {
+      kern_i <- "SE"
+      cat(
+        "The 'kern_i' argument has not been specified. The 'SE' kernel is",
+        "used by default.\n \n"
+      )
+    }
   }
 
   ## Remove possible missing data
@@ -673,8 +764,48 @@ train_magma <- function(
   ## Track the total training time
   t_1 <- Sys.time()
 
-  ## Initialise the mean process' HPs according to user's values
-  if (kern_0 %>% is.function()) {
+  ## Precondition the individual processes' HPs on (a subset of) the tasks,
+  ## rather than drawing purely at random: this acts as an EM 'iteration 0',
+  ## already fitting the data reasonably well and stabilising the subsequent
+  ## optimisation (see 'precondition_tasks'). Genuinely custom kernel
+  ## functions (other than 'convolution_kernel') still require an explicit
+  ## 'ini_hp_i', since 'hp()' cannot infer their parameter structure.
+  precond_i <- NULL
+  if (.is_custom_kernel_fn(kern_i) && ini_hp_i %>% is.null()) {
+    stop(
+      "When using a custom kernel function the 'ini_hp_i' argument is ",
+      "mandatory, in order to provide the name of the hyper-parameters. ",
+      "You can use the function 'hp()' to easily generate a tibble of random",
+      " hyper-parameters with the desired format for initialisation."
+    )
+  } else if (ini_hp_i %>% is.null()) {
+    precond_i <- precondition_hp(data, kern_i, precondition_tasks, noise = TRUE)
+    hp_i <- broadcast_hp_i(precond_i, list_ID)
+    cat(
+      "The 'ini_hp_i' argument has not been specified. Hyper-parameters",
+      "preconditioned on the training data (see 'precondition_tasks') are",
+      "used as initialisation.\n \n"
+    )
+  } else if (!("ID" %in% names(ini_hp_i))) {
+    ## Create a full tibble of shared HPs if the column ID is not specified
+    hp_i <- broadcast_hp_i(ini_hp_i, list_ID)
+  } else if (
+    !(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
+      all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))
+  ) {
+    stop(
+      "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
+      "'data'."
+    )
+  } else {
+    hp_i <- ini_hp_i
+  }
+
+  ## Initialise the mean process' HPs according to user's values. When both
+  ## kernels agree, the mean process (intuitively a 'lambda task') reuses the
+  ## individual processes' preconditioned HPs directly, rather than a
+  ## separate (possibly random) fit.
+  if (.is_custom_kernel_fn(kern_0)) {
     if (ini_hp_0 %>% is.null()) {
       stop(
         "When using a custom kernel function the 'ini_hp_0' argument is ",
@@ -686,11 +817,24 @@ train_magma <- function(
     hp_0 <- ini_hp_0
   } else {
     if (ini_hp_0 %>% is.null()) {
-      hp_0 <- hp(kern_0)
-      cat(
-        "The 'ini_hp_0' argument has not been specified. Random values of",
-        "hyper-parameters for the mean process are used as initialisation.\n \n"
-      )
+      if (identical(kern_0, kern_i)) {
+        if (is.null(precond_i)) {
+          precond_i <- precondition_hp(data, kern_i, precondition_tasks, noise = TRUE)
+        }
+        hp_0 <- precond_i %>% dplyr::select(-dplyr::any_of("noise"))
+        cat(
+          "The 'ini_hp_0' argument has not been specified. The mean",
+          "process reuses the individual processes' preconditioned",
+          "hyper-parameters (same kernel) as initialisation.\n \n"
+        )
+      } else {
+        hp_0 <- draw_ini_hp(kern_0, data, noise = FALSE)
+        cat(
+          "The 'ini_hp_0' argument has not been specified. Data-driven",
+          "hyper-parameters for the mean process are used as",
+          "initialisation.\n \n"
+        )
+      }
     } else {
       hp_0 <- ini_hp_0
     }
@@ -699,48 +843,6 @@ train_magma <- function(
   ## Remove ID column if present if hp_0
   if ("ID" %in% names(hp_0)) {
     hp_0 <- hp_0[names(hp_0) != "ID"]
-  }
-
-  ## Initialise the individual process' hp according to user's values
-  if (kern_i %>% is.function()) {
-    if (ini_hp_i %>% is.null()) {
-      stop(
-        "When using a custom kernel function the 'ini_hp_i' argument is ",
-        "mandatory, in order to provide the name of the hyper-parameters. ",
-        "You can use the function 'hp()' to easily generate a tibble of random",
-        " hyper-parameters with the desired format for initialisation."
-      )
-    }
-    hp_i <- ini_hp_i
-  } else {
-    if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(
-        kern_i,
-        list_task_ID = list_ID,
-        shared_hp_tasks = shared_hp,
-        noise = TRUE
-      ) %>%
-        dplyr::rename(ID = "Task_ID") %>%
-        dplyr::mutate(ID = as.character(.data$ID))
-      cat(
-        "The 'ini_hp_i' argument has not been specified. Random values of",
-        "hyper-parameters for the individal processes are used as",
-        "initialisation.\n \n"
-      )
-    } else if (!("ID" %in% names(ini_hp_i))) {
-      ## Create a full tibble of common HPs if the column ID is not specified
-      hp_i <- tibble::tibble('ID' = list_ID, dplyr::bind_rows(ini_hp_i))
-    } else if (
-      !(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
-        all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))
-    ) {
-      stop(
-        "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
-        "'data'."
-      )
-    } else {
-      hp_i <- ini_hp_i
-    }
   }
 
   ## Add a 'noise' hyper-parameter if absent
@@ -1095,8 +1197,10 @@ train_magmaclust <- function(
   prior_mean_k = NULL,
   ini_hp_k = NULL,
   ini_hp_i = NULL,
-  kern_k = "SE",
-  kern_i = "SE",
+  kern_k = NULL,
+  kern_i = NULL,
+  multi_output = NULL,
+  precondition_tasks = 1,
   ini_mixture = NULL,
   shared_hp_k = TRUE,
   shared_hp_i = TRUE,
@@ -1116,19 +1220,67 @@ train_magmaclust <- function(
     }
   }
 
-  ## Check for the correct format of the training data
-  if (data %>% is.data.frame()) {
-    if (!all(c("ID", "Output", "Input") %in% names(data))) {
-      stop(
-        "The 'data' argument should be a tibble or a data frame containing ",
-        "at least the mandatory column names: 'ID', 'Output' and 'Input'"
-      )
-    }
-  } else {
+  ## Check for the correct format of the training data (legacy or new format)
+  if (!is.data.frame(data) ||
+      !(all(c("ID", "Output", "Input") %in% names(data)) ||
+        all(c("Task_ID", "Input", "Output") %in% names(data)))) {
     stop(
       "The 'data' argument should be a tibble or a data frame containing ",
-      "at least the mandatory column names: 'ID', 'Output' and 'Input'"
+      "at least the mandatory column names: 'ID', 'Input' and 'Output' ",
+      "(legacy format), or 'Task_ID', 'Input' and 'Output' (new format)."
     )
+  }
+
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed. Detection relies on whichever of 'kern_i'/
+  ## 'kern_k' is provided (both must eventually agree, see below).
+  kern_for_detect <- if (!is.null(kern_i)) kern_i else kern_k
+  mo_res <- resolve_mo_mode(data, kern_for_detect, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
+  if (mo) {
+    ## The joint MO/MT framework requires the same convolution kernel for
+    ## both the mean processes and the individual processes; they cannot be
+    ## mixed with another kernel type.
+    if (!is.null(kern_k) && !identical(kern_k, convolution_kernel)) {
+      stop(
+        "In multi-output mode, 'kern_k' must be 'convolution_kernel' (the ",
+        "joint framework cannot mix kernel types).",
+        call. = FALSE
+      )
+    }
+    if (!is.null(kern_i) && !identical(kern_i, convolution_kernel)) {
+      stop(
+        "In multi-output mode, 'kern_i' must be 'convolution_kernel' (the ",
+        "joint framework cannot mix kernel types).",
+        call. = FALSE
+      )
+    }
+    if (is.null(kern_k) || is.null(kern_i)) {
+      cat(
+        "The 'kern_k'/'kern_i' arguments have not been fully specified.",
+        "The 'convolution_kernel' is used by default for the joint",
+        "multi-output framework.\n \n"
+      )
+    }
+    kern_k <- convolution_kernel
+    kern_i <- convolution_kernel
+  } else {
+    if (is.null(kern_k)) {
+      kern_k <- "SE"
+      cat(
+        "The 'kern_k' argument has not been specified. The 'SE' kernel is",
+        "used by default.\n \n"
+      )
+    }
+    if (is.null(kern_i)) {
+      kern_i <- "SE"
+      cat(
+        "The 'kern_i' argument has not been specified. The 'SE' kernel is",
+        "used by default.\n \n"
+      )
+    }
   }
 
   ##Convert all non ID columns to double (implicitly throw error if not numeric)
@@ -1212,53 +1364,45 @@ train_magmaclust <- function(
     unique() %>%
     dplyr::arrange(.data$Reference)
 
-  ## Initialise the individual process' HPs according to user's values
-  if (kern_i %>% is.function()) {
-    if (ini_hp_i %>% is.null()) {
-      stop(
-        "When using a custom kernel function the 'ini_hp_i' argument is ",
-        "mandatory, in order to provide the name of the hyper-parameters. ",
-        "You can use the function 'hp()' to easily generate a tibble of random",
-        " hyper-parameters with the desired format for initialisation."
-      )
-    }
-    hp_i <- ini_hp_i
+  ## Precondition the individual processes' HPs on (a subset of) the tasks,
+  ## rather than drawing purely at random: this acts as a VEM 'iteration 0',
+  ## already fitting the data reasonably well and stabilising the subsequent
+  ## optimisation (see 'precondition_tasks'). Genuinely custom kernel
+  ## functions (other than 'convolution_kernel') still require an explicit
+  ## 'ini_hp_i', since 'hp()' cannot infer their parameter structure.
+  precond_i <- NULL
+  if (.is_custom_kernel_fn(kern_i) && ini_hp_i %>% is.null()) {
+    stop(
+      "When using a custom kernel function the 'ini_hp_i' argument is ",
+      "mandatory, in order to provide the name of the hyper-parameters. ",
+      "You can use the function 'hp()' to easily generate a tibble of random",
+      " hyper-parameters with the desired format for initialisation."
+    )
+  } else if (ini_hp_i %>% is.null()) {
+    precond_i <- precondition_hp(data, kern_i, precondition_tasks, noise = TRUE)
+    hp_i <- broadcast_hp_i(precond_i, list_ID)
+    cat(
+      "The 'ini_hp_i' argument has not been specified. Hyper-parameters",
+      "preconditioned on the training data (see 'precondition_tasks') are",
+      "used as initialisation.\n \n"
+    )
+  } else if (!("ID" %in% names(ini_hp_i))) {
+    ## Create a full tibble of common HPs if the column ID is not specified
+    hp_i <- broadcast_hp_i(ini_hp_i, list_ID)
+    cat(
+      "No 'ID' column in the 'ini_hp_i' argument. The same hyper-parameter",
+      "values have been duplicated for every 'ID' present in the 'data'.\n \n"
+    )
+  } else if (
+    !(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
+      all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))
+  ) {
+    stop(
+      "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
+      "'data'."
+    )
   } else {
-    if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(
-        kern_i,
-        list_task_ID = list_ID,
-        shared_hp_tasks = shared_hp_i,
-        noise = TRUE
-      ) %>%
-        dplyr::rename(ID = "Task_ID") %>%
-        dplyr::mutate(ID = as.character(.data$ID))
-      cat(
-        "The 'ini_hp_i' argument has not been specified. Random values of",
-        "hyper-parameters for the individual processes are used as",
-        "initialisation.\n \n"
-      )
-    } else if (!("ID" %in% names(ini_hp_i))) {
-      ## Create a full tibble of common HPs if the column ID is not specified
-      hp_i <- tibble::tibble(
-        ID = list_ID,
-        dplyr::bind_rows(ini_hp_i)
-      )
-      cat(
-        "No 'ID' column in the 'ini_hp_i' argument. The same hyper-parameter",
-        "values have been duplicated for every 'ID' present in the 'data'.\n \n"
-      )
-    } else if (
-      !(all(as.character(ini_hp_i$ID) %in% as.character(list_ID)) &
-        all(as.character(list_ID) %in% as.character(ini_hp_i$ID)))
-    ) {
-      stop(
-        "The 'ID' column in 'ini_hp_i' is different from the 'ID' of the ",
-        "'data'."
-      )
-    } else {
-      hp_i <- ini_hp_i
-    }
+    hp_i <- ini_hp_i
   }
 
   ## Add a 'noise' hyper-parameter if absent
@@ -1277,8 +1421,11 @@ train_magmaclust <- function(
     }
   }
 
-  ## Initialise the cluster process' hp according to user's values
-  if (kern_k %>% is.function()) {
+  ## Initialise the cluster process' hp according to user's values. When
+  ## both kernels agree, every mean process (intuitively a 'lambda task')
+  ## reuses the individual processes' preconditioned HPs directly, rather
+  ## than a separate (possibly random) fit.
+  if (.is_custom_kernel_fn(kern_k)) {
     if (ini_hp_k %>% is.null()) {
       stop(
         "When using a custom kernel function the 'ini_hp_k' argument is ",
@@ -1290,19 +1437,27 @@ train_magmaclust <- function(
     hp_k <- ini_hp_k
   } else {
     if (ini_hp_k %>% is.null()) {
-      hp_k <- hp(
-        kern_k,
-        list_task_ID = ID_k,
-        shared_hp_tasks = shared_hp_k,
-        noise = F
-      ) %>%
-        dplyr::rename(ID = "Task_ID") %>%
-        dplyr::mutate(ID = as.character(.data$ID))
-      cat(
-        "The 'ini_hp_k' argument has not been specified. Random values of",
-        "hyper-parameters for the mean processes are used as",
-        "initialisation.\n \n"
-      )
+      if (identical(kern_k, kern_i)) {
+        if (is.null(precond_i)) {
+          precond_i <- precondition_hp(data, kern_i, precondition_tasks, noise = TRUE)
+        }
+        hp_k <- broadcast_hp_i(
+          precond_i %>% dplyr::select(-dplyr::any_of("noise")),
+          ID_k
+        )
+        cat(
+          "The 'ini_hp_k' argument has not been specified. The mean",
+          "processes reuse the individual processes' preconditioned",
+          "hyper-parameters (same kernel) as initialisation.\n \n"
+        )
+      } else {
+        hp_k <- broadcast_hp_i(draw_ini_hp(kern_k, data, noise = FALSE), ID_k)
+        cat(
+          "The 'ini_hp_k' argument has not been specified. Data-driven",
+          "hyper-parameters for the mean processes are used as",
+          "initialisation.\n \n"
+        )
+      }
     } else if (!("ID" %in% names(ini_hp_k))) {
       ## Create a full tibble of common HPs if the column ID is not specified
       hp_k <- tibble::tibble(
@@ -1678,12 +1833,28 @@ train_gp_clust <- function(
   data,
   prop_mixture = NULL,
   ini_hp = NULL,
-  kern = "SE",
+  kern = NULL,
+  multi_output = NULL,
   hyperpost = NULL,
   pen_diag = 1e-10,
   n_iter_max = 25,
   cv_threshold = 1e-3
 ) {
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format ('Task_ID'/'Input_ID'/'Output_ID') if needed.
+  mo_res <- resolve_mo_mode(data, kern, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
+  if (is.null(kern)) {
+    kern <- if (mo) convolution_kernel else "SE"
+    cat(
+      "The 'kern' argument has not been specified. The",
+      if (mo) "'convolution_kernel'" else "'SE'",
+      "kernel is used by default.\n \n"
+    )
+  }
+
   ## Get input column names
   if ("Reference" %in% names(data)) {
     names_col <- data %>%
@@ -1718,7 +1889,7 @@ train_gp_clust <- function(
     dplyr::pull(.data$Reference)
 
   ## Initialise the individual process' hp according to user's values
-  if (kern %>% is.function()) {
+  if (.is_custom_kernel_fn(kern)) {
     if (ini_hp %>% is.null()) {
       stop(
         "When using a custom kernel function the 'ini_hp' argument is ",
@@ -1731,7 +1902,7 @@ train_gp_clust <- function(
     }
   } else {
     if (ini_hp %>% is.null()) {
-      hp <- hp(kern, noise = T)
+      hp <- draw_ini_hp(kern, data, noise = TRUE)
       cat(
         "The 'ini_hp' argument has not been specified. Random values of",
         "hyper-parameters are used as initialisation.\n \n"

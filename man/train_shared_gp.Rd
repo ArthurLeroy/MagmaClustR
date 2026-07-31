@@ -9,7 +9,8 @@ train_shared_gp(
   data,
   prior_mean = NULL,
   ini_hp = NULL,
-  kern = "SE",
+  kern = NULL,
+  multi_output = NULL,
   pen_diag = 1e-10
 )
 }

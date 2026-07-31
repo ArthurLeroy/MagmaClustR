@@ -133,3 +133,41 @@ format_to_legacy <- function(db, keep_extra_cols = FALSE) {
     purrr::map(to_legacy_single_output)
 }
 
+#' Convert the new long format to the internal multi-output working format
+#'
+#' Unlike [format_to_legacy()], which bridges the new long format to the
+#' legacy single-output convention, this helper keeps the multi-output
+#' structure ('Output_ID') intact, while renaming 'Task_ID' to 'ID' (the
+#' naming convention expected by the internal training/prediction code) and
+#' pivoting a multi-level 'Input_ID' to wide 'Input'/'Input2'/... columns
+#' (mirroring [format_to_legacy()]'s treatment of multiple input dimensions).
+#'
+#' @param db A tibble or data.frame in the new long format.
+#' @return A tibble in the internal multi-output working format (columns
+#'   'ID', 'Input'[, 'Input2', ...], 'Output_ID', 'Output').
+#' @keywords internal
+.mo_working_format <- function(db) {
+  if (!"Input_ID" %in% names(db)) {
+    return(db %>% dplyr::rename(ID = "Task_ID"))
+  }
+
+  input_ids <- sort(unique(as.integer(as.character(db$Input_ID))))
+  if (length(input_ids) <= 1) {
+    return(db %>% dplyr::select(-"Input_ID") %>% dplyr::rename(ID = "Task_ID"))
+  }
+
+  legacy_names <- c("Input", paste0("Input", input_ids[-1]))
+  names(legacy_names) <- input_ids
+
+  db %>%
+    dplyr::mutate(Input_ID = legacy_names[as.character(.data$Input_ID)]) %>%
+    tidyr::pivot_wider(names_from = "Input_ID", values_from = "Input") %>%
+    dplyr::rename(ID = "Task_ID") %>%
+    dplyr::select(
+      "ID",
+      dplyr::all_of(unname(legacy_names)),
+      "Output_ID",
+      dplyr::everything()
+    )
+}
+

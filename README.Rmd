@@ -53,13 +53,15 @@ Here is a basic example on how to simulate a dataset with the adequate format, t
 library(MagmaClustR)
 ## Simulate a dataset with 11 individuals, each observed at 10 input locations
 set.seed(17)
-data_magma <- simu_db(M = 11, N = 10, common_input = FALSE)
+data_magma <- simu_data(n_tasks = 11, n_points = 10, shared_input = FALSE)
 ## Split individuals into training and prediction sets, and define test points
-magma_train <- data_magma %>% subset(ID %in% 1:10)
-magma_pred <- data_magma %>% subset(ID == 11) %>% head(7)
-magma_test <- data_magma %>% subset(ID == 11) %>% tail(3)
+magma_train <- data_magma %>% subset(Task_ID %in% 1:10)
+magma_pred <- data_magma %>% subset(Task_ID == 11) %>% head(7)
+magma_test <- data_magma %>% subset(Task_ID == 11) %>% tail(3)
 
 data_magma
+
+plot_db(data_magma)
 ```
 As displayed above, any dataset processed in MagmaClustR should provide columns named `ID`, `Input`, and `Output`. Any additional column would be treated as a covariate (and thus define multi-dimensional inputs). 
 

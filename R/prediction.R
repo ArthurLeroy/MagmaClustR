@@ -43,7 +43,7 @@
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 #'    Cookbook}) are already implemented and can be selected within the
 #'    following list:
-#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'    - "SE": the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
@@ -54,6 +54,11 @@
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
 #' @param get_full_cov A logical value, indicating whether the full posterior
 #'    covariance matrix should be returned.
 #' @param plot A logical value, indicating whether a plot of the results is
@@ -76,11 +81,36 @@ pred_gp <- function(
   grid_inputs = NULL,
   mean = NULL,
   hp = NULL,
-  kern = "SE",
+  kern = NULL,
+  multi_output = NULL,
   get_full_cov = FALSE,
   plot = TRUE,
   pen_diag = 1e-10
 ) {
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed. When 'data' is NULL, detection can only rely
+  ## on 'kern'/'multi_output'.
+  if (data %>% is.null()) {
+    mo <- if (is.null(multi_output)) {
+      identical(kern, convolution_kernel)
+    } else {
+      multi_output
+    }
+  } else {
+    mo_res <- resolve_mo_mode(data, kern, multi_output)
+    data <- mo_res$data
+    mo <- mo_res$mo
+  }
+
+  if (is.null(kern)) {
+    kern <- if (mo) convolution_kernel else "SE"
+    cat(
+      "The 'kern' argument has not been specified. The",
+      if (mo) "'convolution_kernel'" else "'SE'",
+      "kernel is used by default.\n \n"
+    )
+  }
+
   ## Create a dummy dataset if no data is provided
   if (data %>% is.null()) {
     data = tibble::tibble(
@@ -293,7 +323,7 @@ pred_gp <- function(
 
   ## Learn the hyper-parameters if not provided
   if (hp %>% is.null()) {
-    if (kern %>% is.function()) {
+    if (.is_custom_kernel_fn(kern)) {
       stop(
         "When using a custom kernel function the 'hp' argument is ",
         "mandatory, in order to provide the name of the hyper-parameters. ",
@@ -306,7 +336,7 @@ pred_gp <- function(
         train_gp(
           data,
           prior_mean = mean_obs,
-          ini_hp = hp(kern, noise = T),
+          ini_hp = NULL,
           kern = kern,
           hyperpost = NULL,
           pen_diag = pen_diag
@@ -765,7 +795,7 @@ hyperposterior <- function(
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 #'    Cookbook}) are already implemented and can be selected within the
 #'    following list:
-#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'    - "SE": the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
@@ -776,6 +806,11 @@ hyperposterior <- function(
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
 #' @param hyperpost A list, containing the elements 'mean' and 'cov', the
 #'    parameters of the hyper-posterior distribution of the mean process.
 #'    Typically, this argument should come from a previous learning using
@@ -815,7 +850,8 @@ pred_magma <- function(
   trained_model = NULL,
   grid_inputs = NULL,
   hp = NULL,
-  kern = "SE",
+  kern = NULL,
+  multi_output = NULL,
   hyperpost = NULL,
   get_hyperpost = FALSE,
   get_full_cov = FALSE,
@@ -889,6 +925,21 @@ pred_magma <- function(
   ## (the default 'kern' argument cannot carry a custom kernel function).
   if (!is.null(trained_model)) {
     kern <- trained_model$ini_args$kern_i
+  }
+
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed.
+  mo_res <- resolve_mo_mode(data, kern, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
+  if (is.null(kern)) {
+    kern <- if (mo) convolution_kernel else "SE"
+    cat(
+      "The 'kern' argument has not been specified. The",
+      if (mo) "'convolution_kernel'" else "'SE'",
+      "kernel is used by default.\n \n"
+    )
   }
 
   ## Get input column names
@@ -1128,7 +1179,7 @@ pred_magma <- function(
         hp <- trained_model$hp_i %>%
           dplyr::filter(.data$ID == first_id) %>%
           dplyr::select(-"ID")
-      } else if (kern %>% is.function()) {
+      } else if (.is_custom_kernel_fn(kern)) {
         ## Individual-specific HPs (shared_hp = FALSE) with a custom kernel:
         ## learn this individual's HPs by ML, reusing the trained model's HP
         ## structure as initialisation and the hyper-posterior as prior.
@@ -1155,7 +1206,7 @@ pred_magma <- function(
           train_gp(
             data,
             prior_mean = NULL,
-            ini_hp = hp(kern, noise = T),
+            ini_hp = NULL,
             kern = kern,
             hyperpost = hyperpost,
             pen_diag = pen_diag
@@ -1167,7 +1218,7 @@ pred_magma <- function(
           "for the hyper-parameters associated with the 'kern' argument.\n \n"
         )
       }
-    } else if (kern %>% is.function()) {
+    } else if (.is_custom_kernel_fn(kern)) {
       stop(
         "When using a custom kernel function the 'hp' argument is ",
         "mandatory, in order to provide the name of the hyper-parameters. ",
@@ -1180,7 +1231,7 @@ pred_magma <- function(
         train_gp(
           data,
           prior_mean = NULL,
-          ini_hp = hp(kern, noise = T),
+          ini_hp = NULL,
           kern = kern,
           hyperpost = hyperpost,
           pen_diag = pen_diag
@@ -1815,7 +1866,7 @@ hyperposterior_clust <- function(
 #'    (see \href{https://www.cs.toronto.edu/~duvenaud/cookbook/}{The Kernel
 #'    Cookbook}) are already implemented and can be selected within the
 #'    following list:
-#'    - "SE": (default value) the Squared Exponential Kernel (also called
+#'    - "SE": the Squared Exponential Kernel (also called
 #'        Radial Basis Function or Gaussian kernel),
 #'    - "LIN": the Linear kernel,
 #'    - "PERIO": the Periodic kernel,
@@ -1826,6 +1877,11 @@ hyperposterior_clust <- function(
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
 #' @param hyperpost A list, containing the elements \code{mean}, \code{cov} and
 #'   \code{mixture} the parameters of the hyper-posterior distributions of the
 #'    mean processes. Typically, this argument should come from a previous
@@ -1880,7 +1936,8 @@ pred_magmaclust <- function(
   grid_inputs = NULL,
   mixture = NULL,
   hp = NULL,
-  kern = "SE",
+  kern = NULL,
+  multi_output = NULL,
   hyperpost = NULL,
   prop_mixture = NULL,
   get_hyperpost = FALSE,
@@ -2000,6 +2057,27 @@ pred_magmaclust <- function(
     }
   }
 
+  ## When a trained model is provided, use its individual-process kernel
+  ## (the default 'kern' argument cannot carry a custom kernel function).
+  if (!is.null(trained_model)) {
+    kern <- trained_model$ini_args$kern_i
+  }
+
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed.
+  mo_res <- resolve_mo_mode(data, kern, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
+  if (is.null(kern)) {
+    kern <- if (mo) convolution_kernel else "SE"
+    cat(
+      "The 'kern' argument has not been specified. The",
+      if (mo) "'convolution_kernel'" else "'SE'",
+      "kernel is used by default.\n \n"
+    )
+  }
+
   ## Add an 'ID' column if present
   if ("ID" %in% names(data)) {
     if (dplyr::n_distinct(data$ID) > 1) {
@@ -2051,9 +2129,6 @@ pred_magmaclust <- function(
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
     dplyr::select(-c("ID", "Output"))
-
-  ## When a trained model is provided, use its individual-process kernel.
-  if (!is.null(trained_model)) kern <- trained_model$ini_args$kern_i
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
@@ -2244,7 +2319,7 @@ pred_magmaclust <- function(
           prop_mixture,
           pen_diag
         )
-      } else if (kern %>% is.function()) {
+      } else if (.is_custom_kernel_fn(kern)) {
         stop(
           "When using a custom kernel function the 'hp' argument is ",
           "mandatory, in order to provide the name of the hyper-parameters. ",
@@ -2265,7 +2340,7 @@ pred_magmaclust <- function(
         hp_mix <- train_gp_clust(
           data,
           prop_mixture = prop_mixture,
-          ini_hp = hp(kern, noise = T, list_ID = ID_data),
+          ini_hp = NULL,
           kern = kern,
           hyperpost = hyperpost,
           pen_diag = pen_diag
@@ -2275,7 +2350,7 @@ pred_magmaclust <- function(
         hp <- hp_mix$hp
         mixture <- hp_mix$mixture
       }
-    } else if (kern %>% is.function()) {
+    } else if (.is_custom_kernel_fn(kern)) {
       stop(
         "When using a custom kernel function the 'hp' argument is ",
         "mandatory, in order to provide the name of the hyper-parameters. ",
@@ -2297,7 +2372,7 @@ pred_magmaclust <- function(
       hp_mix <- train_gp_clust(
         data,
         prop_mixture = prop_mixture,
-        ini_hp = hp(kern, noise = T, list_ID = ID_data),
+        ini_hp = NULL,
         kern = kern,
         hyperpost = hyperpost,
         pen_diag = pen_diag
