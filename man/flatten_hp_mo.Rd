@@ -18,6 +18,6 @@ named numeric vector consumed by \code{stats::optim()}. Names are the derivative
 identifiers understood by \code{convolution_kernel()}. Names embed the Output_ID
 label: 'l_t_\if{html}{\out{<o>}}', 'S_t_\if{html}{\out{<o>}}', 'l_u_t', 'noise_\if{html}{\out{<o>}}' (single latent); with a
 'Latent_ID' column: 'l_t_o\if{html}{\out{<o>}}_l\if{html}{\out{<q>}}', 'S_t_o\if{html}{\out{<o>}}_l\if{html}{\out{<q>}}', 'l_u_t_l\if{html}{\out{<q>}}',
-'noise_o{d}'.
+'noise_o\if{html}{\out{<o>}}'.
 }
 \keyword{internal}

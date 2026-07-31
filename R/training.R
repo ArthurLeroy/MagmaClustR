@@ -714,7 +714,14 @@ train_magma <- function(
     hp_i <- ini_hp_i
   } else {
     if (ini_hp_i %>% is.null()) {
-      hp_i <- hp(kern_i, list_ID = list_ID, shared_hp = shared_hp, noise = TRUE)
+      hp_i <- hp(
+        kern_i,
+        list_task_ID = list_ID,
+        shared_hp_tasks = shared_hp,
+        noise = TRUE
+      ) %>%
+        dplyr::rename(ID = "Task_ID") %>%
+        dplyr::mutate(ID = as.character(.data$ID))
       cat(
         "The 'ini_hp_i' argument has not been specified. Random values of",
         "hyper-parameters for the individal processes are used as",
@@ -742,7 +749,13 @@ train_magma <- function(
       hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
     } else {
       hp_i <- hp_i %>%
-        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = "ID")
+        dplyr::left_join(
+          hp(NULL, list_task_ID = hp_i$ID, shared_hp_tasks = FALSE,
+             noise = T) %>%
+            dplyr::rename(ID = "Task_ID") %>%
+            dplyr::mutate(ID = as.character(.data$ID)),
+          by = "ID"
+        )
     }
   }
 
@@ -1214,10 +1227,12 @@ train_magmaclust <- function(
     if (ini_hp_i %>% is.null()) {
       hp_i <- hp(
         kern_i,
-        list_ID = list_ID,
-        shared_hp = shared_hp_i,
+        list_task_ID = list_ID,
+        shared_hp_tasks = shared_hp_i,
         noise = TRUE
-      )
+      ) %>%
+        dplyr::rename(ID = "Task_ID") %>%
+        dplyr::mutate(ID = as.character(.data$ID))
       cat(
         "The 'ini_hp_i' argument has not been specified. Random values of",
         "hyper-parameters for the individual processes are used as",
@@ -1252,7 +1267,13 @@ train_magmaclust <- function(
       hp_i <- hp_i %>% dplyr::mutate(hp(NULL, noise = T))
     } else {
       hp_i <- hp_i %>%
-        dplyr::left_join(hp(NULL, list_ID = hp_i$ID, noise = T), by = "ID")
+        dplyr::left_join(
+          hp(NULL, list_task_ID = hp_i$ID, shared_hp_tasks = FALSE,
+             noise = T) %>%
+            dplyr::rename(ID = "Task_ID") %>%
+            dplyr::mutate(ID = as.character(.data$ID)),
+          by = "ID"
+        )
     }
   }
 
@@ -1269,7 +1290,14 @@ train_magmaclust <- function(
     hp_k <- ini_hp_k
   } else {
     if (ini_hp_k %>% is.null()) {
-      hp_k <- hp(kern_k, list_ID = ID_k, shared_hp = shared_hp_k, noise = F)
+      hp_k <- hp(
+        kern_k,
+        list_task_ID = ID_k,
+        shared_hp_tasks = shared_hp_k,
+        noise = F
+      ) %>%
+        dplyr::rename(ID = "Task_ID") %>%
+        dplyr::mutate(ID = as.character(.data$ID))
       cat(
         "The 'ini_hp_k' argument has not been specified. Random values of",
         "hyper-parameters for the mean processes are used as",
@@ -2008,10 +2036,12 @@ select_nb_cluster <- function(
   if (ini_hp_i %>% is.null()) {
     hp_i <- hp(
       kern = kern_i,
-      list_ID = unique(data$ID),
-      shared_hp = T,
+      list_task_ID = unique(data$ID),
+      shared_hp_tasks = T,
       noise = T
-    )
+    ) %>%
+      dplyr::rename(ID = "Task_ID") %>%
+      dplyr::mutate(ID = as.character(.data$ID))
   } else {
     hp_i <- ini_hp_i
   }

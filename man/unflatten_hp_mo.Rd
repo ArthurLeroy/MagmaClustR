@@ -14,6 +14,6 @@ A hyper-parameter tibble.
 }
 \description{
 Inverse of \code{\link[=flatten_hp_mo]{flatten_hp_mo()}}. Multi-latent names (containing a latent
-suffix '_l{q}') reconstruct a 'Latent_ID' column.
+suffix '_l\if{html}{\out{<q>}}') reconstruct a 'Latent_ID' column.
 }
 \keyword{internal}

@@ -12,6 +12,7 @@
 #'   Names embed the Output_ID label: 'l_t_<o>', 'S_t_<o>', 'l_u_t' (single
 #' @return The covariance matrix or its partial derivative.
 #'
+#' @export
 convolution_kernel <- function(x,
                                   y,
                                   hp,
@@ -421,6 +422,9 @@ lin_kernel <- function(
 #' @param shared_hp_outputs A logical value. If TRUE, the smoothing-kernel
 #'   hyper-parameters are shared across outputs; otherwise (default) they are
 #'   output-specific.
+#' @param n_latent An integer. The number of latent processes Q in the
+#'   convolution kernel (default 1). When greater than 1, hyper-parameters are
+#'   drawn per latent process and a 'Latent_ID' column is added.
 #' @param noise A logical value. If TRUE, a 'noise' hyper-parameter is added.
 #' @param hp_config An optional tibble of per-output generation bounds for the
 #'   convolution kernel, with an 'Output_ID' column and columns
@@ -571,7 +575,9 @@ hp <- function(kern = "SE",
       n_draws <- if (shared_hp_tasks) 1 else nrow(base_ids)
     }
 
-    str_kern <- strsplit(kern, " +")[[1]]
+    ## 'kern = NULL' is used to request a HP tibble with no base-kernel
+    ## parameters (e.g. to append only a 'noise' column to an existing tibble).
+    str_kern <- if (is.null(kern)) character(0) else strsplit(kern, " +")[[1]]
 
     # Generate the required number of unique HP sets
     generated_hps <- tibble::tibble(.rows = n_draws)
@@ -674,7 +680,7 @@ hp <- function(kern = "SE",
 #' identifiers understood by `convolution_kernel()`. Names embed the Output_ID
 #' label: 'l_t_<o>', 'S_t_<o>', 'l_u_t', 'noise_<o>' (single latent); with a
 #' 'Latent_ID' column: 'l_t_o<o>_l<q>', 'S_t_o<o>_l<q>', 'l_u_t_l<q>',
-#' 'noise_o{d}'.
+#' 'noise_o<o>'.
 #'
 #' @param hp A hyper-parameter tibble (single individual, no 'Task_ID').
 #' @return A named numeric vector.
@@ -726,7 +732,7 @@ flatten_hp_mo <- function(hp) {
 #' Rebuild a multi-output hyper-parameter tibble from a flat named vector
 #'
 #' Inverse of [flatten_hp_mo()]. Multi-latent names (containing a latent
-#' suffix '_l{q}') reconstruct a 'Latent_ID' column.
+#' suffix '_l<q>') reconstruct a 'Latent_ID' column.
 #'
 #' @param hp A named numeric vector as produced by [flatten_hp_mo()].
 #' @return A hyper-parameter tibble.

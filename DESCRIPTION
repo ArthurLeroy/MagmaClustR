@@ -37,7 +37,6 @@ Imports:
     ggplot2,
     magrittr,
     MASS,
-    Matrix,
     methods,
     mvtnorm,
     plyr,
@@ -45,7 +44,6 @@ Imports:
     Rcpp,
     rlang,
     stats,
-    stringr,
     tibble,
     tidyr,
     tidyselect

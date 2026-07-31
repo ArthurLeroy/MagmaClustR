@@ -34,6 +34,10 @@ are shared across tasks; otherwise they are drawn independently per task.}
 hyper-parameters are shared across outputs; otherwise (default) they are
 output-specific.}
 
+\item{n_latent}{An integer. The number of latent processes Q in the
+convolution kernel (default 1). When greater than 1, hyper-parameters are
+drawn per latent process and a 'Latent_ID' column is added.}
+
 \item{noise}{A logical value. If TRUE, a 'noise' hyper-parameter is added.}
 
 \item{hp_config}{An optional tibble of per-output generation bounds for the

@@ -73,7 +73,7 @@ plot_db <- function(
     } else {
       ## 2D plot
 
-      round_data = data |> dplyr::mutate(Output = round(Output, 1))
+      round_data = data %>% dplyr::mutate(Output = round(.data$Output, 1))
 
       gg <- ggplot2::ggplot(round_data, ggplot2::aes(
         x = .data[[inputs[1]]],
@@ -93,7 +93,7 @@ plot_db <- function(
     if(is.null(inputs)){
       inputs = data$Task_ID[[1]]
     } else{
-      data = data |> dplyr::filter(Input_ID %in% inputs)
+      data = data %>% dplyr::filter(.data$Input_ID %in% inputs)
     }
 
     ## 1D plots
@@ -132,9 +132,11 @@ plot_db <- function(
         )
     } else ## 2D plots (clusters are not represented)
     {
-      wider_data = data |>
-        tidyr::pivot_wider(names_from = Input_ID, values_from = Input) |>
-        dplyr::mutate(Task_ID = as.factor(Task_ID), Output = round(Output, 1))
+      wider_data = data %>%
+        tidyr::pivot_wider(names_from = "Input_ID",
+                           values_from = "Input") %>%
+        dplyr::mutate(Task_ID = as.factor(.data$Task_ID),
+                      Output = round(.data$Output, 1))
 
       gg <- ggplot2::ggplot(wider_data, ggplot2::aes(
         x = .data[[inputs[1]]],
