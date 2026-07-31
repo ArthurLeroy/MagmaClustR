@@ -62,6 +62,12 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is not).
 }}
 
+\item{multi_output}{A logical value or NULL (default). If NULL, single-
+output (SO) vs multi-output (MO) mode is auto-detected from the
+provided kernel(s) and the cardinality of the 'Output_ID' column of
+'data' (if any). If explicitly provided, it must agree with the
+detected mode, otherwise an error is raised.}
+
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
 }

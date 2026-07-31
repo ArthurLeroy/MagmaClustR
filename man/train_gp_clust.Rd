@@ -56,6 +56,12 @@ operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
 
+\item{multi_output}{A logical value or NULL (default). If NULL, single-
+output (SO) vs multi-output (MO) mode is auto-detected from the
+provided kernel(s) and the cardinality of the 'Output_ID' column of
+'data' (if any). If explicitly provided, it must agree with the
+detected mode, otherwise an error is raised.}
+
 \item{hyperpost}{A list, containing the elements \code{mean}, \code{cov} and
 \code{mixture} the parameters of the hyper-posterior distributions of the
 mean processes. Typically, this argument should come from a previous

@@ -11,7 +11,7 @@
 }
 \value{
 A tibble in the internal multi-output working format (columns
-'ID', 'Input'\link{, 'Input2', ...}, 'Output_ID', 'Output').
+'ID', 'Input' (plus 'Input2', ... when relevant), 'Output_ID', 'Output').
 }
 \description{
 Unlike \code{\link[=format_to_legacy]{format_to_legacy()}}, which bridges the new long format to the

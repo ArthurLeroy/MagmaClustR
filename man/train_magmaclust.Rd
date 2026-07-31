@@ -92,6 +92,17 @@ operator '*' shall always be used before the '+' operators (e.g.
 \item{kern_i}{A kernel function, associated with the individual GPs. (See
 details above in \code{kern_k}).}
 
+\item{multi_output}{A logical value or NULL (default). If NULL, single-
+output (SO) vs multi-output (MO) mode is auto-detected from the
+provided kernel(s) and the cardinality of the 'Output_ID' column of
+'data' (if any). If explicitly provided, it must agree with the
+detected mode, otherwise an error is raised.}
+
+\item{precondition_tasks}{A number in (0, 1], the fraction of tasks used
+to precondition the individual/mean processes' hyper-parameters (a VEM
+'iteration 0'), instead of drawing them purely at random. Default 1
+(all tasks).}
+
 \item{ini_mixture}{Initial values of the probability to belong to each
 cluster for each individual (\code{\link{ini_mixture}} can be used for
 a k-means initialisation. Used by default if NULL).}

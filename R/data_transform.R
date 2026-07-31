@@ -144,7 +144,7 @@ format_to_legacy <- function(db, keep_extra_cols = FALSE) {
 #'
 #' @param db A tibble or data.frame in the new long format.
 #' @return A tibble in the internal multi-output working format (columns
-#'   'ID', 'Input'[, 'Input2', ...], 'Output_ID', 'Output').
+#'   'ID', 'Input' (plus 'Input2', ... when relevant), 'Output_ID', 'Output').
 #' @keywords internal
 .mo_working_format <- function(db) {
   if (!"Input_ID" %in% names(db)) {

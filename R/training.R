@@ -52,6 +52,11 @@
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
 #' @param hyperpost A list, containing the elements 'mean' and 'cov',
 #'    the parameters of the hyper-posterior distribution of the mean process.
 #'    Typically, this argument should come from a previous learning using
@@ -329,6 +334,11 @@ train_gp <- function(
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is not).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
@@ -501,6 +511,15 @@ train_shared_gp <- function(
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. ("SE",
 #'    "PERIO" and "RQ" are also available here).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
+#' @param precondition_tasks A number in (0, 1], the fraction of tasks used
+#'    to precondition the individual/mean processes' hyper-parameters (an EM
+#'    'iteration 0'), instead of drawing them purely at random. Default 1
+#'    (all tasks).
 #' @param shared_hp A logical value, indicating whether the set of
 #'    hyper-parameters is assumed to be common to all individuals.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
@@ -1129,6 +1148,15 @@ train_magma <- function(
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 #' @param kern_i A kernel function, associated with the individual GPs. (See
 #'    details above in \code{kern_k}).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
+#' @param precondition_tasks A number in (0, 1], the fraction of tasks used
+#'    to precondition the individual/mean processes' hyper-parameters (a VEM
+#'    'iteration 0'), instead of drawing them purely at random. Default 1
+#'    (all tasks).
 #' @param ini_mixture Initial values of the probability to belong to each
 #'    cluster for each individual (\code{\link{ini_mixture}} can be used for
 #'    a k-means initialisation. Used by default if NULL).
@@ -1807,6 +1835,11 @@ train_magmaclust <- function(
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
 #' @param hyperpost A list, containing the elements \code{mean}, \code{cov} and
 #'   \code{mixture} the parameters of the hyper-posterior distributions of the
 #'    mean processes. Typically, this argument should come from a previous

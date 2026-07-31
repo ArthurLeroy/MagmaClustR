@@ -88,6 +88,17 @@ operator '*' shall always be used before the '+' operators (e.g.
 \item{kern_i}{A kernel function, associated with the individual GPs. ("SE",
 "PERIO" and "RQ" are also available here).}
 
+\item{multi_output}{A logical value or NULL (default). If NULL, single-
+output (SO) vs multi-output (MO) mode is auto-detected from the
+provided kernel(s) and the cardinality of the 'Output_ID' column of
+'data' (if any). If explicitly provided, it must agree with the
+detected mode, otherwise an error is raised.}
+
+\item{precondition_tasks}{A number in (0, 1], the fraction of tasks used
+to precondition the individual/mean processes' hyper-parameters (an EM
+'iteration 0'), instead of drawing them purely at random. Default 1
+(all tasks).}
+
 \item{shared_hp}{A logical value, indicating whether the set of
 hyper-parameters is assumed to be common to all individuals.}
 
