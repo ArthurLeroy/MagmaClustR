@@ -18,6 +18,31 @@ draw <- function(int) {
     return()
 }
 
+# Draw one multivariate-normal sample via a Cholesky factor of the covariance.
+# Unlike MASS::mvrnorm(), which square-roots Sigma with eigen() (eigenvector
+# signs are not unique and vary across LAPACK/BLAS backends, OSes and R
+# versions), the Cholesky factor is canonical, so draws are reproducible across
+# environments. A small adaptive jitter is added to the diagonal when Sigma is
+# only numerically positive semi-definite, as is common for GP kernel matrices.
+.rmvnorm_chol <- function(mu, Sigma) {
+  Sigma <- as.matrix(Sigma)
+  p <- length(mu)
+  base <- max(mean(diag(Sigma)), 1)
+  R <- NULL
+  for (k in 0:8) {
+    jitter <- if (k == 0) 0 else base * 1e-10 * 10^(k - 1)
+    R <- tryCatch(chol(Sigma + diag(jitter, p)), error = function(e) NULL)
+    if (!is.null(R)) break
+  }
+  if (is.null(R)) {
+    stop("Covariance matrix is not positive definite (Cholesky failed).",
+         call. = FALSE)
+  }
+  out <- as.vector(mu + crossprod(R, stats::rnorm(p)))
+  names(out) <- names(mu)
+  out
+}
+
 #' Get the number of points in a grid object
 #'
 #' Evaluates the size of a grid, whether it is formatted as a simple vector
@@ -483,8 +508,7 @@ generate_mean_process <- function(
 
   ## 5. Draw the mean process realization, shared logic for any number of
   ## outputs.
-  mean_process_realization <- MASS::mvrnorm(
-    n = 1,
+  mean_process_realization <- .rmvnorm_chol(
     mu = m0_mean_function,
     Sigma = K_theta0_X
   )
@@ -605,7 +629,7 @@ generate_single_task_data <- function(
 
   ## 4. Select the corresponding mean process subset and draw the task data.
   mu0_subset <- mean_process_info$mean_process_realization[reference]
-  y_task <- MASS::mvrnorm(n = 1, mu = mu0_subset, Sigma = K_task_t)
+  y_task <- .rmvnorm_chol(mu = mu0_subset, Sigma = K_task_t)
 
   ## 5. Format the result, keeping track of the hyperparameters used so that
   ## they can optionally be exposed as columns (see 'add_hp' in simu_data()).

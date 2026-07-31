@@ -36,7 +36,6 @@ Imports:
     dplyr,
     ggplot2,
     magrittr,
-    MASS,
     methods,
     mvtnorm,
     plyr,

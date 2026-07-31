@@ -14,15 +14,15 @@
 })
 .ids <- unique(.mo_data$ID)
 .hp0 <- hp(convolution_kernel, list_task_ID = "0", list_output_ID = .outs,
-           noise = TRUE) %>% dplyr::select(-.data$Task_ID)
+           noise = TRUE) %>% dplyr::select(-"Task_ID")
 .hpi <- hp(convolution_kernel, list_task_ID = .ids, list_output_ID = .outs,
            shared_hp_tasks = TRUE, noise = TRUE) %>%
-  dplyr::rename(ID = .data$Task_ID) %>% dplyr::mutate(ID = as.character(.data$ID))
+  dplyr::rename(ID = "Task_ID") %>% dplyr::mutate(ID = as.character(.data$ID))
 .hpk <- hp(convolution_kernel, list_task_ID = c("K1", "K2"), list_output_ID = .outs,
            shared_hp_tasks = TRUE, noise = TRUE) %>%
-  dplyr::rename(ID = .data$Task_ID) %>% dplyr::mutate(ID = as.character(.data$ID))
+  dplyr::rename(ID = "Task_ID") %>% dplyr::mutate(ID = as.character(.data$ID))
 .grid <- tidyr::crossing(Output_ID = .outs, Input = seq(-1, 1, 0.5))
-.d1 <- .mo_data %>% dplyr::filter(.data$ID == .ids[1]) %>% dplyr::select(-.data$ID)
+.d1 <- .mo_data %>% dplyr::filter(.data$ID == .ids[1]) %>% dplyr::select(-"ID")
 
 test_that("train_magma + pred_magma run end-to-end with string output labels", {
   invisible(utils::capture.output(suppressWarnings(

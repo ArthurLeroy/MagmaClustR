@@ -30,11 +30,14 @@ sample_gp = function(
   mean <- pred %>% dplyr::pull(.data$Mean)
   cov <- pred_gp$cov
 
-  #Draw samples and format the tibble
+  ## Draw samples and format the tibble. 'method = "chol"' uses the canonical
+  ## (sign-fixed) Cholesky square root of the covariance, so samples are
+  ## reproducible across BLAS/LAPACK backends (unlike the default "eigen").
   mvtnorm::rmvnorm(
     n = nb_samples,
     mean = mean,
     sigma = cov,
+    method = "chol",
     checkSymmetry = FALSE
   ) %>%
     t() %>%
@@ -107,8 +110,9 @@ sample_magmaclust = function(
     cov <- pred_clust$cov[[k]]
     weight <- pred_clust$mixture[[k]]
 
-    #Draw samples and format the tibble
-    mvtnorm::rmvnorm(n_k, mean, cov, checkSymmetry = FALSE) %>%
+    ## Draw samples and format the tibble (Cholesky square root for portable,
+    ## BLAS/LAPACK-independent draws; see sample_gp()).
+    mvtnorm::rmvnorm(n_k, mean, cov, method = "chol", checkSymmetry = FALSE) %>%
       t() %>%
       magrittr::set_colnames(1:n_k) %>%
       tibble::as_tibble() %>%
