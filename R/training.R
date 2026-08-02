@@ -729,20 +729,29 @@ train_magma <- function(
   } else if (prior_mean %>% is.vector()) {
     if (length(prior_mean) == length(all_input)) {
       m_0 <- prior_mean
-    } else if (length(prior_mean) == 1) {
-      m_0 <- rep(prior_mean, length(all_input))
+    } else if (length(prior_mean) == length(data$Output_ID %>% unique())) {
+      # Get the unique and sorted Output_IDs
+      unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
+      # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
+      # This assumes the prior_mean vector is provided in the sorted order of
+      # Output_IDs.
+      prior_mean_map <- setNames(prior_mean, unique_outputs_sorted)
+      # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      all_input_prefixes <- stringr::str_extract(all_input, "-?[0-9.]+$")
+      # Build m_0 using the lookup table; it will automatically repeat the correct
+      # value for each prefix.
+      m_0 <- prior_mean_map[all_input_prefixes] %>% unname()
       cat(
-        "The provided 'prior_mean' argument is of length 1. Thus, the",
-        "hyper_prior mean function has set to be constant everywhere.\n \n"
+        "A constant hyper_prior mean has been set for each output.\n \n"
       )
     } else {
       stop(
-        "The 'prior_mean' argument is of length ",
-        length(prior_mean),
+        "The 'prior_mean' argument is of length ", length(prior_mean),
         ", whereas the grid of training inputs is of length ",
         length(all_input)
       )
     }
+
   } else if (prior_mean %>% is.function()) {
     m_0 <- prior_mean(
       all_inputs %>%
