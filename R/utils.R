@@ -36,6 +36,53 @@ match_closest <- function(x, table, tolerance = Inf, nomatch = NA_integer_) {
   lIdx
 }
 
+#' Detect the task-identifier column of a task-level tibble
+#'
+#' Task-level objects (raw data, per-task hyper-parameters, per-task mixture
+#' probabilities, ...) are keyed either by the legacy 'ID' column or, in the
+#' new long-format convention, by 'Task_ID'. This helper lets functions that
+#' consume such objects (e.g. plotting functions, [data_allocate_cluster()])
+#' remain agnostic to which convention is in use, rather than hardcoding
+#' 'ID'.
+#'
+#' @param df A tibble or data.frame.
+#' @return A character string, either \code{"ID"} or \code{"Task_ID"}.
+#' @keywords internal
+.task_id_col <- function(df) {
+  if ("ID" %in% names(df)) {
+    "ID"
+  } else if ("Task_ID" %in% names(df)) {
+    "Task_ID"
+  } else {
+    stop(
+      "Could not find a task-identifier column ('ID' or 'Task_ID') in the ",
+      "provided data.",
+      call. = FALSE
+    )
+  }
+}
+
+#' Normalise a task-level tibble's identifier column back to 'ID'
+#'
+#' Inverse of the 'ID' -> 'Task_ID' renaming performed when converting
+#' outputs to the new format (see [format_to_new()]). Used internally by
+#' functions that *recompute* on hyper-parameters/data pulled from a
+#' \code{trained_model} (e.g. [hyperposterior()], [pred_magma()]), so that
+#' the deep computational machinery (joins by 'ID', etc.) never needs to be
+#' aware of which convention the object is currently in.
+#'
+#' @param df A tibble or data.frame.
+#' @return \code{df}, with 'Task_ID' renamed to 'ID' if present; unchanged
+#'   otherwise.
+#' @keywords internal
+.to_legacy_id <- function(df) {
+  if (is.null(df)) return(df)
+  if ("Task_ID" %in% names(df) && !("ID" %in% names(df))) {
+    df <- df %>% dplyr::rename(ID = "Task_ID")
+  }
+  df
+}
+
 #' Resolve single-output vs multi-output mode for an entry-point function
 #'
 #' Detects whether a training/prediction call should operate in single-output
@@ -57,8 +104,11 @@ match_closest <- function(x, table, tolerance = Inf, nomatch = NA_integer_) {
 #'   is auto-detected. Otherwise, it must agree with the detected mode.
 #'
 #' @return A list with elements 'data' (converted to the internal working
-#'   format when relevant) and 'mo' (a logical value indicating whether
-#'   multi-output mode was resolved).
+#'   format when relevant), 'mo' (a logical value indicating whether
+#'   multi-output mode was resolved), and 'is_new_format' (a logical value
+#'   indicating whether 'data' was originally provided in the new long
+#'   format, useful for callers that want to convert their outputs back to
+#'   the user's original convention via [format_to_new()]).
 #' @keywords internal
 resolve_mo_mode <- function(data, kern, multi_output = NULL) {
   is_new_format <- all(c("Task_ID", "Input", "Output") %in% names(data))
@@ -88,7 +138,7 @@ resolve_mo_mode <- function(data, kern, multi_output = NULL) {
     data <- if (mo) .mo_working_format(data) else format_to_legacy(data)
   }
 
-  list(data = data, mo = mo)
+  list(data = data, mo = mo, is_new_format = is_new_format)
 }
 
 

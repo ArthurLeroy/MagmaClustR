@@ -17,8 +17,11 @@ is auto-detected. Otherwise, it must agree with the detected mode.}
 }
 \value{
 A list with elements 'data' (converted to the internal working
-format when relevant) and 'mo' (a logical value indicating whether
-multi-output mode was resolved).
+format when relevant), 'mo' (a logical value indicating whether
+multi-output mode was resolved), and 'is_new_format' (a logical value
+indicating whether 'data' was originally provided in the new long
+format, useful for callers that want to convert their outputs back to
+the user's original convention via \code{\link[=format_to_new]{format_to_new()}}).
 }
 \description{
 Detects whether a training/prediction call should operate in single-output

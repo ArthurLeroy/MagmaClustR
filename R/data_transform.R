@@ -171,3 +171,68 @@ format_to_legacy <- function(db, keep_extra_cols = FALSE) {
     )
 }
 
+#' Convert an internal-format object back to the new long-format convention
+#'
+#' Inverse of [format_to_legacy()]/[.mo_working_format()]: renames 'ID' to
+#' 'Task_ID' (if present) and pivots 'Input'/'Input2'/... wide columns back
+#' to long 'Input_ID'/'Input' rows (if present), so that objects derived from
+#' training/prediction (e.g. \code{trained_model$hp_i},
+#' \code{trained_model$ini_args$data}, \code{trained_model$hyperpost$mean})
+#' can be displayed to users in the same convention they used as input,
+#' without exposing the legacy internal representation. A 'Reference' column,
+#' if present, is dropped (it is an internal bookkeeping artefact).
+#'
+#' Objects with neither an 'ID' nor an 'Input'/'Input2'/... column (e.g. a
+#' hyper-parameter tibble already keyed by 'Output_ID' only) are returned
+#' unchanged, aside from the optional 'Output_ID' addition below.
+#'
+#' @param x A tibble or data.frame, in the internal working format.
+#' @param output_id An optional value (e.g. \code{"1"}) used to add an
+#'   'Output_ID' column when \code{x} doesn't already have one (typically for
+#'   single-output objects, to mirror the 'Output_ID' column present in the
+#'   user's original new-format data).
+#'
+#' @return A tibble in the new long-format convention.
+#' @export
+#'
+#' @examples
+#' db <- simu_data(n_tasks = 3)
+#' model <- train_magma(data = db, n_iter_max = 1)
+#' format_to_new(model$hp_i)
+format_to_new <- function(x, output_id = NULL) {
+  if ("Reference" %in% names(x)) {
+    x <- x %>% dplyr::select(-"Reference")
+  }
+  if ("ID" %in% names(x)) {
+    x <- x %>% dplyr::rename(Task_ID = "ID")
+  }
+
+  input_cols <- grep("^Input[0-9]*$", names(x), value = TRUE)
+  if (length(input_cols) == 0) {
+    if (!is.null(output_id) && !"Output_ID" %in% names(x)) {
+      x <- x %>% dplyr::mutate(Output_ID = as.character(output_id))
+    }
+    return(x)
+  }
+
+  input_ids <- ifelse(input_cols == "Input", "1", sub("^Input", "", input_cols))
+
+  x <- x %>%
+    tidyr::pivot_longer(
+      cols = dplyr::all_of(input_cols),
+      names_to = "Input_ID",
+      values_to = "Input"
+    ) %>%
+    dplyr::mutate(
+      Input_ID = input_ids[match(.data$Input_ID, input_cols)]
+    ) %>%
+    tidyr::drop_na("Input")
+
+  if (!is.null(output_id) && !"Output_ID" %in% names(x)) {
+    x <- x %>% dplyr::mutate(Output_ID = as.character(output_id))
+  }
+
+  front <- intersect(c("Task_ID", "Input_ID", "Input", "Output_ID"), names(x))
+  x %>% dplyr::select(dplyr::all_of(front), dplyr::everything())
+}
+

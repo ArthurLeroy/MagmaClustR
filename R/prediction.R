@@ -399,7 +399,7 @@ pred_gp <- function(
     "Var" = diag(pred_cov) + noise
   ) %>%
     dplyr::mutate(inputs_pred) %>%
-    dplyr::select(-"Reference")
+    dplyr::select(-dplyr::any_of("Reference"))
 
   ## Display the graph of the prediction if expected
   if (plot) {
@@ -553,6 +553,14 @@ hyperposterior <- function(
     }
   }
 
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed (e.g. if 'trained_model$ini_args$data' has
+  ## been converted back to the new format for display purposes). 'hp_i' is
+  ## normalised the same way, since it is joined with 'data' by 'ID' below.
+  mo_res <- resolve_mo_mode(data, kern_i, NULL)
+  data <- mo_res$data
+  hp_i <- .to_legacy_id(hp_i)
+
   ## Get input column names
   if (!("Reference" %in% (names(data)))) {
     names_col <- data %>%
@@ -659,7 +667,7 @@ hyperposterior <- function(
   } else if (prior_mean %>% is.function()) {
     m_0 <- prior_mean(
       all_inputs %>%
-        dplyr::select(-"Reference")
+        dplyr::select(-dplyr::any_of("Reference"))
     )
   } else if (prior_mean %>% is.data.frame()) {
     if (
@@ -746,7 +754,7 @@ hyperposterior <- function(
     "Mean" = post_mean,
     "Var" = post_cov %>% diag() %>% as.vector()
   ) %>%
-    dplyr::select(-"Reference")
+    dplyr::select(-dplyr::any_of("Reference"))
 
   list(
     "mean" = mean,
@@ -895,7 +903,7 @@ pred_magma <- function(
           res,
           data_train = data_train,
           prior_mean = hyperpost$mean %>%
-            dplyr::select(-"Reference"),
+            dplyr::select(-dplyr::any_of("Reference")),
           samples = display_samples
         ) %>%
           print()
@@ -910,6 +918,24 @@ pred_magma <- function(
     }
   }
 
+  ## When a trained model is provided, use its individual-process kernel
+  ## (the default 'kern' argument cannot carry a custom kernel function).
+  ## 'hp_i' is normalised back to the legacy 'ID' convention here too, since
+  ## it is directly joined/filtered by 'ID' below, regardless of whether
+  ## 'train_magma()' returned it in the new-format convention.
+  if (!is.null(trained_model)) {
+    kern <- trained_model$ini_args$kern_i
+    trained_model$hp_i <- .to_legacy_id(trained_model$hp_i)
+  }
+
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed. This must happen *before* removing the 'ID'
+  ## column below, since the new-format-to-legacy conversion is what
+  ## introduces the 'ID' column in the first place (renamed from 'Task_ID').
+  mo_res <- resolve_mo_mode(data, kern, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
     if (dplyr::n_distinct(data$ID) > 1) {
@@ -920,18 +946,6 @@ pred_magma <- function(
     }
     data <- data %>% dplyr::select(-"ID")
   }
-
-  ## When a trained model is provided, use its individual-process kernel
-  ## (the default 'kern' argument cannot carry a custom kernel function).
-  if (!is.null(trained_model)) {
-    kern <- trained_model$ini_args$kern_i
-  }
-
-  ## Resolve single-output vs multi-output mode, converting 'data' from the
-  ## new long format if needed.
-  mo_res <- resolve_mo_mode(data, kern, multi_output)
-  data <- mo_res$data
-  mo <- mo_res$mo
 
   if (is.null(kern)) {
     kern <- if (mo) convolution_kernel else "SE"
@@ -1107,8 +1121,13 @@ pred_magma <- function(
       (!is.null(hyperpost$mean)) &
       (!is.null(hyperpost$cov))
   ) {
-    ## Check hyperpost format (in particular presence of all reference Input)
-    if (!all(all_input %in% hyperpost$mean$Reference)) {
+    ## Check hyperpost format (in particular presence of all reference Input).
+    ## 'hyperpost$mean' may lack 'Reference' if it was converted to the new
+    ## format for display purposes, in which case a recompute is required.
+    if (
+      !("Reference" %in% names(hyperpost$mean)) ||
+        !all(all_input %in% hyperpost$mean$Reference)
+    ) {
       if (trained_model %>% is.null()) {
         stop(
           "hyperpost is not evaluated at the correct inputs, please use the ",
@@ -1301,7 +1320,7 @@ pred_magma <- function(
     "Var" = diag(pred_cov) + noise
   ) %>%
     dplyr::mutate(inputs_pred) %>%
-    dplyr::select(-"Reference")
+    dplyr::select(-dplyr::any_of("Reference"))
 
   ## Display the graph of the prediction if expected
   if (plot) {
@@ -1325,7 +1344,7 @@ pred_magma <- function(
       data = data,
       data_train = data_train,
       prior_mean = hyperpost$mean %>%
-        dplyr::select(-"Reference"),
+        dplyr::select(-dplyr::any_of("Reference")),
       samples = display_samples
     ) %>%
       print()
@@ -1653,6 +1672,17 @@ hyperposterior_clust <- function(
     }
   }
 
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed (e.g. if 'trained_model$ini_args$data' has
+  ## been converted back to the new format for display purposes). 'hp_i' and
+  ## 'mixture' are normalised the same way, since they are joined with
+  ## 'data' by 'ID' below ('hp_k' is unaffected: its 'ID' identifies
+  ## clusters, not tasks, and is never converted).
+  mo_res <- resolve_mo_mode(data, kern_i, NULL)
+  data <- mo_res$data
+  hp_i <- .to_legacy_id(hp_i)
+  mixture <- .to_legacy_id(mixture)
+
   ## Get input column names
   if ("Reference" %in% names(data)) {
     names_col <- data %>%
@@ -1808,7 +1838,7 @@ hyperposterior_clust <- function(
       "Var" = cov_k[[k]] %>% diag() %>% as.vector()
     ) %>%
       dplyr::rename("Mean" = .data$Output) %>%
-      dplyr::select(-"Reference") %>%
+      dplyr::select(-dplyr::any_of("Reference")) %>%
       return()
   }
   pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
@@ -2059,8 +2089,15 @@ pred_magmaclust <- function(
 
   ## When a trained model is provided, use its individual-process kernel
   ## (the default 'kern' argument cannot carry a custom kernel function).
+  ## 'hp_i' and 'hyperpost$mixture' are normalised back to the legacy 'ID'
+  ## convention here too, since they are directly joined/filtered by 'ID'
+  ## below, regardless of whether 'train_magmaclust()' returned them in the
+  ## new-format convention ('hp_k' is unaffected: its 'ID' identifies
+  ## clusters, not tasks, and is never converted).
   if (!is.null(trained_model)) {
     kern <- trained_model$ini_args$kern_i
+    trained_model$hp_i <- .to_legacy_id(trained_model$hp_i)
+    trained_model$hyperpost$mixture <- .to_legacy_id(trained_model$hyperpost$mixture)
   }
 
   ## Resolve single-output vs multi-output mode, converting 'data' from the
@@ -2186,7 +2223,7 @@ pred_magmaclust <- function(
   } else if (grid_inputs %>% is.data.frame()) {
     if ("Reference" %in% names(grid_inputs)) {
       names_grid <- grid_inputs %>%
-        dplyr::select(-"Reference") %>%
+        dplyr::select(-dplyr::any_of("Reference")) %>%
         names()
     } else {
       names_grid <- names(grid_inputs)
@@ -2239,8 +2276,14 @@ pred_magmaclust <- function(
       ## Get the hyper-posterior distribution from the trained model
       hyperpost <- trained_model$hyperpost
 
-      ## Check hyperpost format (in particular presence of all reference Input)
-      if (!all(all_input %in% hyperpost$mean[[1]]$Reference)) {
+      ## Check hyperpost format (in particular presence of all reference
+      ## Input). 'hyperpost$mean' elements may lack 'Reference' if converted
+      ## to the new format for display purposes, in which case a recompute
+      ## is required.
+      if (
+        !("Reference" %in% names(hyperpost$mean[[1]])) ||
+          !all(all_input %in% hyperpost$mean[[1]]$Reference)
+      ) {
         if (trained_model %>% is.null()) {
           stop(
             "hyperpost is not evaluated at the correct inputs, please use the ",
@@ -2271,7 +2314,10 @@ pred_magmaclust <- function(
     ## Check hyperpost format
     if (!is.null(hyperpost$mean)) {
       ## Check hyperpost format (in particular presence of all reference Input
-      if (!all(all_input %in% hyperpost$mean[[1]]$Reference)) {
+      if (
+        !("Reference" %in% names(hyperpost$mean[[1]])) ||
+          !all(all_input %in% hyperpost$mean[[1]]$Reference)
+      ) {
         stop(
           "The hyper-posterior distribution of the mean processes provided ",
           "in the 'hyperpost' argument isn't evaluated on expected inputs. ",
@@ -2481,7 +2527,7 @@ pred_magmaclust <- function(
       "Var" = (diag(pred_cov) + noise) %>% as.vector()
     ) %>%
       dplyr::mutate(inputs_pred) %>%
-      dplyr::select(-"Reference") %>%
+      dplyr::select(-dplyr::any_of("Reference")) %>%
       return()
   }
   pred <- sapply(ID_k, floop, simplify = FALSE, USE.NAMES = TRUE)
@@ -2504,7 +2550,7 @@ pred_magmaclust <- function(
     "Var" = mixture_var %>% as.vector()
   ) %>%
     dplyr::mutate(inputs_pred) %>%
-    dplyr::select(-"Reference")
+    dplyr::select(-dplyr::any_of("Reference"))
 
   res <- list("pred" = pred, "mixture" = mixture, "mixture_pred" = mixture_pred)
 
@@ -2615,8 +2661,14 @@ data_allocate_cluster <- function(trained_model) {
     db <- db %>% dplyr::select(-"Cluster")
   }
 
-  max_clust <- proba_max_cluster(mixture)
+  ## 'db' and 'mixture' may each independently be in the legacy ('ID') or
+  ## new ('Task_ID') convention (both come from 'train_magmaclust()' and
+  ## share the same convention in practice, but are normalised defensively).
+  id_col <- .task_id_col(db)
+  max_clust <- proba_max_cluster(.to_legacy_id(mixture)) %>%
+    dplyr::rename(!!id_col := "ID")
+
   db %>%
-    dplyr::left_join(max_clust, by = "ID") %>%
+    dplyr::left_join(max_clust, by = id_col) %>%
     return()
 }

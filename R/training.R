@@ -612,6 +612,10 @@ train_magma <- function(
   mo_res <- resolve_mo_mode(data, kern_for_detect, multi_output)
   data <- mo_res$data
   mo <- mo_res$mo
+  ## Remembered to convert user-facing outputs ('ini_args$data',
+  ## 'hyperpost$mean', 'hyperpost$pred') back to the new format at the end,
+  ## if that is the convention the user originally provided.
+  was_new_format <- mo_res$is_new_format
 
   if (mo) {
     ## The joint MO/MT framework requires the same convolution kernel for
@@ -1051,9 +1055,28 @@ train_magma <- function(
       dplyr::select(-"Reference")
   }
 
+  ## If the user originally provided data in the new long format, convert
+  ## all user-facing task-level outputs back to that convention ('ID' ->
+  ## 'Task_ID'), rather than exposing the internal legacy working
+  ## representation. 'hyperpost$cov' is left untouched (an internal matrix,
+  ## indexed by 'Reference'). Functions that later *recompute* on these
+  ## objects (e.g. [hyperposterior()], [pred_magma()]) normalise them back
+  ## to 'ID' internally via [.to_legacy_id()], so this conversion is
+  ## transparent to the rest of the package.
+  data_out <- data %>% dplyr::select(-"Reference")
+  hp_i_out <- hp_i
+  post_out <- post
+  if (was_new_format) {
+    out_id <- if (mo) NULL else "1"
+    data_out <- format_to_new(data_out, output_id = out_id)
+    hp_i_out <- format_to_new(hp_i)
+    post_out$mean <- format_to_new(post$mean, output_id = out_id)
+    post_out$pred <- format_to_new(post$pred, output_id = out_id)
+  }
+
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
-    "data" = data %>% dplyr::select(-"Reference"),
+    "data" = data_out,
     "prior_mean" = prior_mean,
     "ini_hp_0" = hp_0_ini,
     "ini_hp_i" = hp_i_ini,
@@ -1070,8 +1093,8 @@ train_magma <- function(
   ## Create and return the list of elements from the trained model
   list(
     "hp_0" = hp_0,
-    "hp_i" = hp_i,
-    "hyperpost" = post,
+    "hp_i" = hp_i_out,
+    "hyperpost" = post_out,
     "ini_args" = fct_args,
     "seq_loglikelihood" = seq_loglikelihood,
     "converged" = cv,
@@ -1266,6 +1289,10 @@ train_magmaclust <- function(
   mo_res <- resolve_mo_mode(data, kern_for_detect, multi_output)
   data <- mo_res$data
   mo <- mo_res$mo
+  ## Remembered to convert user-facing outputs ('ini_args$data',
+  ## 'hyperpost$mean', 'hyperpost$pred') back to the new format at the end,
+  ## if that is the convention the user originally provided.
+  was_new_format <- mo_res$is_new_format
 
   if (mo) {
     ## The joint MO/MT framework requires the same convolution kernel for
@@ -1761,9 +1788,31 @@ train_magmaclust <- function(
     post$pred <- sapply(ID_k, floop_pred, simplify = FALSE, USE.NAMES = TRUE)
   }
 
+  ## If the user originally provided data in the new long format, convert
+  ## all user-facing *task*-level outputs back to that convention ('ID' ->
+  ## 'Task_ID'): 'ini_args$data', 'hp_i', and 'hyperpost$mixture'/'mean'/
+  ## 'pred'. 'hp_k' is left untouched: its 'ID' column identifies *clusters*
+  ## (e.g. 'K1', 'K2'), not tasks, and has no equivalent in the new-format
+  ## convention. 'hyperpost$cov' is also left untouched (internal matrices,
+  ## indexed by 'Reference'). Functions that later *recompute* on these
+  ## objects (e.g. [hyperposterior_clust()], [pred_magmaclust()]) normalise
+  ## them back to 'ID' internally via [.to_legacy_id()], so this conversion
+  ## is transparent to the rest of the package.
+  data_out <- data %>% dplyr::select(-"Reference")
+  hp_i_out <- hp_i
+  post_out <- post
+  if (was_new_format) {
+    out_id <- if (mo) NULL else "1"
+    data_out <- format_to_new(data_out, output_id = out_id)
+    hp_i_out <- format_to_new(hp_i)
+    post_out$mixture <- format_to_new(post$mixture)
+    post_out$mean <- lapply(post$mean, format_to_new, output_id = out_id)
+    post_out$pred <- lapply(post$pred, format_to_new, output_id = out_id)
+  }
+
   ## Create an history list of the initial arguments of the function
   fct_args <- list(
-    "data" = data %>% dplyr::select(-"Reference"),
+    "data" = data_out,
     "nb_cluster" = nb_cluster,
     "prior_mean_k" = m_k_ini,
     "ini_hp_k" = hp_k_ini,
@@ -1782,8 +1831,8 @@ train_magmaclust <- function(
   list(
     "m_k" = m_k,
     "hp_k" = hp_k,
-    "hp_i" = hp_i,
-    "hyperpost" = post,
+    "hp_i" = hp_i_out,
+    "hyperpost" = post_out,
     "ini_args" = fct_args,
     "seq_elbo" = seq_elbo,
     "converged" = cv,

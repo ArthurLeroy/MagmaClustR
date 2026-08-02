@@ -520,13 +520,14 @@ plot_gp <- function(
 
     ## Display the training data if provided
     if (!is.null(data_train)) {
+      id_col <- .task_id_col(data_train)
       gg <- gg +
         ggplot2::geom_point(
           data = data_train,
           ggplot2::aes(
             x = .data[[names(inputs)[1]]],
             y = .data$Output,
-            col = .data$ID
+            col = .data[[id_col]]
           ),
           size = size_data_train,
           alpha = alpha_data_train
@@ -1127,13 +1128,14 @@ plot_magmaclust <- function(
           )
       }
     } else {
+      id_col <- .task_id_col(data_train)
       gg <- gg +
         ggplot2::geom_point(
           data = data_train,
           ggplot2::aes(
             x = .data[[names(inputs)[1]]],
             y = .data$Output,
-            fill = .data$ID
+            fill = .data[[id_col]]
           ),
           shape = 21,
           size = size_data_train,
@@ -1283,8 +1285,12 @@ plot_clusters <- function(
   data_clustered <- trained_model %>%
     data_allocate_cluster()
 
+  ## 'data_clustered' carries whichever task-identifier convention
+  ## 'trained_model$ini_args$data' uses ('ID' or 'Task_ID').
+  id_col <- .task_id_col(data_clustered)
+
   assignments = data_clustered %>%
-    dplyr::select("ID", "Cluster", "Proba")
+    dplyr::select(dplyr::all_of(id_col), "Cluster", "Proba")
 
 
   ## Extract the list of all clusters' names
@@ -1359,7 +1365,7 @@ plot_clusters <- function(
     k_data <- data_clustered %>%
       dplyr::filter(.data$Cluster == k)
 
-    n_ids <- dplyr::n_distinct(k_data$ID)
+    n_ids <- dplyr::n_distinct(k_data[[id_col]])
 
     mean_prob <- assignments %>%
       dplyr::filter(.data$Cluster == k) %>%
@@ -1379,7 +1385,7 @@ plot_clusters <- function(
       ggplot2::geom_point(data = k_data, ggplot2::aes(
         x = .data[[x_input]],
         y = .data$Output,
-        col = .data$ID), size = size_point, alpha = alpha_point) +
+        col = .data[[id_col]]), size = size_point, alpha = alpha_point) +
       ggplot2::labs(title = title, x = x_input, y = y_lab) +
       ggplot2::theme_classic() +
       ggplot2::theme(
