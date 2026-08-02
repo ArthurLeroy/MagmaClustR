@@ -213,15 +213,30 @@ pred_gp <- function(
     input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
   } else if (grid_inputs %>% is.vector()) {
     ## Test whether 'data' only provide the Input column and no covariates
-    if (inputs_obs %>% names() %>% length() == 2) {
-      input_pred <- grid_inputs %>%
+    if (inputs_obs %>% names() %>% length() == 3) {
+      input_temp <- grid_inputs %>%
         signif() %>%
         sort() %>%
         unique()
-      inputs_pred <- tibble::tibble(
-        "Input" = input_pred,
-        "Reference" = input_pred %>% as.character()
-      )
+
+      inputs_pred <- tibble::tibble("Input_1" = rep(input_temp,
+                                                    times = nrow(unique_outputs)),
+                                    "Output_ID" = rep(unique_outputs %>%
+                                                        purrr::as_vector(),
+                                                      each = length(input_temp))) %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(
+          Reference = paste(
+            paste0("o", Output_ID),
+            paste(c_across(starts_with("Input_")), collapse = ":"),
+            sep = ";"
+          )
+        ) %>%
+        dplyr::ungroup() %>%
+        dplyr::arrange(Reference)
+
+      input_pred <- inputs_pred %>% dplyr::pull(Reference)
+
     } else {
       stop(
         "The 'grid_inputs' argument should be a either a numerical vector ",
@@ -274,20 +289,36 @@ pred_gp <- function(
       "mean function is thus set to be 0 everywhere.\n \n"
     )
   } else if (mean %>% is.vector()) {
-    if (length(mean) == 1) {
-      mean_obs <- rep(mean, length(input_obs))
-      mean_pred <- rep(mean, length(input_pred))
+    if (length(mean) == length(input_obs)) {
+      mean_obs <- mean
+      mean_pred <- mean
+    } else if (length(mean) == length(data$Output_ID %>% unique())) {
+      # Get the unique and sorted Output_IDs
+      unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
+      # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
+      # This assumes the prior_mean vector is provided in the sorted order of
+      # Output_IDs.
+      mean_map <- setNames(mean, unique_outputs_sorted)
+      # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      input_obs_prefixes <- stringr::str_extract(input_obs, "-?[0-9.]+$")
+      input_pred_prefixes <- stringr::str_extract(input_pred, "-?[0-9.]+$")
+
+      # Build m_0 using the lookup table; it will automatically repeat the correct
+      # value for each prefix.
+      mean_obs <- mean_map[input_obs_prefixes] %>% unname()
+      mean_pred <- mean_map[input_pred_prefixes] %>% unname()
+
       cat(
-        "The mean function has been set to be",
-        mean,
-        "everywhere.\n \n"
+        "A constant hyper_prior mean has been set for each output.\n \n"
       )
     } else {
       stop(
-        "Incorrect format for the 'mean' argument. Please read ",
-        "?pred_gp() for details."
+        "The 'mean' argument is of length ", length(mean),
+        ", whereas the grid of training inputs is of length ",
+        length(all_input)
       )
     }
+
   } else if (mean %>% is.data.frame()) {
     if (all(c("Output", "Input") %in% names(mean))) {
       mean_obs <- mean %>%
@@ -662,20 +693,29 @@ hyperposterior <- function(
   } else if (prior_mean %>% is.vector()) {
     if (length(prior_mean) == length(all_input)) {
       m_0 <- prior_mean
-    } else if (length(prior_mean) == 1) {
-      m_0 <- rep(prior_mean, length(all_input))
+    } else if (length(prior_mean) == length(data$Output_ID %>% unique())) {
+      # Get the unique and sorted Output_IDs
+      unique_outputs_sorted <- data$Output_ID %>% unique() %>% sort()
+      # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
+      # This assumes the prior_mean vector is provided in the sorted order of
+      # Output_IDs.
+      prior_mean_map <- setNames(prior_mean, unique_outputs_sorted)
+      # Extract the prefix ("o1", "o2", etc.) from each element in all_input
+      all_input_prefixes <- stringr::str_extract(all_input, "-?[0-9.]+$")
+      # Build m_0 using the lookup table; it will automatically repeat the correct
+      # value for each prefix.
+      m_0 <- prior_mean_map[all_input_prefixes] %>% unname()
       cat(
-        "The provided 'prior_mean' argument is of length 1. Thus, the",
-        "hyper-prior mean function has set to be constant everywhere.\n \n"
+        "A constant hyper_prior mean has been set for each output.\n \n"
       )
     } else {
       stop(
-        "The 'prior_mean' argument is of length ",
-        length(prior_mean),
+        "The 'prior_mean' argument is of length ", length(prior_mean),
         ", whereas the grid of training inputs is of length ",
         length(all_input)
       )
     }
+
   } else if (prior_mean %>% is.function()) {
     m_0 <- prior_mean(
       all_inputs %>%
