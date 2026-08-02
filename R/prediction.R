@@ -90,6 +90,7 @@ pred_gp <- function(
   ## Resolve single-output vs multi-output mode, converting 'data' from the
   ## new long format if needed. When 'data' is NULL, detection can only rely
   ## on 'kern'/'multi_output'.
+  was_new_format <- FALSE
   if (data %>% is.null()) {
     mo <- if (is.null(multi_output)) {
       identical(kern, convolution_kernel)
@@ -100,6 +101,7 @@ pred_gp <- function(
     mo_res <- resolve_mo_mode(data, kern, multi_output)
     data <- mo_res$data
     mo <- mo_res$mo
+    was_new_format <- mo_res$is_new_format
   }
 
   if (is.null(kern)) {
@@ -412,6 +414,16 @@ pred_gp <- function(
       samples = display_samples
     ) %>%
       print()
+  }
+
+  ## If the input was originally provided in the new long format, convert
+  ## the prediction back to that convention for consistency with
+  ## 'train_magma()'/'train_magmaclust()' outputs. This is done only now
+  ## (after plotting), since 'plot_gp()' infers the input dimension from
+  ## 'pred_gp''s columns and an added 'Output_ID' column would be
+  ## misinterpreted as a second input dimension.
+  if (was_new_format) {
+    pred_gp <- format_to_new(pred_gp, output_id = if (mo) NULL else "1")
   }
 
   ## Add the posterior covariance matrix in the results if expected
@@ -913,7 +925,7 @@ pred_magma <- function(
       if (get_full_cov) {
         pred <- list("pred" = pred, "cov" = hyperpost$cov)
       }
-      
+
       return(pred)
     }
   }
@@ -935,6 +947,7 @@ pred_magma <- function(
   mo_res <- resolve_mo_mode(data, kern, multi_output)
   data <- mo_res$data
   mo <- mo_res$mo
+  was_new_format <- mo_res$is_new_format
 
   ## Remove the 'ID' column if present
   if ("ID" %in% names(data)) {
@@ -990,7 +1003,7 @@ pred_magma <- function(
   ## Extract the observed inputs (reference Input + covariates)
   inputs_obs <- data %>%
     dplyr::select(-"Output")
-
+browser()
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
     set_grid <- function(x, size_grid) {
@@ -1350,6 +1363,16 @@ pred_magma <- function(
       print()
   }
 
+  ## If the input was originally provided in the new long format, convert
+  ## the prediction back to that convention for consistency with
+  ## 'train_magma()'/'train_magmaclust()' outputs. This is done only now
+  ## (after plotting), since 'plot_gp()' infers the input dimension from
+  ## 'pred_gp''s columns and an added 'Output_ID' column would be
+  ## misinterpreted as a second input dimension.
+  if (was_new_format) {
+    pred_gp <- format_to_new(pred_gp, output_id = if (mo) NULL else "1")
+  }
+
   res <- pred_gp
   ## Check whether posterior covariance or hyper-posterior should be returned
   if (get_full_cov | get_hyperpost) {
@@ -1451,9 +1474,30 @@ pred_gif <- function(
   hyperpost = NULL,
   mean = NULL,
   hp = NULL,
-  kern = "SE",
+  kern = NULL,
+  multi_output = NULL,
   pen_diag = 1e-10
 ) {
+  ## When a trained model is provided, use its individual-process kernel.
+  if (!is.null(trained_model)) {
+    kern <- trained_model$ini_args$kern_i
+  }
+
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed.
+  mo_res <- resolve_mo_mode(data, kern, multi_output)
+  data <- mo_res$data
+  mo <- mo_res$mo
+
+  if (is.null(kern)) {
+    kern <- if (mo) convolution_kernel else "SE"
+    cat(
+      "The 'kern' argument has not been specified. The",
+      if (mo) "'convolution_kernel'" else "'SE'",
+      "kernel is used by default.\n \n"
+    )
+  }
+
   ## Remove possible missing data
   data <- data %>% tidyr::drop_na()
 
@@ -1468,22 +1512,27 @@ pred_gif <- function(
 
   ## Define the target inputs to predict
   if (grid_inputs %>% is.null()) {
+    ## The grid is built on the numeric input columns only; in the
+    ## multi-output case, 'Output_ID' is an identifier, not a coordinate, so
+    ## the coordinate grid is built on the remaining inputs and replicated
+    ## across every observed output.
+    has_output_id <- "Output_ID" %in% names(inputs)
+    coord_cols <- setdiff(names(inputs), "Output_ID")
+
     ## Test whether 'data' only provide the Input column and no covariates
-    if (inputs %>% names() %>% length() == 1) {
-      grid_inputs <- tibble::tibble(
+    if (length(coord_cols) == 1) {
+      coord_grid <- tibble::tibble(
         "Input" = seq(min_data, max_data, length.out = 500)
       )
-    } else if (inputs %>% names() %>% length() == 2) {
+    } else if (length(coord_cols) == 2) {
       ## Define a default grid for 'Input'
-      grid_inputs <- tibble::tibble(
+      coord_grid <- tibble::tibble(
         "Input" = rep(seq(min_data, max_data, length.out = 20), each = 20)
       )
       ## Add a grid for the covariate
-      name_cova <- inputs %>%
-        dplyr::select(-"Input") %>%
-        names()
-      cova <- inputs[name_cova]
-      grid_inputs[name_cova] <- rep(
+      name_cova <- setdiff(coord_cols, "Input")
+      cova <- inputs[[name_cova]]
+      coord_grid[[name_cova]] <- rep(
         seq(min(cova), max(cova), length.out = 20),
         times = 20
       )
@@ -1492,6 +1541,12 @@ pred_gif <- function(
         "The 'grid_inputs' argument should be a either a numerical vector ",
         "or a data frame depending on the context. Please read ?pred_gp()."
       )
+    }
+
+    grid_inputs <- if (has_output_id) {
+      tidyr::crossing(Output_ID = unique(inputs$Output_ID), coord_grid)
+    } else {
+      coord_grid
     }
   }
 
@@ -1592,7 +1647,7 @@ pred_gif <- function(
 #'    "LIN", PERIO" and "RQ" are also available here). Recovered from
 #'    \code{trained_model} if not provided.
 #' @param prior_mean_k A list of vectors, corresponding to the hyper-prior mean
-#'    parameters (m_k) for the K mean GPs, one value for each cluster. 
+#'    parameters (m_k) for the K mean GPs, one value for each cluster.
 #'    Recovered from \code{trained_model} if not provided.
 #' @param grid_inputs A vector or a data frame, indicating the grid of
 #'    additional reference inputs on which the mean process' hyper-posterior
@@ -1997,6 +2052,11 @@ pred_magmaclust <- function(
 
       names_k = hyperpost$pred %>% names()
 
+      ## Whether the trained model's outputs use the new-format convention
+      ## ('Task_ID'), to mirror it below for the generic prediction as well.
+      was_new_format <- "Task_ID" %in% names(trained_model$ini_args$data)
+      hyperpost$mixture <- .to_legacy_id(hyperpost$mixture)
+
       ## Compute the generic mixture weights
       mixture = hyperpost$mixture %>%
         dplyr::select(-"ID") %>%
@@ -2083,6 +2143,18 @@ pred_magmaclust <- function(
         pred[["cov"]] <- NULL
       }
 
+      ## If the trained model's outputs use the new-format convention,
+      ## mirror it for this generic (no-data) prediction as well. Done only
+      ## now (after plotting), since 'plot_magmaclust()' relies on the
+      ## legacy 'ID' column to identify the (single) generic prediction.
+      if (was_new_format) {
+        mo <- identical(trained_model$ini_args$kern_i, convolution_kernel)
+        out_id <- if (mo) NULL else "1"
+        pred$pred <- lapply(pred$pred, format_to_new, output_id = out_id)
+        pred$mixture <- format_to_new(pred$mixture)
+        pred$mixture_pred <- format_to_new(pred$mixture_pred, output_id = out_id)
+      }
+
       return(pred)
     }
   }
@@ -2105,6 +2177,7 @@ pred_magmaclust <- function(
   mo_res <- resolve_mo_mode(data, kern, multi_output)
   data <- mo_res$data
   mo <- mo_res$mo
+  was_new_format <- mo_res$is_new_format
 
   if (is.null(kern)) {
     kern <- if (mo) convolution_kernel else "SE"
@@ -2555,7 +2628,7 @@ pred_magmaclust <- function(
   res <- list("pred" = pred, "mixture" = mixture, "mixture_pred" = mixture_pred)
 
 
-  
+
   ## Check whether hyper-posterior should be returned
   if (get_hyperpost) {
     res[["hyperpost"]] <- hyperpost
@@ -2598,6 +2671,18 @@ pred_magmaclust <- function(
   ## Check whether posterior covariance should be returned
   if (!get_full_cov) {
     res[["cov"]] <- NULL
+  }
+
+  ## If the input was originally provided in the new long format, convert
+  ## the prediction back to that convention for consistency with
+  ## 'train_magma()'/'train_magmaclust()' outputs. This is done only now
+  ## (after plotting), since 'plot_magmaclust()' relies on the legacy 'ID'
+  ## column to identify the (single) predicted task.
+  if (was_new_format) {
+    out_id <- if (mo) NULL else "1"
+    res$pred <- lapply(res$pred, format_to_new, output_id = out_id)
+    res$mixture <- format_to_new(res$mixture)
+    res$mixture_pred <- format_to_new(res$mixture_pred, output_id = out_id)
   }
 
   return(res)

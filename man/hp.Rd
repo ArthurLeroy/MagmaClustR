@@ -22,10 +22,15 @@ hp(
 such as "SE + PERIO"), or a kernel \emph{function} for the multi-output case
 (typically \code{\link[=convolution_kernel]{convolution_kernel()}}).}
 
-\item{list_task_ID}{A vector of task identifiers. Required for the
-multi-output convolution kernel.}
+\item{list_task_ID}{A vector of task identifiers, for the multi-output
+convolution kernel. If NULL (and \code{kern} is the convolution kernel),
+a \emph{condensed} hyper-parameter tibble is returned instead: a single row
+per \code{list_output_ID} (no \code{Task_ID} column), suitable for use
+as a hyper-parameter set shared across tasks (e.g. with
+\code{\link[=train_shared_gp]{train_shared_gp()}}).}
 
-\item{list_output_ID}{A vector of output identifiers (labels; may be arbitrary strings, e.g. 'weight', 'height').
+\item{list_output_ID}{A vector of output identifiers (labels; may be
+arbitrary strings, e.g. 'weight', 'height').
 Required for the multi-output convolution kernel.}
 
 \item{shared_hp_tasks}{A logical value. If TRUE (default), hyper-parameters

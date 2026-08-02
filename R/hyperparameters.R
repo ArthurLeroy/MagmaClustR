@@ -13,9 +13,14 @@
 #'   "SE", "LIN", "PERIO", "RQ", or a whitespace-separated combination
 #'   such as "SE + PERIO"), or a kernel *function* for the multi-output case
 #'   (typically [convolution_kernel()]).
-#' @param list_task_ID A vector of task identifiers. Required for the
-#'   multi-output convolution kernel.
-#' @param list_output_ID A vector of output identifiers (labels; may be arbitrary strings, e.g. 'weight', 'height').
+#' @param list_task_ID A vector of task identifiers, for the multi-output
+#'   convolution kernel. If NULL (and \code{kern} is the convolution kernel),
+#'   a *condensed* hyper-parameter tibble is returned instead: a single row
+#'   per \code{list_output_ID} (no \code{Task_ID} column), suitable for use
+#'   as a hyper-parameter set shared across tasks (e.g. with
+#'   [train_shared_gp()]).
+#' @param list_output_ID A vector of output identifiers (labels; may be
+#'   arbitrary strings, e.g. 'weight', 'height').
 #'   Required for the multi-output convolution kernel.
 #' @param shared_hp_tasks A logical value. If TRUE (default), hyper-parameters
 #'   are shared across tasks; otherwise they are drawn independently per task.
@@ -83,16 +88,14 @@ hp <- function(kern = "SE",
 
   ## ---- Multi-output convolution kernel -----------------------------------
   if (is.function(kern)) {
-    if (is.null(list_task_ID) || is.null(list_output_ID)) {
-      stop("For a multi-output convolution kernel, both 'list_task_ID' and ",
-           "'list_output_ID' must be provided.", call. = FALSE)
+    if (is.null(list_output_ID)) {
+      stop("For a multi-output convolution kernel, 'list_output_ID' must be ",
+           "provided.", call. = FALSE)
     }
 
     ## Output/Task IDs are identifier labels used throughout; they may be
     ## arbitrary strings (e.g. 'weight', 'height').
     out_ids  <- sort(unique(as.character(list_output_ID)))
-    task_ids <- unique(as.character(list_task_ID))
-    task_fct <- task_ids
     out_fct  <- out_ids
 
     ## Per-output generation bounds (log-scale); overridable via 'hp_config',
@@ -101,6 +104,35 @@ hp <- function(kern = "SE",
       hp_config <- .data_driven_hp_config(data, out_ids)
     }
     config <- .hp_conv_config(hp_config, out_ids)
+
+    ## ---- Condensed mode: no 'list_task_ID' ------------------------------
+    ## A single hyper-parameter set per output, with no 'Task_ID' column, to
+    ## be used directly as a shared hyper-parameter set (e.g. as 'ini_hp' in
+    ## [train_shared_gp()]).
+    if (is.null(list_task_ID)) {
+      if (n_latent > 1) {
+        stop("Condensed mode (no 'list_task_ID') is not supported with ",
+             "'n_latent' > 1; please provide 'list_task_ID'.", call. = FALSE)
+      }
+      grid <- tibble::tibble(Output_ID = out_fct)
+      draw_smoothing <- function(param) {
+        lo <- config[[paste0(param, "_min")]]
+        hi <- config[[paste0(param, "_max")]]
+        if (shared_hp_outputs) {
+          rep(stats::runif(1, lo[1], hi[1]), nrow(grid))
+        } else {
+          stats::runif(nrow(grid), lo, hi)
+        }
+      }
+      final_hp <- grid %>%
+        dplyr::mutate(l_t = draw_smoothing("lt"), S_t = draw_smoothing("St"))
+      if (noise) final_hp$noise <- draw_smoothing("noise")
+      final_hp$l_u_t <- stats::runif(1, config$lu_min[1], config$lu_max[1])
+      return(final_hp)
+    }
+
+    task_ids <- unique(as.character(list_task_ID))
+    task_fct <- task_ids
 
     ## ---- Multiple latent processes -------------------------------------
     ## Q > 1 latent convolution processes: draw l_t/S_t per (output, latent),

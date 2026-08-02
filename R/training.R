@@ -2271,32 +2271,71 @@ select_nb_cluster <- function(
   grid_nb_cluster = 1:10,
   ini_hp_k = NULL,
   ini_hp_i = NULL,
-  kern_k = "SE",
-  kern_i = "SE",
+  kern_k = NULL,
+  kern_i = NULL,
+  multi_output = NULL,
+  precondition_tasks = 1,
   plot = TRUE,
   ...
 ) {
-  ## Remove possible missing data
-  data <- data %>% tidyr::drop_na()
-  ## Compute the number of different individuals/tasks
-  nb_i <- data$ID %>% dplyr::n_distinct()
+  ## Resolve single-output vs multi-output mode, converting 'data' from the
+  ## new long format if needed. A local, always-legacy copy ('data_legacy')
+  ## is used for this function's own computations below; the original
+  ## 'data' is passed as-is to 'train_magma()'/'train_magmaclust()', which
+  ## perform their own (format-preserving) conversion.
+  kern_for_detect <- if (!is.null(kern_i)) kern_i else kern_k
+  mo_res <- resolve_mo_mode(data, kern_for_detect, multi_output)
+  data_legacy <- mo_res$data
+  mo <- mo_res$mo
 
-  ## Draw common initialisation for hyper-parameters for all values of K
-  if (ini_hp_k %>% is.null()) {
-    ini_hp_k <- hp(kern = kern_k)
+  if (mo) {
+    if (!is.null(kern_k) && !identical(kern_k, convolution_kernel)) {
+      stop(
+        "In multi-output mode, 'kern_k' must be 'convolution_kernel' (the ",
+        "joint framework cannot mix kernel types).",
+        call. = FALSE
+      )
+    }
+    if (!is.null(kern_i) && !identical(kern_i, convolution_kernel)) {
+      stop(
+        "In multi-output mode, 'kern_i' must be 'convolution_kernel' (the ",
+        "joint framework cannot mix kernel types).",
+        call. = FALSE
+      )
+    }
+    kern_k <- convolution_kernel
+    kern_i <- convolution_kernel
+  } else {
+    if (is.null(kern_k)) kern_k <- "SE"
+    if (is.null(kern_i)) kern_i <- "SE"
   }
 
+  ## Remove possible missing data
+  data_legacy <- data_legacy %>% tidyr::drop_na()
+  ## Compute the number of different individuals/tasks
+  nb_i <- data_legacy$ID %>% dplyr::n_distinct()
+  list_ID <- data_legacy$ID %>% unique()
+
+  ## Draw a common, data-driven (preconditioned) initialisation of
+  ## hyper-parameters, shared across all values of K, rather than a purely
+  ## random draw (see 'precondition_tasks').
+  precond_i <- NULL
   if (ini_hp_i %>% is.null()) {
-    hp_i <- hp(
-      kern = kern_i,
-      list_task_ID = unique(data$ID),
-      shared_hp_tasks = T,
-      noise = T
-    ) %>%
-      dplyr::rename(ID = "Task_ID") %>%
-      dplyr::mutate(ID = as.character(.data$ID))
+    precond_i <- precondition_hp(data_legacy, kern_i, precondition_tasks, noise = TRUE)
+    hp_i <- broadcast_hp_i(precond_i, list_ID)
   } else {
     hp_i <- ini_hp_i
+  }
+
+  if (ini_hp_k %>% is.null()) {
+    if (identical(kern_k, kern_i)) {
+      if (is.null(precond_i)) {
+        precond_i <- precondition_hp(data_legacy, kern_i, precondition_tasks, noise = TRUE)
+      }
+      ini_hp_k <- precond_i %>% dplyr::select(-dplyr::any_of("noise"))
+    } else {
+      ini_hp_k <- draw_ini_hp(kern_k, data_legacy, noise = FALSE)
+    }
   }
 
   ## Initialise tracking of V-BIC values
@@ -2318,6 +2357,9 @@ select_nb_cluster <- function(
           data = data,
           ini_hp_0 = hp_k,
           ini_hp_i = hp_i,
+          kern_0 = kern_k,
+          kern_i = kern_i,
+          multi_output = mo,
           fast_approx = fast_approx,
           ...
         )
@@ -2331,6 +2373,9 @@ select_nb_cluster <- function(
           nb_cluster = k,
           ini_hp_k = hp_k,
           ini_hp_i = hp_i,
+          kern_k = kern_k,
+          kern_i = kern_i,
+          multi_output = mo,
           fast_approx = fast_approx,
           ...
         )

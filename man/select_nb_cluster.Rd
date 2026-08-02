@@ -10,8 +10,10 @@ select_nb_cluster(
   grid_nb_cluster = 1:10,
   ini_hp_k = NULL,
   ini_hp_i = NULL,
-  kern_k = "SE",
-  kern_i = "SE",
+  kern_k = NULL,
+  kern_i = NULL,
+  multi_output = NULL,
+  precondition_tasks = 1,
   plot = TRUE,
   ...
 )

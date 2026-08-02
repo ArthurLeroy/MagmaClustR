@@ -11,7 +11,8 @@ pred_gif(
   hyperpost = NULL,
   mean = NULL,
   hp = NULL,
-  kern = "SE",
+  kern = NULL,
+  multi_output = NULL,
   pen_diag = 1e-10
 )
 }
