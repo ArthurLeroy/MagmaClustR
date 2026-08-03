@@ -17,14 +17,18 @@
 #'    with no constraints on the column names. These covariates are additional
 #'    inputs (explanatory variables) of the models that are also observed at
 #'    each reference 'Input'. If NULL, the prior GP is returned.
-#' @param grid_inputs The grid of inputs (reference Input and covariates) values
-#'    on which the GP should be evaluated. Ideally, this argument should be a
-#'    tibble or a data frame, providing the same columns as \code{data}, except
-#'    'Output'. Nonetheless, in cases where \code{data} provides only one
-#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-#'    vector. This vector would be used as reference input for prediction and if
-#'    NULL, a vector of length 500 is defined, ranging between the min and max
-#'    Input values of \code{data}.
+#' @param grid_inputs The grid of inputs on which the GP is evaluated. Several
+#'    formats are accepted:
+#'    - NULL (default): a regular grid is generated automatically, spanning the
+#'      observed range of each input dimension (and, in multi-output mode,
+#'      replicated across every observed output).
+#'    - a numeric vector: used as the grid of 'Input' values. Only valid when
+#'      \code{data} has a single input dimension.
+#'    - a data frame: providing an 'Input' column (plus an 'Input_ID' column for
+#'      several input dimensions, and an 'Output_ID' column to target specific
+#'      outputs). Any other column is ignored. In multi-output mode, when no
+#'      'Output_ID' column is supplied the grid is replicated across every
+#'      observed output.
 #' @param mean Mean parameter of the GP. This argument can be specified under
 #'    various formats, such as:
 #'    - NULL (default). The mean would be set to 0 everywhere.
@@ -183,102 +187,10 @@ pred_gp <- function(
   input_obs <- inputs_obs %>%
     dplyr::pull(.data$Reference)
 
-  ## Define the target inputs to predict
-  if (grid_inputs %>% is.null()) {
-    set_grid <- function(x, size_grid) seq(min(x), max(x), length.out = size_grid)
-    has_output_id <- "Output_ID" %in% names(inputs_obs)
-    coord_cols <- setdiff(names_col, "Output_ID")
-    if (length(coord_cols) == 1) {
-      size_grid <- 500
-    } else if (length(coord_cols) > 1) {
-      size_grid <- round(1000^(1 / length(coord_cols)))
-    } else {
-      stop("The 'grid_inputs' argument should be a either a numerical vector ",
-           "or a data frame depending on the context. Please read ?pred_gp().")
-    }
-    coord_seqs <- stats::setNames(
-      lapply(coord_cols, function(cc) set_grid(data[[cc]], size_grid)), coord_cols)
-    coord_grid <- expand.grid(coord_seqs) %>% tibble::as_tibble() %>%
-      dplyr::mutate(dplyr::across(tidyselect::everything(), signif))
-    if (has_output_id) {
-      inputs_pred <- tidyr::crossing(
-        Output_ID = unique(inputs_obs$Output_ID), coord_grid)
-    } else {
-      inputs_pred <- coord_grid
-    }
-    inputs_pred <- inputs_pred %>%
-      tidyr::unite("Reference", tidyselect::all_of(names_col), sep = ":",
-                   remove = FALSE) %>%
-      dplyr::arrange(.data$Reference)
-    input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
-  } else if (grid_inputs %>% is.vector()) {
-    ## Test whether 'data' only provide the Input column and no covariates
-    if (inputs_obs %>% names() %>% length() == 3) {
-      input_temp <- grid_inputs %>%
-        signif() %>%
-        sort() %>%
-        unique()
-
-      inputs_pred <- tibble::tibble("Input_1" = rep(input_temp,
-                                                    times = nrow(unique_outputs)),
-                                    "Output_ID" = rep(unique_outputs %>%
-                                                        purrr::as_vector(),
-                                                      each = length(input_temp))) %>%
-        dplyr::rowwise() %>%
-        dplyr::mutate(
-          Reference = paste(
-            paste0("o", Output_ID),
-            paste(c_across(starts_with("Input_")), collapse = ":"),
-            sep = ";"
-          )
-        ) %>%
-        dplyr::ungroup() %>%
-        dplyr::arrange(Reference)
-
-      input_pred <- inputs_pred %>% dplyr::pull(Reference)
-
-    } else {
-      stop(
-        "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_gp()."
-      )
-    }
-  } else if (grid_inputs %>% is.data.frame()) {
-    grid_inputs <- grid_inputs %>%
-      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif))
-
-    if (!("Reference" %in% (grid_inputs %>% names()))) {
-      grid_inputs <- grid_inputs %>%
-        tidyr::unite(
-          "Reference",
-          grid_inputs %>% names(),
-          sep = ":",
-          remove = FALSE
-        ) %>%
-        dplyr::arrange(.data$Reference)
-    }
-
-    ## Test whether 'data' has the same columns as grid_inputs
-    if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
-      input_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::pull(.data$Reference)
-
-      inputs_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::select(names(inputs_obs))
-    } else {
-      stop(
-        "The 'grid_inputs' argument should provide a column 'Input', and ",
-        "the same additional covariate columns as contained in 'data'."
-      )
-    }
-  } else {
-    stop(
-      "The 'grid_inputs' argument should be a either a numerical vector ",
-      "or a data frame depending on the context. Please read ?pred_gp()."
-    )
-  }
+  ## Define the target inputs to predict (single/multi-output, single/multi-
+  ## input) from the user-facing 'grid_inputs' argument.
+  inputs_pred <- .build_grid_inputs(grid_inputs, data, names_col, "pred_gp")
+  input_pred <- inputs_pred$Reference
 
   ## Define of extract the mean values under an adequate format
   if (mean %>% is.null()) {
@@ -298,7 +210,7 @@ pred_gp <- function(
       # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
       # This assumes the prior_mean vector is provided in the sorted order of
       # Output_IDs.
-      mean_map <- setNames(mean, unique_outputs_sorted)
+      mean_map <- stats::setNames(mean, unique_outputs_sorted)
       # Extract the prefix ("o1", "o2", etc.) from each element in all_input
       input_obs_prefixes <- stringr::str_extract(input_obs, "-?[0-9.]+$")
       input_pred_prefixes <- stringr::str_extract(input_pred, "-?[0-9.]+$")
@@ -315,7 +227,7 @@ pred_gp <- function(
       stop(
         "The 'mean' argument is of length ", length(mean),
         ", whereas the grid of training inputs is of length ",
-        length(all_input)
+        length(input_obs)
       )
     }
 
@@ -527,7 +439,11 @@ pred_gp <- function(
 #'     argument.
 #' @param grid_inputs A vector or a data frame, indicating the grid of
 #'    additional reference inputs on which the mean process' hyper-posterior
-#'    should be evaluated.
+#'    should be evaluated. A numeric vector is used as the grid of 'Input'
+#'    values (single input dimension); a data frame may provide 'Input',
+#'    'Input_ID' (several input dimensions) and 'Output_ID' (multi-output)
+#'    columns. In multi-output mode, the grid is replicated across every
+#'    observed output when no 'Output_ID' column is supplied.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
@@ -642,26 +558,20 @@ hyperposterior <- function(
       "will only be evaluated on observed Input from 'data'.\n \n"
     )
   } else {
-    ## If 'grid_input' is a vector, convert to the correct format
-    if (grid_inputs %>% is.vector()) {
-      grid_inputs <- tibble::tibble('Input' = grid_inputs)
+    ## Build the prediction grid from the user-facing 'grid_inputs' and take
+    ## the union with the observed reference inputs.
+    grid_ref <- .build_grid_inputs(grid_inputs, data, names_col, "hyperposterior")
+
+    obs_ref <- data %>%
+      dplyr::select("Reference", tidyselect::all_of(names_col))
+    if ("Output_ID" %in% names(obs_ref)) {
+      obs_ref <- obs_ref %>%
+        dplyr::mutate(Output_ID = as.character(.data$Output_ID))
     }
 
-    ## Define the union among all reference Inputs and a specified grid
-    grid_inputs <- grid_inputs %>%
-      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
-      tidyr::unite(
-        "Reference",
-        tidyselect::all_of(names_col),
-        sep = ":",
-        remove = FALSE
-      ) %>%
-      dplyr::arrange(.data$Reference)
-
-    all_inputs <- data %>%
-      dplyr::select("Reference", tidyselect::all_of(names_col)) %>%
-      dplyr::union(grid_inputs) %>%
-      unique() %>%
+    all_inputs <- obs_ref %>%
+      dplyr::union(grid_ref) %>%
+      dplyr::distinct() %>%
       dplyr::arrange(.data$Reference)
 
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
@@ -699,7 +609,7 @@ hyperposterior <- function(
       # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
       # This assumes the prior_mean vector is provided in the sorted order of
       # Output_IDs.
-      prior_mean_map <- setNames(prior_mean, unique_outputs_sorted)
+      prior_mean_map <- stats::setNames(prior_mean, unique_outputs_sorted)
       # Extract the prefix ("o1", "o2", etc.) from each element in all_input
       all_input_prefixes <- stringr::str_extract(all_input, "-?[0-9.]+$")
       # Build m_0 using the lookup table; it will automatically repeat the correct
@@ -837,14 +747,18 @@ hyperposterior <- function(
 #' @param trained_model A list, containing  the information coming from a
 #'    Magma model, previously trained using the \code{\link{train_magma}}
 #'    function.
-#' @param grid_inputs The grid of inputs (reference Input and covariates) values
-#'    on which the GP should be evaluated. Ideally, this argument should be a
-#'    tibble or a data frame, providing the same columns as \code{data}, except
-#'    'Output'. Nonetheless, in cases where \code{data} provides only one
-#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-#'    vector. This vector would be used as reference input for prediction and if
-#'    NULL, a vector of length 500 is defined, ranging between the min and max
-#'    Input values of \code{data}.
+#' @param grid_inputs The grid of inputs on which the GP is evaluated. Several
+#'    formats are accepted:
+#'    - NULL (default): a regular grid is generated automatically, spanning the
+#'      observed range of each input dimension (and, in multi-output mode,
+#'      replicated across every observed output).
+#'    - a numeric vector: used as the grid of 'Input' values. Only valid when
+#'      \code{data} has a single input dimension.
+#'    - a data frame: providing an 'Input' column (plus an 'Input_ID' column for
+#'      several input dimensions, and an 'Output_ID' column to target specific
+#'      outputs). Any other column is ignored. In multi-output mode, when no
+#'      'Output_ID' column is supplied the grid is replicated across every
+#'      observed output.
 #' @param hp A named vector, tibble or data frame of hyper-parameters
 #'    associated with \code{kern}. The columns/elements should be named
 #'    according to the hyper-parameters that are used in \code{kern}. The
@@ -1040,115 +954,22 @@ pred_magma <- function(
   input_obs <- data %>%
     dplyr::pull(.data$Reference)
 
-  ## Extract the observed inputs (reference Input + covariates)
+  ## Extract the observed inputs (reference Input + covariates). Coerce
+  ## 'Output_ID' to character (multi-output) so the set operations below are
+  ## not disrupted by factor/character type mismatches.
   inputs_obs <- data %>%
     dplyr::select(-"Output")
-browser()
-  ## Define the target inputs to predict
-  if (grid_inputs %>% is.null()) {
-    set_grid <- function(x, size_grid) {
-      seq(min(x), max(x), length.out = size_grid)
-    }
-
-    ## Build the grid on the numeric input columns only. In the multi-output
-    ## case 'Output_ID' is an identifier, not a coordinate: the grid is built
-    ## on the remaining inputs and replicated across every observed output.
-    has_output_id <- "Output_ID" %in% names(inputs_obs)
-    coord_cols <- setdiff(names_col, "Output_ID")
-
-    if (length(coord_cols) == 1) {
-      size_grid <- 500
-    } else if (length(coord_cols) > 1) {
-      size_grid <- round(1000^(1 / length(coord_cols)))
-    } else {
-      stop(
-        "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_magma()."
-      )
-    }
-
-    coord_seqs <- stats::setNames(
-      lapply(coord_cols, function(cc) set_grid(data[[cc]], size_grid)),
-      coord_cols
-    )
-    coord_grid <- expand.grid(coord_seqs) %>%
-      tibble::as_tibble() %>%
-      dplyr::mutate(dplyr::across(tidyselect::everything(), signif))
-
-    if (has_output_id) {
-      inputs_pred <- tidyr::crossing(
-        Output_ID = unique(inputs_obs$Output_ID),
-        coord_grid
-      )
-    } else {
-      inputs_pred <- coord_grid
-    }
-
-    inputs_pred <- inputs_pred %>%
-      tidyr::unite(
-        "Reference",
-        tidyselect::all_of(names_col),
-        sep = ":",
-        remove = FALSE
-      ) %>%
-      dplyr::arrange(.data$Reference)
-
-    input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
-  } else if (grid_inputs %>% is.vector()) {
-    ## Test whether 'data' only provide the Input column and no covariates
-    if (inputs_obs %>% names() %>% length() == 2) {
-      input_temp <- grid_inputs %>%
-        signif() %>%
-        sort() %>%
-        unique()
-      inputs_pred <- tibble::tibble(
-        "Input" = input_temp,
-        "Reference" = input_temp %>% as.character()
-      ) %>%
-        dplyr::arrange(.data$Reference)
-
-      input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
-    } else {
-      stop(
-        "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_magma()."
-      )
-    }
-  } else if (grid_inputs %>% is.data.frame()) {
-    grid_inputs <- grid_inputs %>%
-      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif))
-    if (!("Reference" %in% (grid_inputs %>% names()))) {
-      grid_inputs <- grid_inputs %>%
-        tidyr::unite(
-          "Reference",
-          grid_inputs %>% names(),
-          sep = ":",
-          remove = FALSE
-        ) %>%
-        dplyr::arrange(.data$Reference)
-    }
-
-    ## Test whether 'data' has the same columns as grid_inputs
-    if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
-      input_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::pull(.data$Reference)
-
-      inputs_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::select(names(inputs_obs))
-    } else {
-      stop(
-        "The 'grid_inputs' argument should provide a column 'Input', and ",
-        "the same additional covariate columns as contained in 'data'."
-      )
-    }
-  } else {
-    stop(
-      "The 'grid_inputs' argument should be a either a numerical vector ",
-      "or a data frame depending on the context. Please read ?pred_gp()."
-    )
+  if ("Output_ID" %in% names(inputs_obs)) {
+    inputs_obs <- inputs_obs %>%
+      dplyr::mutate(Output_ID = as.character(.data$Output_ID))
   }
+
+  ## Define the target inputs to predict (single/multi-output, single/multi-
+  ## input) from the user-facing 'grid_inputs' argument.
+  inputs_pred <- .build_grid_inputs(grid_inputs, data, names_col, "pred_magma") %>%
+    dplyr::select(dplyr::all_of(names(inputs_obs)))
+  input_pred <- inputs_pred$Reference
+
   ## Define the union of all distinct reference Input
   all_inputs <- dplyr::union(inputs_obs, inputs_pred) %>%
     dplyr::arrange(.data$Reference)
@@ -1448,14 +1269,18 @@ browser()
 #' @param trained_model A list, containing  the information coming from a
 #'    Magma model, previously trained using the \code{\link{train_magma}}
 #'    function.
-#' @param grid_inputs The grid of inputs (reference Input and covariates) values
-#'    on which the GP should be evaluated. Ideally, this argument should be a
-#'    tibble or a data frame, providing the same columns as \code{data}, except
-#'    'Output'. Nonetheless, in cases where \code{data} provides only one
-#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-#'    vector. This vector would be used as reference input for prediction and if
-#'    NULL, a vector of length 500 is defined, ranging between the min and max
-#'    Input values of \code{data}.
+#' @param grid_inputs The grid of inputs on which the GP is evaluated. Several
+#'    formats are accepted:
+#'    - NULL (default): a regular grid is generated automatically, spanning the
+#'      observed range of each input dimension (and, in multi-output mode,
+#'      replicated across every observed output).
+#'    - a numeric vector: used as the grid of 'Input' values. Only valid when
+#'      \code{data} has a single input dimension.
+#'    - a data frame: providing an 'Input' column (plus an 'Input_ID' column for
+#'      several input dimensions, and an 'Output_ID' column to target specific
+#'      outputs). Any other column is ignored. In multi-output mode, when no
+#'      'Output_ID' column is supplied the grid is replicated across every
+#'      observed output.
 #' @param mean Mean parameter of the GP. This argument can be specified under
 #'    various formats, such as:
 #'    - NULL (default). The mean would be set to 0 everywhere.
@@ -1485,6 +1310,11 @@ browser()
 #'    elements are treated sequentially from the left to the right, the product
 #'    operator '*' shall always be used before the '+' operators (e.g.
 #'    'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
 #' @param hyperpost A list, containing the elements 'mean' and 'cov', the
 #'    parameters of the hyper-posterior distribution of the mean process.
 #'    Typically, this argument should from a previous learning using
@@ -1691,7 +1521,11 @@ pred_gif <- function(
 #'    Recovered from \code{trained_model} if not provided.
 #' @param grid_inputs A vector or a data frame, indicating the grid of
 #'    additional reference inputs on which the mean process' hyper-posterior
-#'    should be evaluated.
+#'    should be evaluated. A numeric vector is used as the grid of 'Input'
+#'    values (single input dimension); a data frame may provide 'Input',
+#'    'Input_ID' (several input dimensions) and 'Output_ID' (multi-output)
+#'    columns. In multi-output mode, the grid is replicated across every
+#'    observed output when no 'Output_ID' column is supplied.
 #' @param pen_diag A number. A jitter term, added on the diagonal to prevent
 #'    numerical issues when inverting nearly singular matrices.
 #'
@@ -1827,30 +1661,17 @@ hyperposterior_clust <- function(
       "will only be evaluated on observed Input from 'data'.\n \n"
     )
   } else {
-    ## If 'grid_input' is a vector, convert to the correct format
-    if (grid_inputs %>% is.vector()) {
-      grid_inputs <- tibble::tibble('Input' = grid_inputs)
-    }
+    ## Build the prediction grid from the user-facing 'grid_inputs' and take
+    ## the union with the observed reference inputs.
+    grid_ref <- .build_grid_inputs(
+      grid_inputs, data, names_col, "hyperposterior_clust"
+    )
 
-    ## Define the union among all reference Inputs and a specified grid
-    grid_inputs <- grid_inputs %>%
-      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
-      tidyr::unite(
-        "Reference",
-        tidyselect::all_of(names_col),
-        sep = ":",
-        remove = FALSE
-      ) %>%
-      dplyr::arrange(.data$Reference)
-
-    if (is.data.frame(grid_inputs) && "Output_ID" %in% names(grid_inputs)) {
-      grid_inputs$Output_ID <- as.character(grid_inputs$Output_ID)
-    }
     all_inputs <- data %>%
       dplyr::select("Reference", tidyselect::all_of(names_col)) %>%
-      dplyr::union(grid_inputs) %>%
-      dplyr::arrange(.data$Reference) %>%
-      unique()
+      dplyr::union(grid_ref) %>%
+      dplyr::distinct() %>%
+      dplyr::arrange(.data$Reference)
 
     all_input <- all_inputs %>% dplyr::pull(.data$Reference)
   }
@@ -1969,14 +1790,18 @@ hyperposterior_clust <- function(
 #'    \code{\link{train_magmaclust}} function. If \code{trained_model} is set to
 #'    NULL, the \code{hyperpost} and \code{prop_mixture} arguments are mandatory
 #'    to perform required re-computations for the prediction to succeed.
-#' @param grid_inputs The grid of inputs (reference Input and covariates) values
-#'    on which the GP should be evaluated. Ideally, this argument should be a
-#'    tibble or a data frame, providing the same columns as \code{data}, except
-#'    'Output'. Nonetheless, in cases where \code{data} provides only one
-#'    'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-#'    vector. This vector would be used as reference input for prediction and if
-#'    NULL, a vector of length 500 is defined, ranging between the min and max
-#'    Input values of \code{data}.
+#' @param grid_inputs The grid of inputs on which the GP is evaluated. Several
+#'    formats are accepted:
+#'    - NULL (default): a regular grid is generated automatically, spanning the
+#'      observed range of each input dimension (and, in multi-output mode,
+#'      replicated across every observed output).
+#'    - a numeric vector: used as the grid of 'Input' values. Only valid when
+#'      \code{data} has a single input dimension.
+#'    - a data frame: providing an 'Input' column (plus an 'Input_ID' column for
+#'      several input dimensions, and an 'Output_ID' column to target specific
+#'      outputs). Any other column is ignored. In multi-output mode, when no
+#'      'Output_ID' column is supplied the grid is replicated across every
+#'      observed output.
 #' @param mixture A tibble or data frame, indicating the mixture probabilities
 #'     of each cluster for the new individual/task.
 #'     If NULL, the \code{\link{train_gp_clust}} function is used to compute
@@ -2276,102 +2101,24 @@ pred_magmaclust <- function(
   input_obs <- data %>%
     dplyr::pull(.data$Reference)
 
-  ## Extract the observed inputs (reference Input + covariates)
+  ## Extract the observed inputs (reference Input + covariates). Coerce
+  ## 'Output_ID' to character (multi-output) so the set operations below are
+  ## not disrupted by factor/character type mismatches.
   inputs_obs <- data %>%
     dplyr::select(-c("ID", "Output"))
-
-  ## Define the target inputs to predict
-  if (grid_inputs %>% is.null()) {
-    set_grid <- function(x, size_grid) {
-      seq(min(x), max(x), length.out = size_grid)
-    }
-    has_output_id <- "Output_ID" %in% names(inputs_obs)
-    coord_cols <- setdiff(names_col, "Output_ID")
-    if (length(coord_cols) == 1) {
-      size_grid <- 500
-    } else if (length(coord_cols) > 1) {
-      size_grid <- round(1000^(1 / length(coord_cols)))
-    } else {
-      stop("The 'grid_inputs' argument should be a either a numerical vector ",
-           "or a data frame depending on the context. Please read ",
-           "?pred_magmaclust().")
-    }
-    coord_seqs <- stats::setNames(
-      lapply(coord_cols, function(cc) set_grid(data[[cc]], size_grid)),
-      coord_cols)
-    coord_grid <- expand.grid(coord_seqs) %>% tibble::as_tibble() %>%
-      dplyr::mutate(dplyr::across(tidyselect::everything(), signif))
-    if (has_output_id) {
-      inputs_pred <- tidyr::crossing(
-        Output_ID = unique(inputs_obs$Output_ID), coord_grid)
-    } else {
-      inputs_pred <- coord_grid
-    }
-    inputs_pred <- inputs_pred %>%
-      tidyr::unite("Reference", tidyselect::all_of(names_col), sep = ":",
-                   remove = FALSE) %>%
-      dplyr::arrange(.data$Reference)
-    input_pred <- inputs_pred %>% dplyr::pull(.data$Reference)
-  } else if (grid_inputs %>% is.vector()) {
-    ## Test whether 'data' only provide the Input column and no covariates
-    if (ncol(inputs_obs) == 2) {
-      input_temp <- grid_inputs %>%
-        signif() %>%
-        sort() %>%
-        unique()
-      inputs_pred <- tibble::tibble(
-        "Input" = input_temp,
-        "Reference" = input_temp %>%
-          as.character()
-      ) %>%
-        dplyr::arrange(.data$Reference)
-
-      input_pred <- inputs_pred$Reference
-    } else {
-      stop(
-        "The 'grid_inputs' argument should be a either a numerical vector ",
-        "or a data frame depending on the context. Please read ?pred_magma()."
-      )
-    }
-  } else if (grid_inputs %>% is.data.frame()) {
-    if ("Reference" %in% names(grid_inputs)) {
-      names_grid <- grid_inputs %>%
-        dplyr::select(-dplyr::any_of("Reference")) %>%
-        names()
-    } else {
-      names_grid <- names(grid_inputs)
-    }
-    grid_inputs <- grid_inputs %>%
-      dplyr::mutate(dplyr::across(tidyselect::all_of(names_col) & tidyselect::where(is.numeric), signif)) %>%
-      tidyr::unite(
-        "Reference",
-        tidyselect::all_of(names_grid),
-        sep = ":",
-        remove = FALSE
-      ) %>%
-      dplyr::arrange(.data$Reference)
-
-    ## Test whether 'data' has the same columns as grid_inputs
-    if (names(inputs_obs) %>% setequal(names(grid_inputs))) {
-      input_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::pull(.data$Reference)
-
-      inputs_pred <- grid_inputs %>%
-        dplyr::arrange(.data$Reference) %>%
-        dplyr::select(names(inputs_obs))
-    } else {
-      stop(
-        "The 'grid_inputs' argument should provide a column 'Input', and ",
-        "the same additional covariate columns as contained in 'data'."
-      )
-    }
-  } else {
-    stop(
-      "The 'grid_inputs' argument should be a either a numerical vector ",
-      "or a data frame depending on the context. Please read ?pred_gp()."
-    )
+  if ("Output_ID" %in% names(inputs_obs)) {
+    inputs_obs <- inputs_obs %>%
+      dplyr::mutate(Output_ID = as.character(.data$Output_ID))
   }
+
+  ## Define the target inputs to predict (single/multi-output, single/multi-
+  ## input) from the user-facing 'grid_inputs' argument.
+  inputs_pred <- .build_grid_inputs(
+    grid_inputs, data, names_col, "pred_magmaclust"
+  ) %>%
+    dplyr::select(dplyr::all_of(names(inputs_obs)))
+  input_pred <- inputs_pred$Reference
+
   ## Define the union of all distinct reference Input
   all_inputs <- dplyr::union(inputs_obs, inputs_pred) %>%
     dplyr::arrange(.data$Reference)

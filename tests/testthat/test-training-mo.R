@@ -42,6 +42,71 @@ test_that("train_magma + pred_magma run end-to-end with string output labels", {
   expect_true(all(is.finite(pred$Mean)))
 })
 
+test_that("pred_gp handles multi-output with a numeric vector grid_inputs", {
+  ## Regression test: the MO vector-grid branch of pred_gp used to reference
+  ## an undefined 'unique_outputs' and build a malformed prediction grid.
+  .vec_grid <- seq(-1, 1, 0.5)
+  invisible(utils::capture.output(suppressWarnings(
+    pred <- pred_gp(.d1, grid_inputs = .vec_grid, hp = .hp0,
+                    kern = convolution_kernel, plot = FALSE)
+  )))
+  expect_setequal(sort(unique(pred$Output_ID)), .outs)
+  expect_true(all(c("Output_ID", "Input", "Mean", "Var") %in% names(pred)))
+  expect_equal(nrow(pred), length(.outs) * length(.vec_grid))
+  expect_true(all(is.finite(pred$Mean)))
+  expect_true(all(pred$Var >= 0))
+})
+
+test_that("pred_magma resolves grid_inputs in multi-output mode", {
+  invisible(utils::capture.output(suppressWarnings(
+    model <- train_magma(.mo_data, kern_0 = convolution_kernel,
+      kern_i = convolution_kernel, ini_hp_0 = .hp0, ini_hp_i = .hpi,
+      shared_hp = TRUE, n_iter_max = 2)
+  )))
+  .vec <- seq(-1, 1, 0.5)
+
+  ## (a) numeric vector: replicated across all observed outputs
+  invisible(utils::capture.output(suppressWarnings(
+    p_vec <- pred_magma(.d1, trained_model = model, grid_inputs = .vec,
+                        plot = FALSE)
+  )))
+  expect_setequal(sort(unique(p_vec$Output_ID)), .outs)
+  expect_equal(nrow(p_vec), length(.outs) * length(.vec))
+  expect_true(all(is.finite(p_vec$Mean)) && all(p_vec$Var >= 0))
+
+  ## (b) data frame without Output_ID: also replicated across observed outputs
+  invisible(utils::capture.output(suppressWarnings(
+    p_df <- pred_magma(.d1, trained_model = model,
+                       grid_inputs = tibble::tibble(Input = .vec), plot = FALSE)
+  )))
+  expect_setequal(sort(unique(p_df$Output_ID)), .outs)
+  expect_equal(nrow(p_df), length(.outs) * length(.vec))
+
+  ## (c) data frame with an explicit Output_ID: only that output is predicted
+  invisible(utils::capture.output(suppressWarnings(
+    p_one <- pred_magma(.d1, trained_model = model,
+      grid_inputs = tibble::tibble(Input = .vec, Output_ID = "A"), plot = FALSE)
+  )))
+  expect_setequal(unique(p_one$Output_ID), "A")
+  expect_equal(nrow(p_one), length(.vec))
+})
+
+test_that("pred_magmaclust resolves a numeric vector grid_inputs in MO mode", {
+  invisible(utils::capture.output(suppressWarnings(
+    mc <- train_magmaclust(.mo_data, nb_cluster = 2, kern_k = convolution_kernel,
+      kern_i = convolution_kernel, ini_hp_k = .hpk, ini_hp_i = .hpi,
+      shared_hp_k = TRUE, shared_hp_i = TRUE, n_iter_max = 2)
+  )))
+  .vec <- seq(-1, 1, 0.5)
+  invisible(utils::capture.output(suppressWarnings(
+    pred <- pred_magmaclust(.d1, trained_model = mc, grid_inputs = .vec,
+                            plot = FALSE)
+  )))
+  expect_setequal(sort(unique(pred$mixture_pred$Output_ID)), .outs)
+  expect_equal(nrow(pred$mixture_pred), length(.outs) * length(.vec))
+  expect_true(all(pred$mixture_pred$Var >= 0))
+})
+
 test_that("train_magmaclust + pred_magmaclust run end-to-end with string output labels", {
   invisible(utils::capture.output(suppressWarnings(
     mc <- train_magmaclust(.mo_data, nb_cluster = 2, kern_k = convolution_kernel,

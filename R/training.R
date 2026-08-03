@@ -735,7 +735,7 @@ train_magma <- function(
       # Create a lookup table: "o1" -> prior_mean[1], "o2" -> prior_mean[2], etc.
       # This assumes the prior_mean vector is provided in the sorted order of
       # Output_IDs.
-      prior_mean_map <- setNames(prior_mean, unique_outputs_sorted)
+      prior_mean_map <- stats::setNames(prior_mean, unique_outputs_sorted)
       # Extract the prefix ("o1", "o2", etc.) from each element in all_input
       all_input_prefixes <- stringr::str_extract(all_input, "-?[0-9.]+$")
       # Build m_0 using the lookup table; it will automatically repeat the correct
@@ -2254,6 +2254,15 @@ train_gp_clust <- function(
 #'    custom hyper-parameters with the correct format.db
 #' @param kern_k A kernel function associated to the mean processes.
 #' @param kern_i A kernel function associated to the individuals/tasks.
+#' @param multi_output A logical value or NULL (default). If NULL, single-
+#'    output (SO) vs multi-output (MO) mode is auto-detected from the
+#'    provided kernel(s) and the cardinality of the 'Output_ID' column of
+#'    'data' (if any). If explicitly provided, it must agree with the
+#'    detected mode, otherwise an error is raised.
+#' @param precondition_tasks A number in (0, 1], the fraction of tasks used
+#'    to precondition the individual/mean processes' hyper-parameters (an EM
+#'    'iteration 0'), instead of drawing them purely at random. Default 1
+#'    (all tasks).
 #' @param plot A boolean indicating whether the plot of V-BIC values for all
 #'    numbers of clusters should displayed.
 #' @param ... Any additional argument that could be passed to

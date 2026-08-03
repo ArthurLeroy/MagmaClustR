@@ -31,14 +31,20 @@ each reference 'Input'.}
 Magma model, previously trained using the \code{\link{train_magma}}
 function.}
 
-\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
-on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as \code{data}, except
-'Output'. Nonetheless, in cases where \code{data} provides only one
-'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-vector. This vector would be used as reference input for prediction and if
-NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{data}.}
+\item{grid_inputs}{The grid of inputs on which the GP is evaluated. Several
+formats are accepted:
+\itemize{
+\item NULL (default): a regular grid is generated automatically, spanning the
+observed range of each input dimension (and, in multi-output mode,
+replicated across every observed output).
+\item a numeric vector: used as the grid of 'Input' values. Only valid when
+\code{data} has a single input dimension.
+\item a data frame: providing an 'Input' column (plus an 'Input_ID' column for
+several input dimensions, and an 'Output_ID' column to target specific
+outputs). Any other column is ignored. In multi-output mode, when no
+'Output_ID' column is supplied the grid is replicated across every
+observed output.
+}}
 
 \item{hyperpost}{A list, containing the elements 'mean' and 'cov', the
 parameters of the hyper-posterior distribution of the mean process.
@@ -86,6 +92,12 @@ elements are treated sequentially from the left to the right, the product
 operator '*' shall always be used before the '+' operators (e.g.
 'SE * LIN + RQ' is valid whereas 'RQ + SE * LIN' is  not).
 }}
+
+\item{multi_output}{A logical value or NULL (default). If NULL, single-
+output (SO) vs multi-output (MO) mode is auto-detected from the
+provided kernel(s) and the cardinality of the 'Output_ID' column of
+'data' (if any). If explicitly provided, it must agree with the
+detected mode, otherwise an error is raised.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}

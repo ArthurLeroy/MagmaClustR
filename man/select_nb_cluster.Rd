@@ -55,6 +55,17 @@ custom hyper-parameters with the correct format.db}
 
 \item{kern_i}{A kernel function associated to the individuals/tasks.}
 
+\item{multi_output}{A logical value or NULL (default). If NULL, single-
+output (SO) vs multi-output (MO) mode is auto-detected from the
+provided kernel(s) and the cardinality of the 'Output_ID' column of
+'data' (if any). If explicitly provided, it must agree with the
+detected mode, otherwise an error is raised.}
+
+\item{precondition_tasks}{A number in (0, 1], the fraction of tasks used
+to precondition the individual/mean processes' hyper-parameters (an EM
+'iteration 0'), instead of drawing them purely at random. Default 1
+(all tasks).}
+
 \item{plot}{A boolean indicating whether the plot of V-BIC values for all
 numbers of clusters should displayed.}
 

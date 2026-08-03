@@ -38,14 +38,20 @@ MagmaClust model, previously trained using the
 NULL, the \code{hyperpost} and \code{prop_mixture} arguments are mandatory
 to perform required re-computations for the prediction to succeed.}
 
-\item{grid_inputs}{The grid of inputs (reference Input and covariates) values
-on which the GP should be evaluated. Ideally, this argument should be a
-tibble or a data frame, providing the same columns as \code{data}, except
-'Output'. Nonetheless, in cases where \code{data} provides only one
-'Input' column, the \code{grid_inputs} argument can be NULL (default) or a
-vector. This vector would be used as reference input for prediction and if
-NULL, a vector of length 500 is defined, ranging between the min and max
-Input values of \code{data}.}
+\item{grid_inputs}{The grid of inputs on which the GP is evaluated. Several
+formats are accepted:
+\itemize{
+\item NULL (default): a regular grid is generated automatically, spanning the
+observed range of each input dimension (and, in multi-output mode,
+replicated across every observed output).
+\item a numeric vector: used as the grid of 'Input' values. Only valid when
+\code{data} has a single input dimension.
+\item a data frame: providing an 'Input' column (plus an 'Input_ID' column for
+several input dimensions, and an 'Output_ID' column to target specific
+outputs). Any other column is ignored. In multi-output mode, when no
+'Output_ID' column is supplied the grid is replicated across every
+observed output.
+}}
 
 \item{mixture}{A tibble or data frame, indicating the mixture probabilities
 of each cluster for the new individual/task.

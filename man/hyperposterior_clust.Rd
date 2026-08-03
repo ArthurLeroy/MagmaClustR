@@ -80,7 +80,11 @@ Recovered from \code{trained_model} if not provided.}
 
 \item{grid_inputs}{A vector or a data frame, indicating the grid of
 additional reference inputs on which the mean process' hyper-posterior
-should be evaluated.}
+should be evaluated. A numeric vector is used as the grid of 'Input'
+values (single input dimension); a data frame may provide 'Input',
+'Input_ID' (several input dimensions) and 'Output_ID' (multi-output)
+columns. In multi-output mode, the grid is replicated across every
+observed output when no 'Output_ID' column is supplied.}
 
 \item{pen_diag}{A number. A jitter term, added on the diagonal to prevent
 numerical issues when inverting nearly singular matrices.}
